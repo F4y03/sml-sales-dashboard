@@ -71,15 +71,6 @@ function openProductInvoices(product) {
   $('product-invoices').showModal();
 }
 $('close-product-invoices').addEventListener('click', () => $('product-invoices').close());
-function renderOtherProducts(id, products) {
-  const body = $(id); body.replaceChildren();
-  products.forEach(p => {
-    const row = document.createElement('tr');
-    cell(row, p.name || p.code); cell(row, p.code);
-    cell(row, `${number.format(p.quantity)} ${p.unit || ''}`); cell(row, money(p.sales)); body.append(row);
-  });
-  if (!products.length) { const row = document.createElement('tr'); cell(row, 'ไม่พบรายการในช่วงวันที่เลือก').colSpan = 4; body.append(row); }
-}
 function renderInvoiceRows(data) {
   const body = $('invoice-rows'); body.replaceChildren();
   data.invoices.forEach(invoice => {
@@ -133,8 +124,6 @@ function render(data) {
   $('document-sales').textContent = money(data.totalSales);
   productPage = 0;
   renderProductPage(data.products);
-  renderOtherProducts('other-product-rows', data.otherProducts || []);
-  renderOtherProducts('unregistered-product-rows', data.unregisteredItems || []);
   $('updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}`;
   charts.forEach(chart => chart.destroy()); charts = [];
   if (!window.Chart) return;
@@ -201,7 +190,6 @@ async function load() {
     $('display-period').textContent = 'ยังไม่มีข้อมูลล่าสุด';
     charts.forEach(chart => chart.destroy()); charts = [];
     ['total-sales', 'document-sales', 'total-invoices'].forEach(key => $(key).textContent = '—');
-    $('other-product-rows').replaceChildren(); $('unregistered-product-rows').replaceChildren();
     $('product-rows').replaceChildren(); $('invoice-rows').replaceChildren(); $('invoice-page-info').textContent = ''; $('updated').textContent = 'ยังไม่ได้อัปเดต';
     $('status').textContent = error.name === 'TimeoutError' ? 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่' : error.message; $('status').classList.add('error');
   } finally { if (id === requestId) { $('apply').disabled = false; $('refresh').disabled = false; } }
