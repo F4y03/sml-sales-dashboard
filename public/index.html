@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SML Analytics • Sales Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="analytics.css"><script src="analytics-ui.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="./"><img class="brand-logo" src="assets/pr-plus-logo.png" alt="PR PLUS Professional Audio"><span>SML<span class="font-normal text-slate-400"> analytics</span></span></a>
+    <p class="nav-label">WORKSPACE</p>
+    <a class="nav-item active" href="#overview"><span>▦</span> ภาพรวมยอดขาย <span class="ml-auto">↗</span></a>
+    <a class="nav-item" href="#charts"><span>▥</span> วิเคราะห์ยอดขาย</a>
+    <a class="nav-item" href="#products"><span>▧</span> สินค้าขายดี</a>
+    <a class="nav-item" href="reports.html"><span>▤</span> รายงาน SML ทั้งหมด</a>
+    <a class="nav-item" href="products.html"><span>▧</span> ข้อมูลสินค้า / ส่งออก</a>
+    <div class="sidebar-bottom"><div class="connection"><span class="dot"></span><div><strong>SML Sales Dashboard</strong><small>PostgreSQL · ski</small></div></div><div class="profile"><span class="avatar">DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar"><div class="text-sm text-slate-400">Workspace <span class="mx-3">/</span> <span class="text-slate-700">ภาพรวมยอดขาย</span></div><div class="flex items-center gap-4"><span class="text-xs text-slate-400 hidden sm:block">SML BUSINESS INTELLIGENCE</span><span class="avatar small">DA</span></div></header>
+    <main id="overview">
+      <div class="dashboard-heading">
+        <div><div class="eyebrow">SALES OVERVIEW</div><h1>ภาพรวมยอดขาย<span class="heading-dot">.</span></h1><p class="subtitle">ติดตามยอดขายและสินค้าของคุณจาก SML</p></div>
+        <div class="heading-actions"><button id="export" class="button secondary" type="button"><span aria-hidden="true">↓</span> ดาวน์โหลด CSV</button><a class="button primary" href="reports.html">ดูรายงานทั้งหมด <span aria-hidden="true">↗</span></a></div>
+      </div>
+      <section class="dashboard-controls card" aria-label="เลือกช่วงข้อมูล">
+        <div class="control-heading"><div><span class="control-caption">ช่วงข้อมูลที่แสดง</span><h2 id="display-period">กำลังโหลดข้อมูล…</h2></div><span id="connection-badge" class="live-badge">SML · กำลังเชื่อมต่อ</span></div>
+        <form id="filters" class="dashboard-filter">
+          <div class="quick-periods" aria-label="เลือกวันอย่างรวดเร็ว"><button id="day-today" type="button" aria-pressed="false">วันนี้</button><button id="day-yesterday" type="button" aria-pressed="false">เมื่อวาน</button><button id="clear-day" type="button">ล้าง</button></div>
+          <label class="period-field"><span class="sr-only">ช่วงเวลา</span><select id="period" aria-label="เลือกช่วงเวลา"><option value="month">เดือนนี้</option><option value="7">7 วันล่าสุด</option><option value="30">30 วันล่าสุด</option><option value="day">เลือก 1 วัน</option><option value="custom">กำหนดช่วงเอง</option></select></label>
+          <div id="range-fields" class="filter-dates"><label><span>จากวันที่</span><input type="date" id="start" required></label><span class="date-divider" aria-hidden="true">→</span><label><span>ถึงวันที่</span><input type="date" id="end" required></label></div>
+          <label id="single-field" class="single-date" hidden><span>วันที่ต้องการดู</span><input id="dashboard-day" type="date" aria-label="ดูยอดขาย 1 วัน"></label>
+          <button class="button primary" id="apply" type="submit">แสดงข้อมูล</button>
+        </form>
+        <div class="control-footer"><div id="status" class="status" role="status" aria-live="polite"></div><button id="refresh" type="button" class="refresh-button"><span aria-hidden="true">↻</span> รีเฟรช</button></div>
+      </section>
+      <div class="data-notes"><details><summary>รายละเอียดการคำนวณ</summary><p id="reconciliation" aria-live="polite"></p></details></div>
+      <input type="hidden" id="source" value="live">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-5" aria-label="สรุปยอดขาย">
+        <article class="card kpi"><div class="kpi-top"><span>ยอดขายรวม</span><span class="metric-icon mint">฿</span></div><div class="metric" id="total-sales">—</div><div class="kpi-foot"><span class="mini-dot"></span> Total Sales <span class="ml-auto">บาท</span></div></article>
+        <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามเอกสาร · ยังไม่หักรับคืน</span><span class="metric-icon amber">฿</span></div><div class="metric" id="document-sales">—</div><div class="kpi-foot"><span class="mini-dot amber-dot"></span> รายงาน 4007 <span class="ml-auto">บาท</span></div></article>
+        <article class="card kpi clickable-kpi" id="invoice-card" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="invoice-dialog"><div class="kpi-top"><span>จำนวนบิลทั้งหมด</span><span class="metric-icon blue">▤</span></div><div class="metric" id="total-invoices">—</div><div class="kpi-foot"><span class="mini-dot blue-dot"></span> กดเพื่อดูรายการบิล <span class="ml-auto">บิล</span></div></article>
+      </section>
+      <dialog id="invoice-dialog" class="invoice-dialog" aria-labelledby="invoice-dialog-title">
+        <div class="dialog-heading">
+          <div><h2 id="invoice-dialog-title">รายการบิลทั้งหมด</h2><p id="invoice-dialog-period">—</p></div>
+          <button class="button secondary" id="close-invoices" type="button" autofocus>ปิด ×</button>
+        </div>
+        <form id="invoice-search-form" class="invoice-tools">
+          <label><span class="sr-only">ค้นหาบิล</span><input id="invoice-search" type="search" placeholder="ค้นหาเลขที่บิล / ลูกค้า"></label>
+          <button class="button primary" type="submit">ค้นหา</button>
+        </form>
+        <div id="invoice-status" class="invoice-status" role="status" aria-live="polite"></div>
+        <div class="invoice-table-wrap">
+          <table>
+            <thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ลูกค้า</th><th class="text-right">ยอดตามเอกสาร</th></tr></thead>
+            <tbody id="invoice-rows"></tbody>
+          </table>
+        </div>
+        <div class="invoice-pagination">
+          <span id="invoice-page-info" class="page-info"></span>
+          <div class="page-buttons"><button id="invoice-prev" type="button" class="page-btn" disabled>← ก่อนหน้า</button><button id="invoice-next" type="button" class="page-btn" disabled>ถัดไป →</button></div>
+        </div>
+      </dialog>
+      <section id="charts" class="grid grid-cols-1 xl:grid-cols-5 gap-5 mt-6">
+        <article class="card chart-card xl:col-span-3"><div class="chart-heading"><div><h2>แนวโน้มยอดขายรายวัน</h2><p>Daily Sales Trend</p></div><span class="legend"><i></i> ยอดขาย</span></div><div class="chart-wrap"><canvas id="daily-chart" role="img" aria-label="กราฟเส้นแสดงยอดขายรายวัน"></canvas></div><div class="chart-note">ยอดขายรวมตามวันที่เอกสาร <span>THB</span></div></article>
+        <article class="card chart-card xl:col-span-2 analysis-card"><div class="chart-heading"><div><h2 id="analysis-title">ยอดขายแยกตามกลุ่มสินค้า</h2><p>เลือกมุมมองการขาย</p></div></div>
+          <div class="analysis-controls"><label for="analysis-mode" class="sr-only">รูปแบบการวิเคราะห์</label><select id="analysis-mode"><option value="group">1. ยอดขายตามกลุ่มสินค้า</option><option value="salesperson">2. ยอดขายตามพนักงานขาย</option><option value="customer">3. ยอดขายตามลูกค้า</option><option value="brand">4. ยอดขายตามยี่ห้อ</option><option value="branch">5. ยอดขายตามสาขา</option><option value="type">6. ยอดขายตามประเภทสินค้า</option><option value="net">7. ยอดขายสุทธิรายวัน / เดือน</option><option value="quantity">8. จำนวนขายตามกลุ่มสินค้า</option></select><select id="analysis-grain" aria-label="สรุปยอดสุทธิ" hidden><option value="day">รายวัน</option><option value="month">รายเดือน</option></select></div>
+          <div id="analysis-status" role="status" aria-live="polite"></div><div class="analysis-scroll"><div id="analysis-plot"><canvas id="analysis-chart" role="img" aria-label="กราฟวิเคราะห์ยอดขาย"></canvas></div></div>
+          <p id="analysis-note" class="analysis-note"></p><div class="analysis-footer"><span id="analysis-summary"></span><button id="analysis-export" type="button" disabled>↓ CSV กราฟนี้</button></div>
+          <details class="analysis-details"><summary>ดูข้อมูลทั้งหมด</summary><div class="analysis-table-scroll"><table><thead><tr><th>รายการ</th><th>ยอด / จำนวน</th><th>หน่วย</th></tr></thead><tbody id="analysis-rows"></tbody></table></div></details>
+        </article>
+      </section>
+      <section id="products" class="card mt-6 overflow-hidden"><div class="table-heading"><div><h2>สินค้าขายดี</h2><p>สินค้าที่สร้างยอดขายสูงสุดในช่วงเวลาที่เลือก</p></div><span id="product-pill" class="pill">TOP 20 PRODUCTS</span></div><div class="overflow-x-auto"><table><thead><tr><th class="w-16">อันดับ</th><th>สินค้า</th><th>รหัสสินค้า</th><th class="text-right">จำนวนขาย</th><th class="text-right">ยอดขาย</th><th class="text-right">สัดส่วน</th></tr></thead><tbody id="product-rows"></tbody></table></div><div class="product-pagination"><span id="product-page-info" class="page-info"></span><div class="page-buttons"><button id="product-prev" type="button" class="page-btn" disabled>← ก่อนหน้า</button><button id="product-next" type="button" class="page-btn">ถัดไป →</button></div></div></section>
+      <footer><span>© <span id="year"></span> SML Analytics <span class="mx-2">·</span> Sales intelligence, simplified.</span><span id="updated">—</span></footer>
+    </main>
+  </div>
+</body></html>

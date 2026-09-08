@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dashboard-ux-*.png
+test-results/
+playwright-report/
+*.log
+.npm-cache/
+sml-report-*.xml
+verification-results.json
+report-inventory.json
+report-compatibility.json
+reports-*.png
+products-*.png

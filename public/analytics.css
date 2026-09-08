@@ -1,0 +1,188 @@
+/* ── Analysis Card ── */
+.analysis-card .chart-heading { margin-bottom: 16px }
+
+.analysis-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analysis-controls select {
+  border: 1px solid #dfe8e2;
+  border-radius: 10px;
+  background: #f8fbf9;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  padding: 11px 14px;
+  color: #3d5347;
+  font-weight: 500;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.analysis-controls select:hover {
+  border-color: #b8d4c4;
+}
+
+.analysis-controls select:focus {
+  border-color: #22956a;
+  box-shadow: 0 0 0 3px rgba(34, 149, 106, 0.1);
+  outline: none;
+}
+
+.analysis-controls #analysis-mode { flex: 1 }
+.analysis-controls [hidden] { display: none !important }
+
+#analysis-status {
+  font-size: 10px;
+  color: #8c9a91;
+  padding: 10px 0 6px;
+  min-height: 32px;
+  letter-spacing: 0.01em;
+}
+
+.analysis-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  border-radius: 8px;
+}
+
+#analysis-plot {
+  height: 280px;
+  position: relative;
+}
+
+.analysis-note {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #86958b;
+  margin: 16px 0 6px;
+  padding: 0 2px;
+}
+
+.analysis-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #edf2ee;
+  padding: 14px 0 10px;
+  font-size: 10px;
+  color: #7e9184;
+}
+
+.analysis-footer button {
+  background: none;
+  border: 0;
+  color: #198263;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.analysis-footer button:hover {
+  background: #edf7f1;
+  color: #14704f;
+}
+
+.analysis-footer button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.analysis-details {
+  font-size: 11px;
+  color: #728679;
+  padding-bottom: 15px;
+}
+
+.analysis-details summary {
+  cursor: pointer;
+  padding: 6px 2px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.analysis-details summary:hover {
+  color: #198263;
+}
+
+.analysis-table-scroll {
+  max-height: 280px;
+  overflow: auto;
+  margin-top: 12px;
+  border: 1px solid #edf2ee;
+  border-radius: 8px;
+}
+
+.analysis-table-scroll td,
+.analysis-table-scroll th {
+  padding: 10px 12px;
+  font-size: 10px;
+}
+
+.analysis-table-scroll th {
+  background: #f8faf9;
+  font-weight: 500;
+  color: #7e9184;
+  position: sticky;
+  top: 0;
+}
+
+.analysis-table-scroll td {
+  border-top: 1px solid #f2f5f3;
+}
+
+.analysis-table-scroll tr:hover td {
+  background: #f9fcfa;
+}
+
+#analysis-status.error { color: #b34242 }
+
+/* ── Chart Card Polish ── */
+.chart-card {
+  transition: box-shadow 0.25s;
+}
+
+.chart-card:hover {
+  box-shadow: 0 4px 20px rgba(32, 60, 44, 0.06);
+}
+
+.chart-wrap {
+  height: 250px;
+}
+
+.chart-note {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #eef2ef;
+  font-size: 10px;
+  color: #a1aaa5;
+  margin-top: 20px;
+  padding: 14px 0;
+}
+
+/* Legend dot */
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22956a, #2ebd88);
+  display: inline-block;
+}
+
+@media (min-width: 1600px) {
+  .chart-wrap { height: 300px }
+  #analysis-plot { height: 300px }
+}
+
+@media (max-width: 760px) {
+  .analysis-controls select { padding: 10px 12px; font-size: 11px }
+  #analysis-plot { height: 250px }
+  .analysis-scroll { max-height: 300px }
+}
