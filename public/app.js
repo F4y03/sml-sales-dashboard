@@ -41,16 +41,44 @@ function renderProductPage(products) {
     const row = document.createElement('tr');
     const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(globalIndex + 1); cell(row, '').append(rank);
     cell(row, p.name || p.code, 'product-name'); cell(row, p.code);
-    cell(row, `${number.format(p.quantity)} ${p.unit || ''}`, 'text-right'); cell(row, money(p.sales), 'text-right font-medium');
+    const quantityButton = document.createElement('button');
+    quantityButton.type = 'button'; quantityButton.className = 'quantity-link';
+    quantityButton.textContent = `${number.format(p.quantity)} ${p.unit || ''}`;
+    quantityButton.setAttribute('aria-label', `ดูบิลของ ${p.name || p.code}`);
+    quantityButton.addEventListener('click', () => openProductInvoices(p));
+    cell(row, '', 'text-right').append(quantityButton); cell(row, money(p.sales), 'text-right font-medium');
     const percent = sum > 0 ? Number(p.sales) / sum * 100 : 0;
     const share = cell(row, '', 'text-right'), track = document.createElement('span'), bar = document.createElement('i');
     track.className = 'share'; bar.style.width = `${Math.max(0, Math.min(100, percent))}%`; track.append(bar); share.append(track, `${percent.toFixed(1)}%`); body.append(row);
   });
   if (!total) { const row = document.createElement('tr'); const td = cell(row, 'ไม่พบข้อมูลสินค้าในช่วงเวลาที่เลือก', 'text-center'); td.colSpan = 6; body.append(row); }
-  $('product-pill').textContent = `TOP ${total} PRODUCTS`;
+  $('product-pill').textContent = `${number.format(total)} รายการในช่วงที่เลือก`;
   $('product-page-info').textContent = total ? `แสดง ${start + 1}–${Math.min(start + PAGE_SIZE, total)} จาก ${total} รายการ` : '';
   $('product-prev').disabled = productPage <= 0;
   $('product-next').disabled = productPage >= totalPages - 1;
+}
+function openProductInvoices(product) {
+  if (!current) return;
+  $('product-invoices-title').textContent = `${product.name || product.code} (${product.code})`;
+  $('product-invoices-period').textContent = `${current.period.start} – ${current.period.end} · รวม ${number.format(product.quantity)} ${product.unit || ''} · ${money(product.sales)} · ยังไม่หักรับคืน`;
+  const body = $('product-invoice-rows'); body.replaceChildren();
+  (product.invoices || []).forEach(invoice => {
+    const row = document.createElement('tr');
+    cell(row, new Date(invoice.date + 'T00:00:00').toLocaleDateString('th-TH'));
+    cell(row, invoice.docNo); cell(row, `${number.format(invoice.quantity)} ${product.unit || ''}`);
+    cell(row, money(invoice.sales)); body.append(row);
+  });
+  $('product-invoices').showModal();
+}
+$('close-product-invoices').addEventListener('click', () => $('product-invoices').close());
+function renderOtherProducts(id, products) {
+  const body = $(id); body.replaceChildren();
+  products.forEach(p => {
+    const row = document.createElement('tr');
+    cell(row, p.name || p.code); cell(row, p.code);
+    cell(row, `${number.format(p.quantity)} ${p.unit || ''}`); cell(row, money(p.sales)); body.append(row);
+  });
+  if (!products.length) { const row = document.createElement('tr'); cell(row, 'ไม่พบรายการในช่วงวันที่เลือก').colSpan = 4; body.append(row); }
 }
 function renderInvoiceRows(data) {
   const body = $('invoice-rows'); body.replaceChildren();
@@ -105,6 +133,8 @@ function render(data) {
   $('document-sales').textContent = money(data.totalSales);
   productPage = 0;
   renderProductPage(data.products);
+  renderOtherProducts('other-product-rows', data.otherProducts || []);
+  renderOtherProducts('unregistered-product-rows', data.unregisteredItems || []);
   $('updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}`;
   charts.forEach(chart => chart.destroy()); charts = [];
   if (!window.Chart) return;
@@ -140,6 +170,7 @@ async function load() {
   syncControls();
   const id = ++requestId, start = $('start').value, end = $('end').value;
   current = null; $('export').disabled = true;
+  $('product-invoices').close();
   $('status').classList.remove('error');
   if (!start || !end || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 365) {
     $('status').textContent = 'กรุณาเลือกช่วงวันที่ให้ถูกต้อง ไม่เกิน 366 วัน'; $('status').classList.add('error'); return;
@@ -170,6 +201,7 @@ async function load() {
     $('display-period').textContent = 'ยังไม่มีข้อมูลล่าสุด';
     charts.forEach(chart => chart.destroy()); charts = [];
     ['total-sales', 'document-sales', 'total-invoices'].forEach(key => $(key).textContent = '—');
+    $('other-product-rows').replaceChildren(); $('unregistered-product-rows').replaceChildren();
     $('product-rows').replaceChildren(); $('invoice-rows').replaceChildren(); $('invoice-page-info').textContent = ''; $('updated').textContent = 'ยังไม่ได้อัปเดต';
     $('status').textContent = error.name === 'TimeoutError' ? 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่' : error.message; $('status').classList.add('error');
   } finally { if (id === requestId) { $('apply').disabled = false; $('refresh').disabled = false; } }

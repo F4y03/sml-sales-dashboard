@@ -12,7 +12,7 @@ const results = [];
 const client = await pool.connect();
 try {
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-  for (const [start, end] of [['2026-09-01', '2026-09-07'], ['2026-08-01', '2026-08-31'], ['1900-01-01', '1900-01-02']]) {
+  for (const [start, end] of [['2026-09-08', '2026-09-08'], ['2026-09-01', '2026-09-07'], ['2026-08-01', '2026-08-31'], ['1900-01-01', '1900-01-02']]) {
     const data = (await client.query(sql, [start, end, 44])).rows[0].dashboard;
     const original = (await client.query(native, [start, end])).rows;
     const daily = new Map(original.map(row => {
@@ -33,9 +33,21 @@ try {
       assert.ok(actual && Math.abs(Number(actual.sales)-Number(w.amount)) < .005);
     }
     const products = (await client.query(`SELECT item_code AS code, unit_code AS unit, SUM(qty) AS quantity, SUM(sum_amount) AS sales
-      FROM ic_trans_detail WHERE trans_flag=44 AND last_status=0 AND doc_date BETWEEN $1::date AND $2::date AND item_code<>''
-      GROUP BY item_code,unit_code ORDER BY sales DESC,code,unit LIMIT 5`, [start,end])).rows;
+      FROM ic_trans_detail d WHERE trans_flag=44 AND last_status=0 AND doc_date BETWEEN $1::date AND $2::date
+      AND sum_amount > 0 AND btrim(item_code) <> 'หมายเหตุ'
+      AND EXISTS (SELECT 1 FROM ic_inventory i WHERE i.code=d.item_code)
+      AND EXISTS (SELECT 1 FROM ic_trans h WHERE h.doc_no=d.doc_no AND h.trans_flag=44 AND h.last_status=0
+        AND h.doc_date::date=d.doc_date::date AND h.doc_date BETWEEN $1::date AND $2::date
+        AND to_timestamp(h.doc_date::date || ' ' || h.doc_time, 'YYYY/MM/DD HH24:MI')::timestamp BETWEEN $1::date::timestamp AND $2::date + TIME '23:59')
+      GROUP BY item_code,unit_code ORDER BY sales DESC,code,unit`, [start,end])).rows;
     assert.deepEqual(data.products.map(p=>[p.code,p.unit,Number(p.quantity),Number(p.sales)]),products.map(p=>[p.code,p.unit,Number(p.quantity),Number(p.sales)]));
+    for (const product of data.products) {
+      assert.notEqual(product.code, 'หมายเหตุ');
+      assert.ok(product.sales > 0);
+      assert.ok(Math.abs(product.invoices.reduce((sum, row) => sum + Number(row.quantity), 0) - Number(product.quantity)) < .000001);
+      assert.ok(Math.abs(product.invoices.reduce((sum, row) => sum + Number(row.sales), 0) - Number(product.sales)) < .005);
+      for (const invoice of product.invoices) assert.ok(invoice.date >= start && invoice.date <= end);
+    }
     results.push({ start,end,totalSales:data.totalSales,totalInvoices:data.totalInvoices,itemSales:data.itemSales,passed:true });
   }
   await client.query('ROLLBACK');

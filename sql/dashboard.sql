@@ -9,7 +9,7 @@ WITH headers AS (
     AND to_timestamp(doc_date::date || ' ' || doc_time, 'YYYY/MM/DD HH24:MI')::timestamp
         BETWEEN $1::date::timestamp AND $2::date + TIME '23:59'
 ), details AS (
-  SELECT d.item_code, d.item_name, d.wh_code, d.unit_code, d.qty, d.sum_amount
+  SELECT d.doc_no, d.doc_date, d.trans_flag, d.item_code, d.item_name, d.wh_code, d.unit_code, d.qty, d.sum_amount
   FROM ic_trans_detail d
   WHERE d.trans_flag = $3::integer AND d.last_status = 0
     AND d.doc_date >= $1::date AND d.doc_date < $2::date + INTERVAL '1 day'
@@ -17,10 +17,30 @@ WITH headers AS (
 ), warehouses AS (
   SELECT COALESCE(NULLIF(wh_code, ''), 'ไม่ระบุคลัง') AS name, SUM(sum_amount) AS sales
   FROM details GROUP BY 1
+), product_lines AS (
+  SELECT d.*
+  FROM details d
+  WHERE EXISTS (SELECT 1 FROM headers h WHERE h.doc_no = d.doc_no AND h.trans_flag = d.trans_flag AND h.day = d.doc_date::date)
+    AND EXISTS (SELECT 1 FROM ic_inventory i WHERE i.code = d.item_code)
+    AND btrim(d.item_code) <> 'หมายเหตุ'
+), product_documents AS (
+  SELECT item_code, unit_code, doc_no, doc_date::date AS day,
+         SUM(qty) AS quantity, SUM(sum_amount) AS sales
+  FROM product_lines WHERE sum_amount > 0
+  GROUP BY item_code, unit_code, doc_no, doc_date::date
 ), products AS (
   SELECT item_code AS code, MAX(item_name) AS name, unit_code AS unit,
          SUM(qty) AS quantity, SUM(sum_amount) AS sales
-  FROM details WHERE NULLIF(item_code, '') IS NOT NULL
+  FROM product_lines WHERE sum_amount > 0
+  GROUP BY item_code, unit_code
+), ranked_products AS (
+  SELECT p.*, (SELECT json_agg(json_build_object('docNo', d.doc_no, 'date', to_char(d.day, 'YYYY-MM-DD'), 'quantity', d.quantity, 'sales', d.sales) ORDER BY d.day, d.doc_no)
+    FROM product_documents d WHERE d.item_code = p.code AND d.unit_code IS NOT DISTINCT FROM p.unit) AS invoices
+  FROM products p ORDER BY sales DESC, code, unit
+), other_products AS (
+  SELECT item_code AS code, MAX(item_name) AS name, unit_code AS unit,
+         SUM(qty) AS quantity, SUM(sum_amount) AS sales
+  FROM product_lines WHERE sum_amount <= 0 OR sum_amount IS NULL
   GROUP BY item_code, unit_code
 ), daily AS (
   SELECT s.day::date AS day, COALESCE(SUM(h.total_amount), 0) AS sales
@@ -35,5 +55,11 @@ SELECT json_build_object(
   'period', json_build_object('start', $1::text, 'end', $2::text),
   'warehouses', COALESCE((SELECT json_agg(w ORDER BY sales DESC) FROM warehouses w), '[]'::json),
   'daily', COALESCE((SELECT json_agg(json_build_object('day', to_char(day, 'YYYY-MM-DD'), 'sales', sales) ORDER BY day) FROM daily), '[]'::json),
-  'products', COALESCE((SELECT json_agg(p ORDER BY sales DESC) FROM (SELECT * FROM products ORDER BY sales DESC, code, unit LIMIT 20) p), '[]'::json)
+  'products', COALESCE((SELECT json_agg(p ORDER BY sales DESC, code, unit) FROM ranked_products p), '[]'::json),
+  'otherProducts', COALESCE((SELECT json_agg(p ORDER BY code, unit) FROM other_products p), '[]'::json),
+  'unregisteredItems', COALESCE((SELECT json_agg(p ORDER BY code, unit) FROM (
+    SELECT item_code AS code, MAX(item_name) AS name, unit_code AS unit, SUM(qty) AS quantity, SUM(sum_amount) AS sales
+    FROM details d WHERE btrim(d.item_code) = 'หมายเหตุ' OR NOT EXISTS (SELECT 1 FROM ic_inventory i WHERE i.code = d.item_code)
+    GROUP BY item_code, unit_code
+  ) p), '[]'::json)
 ) AS dashboard;
