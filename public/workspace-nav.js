@@ -43,3 +43,31 @@ function updateWorkspace() {
 }
 window.addEventListener('hashchange', updateWorkspace);
 updateWorkspace();
+
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const response = await nativeFetch(...args);
+  if (response.status === 401 && new URL(response.url, location.origin).origin === location.origin) {
+    location.replace(`/login.html?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
+  }
+  return response;
+};
+const logout = document.createElement('button');
+logout.type = 'button';
+logout.textContent = 'ออกจากระบบ ↗';
+logout.style.cssText = 'margin-top:12px;width:100%;padding:10px;border:1px solid #e5d9d7;border-radius:8px;background:#fff;color:#b52b31;cursor:pointer;font:inherit;font-size:12px';
+workspace.querySelector('.workspace-bottom').append(logout);
+logout.addEventListener('click', async () => {
+  logout.disabled = true;
+  try {
+    const response = await nativeFetch('/api/auth/logout', { method: 'POST', headers: { 'X-PRPlus-Request': '1' } });
+    if (!response.ok) throw new Error('Logout failed');
+    location.replace('/login.html');
+  } catch { logout.textContent = 'ลองออกจากระบบอีกครั้ง'; logout.disabled = false; }
+});
+fetch('/api/auth/me').then(response => response.ok ? response.json() : null).then(user => {
+  if (!user) return;
+  workspace.querySelector('.workspace-profile strong').textContent = user.username;
+  workspace.querySelector('.workspace-profile > span').textContent = user.username.slice(0, 2).toUpperCase();
+}).catch(() => {});
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });

@@ -1,4 +1,5 @@
 import express from 'express';
+import { installAuth } from './auth.js';
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,7 @@ const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
+installAuth(app);
 installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);
