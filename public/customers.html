@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Insights &amp; Buying Behavior · PR PLUS</title>
+  <link rel="stylesheet" href="customers.css">
+  <link rel="stylesheet" href="product-insights.css">
+  <link rel="stylesheet" href="workspace-nav.css">
+  <script src="customers-ui.js" defer></script>
+  <script src="product-insights-ui.js" defer></script>
+  <script src="workspace-nav.js" defer></script>
+</head>
+<body>
+<main>
+  <header class="page-heading">
+    <div><p class="eyebrow">DASHBOARD 02 / CUSTOMER &amp; PRODUCT INTELLIGENCE</p><h1>Customer Insights <span>&amp; Buying Behavior</span></h1><p class="subtitle">รู้จักลูกค้าคนสำคัญ ติดตามสินค้าทำยอด และมองเห็นสินค้าที่ควรดูแล</p></div>
+    <span class="source-badge"><span aria-hidden="true"></span>ข้อมูลจาก SML</span>
+  </header>
+
+  <div class="insight-views" role="group" aria-label="เลือกมุมมองการวิเคราะห์">
+    <button id="customers-view-button" type="button" aria-pressed="true" aria-controls="customer-dashboard"><span aria-hidden="true">◎</span> วิเคราะห์ลูกค้า</button>
+    <button id="products-view-button" type="button" aria-pressed="false" aria-controls="product-view"><span aria-hidden="true">▦</span> วิเคราะห์สินค้า <small>ขายดี / ขายช้า</small></button>
+  </div>
+
+  <form id="customer-filters" class="filters" aria-label="ตัวกรองข้อมูลทั้งหน้า">
+    <label for="start">ตั้งแต่วันที่<input id="start" type="date" required></label>
+    <label for="end">ถึงวันที่<input id="end" type="date" required></label>
+    <label for="customer-search" class="search-label">ค้นหาลูกค้า<input id="customer-search" type="search" maxlength="200" placeholder="พิมพ์รหัสลูกค้า หรือชื่อลูกค้า" autocomplete="off"></label>
+    <label for="performance-search" class="search-label" hidden>ค้นหาสินค้า<input id="performance-search" type="search" maxlength="200" placeholder="พิมพ์รหัสสินค้า ชื่อสินค้า หรือรุ่น" autocomplete="off"></label>
+    <button id="refresh" type="submit" class="primary-button">อัปเดตข้อมูล <span aria-hidden="true">↻</span></button>
+    <div class="filter-caption"><span>ใช้ช่วงวันที่เดียวกันทั้งสองมุมมอง · ค้นหาตามมุมมองที่เลือก</span><span>เลือกช่วงเวลาได้สูงสุด 366 วัน · หน่วยเงิน: บาท</span></div>
+  </form>
+  <p id="status" class="status" role="status" aria-live="polite">กำลังโหลดข้อมูลลูกค้า…</p>
+
+  <div id="customer-dashboard" hidden>
+    <section class="summary-grid" aria-label="สรุปลูกค้าตามตัวกรอง">
+      <article class="summary-card featured"><div><p>ยอดซื้อสุทธิรวม</p><strong id="total-net">—</strong><small>ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้</small></div><span class="summary-icon" aria-hidden="true">↗</span></article>
+      <article class="summary-card"><div><p>ลูกค้าที่มีรายการ</p><strong id="customer-count">—</strong><small>ราย ตามเงื่อนไขที่เลือก</small></div><span class="summary-icon" aria-hidden="true">◎</span></article>
+      <article class="summary-card"><div><p>จำนวนบิลขาย</p><strong id="invoice-count">—</strong><small>บิล ไม่รวมเอกสารเพิ่มหนี้และรับคืน</small></div><span class="summary-icon" aria-hidden="true">▤</span></article>
+    </section>
+
+    <section class="master-grid" aria-label="อันดับยอดซื้อของลูกค้า">
+      <article class="panel chart-panel">
+        <div class="panel-heading"><div><p class="eyebrow">TOP CUSTOMERS</p><h2>10 ลูกค้าที่มียอดซื้อสูงสุด</h2></div><span class="pill">TOP 10</span></div>
+        <p class="panel-hint">คลิกแท่งกราฟเพื่อเปิดป็อปอัปรายการสินค้า</p>
+        <div id="customer-chart" class="bar-chart" role="group" aria-label="กราฟแท่งแนวนอน Top 10 ลูกค้า"></div>
+        <p class="panel-footnote">จัดอันดับตามยอดซื้อสุทธิในช่วงวันที่และคำค้นหาที่เลือก</p>
+      </article>
+      <article class="panel customer-panel">
+        <div class="panel-heading"><div><p class="eyebrow">CUSTOMER RANKING</p><h2>ยอดซื้อรายลูกค้า</h2></div><span id="matching-count" class="pill"></span></div>
+        <p class="panel-hint">คลิกชื่อลูกค้าหรือแถวในตารางเพื่อเปิดป็อปอัปรายการสินค้า</p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="ตารางยอดซื้อรายลูกค้า">
+          <table class="customer-table"><thead><tr><th scope="col">รหัสลูกค้า</th><th scope="col">ชื่อลูกค้า</th><th scope="col" class="numeric">จำนวนบิล</th><th scope="col" class="numeric" aria-sort="descending">ยอดซื้อสุทธิ ↓</th></tr></thead><tbody id="customer-rows"></tbody></table>
+        </div>
+        <nav class="pagination" aria-label="หน้าตารางลูกค้า"><span id="customer-page-info"></span><div><button id="customer-prev" type="button" aria-label="ลูกค้าหน้าก่อนหน้า">←</button><button id="customer-next" type="button" aria-label="ลูกค้าหน้าถัดไป">→</button></div></nav>
+      </article>
+    </section>
+
+    <footer><span>Customer Insights &amp; Buying Behavior</span><span id="updated"></span></footer>
+  </div>
+
+  <section id="product-view" hidden aria-label="วิเคราะห์ยอดขายสินค้า">
+    <p id="performance-status" class="status" role="status" aria-live="polite"></p>
+    <div id="performance-dashboard" hidden>
+      <section class="summary-grid performance-summary" aria-label="สรุปสินค้าตามคำค้นหาและหมวดหมู่">
+        <article class="summary-card featured"><div><p>ยอดขายสินค้าสุทธิ</p><strong id="performance-net">—</strong><small id="performance-net-change"></small></div></article>
+        <button type="button" class="summary-card performance-kpi" data-performance-filter="sold"><div><p>สินค้าที่มีบิลขาย</p><strong id="performance-sold">—</strong><small>รหัสสินค้า · ดูรายการ →</small></div></button>
+        <button type="button" class="summary-card performance-kpi attention-card" data-performance-filter="unsold"><div><p>ยังไม่มีบิลขาย</p><strong id="performance-unsold">—</strong><small>จากทะเบียนสินค้า · ดูรายการ →</small></div></button>
+        <button type="button" class="summary-card performance-kpi" data-performance-filter="declining"><div><p>ยอดขายลดลง</p><strong id="performance-declining">—</strong><small>เทียบช่วงก่อนหน้า · ดูรายการ →</small></div></button>
+      </section>
+      <p id="performance-period" class="performance-context"></p>
+      <div class="performance-highlights">
+        <article class="panel"><div class="panel-heading"><div><p class="eyebrow">BEST SELLERS</p><h2>สินค้าที่ทำยอดสูงสุด</h2></div><span class="pill">TOP 5</span></div><p class="panel-hint">เรียงตามยอดสุทธิ · คลิกดูจำนวนขายและลูกค้าที่ซื้อ</p><div id="performance-best" class="performance-leaders"></div></article>
+        <article class="panel"><div class="panel-heading"><div><p class="eyebrow">PRODUCTS TO WATCH</p><h2>ยอดขายลดลงที่ควรติดตาม</h2></div><span class="pill watch-pill">ติดตาม</span></div><p class="panel-hint">5 อันดับที่ยอดลดลงมากที่สุดเป็นบาท · เทียบช่วงก่อนหน้า</p><div id="performance-watch" class="performance-leaders"></div></article>
+      </div>
+      <section class="panel performance-catalog" aria-labelledby="performance-table-title">
+        <div class="panel-heading"><div><p class="eyebrow">PRODUCT EXPLORER</p><h2 id="performance-table-title">ยอดขายรายสินค้า</h2></div><label class="performance-category-label" for="performance-category">หมวดหมู่<select id="performance-category"><option value="*">ทุกหมวดหมู่</option></select></label></div>
+        <div class="performance-filters" role="group" aria-label="เลือกกลุ่มสินค้า">
+          <button type="button" data-performance-filter="all" aria-pressed="true">ทั้งหมด</button>
+          <button type="button" data-performance-filter="best" aria-pressed="false">ขายดี 10 อันดับ</button>
+          <button type="button" data-performance-filter="slow" aria-pressed="false">ขายน้อย 10 อันดับ</button>
+          <button type="button" data-performance-filter="declining" aria-pressed="false">ยอดลดลง</button>
+          <button type="button" data-performance-filter="unsold" aria-pressed="false">ไม่มีบิลขาย</button>
+          <button type="button" data-performance-filter="nonpositive" aria-pressed="false">มีบิล แต่สุทธิไม่บวก</button>
+        </div>
+        <p id="performance-explanation" class="panel-hint"></p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="ตารางยอดขายรายสินค้า">
+          <table class="performance-table"><thead><tr><th scope="col">สินค้า / หมวดหมู่</th><th scope="col" class="numeric">จำนวนขายสุทธิ</th><th scope="col" class="numeric">ยอดขายสุทธิ</th><th scope="col" class="numeric">บิลขาย / ลูกค้า</th><th scope="col" class="numeric">เทียบช่วงก่อน</th><th scope="col" class="numeric">คงเหลือในทะเบียน</th><th scope="col">ขายล่าสุดในช่วง</th></tr></thead><tbody id="performance-rows"></tbody></table>
+        </div>
+        <nav class="pagination" aria-label="หน้าตารางวิเคราะห์สินค้า"><span id="performance-page-info"></span><div><button id="performance-prev" type="button" aria-label="วิเคราะห์สินค้าหน้าก่อนหน้า">←</button><button id="performance-next" type="button" aria-label="วิเคราะห์สินค้าหน้าถัดไป">→</button></div></nav>
+        <p class="panel-footnote">จำนวนสุทธิแยกตามหน่วยขาย ไม่รวมชิ้นกับกล่อง · ยอดรายการ = ขาย + เพิ่มหนี้ − รับคืน อาจต่างจากยอดเอกสาร<br>คงเหลือและหมวดหมู่อิงทะเบียนปัจจุบัน · สินค้าที่ไม่มีบิลขายอาจรวมรุ่นเลิกจำหน่ายหรือสินค้าที่ยังไม่พร้อมขาย</p>
+      </section>
+      <footer><span>Product Performance · ตัวเลขสรุปและอันดับตามคำค้นหา / หมวดหมู่</span><span id="performance-updated"></span></footer>
+    </div>
+  </section>
+
+  <dialog id="sku-detail" class="panel sku-dialog" aria-labelledby="sku-title" aria-describedby="sku-subtitle">
+    <div class="panel-heading sku-heading"><div><p class="eyebrow">PRODUCT INSIGHT / ใครซื้อสินค้าเรา</p><h2 id="sku-title"></h2><p id="sku-subtitle" class="panel-hint"></p></div><button id="sku-close" type="button" aria-label="ปิดรายละเอียดสินค้า" autofocus>ปิด <span aria-hidden="true">×</span></button></div>
+    <div class="sku-body">
+      <p id="sku-status" class="status" role="status" aria-live="polite"></p><button id="sku-retry" type="button" hidden>ลองโหลดรายละเอียดอีกครั้ง</button>
+      <div id="sku-content" hidden>
+        <div class="sku-metrics"><article><span>ยอดขายสุทธิ</span><strong id="sku-net"></strong><small id="sku-change"></small></article><article><span>ยอดขายก่อนหักคืน</span><strong id="sku-sales"></strong><small id="sku-added"></small></article><article><span>ยอดรับคืน / ลดหนี้</span><strong id="sku-returns"></strong><small>ตามวันที่เอกสารรับคืน</small></article><article><span>ลูกค้าที่ซื้อ</span><strong id="sku-buyers-count"></strong><small id="sku-bills"></small></article></div>
+        <div class="sku-quantity-panel"><h3>ขายไปเท่าไร แยกตามหน่วย</h3><div class="table-scroll"><table><thead><tr><th scope="col">หน่วย</th><th scope="col" class="numeric">ขาย</th><th scope="col" class="numeric">เพิ่มหนี้</th><th scope="col" class="numeric">รับคืน</th><th scope="col" class="numeric">จำนวนสุทธิ</th></tr></thead><tbody id="sku-quantities"></tbody></table></div></div>
+        <h3 class="sku-buyers-heading">ลูกค้าที่มีรายการสินค้านี้</h3>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="ลูกค้าที่ซื้อสินค้าที่เลือก"><table class="sku-buyers-table"><thead><tr><th scope="col">รหัส / ชื่อลูกค้า</th><th scope="col" class="numeric">จำนวนสุทธิ</th><th scope="col" class="numeric">จำนวนบิลขาย</th><th scope="col" class="numeric">ยอดซื้อสุทธิ</th><th scope="col">วันที่ซื้อล่าสุดในช่วง</th></tr></thead><tbody id="sku-buyers"></tbody></table></div>
+        <nav class="pagination" aria-label="หน้ารายชื่อลูกค้าที่ซื้อสินค้า"><span id="sku-page-info"></span><div><button id="sku-prev" type="button" aria-label="ผู้ซื้อหน้าก่อนหน้า">←</button><button id="sku-next" type="button" aria-label="ผู้ซื้อหน้าถัดไป">→</button></div></nav>
+        <p class="panel-footnote">รวมลูกค้าที่มีรายการรับคืน/เพิ่มหนี้ด้วย จำนวนบิลและจำนวนลูกค้าที่ซื้อนับเฉพาะบิลขาย · ข้อมูลทั้งหมดใช้ช่วงวันที่ที่เลือก</p>
+      </div>
+    </div>
+  </dialog>
+
+    <dialog id="customer-detail" class="panel detail-panel" aria-labelledby="detail-title" aria-describedby="detail-subtitle" aria-busy="false">
+      <div class="panel-heading detail-heading"><div><p class="eyebrow">BUYING BEHAVIOR / รายละเอียดการซื้อ</p><h2 id="detail-title">รายการสินค้าของลูกค้า: ยังไม่ได้เลือก</h2><p id="detail-subtitle" class="panel-hint">เลือกลูกค้าจากกราฟหรือตาราง</p></div><div class="detail-actions"><span id="selected-code" class="pill" hidden></span><button id="detail-close" type="button" aria-label="ปิดรายละเอียดลูกค้า" autofocus>ปิด <span aria-hidden="true">×</span></button></div></div>
+      <div class="detail-modal-body">
+      <div id="detail-status" class="detail-status" role="status" aria-live="polite">เลือกลูกค้าเพื่อดูรายการสินค้าและสัดส่วนหมวดหมู่</div>
+      <button id="detail-retry" type="button" hidden>ลองโหลดรายการสินค้าอีกครั้ง</button>
+      <div id="detail-content" class="detail-grid" hidden>
+        <div class="product-list">
+          <div class="table-scroll" tabindex="0" role="region" aria-label="ตารางสินค้าที่ลูกค้าซื้อ">
+            <table class="product-table"><thead><tr><th scope="col">ชื่อสินค้า</th><th scope="col">หมวดหมู่</th><th scope="col" class="numeric">จำนวนชิ้น*</th><th scope="col" class="numeric">ยอดรวม</th><th scope="col">วันที่ซื้อล่าสุด</th></tr></thead><tbody id="product-rows"></tbody></table>
+          </div>
+          <nav class="pagination" aria-label="หน้าตารางสินค้า"><span id="product-page-info"></span><div><button id="product-prev" type="button" aria-label="สินค้าหน้าก่อนหน้า">←</button><button id="product-next" type="button" aria-label="สินค้าหน้าถัดไป">→</button></div></nav>
+          <p id="item-total" class="item-total"></p>
+          <p class="panel-footnote">* จำนวนสุทธิตามหน่วยขาย แยกสินค้าต่างหน่วยนับ · ยอดรวมรายการหักรับคืนแล้ว<br>วันที่ซื้อล่าสุดนับเฉพาะบิลขายในช่วงที่เลือก · ยอดรายการอาจต่างจากยอดเอกสารเนื่องจาก VAT / ส่วนลด</p>
+        </div>
+        <aside class="category-panel" aria-labelledby="category-title">
+          <h3 id="category-title">สัดส่วนการซื้อตามหมวดหมู่</h3><p class="panel-hint">คิดเป็นเปอร์เซ็นต์จากมูลค่าซื้อสุทธิ</p>
+          <div class="donut-wrap"><svg id="category-chart" viewBox="0 0 200 200" role="img" aria-labelledby="donut-title"><title id="donut-title">สัดส่วนยอดซื้อสุทธิแยกหมวดหมู่</title></svg><div class="donut-center" aria-hidden="true"><strong id="category-count">0</strong><span>หมวดหมู่</span></div></div>
+          <p id="category-empty" class="panel-hint" hidden>ไม่มีมูลค่าซื้อสุทธิที่เป็นบวกสำหรับคำนวณสัดส่วน</p>
+          <ul id="category-legend" class="category-legend" aria-label="ยอดซื้อและเปอร์เซ็นต์แต่ละหมวดหมู่"></ul>
+          <p id="category-note" class="panel-footnote">หมวดหมู่อ้างอิงทะเบียนสินค้าปัจจุบัน</p>
+        </aside>
+      </div>
+      </div>
+    </dialog>
+</main>
+</body>
+</html>

@@ -7,6 +7,7 @@ workspace.innerHTML = `
   <nav id="workspace-links" class="workspace-links" aria-label="หน้าหลัก">
     <p class="workspace-label">WORKSPACE</p>
     <a href="executive.html" data-page="executive"><span aria-hidden="true">◈</span>สรุปผู้บริหาร · 10 วินาที</a>
+    <a href="customers.html" data-page="customers"><span aria-hidden="true">◎</span>ข้อมูลเชิงลึกลูกค้า</a>
     <a href="index.html#overview" data-page="overview"><span aria-hidden="true">▦</span>ภาพรวมยอดขาย</a>
     <a href="index.html#charts" data-page="charts"><span aria-hidden="true">▥</span>วิเคราะห์ยอดขาย</a>
     <a href="index.html#products" data-page="bestsellers"><span aria-hidden="true">▧</span>สินค้าขายดี</a>
@@ -34,7 +35,7 @@ workspace.addEventListener('keydown', event => {
 workspace.querySelectorAll('nav a').forEach(link => link.addEventListener('click', collapseWorkspace));
 function updateWorkspace() {
   const filename = location.pathname.split('/').pop();
-  const page = filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : location.hash === '#charts' ? 'charts' : location.hash === '#products' ? 'bestsellers' : 'overview';
+  const page = filename === 'customers.html' ? 'customers' : filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : location.hash === '#charts' ? 'charts' : location.hash === '#products' ? 'bestsellers' : 'overview';
   workspace.querySelectorAll('[data-page]').forEach(link => {
     if (link.dataset.page === page) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');

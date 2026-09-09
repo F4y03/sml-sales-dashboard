@@ -6,6 +6,8 @@ import { installReports } from './reports.js';
 import { installProducts } from './products.js';
 import { installAnalytics } from './analytics.js';
 import { installExecutive } from './executive.js';
+import { installCustomerInsights } from './customer-insights.js';
+import { installProductPerformance } from './product-performance.js';
 
 const app = express();
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, max: 5, options: '-c default_transaction_read_only=on' });
@@ -21,6 +23,8 @@ installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);
 installExecutive(app, pool);
+installCustomerInsights(app, pool);
+installProductPerformance(app, pool);
 app.get('/api/dashboard', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { start, end } = req.query;
@@ -79,6 +83,11 @@ app.get('/api/invoices', async (req, res) => {
     console.error('Invoices query failed:', error.code);
     res.status(503).json({ error: 'ดึงรายการบิลไม่สำเร็จ กรุณาลองใหม่' });
   }
+});
+// API requests must never fall through to Express's HTML 404 page.
+app.use('/api', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(404).json({ error: 'ไม่พบ API ที่ร้องขอ กรุณาตรวจสอบ URL หรือรีสตาร์ตเซิร์ฟเวอร์ Dashboard' });
 });
 app.use(express.static(fileURLToPath(new URL('./public', import.meta.url))));
 const port = Number(process.env.PORT || 3000);
