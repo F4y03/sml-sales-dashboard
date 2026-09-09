@@ -1,10 +1,73 @@
 <!doctype html>
 <html lang="th">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Executive Summary · PR PLUS</title><link rel="stylesheet" href="executive.css"><link rel="stylesheet" href="executive-alerts.css"><script src="executive-ui.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Executive Summary · PR PLUS</title><link rel="stylesheet" href="executive.css"><link rel="stylesheet" href="executive-alerts.css"><script src="executive-ui.js" defer></script><style>
+.help-button{display:inline-grid;place-items:center;vertical-align:middle;width:30px;height:30px;min-width:30px;padding:4px;border:0;border-radius:50%;background:transparent;color:#111;cursor:pointer}
+.help-button span{display:grid;place-items:center;width:20px;height:20px;border:1.5px solid #111;border-radius:50%;background:#fff;color:#111;font:bold 14px/1 Arial,sans-serif}
+.help-button:hover{background:#e8ecef}
+.help-button:focus-visible{outline:2px solid #111;outline-offset:2px}
+.metric-wrap{position:relative;min-width:0;display:flex}
+.metric-wrap>.metric{width:100%;height:100%}
+.metric-wrap>.metric>span:first-child{padding-right:28px}
+.metric-wrap>.help-button{position:absolute;right:12px;top:16px}
+#help-dialog{width:min(720px,calc(100vw - 32px));max-width:720px;max-height:calc(100dvh - 40px);padding:0;border:1px solid #e0e6ea;border-radius:20px;box-shadow:0 24px 80px #102b3b30}
+#help-dialog::backdrop{background:#142c3f70;backdrop-filter:blur(3px)}
+#help-dialog>.panel-heading{position:sticky;top:0;z-index:1;background:#fff;margin:0;padding:24px 28px 20px;border-bottom:1px solid #edf1f4;align-items:flex-start}
+#help-dialog .help-eyebrow{font-size:10px;letter-spacing:1.8px;font-weight:bold;color:#668078;margin:0 0 8px}
+#help-title{font-size:23px;line-height:1.5;letter-spacing:-.4px}
+#help-close{flex-shrink:0;background:#f5f7f8;border:1px solid #e2e8ed;border-radius:10px;font-size:12px;min-height:40px}
+#help-content{padding:24px 28px 28px;font-size:13px;line-height:1.9;color:#405568;overflow-wrap:anywhere}
+.help-summary{font-size:17px;line-height:1.8;color:#203b49;margin:0 0 22px;font-weight:500}
+.help-formula{border:1px solid #d8e9e3;background:#f1f8f5;border-radius:12px;padding:16px 18px;margin-bottom:20px}
+.help-label{display:block;font-size:11px;font-weight:bold;color:#617983;margin-bottom:6px}
+.help-formula strong{display:block;color:#185c4c;font-size:15px;line-height:1.8}
+.help-action{margin-bottom:20px}
+.help-action h3,.help-caution h3{font-size:13px;margin:0 0 7px;color:#253b4c}
+.help-action p,.help-caution p{margin:0}
+.help-caution{background:#faf8f2;border:1px solid #eee6d3;border-radius:12px;padding:14px 18px;margin-bottom:20px;color:#726039;font-size:12px}
+.help-source{border-top:1px solid #e5ebef;padding-top:16px}
+.help-source summary{cursor:pointer;font-size:12px;color:#617582;padding:4px 0;min-height:32px}
+.help-source summary:focus-visible{outline:2px solid #167561;outline-offset:4px;border-radius:4px}
+.help-source p{white-space:pre-line;margin:12px 0 0;padding:14px 16px;background:#f5f7f9;border-radius:10px;font-size:12px;color:#657889}
+@media(max-width:600px){#help-dialog>.panel-heading{padding:20px 18px;flex-wrap:nowrap;gap:10px}#help-title{font-size:19px}#help-content{padding:20px 18px}.help-summary{font-size:15px}.help-formula strong{font-size:13px}}
+@media(max-width:600px){.metric-wrap>.help-button{right:6px;top:11px}}
+#detail{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 40px);padding:0;border-radius:20px;border:1px solid #e0e6ea;box-shadow:0 24px 80px #102b3b30}
+#detail::backdrop{background:#142c3f70;backdrop-filter:blur(3px)}
+#detail>.panel-heading{position:sticky;top:0;z-index:1;background:white;padding:24px 28px;margin:0;border-bottom:1px solid #edf1f4;flex-wrap:nowrap}
+#detail-title{font-size:22px;line-height:1.5}
+#detail #close{flex-shrink:0;border-radius:10px;min-height:40px;background:#f5f7f8;font-size:12px}
+#detail-body{padding:22px 28px 28px;overflow:visible}
+#detail-body .detail-period{font-size:12px;color:#6c8190;margin:0 0 18px}
+.detail-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:22px}
+.detail-stat{min-width:0;padding:18px;background:#f5f8fa;border:1px solid #e4ebef;border-radius:12px;display:flex;flex-direction:column;gap:10px}
+.detail-stat>span{font-size:12px;color:#607888}
+.detail-stat>strong{font-size:24px;line-height:1.5;color:#203f4a;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.detail-stat>small{font-size:11px;color:#6d8391;margin-top:auto}
+.detail-insight{margin-bottom:18px;font-size:13px;color:#48616f}
+.detail-insight h3,.detail-table-title{font-size:14px;color:#263e4d;margin:0 0 8px}
+#detail-body .detail-insight p{margin:0;white-space:normal}
+.detail-comparisons{padding:12px 16px;background:#f1f7f5;border-radius:10px;margin-bottom:18px;color:#315b4e;font-size:12px}
+#detail-body .detail-comparisons p{margin:3px 0}
+.detail-table-scroll{overflow-x:auto;border:1px solid #e5ebef;border-radius:10px;margin-top:12px}
+.detail-table-scroll table{min-width:540px}
+.detail-table-scroll th{background:#f5f8fa;padding:12px}
+.detail-table-scroll td{padding:14px 12px;font-variant-numeric:tabular-nums}
+@media(max-width:600px){#detail>.panel-heading{padding:18px;gap:10px}#detail-title{font-size:18px}#detail-body{padding:18px}.detail-metrics{grid-template-columns:1fr}.detail-stat{padding:14px;gap:6px}.detail-stat>strong{font-size:22px}}
+.detail-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.detail-pagination>span{font-size:12px;color:#607888;text-align:center}
+.detail-pagination button{min-height:40px;padding:8px 14px;font-size:12px;border-radius:8px}
+.detail-pagination button:disabled{cursor:default}
+@media(max-width:440px){.detail-pagination>span{order:-1;width:100%}}
+.bill-next-steps{margin:0 0 20px;padding:18px;background:#f3f8f6;border:1px solid #dce9e3;border-radius:12px}
+.bill-next-steps h3{font-size:14px;color:#245c4e;margin:0 0 12px}
+.bill-next-steps ol{margin:0;padding-left:22px;display:grid;gap:12px}
+.bill-next-steps li{padding-left:4px;color:#416555;font-size:13px}
+.bill-next-steps strong{color:#284b40}
+#detail-body .bill-next-steps p{margin:3px 0 0;white-space:normal;color:#526d65;font-size:12px}
+</style><link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script></head>
 <body>
-<header><a href="/" class="brand"><img src="assets/pr-plus-logo.png" alt="PR PLUS"></a><nav aria-label="เมนูหลัก"><a href="executive.html" aria-current="page">สรุปผู้บริหาร</a><a href="/">ภาพรวมยอดขาย</a><a href="reports.html">รายงาน SML</a><a href="products.html">ข้อมูลสินค้า</a></nav><span class="source">SML / EXECUTIVE</span></header>
+
 <main>
-<div class="heading"><div><p class="eyebrow">THE BIG PICTURE, IN 10 SECONDS</p><h1>วันนี้ธุรกิจเป็นอย่างไร<span>?</span></h1><p>10-Second Executive Summary · เห็นภาพรวม รู้จุดสำคัญ พร้อมตัดสินใจ</p></div><span class="badge">ข้อมูลจริงจาก SML</span></div>
+<div class="heading"><div><p class="eyebrow">THE BIG PICTURE, IN 10 SECONDS</p><h1>วันนี้ธุรกิจเป็นอย่างไร<span>?</span></h1></div><span class="badge">ข้อมูลจริงจาก SML</span></div>
 <form id="filters">
   <label>ตั้งแต่<input id="start" type="date" required></label>
   <label>ถึง<input id="end" type="date" required></label>
@@ -15,17 +78,121 @@
 <p id="status" role="status" aria-live="polite">กำลังโหลดข้อมูล…</p>
 <div id="summary" hidden>
 <section class="hero" aria-label="ตัวเลขหลัก">
-<button class="metric featured" data-detail="net"><span>ยอดขายสุทธิ ↗</span><strong id="net">—</strong><small id="net-note"></small><span class="metric-footer">ดูเอกสารขายและรับคืน →</span></button>
-<button class="metric" data-detail="activity"><span>จำนวนบิลขาย ↗</span><strong id="sales-invoice-count">—</strong><small id="average-sale"></small><span class="metric-footer">ดูรายละเอียดการขาย →</span></button>
-<button class="metric" data-detail="growth"><span>การเติบโต ↗</span><strong id="mom">—</strong><small id="yoy"></small><span class="metric-footer">ดูช่วงเวลาเปรียบเทียบ →</span></button>
-<button class="metric" data-detail="target"><span>เป้ายอดขาย ↗</span><strong id="achievement">—</strong><progress id="progress" max="100" value="0" aria-label="ความคืบหน้าเป้ายอดขาย"></progress><small id="remaining"></small><span class="metric-footer">ดูยอดที่ต้องทำเพิ่ม →</span></button>
+<div class="metric-wrap"><button class="metric featured" data-detail="net"><span>ยอดขายสุทธิ ↗</span><strong id="net">—</strong><small id="net-note"></small><span class="metric-footer">ดูเอกสารขายและรับคืน →</span></button><button type="button" class="help-button" data-help="net" aria-label="คำอธิบายยอดขายสุทธิ" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></div>
+<div class="metric-wrap"><button class="metric" data-detail="activity"><span>จำนวนบิลขาย ↗</span><strong id="sales-invoice-count">—</strong><small id="average-sale"></small><span class="metric-footer">ดูรายละเอียดการขาย →</span></button><button type="button" class="help-button" data-help="activity" aria-label="คำอธิบายจำนวนบิลขาย" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></div>
+<div class="metric-wrap"><button class="metric" data-detail="growth"><span>การเติบโต ↗</span><strong id="mom">—</strong><small id="yoy"></small><span class="metric-footer">ดูช่วงเวลาเปรียบเทียบ →</span></button><button type="button" class="help-button" data-help="growth" aria-label="คำอธิบายการเติบโต" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></div>
+<div class="metric-wrap"><button class="metric" data-detail="target"><span>เป้ายอดขาย ↗</span><strong id="achievement">—</strong><progress id="progress" max="100" value="0" aria-label="ความคืบหน้าเป้ายอดขาย"></progress><small id="remaining"></small><span class="metric-footer">ดูยอดที่ต้องทำเพิ่ม →</span></button><button type="button" class="help-button" data-help="target" aria-label="คำอธิบายเป้ายอดขาย" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></div>
 </section>
 <section class="drivers" aria-label="ปัจจัยขับเคลื่อนยอดขาย">
-<article class="panel"><div class="panel-heading"><div><p class="eyebrow">PRODUCT PERFORMANCE</p><h2>5 สินค้าทำยอดสูงสุด</h2></div><span class="badge">กำไรต่ำกว่า 10% = เตือน</span></div><div class="scroll"><table><thead><tr><th>สินค้า</th><th>ยอดขายสุทธิ</th><th>กำไร / Margin</th></tr></thead><tbody id="products"></tbody></table></div><p class="note">กำไรจากรายการก่อน VAT − ต้นทุนรายการ · ไม่ใช้ต้นทุนเฉลี่ยในทะเบียนแทน · สูตรกำไรรอตรวจยืนยันกับรายงาน SML</p></article>
-<article class="panel"><div class="panel-heading"><div><p class="eyebrow">TEAM PERFORMANCE</p><h2>5 อันดับทีมขาย</h2></div><div class="tabs"><button type="button" id="branches-tab" aria-pressed="true">สาขา</button><button type="button" id="staff-tab" aria-pressed="false">พนักงาน</button></div></div><div id="leaders"></div><p class="note">ยอดรายการขาย + เพิ่มหนี้ − รับคืน/ลดหนี้ ไม่ใช่ยอดรวมเอกสาร</p></article>
+<article class="panel"><div class="panel-heading"><div><p class="eyebrow">PRODUCT PERFORMANCE</p><h2>5 สินค้าทำยอดสูงสุด <button type="button" class="help-button" data-help="products" aria-label="คำอธิบาย5 สินค้าทำยอดสูงสุด" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></h2></div><span class="badge">กำไรต่ำกว่า 10% = เตือน</span></div><div class="scroll"><table><thead><tr><th>สินค้า</th><th>ยอดขายสุทธิ</th><th>กำไร / Margin <button type="button" class="help-button" data-help="margin" aria-label="คำอธิบายกำไร / Margin" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></th></tr></thead><tbody id="products"></tbody></table></div><p class="note">กำไรจากรายการก่อน VAT − ต้นทุนรายการ · ไม่ใช้ต้นทุนเฉลี่ยในทะเบียนแทน · สูตรกำไรรอตรวจยืนยันกับรายงาน SML</p></article>
+<article class="panel"><div class="panel-heading"><div><p class="eyebrow">TEAM PERFORMANCE</p><h2>5 อันดับทีมขาย <button type="button" class="help-button" data-help="team" aria-label="คำอธิบาย5 อันดับทีมขาย" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></h2></div><div class="tabs"><button type="button" id="branches-tab" aria-pressed="false">สาขา</button><button type="button" id="staff-tab" aria-pressed="true">พนักงาน</button></div></div><div id="leaders"></div><p class="note">ยอดรายการขาย + เพิ่มหนี้ − รับคืน/ลดหนี้ ไม่ใช่ยอดรวมเอกสาร</p></article>
 </section>
-<section class="panel alerts"><div class="panel-heading"><div><p class="eyebrow">WHERE TO ACT NEXT</p><h2>เรื่องที่ควรตัดสินใจ <span id="alert-count" class="badge"></span></h2></div><span class="note">ตรวจอัตโนมัติทุก 60 วินาที</span></div><div id="alerts"></div><p class="note">สต๊อกเตือนเมื่อยอดในทะเบียน ≤ 5 หน่วยมาตรฐาน ไม่ใช่สต๊อกพร้อมขายสด · บิลสูง: มากกว่า ฿100,000 และ 3 เท่าของค่าเฉลี่ยบิลขาย · ส่วนต่าง: มากกว่า ฿100 และ 5% (อาจเกิดจาก VAT/ส่วนลด ต้องตรวจสอบก่อน)</p></section>
+<section class="panel alerts"><div class="panel-heading"><div><p class="eyebrow">WHERE TO ACT NEXT</p><h2>เรื่องที่ควรตัดสินใจ <span id="alert-count" class="badge"></span><button type="button" class="help-button" data-help="alerts" aria-label="คำอธิบายเรื่องที่ควรตัดสินใจ" aria-haspopup="dialog"><span aria-hidden="true">!</span></button></h2></div><span class="note">ตรวจอัตโนมัติทุก 60 วินาที</span></div><div id="alerts"></div><p class="note">สต๊อกเตือนเมื่อยอดในทะเบียน ≤ 5 หน่วยมาตรฐาน ไม่ใช่สต๊อกพร้อมขายสด · บิลสูง: มากกว่า ฿100,000 และ 3 เท่าของค่าเฉลี่ยบิลขาย · ส่วนต่าง: มากกว่า ฿100 และ 5% (อาจเกิดจาก VAT/ส่วนลด ต้องตรวจสอบก่อน)</p></section>
 <footer id="updated"></footer>
 </div>
-<dialog id="detail"><div class="panel-heading"><h2 id="detail-title"></h2><button id="close" type="button">ปิด ×</button></div><div id="detail-body"></div></dialog>
+<dialog id="detail" aria-labelledby="detail-title"><div class="panel-heading"><h2 id="detail-title"></h2><button id="close" type="button" autofocus>ปิด ×</button></div><div id="detail-body"></div></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title" aria-describedby="help-summary"><div class="panel-heading"><div><p class="help-eyebrow">EXECUTIVE GUIDE / คู่มืออ่านข้อมูล</p><h2 id="help-title"></h2></div><button type="button" id="help-close" autofocus>ปิด ×</button></div><div id="help-content"></div></dialog>
+<script>
+const helpTopics = {
+  net: ['ยอดขายสุทธิ', 'ที่มา: ยอดรวมเอกสาร ic_trans.total_amount ตามช่วงวันที่เลือก\nสูตร: ขาย (44) + เพิ่มหนี้ (46) − รับคืน/ลดหนี้ (48)\nไม่รวมเอกสารยกเลิกและสำเนา รวมยอดจากหัวเอกสารแยกจากรายการสินค้าเพื่อป้องกันยอดซ้ำ'],
+  activity: ['จำนวนบิลขายและยอดเฉลี่ยต่อบิล', 'นับเฉพาะเอกสารขาย (44) ในช่วงวันที่เลือก ไม่รวมเพิ่มหนี้ รับคืน เอกสารยกเลิก และสำเนา\nยอดเฉลี่ยต่อบิล = ยอดรวมเอกสารขาย ÷ จำนวนบิลขายทั้งหมด ก่อนหักรับคืน\nช่วยดูปริมาณการขายและมูลค่าต่อบิล ไม่ต้องใช้ต้นทุนสินค้า'],
+  growth: ['การเติบโต MoM / YoY', 'เทียบยอดขายสุทธิช่วงที่เลือกกับช่วงย้อนหลัง 1 เดือน (MoM) และ 1 ปี (YoY)\nสูตร: (ยอดปัจจุบัน − ยอดช่วงก่อน) ÷ ยอดช่วงก่อน × 100\nเลื่อนวันเริ่มและสิ้นสุด โดยจำกัดวันตามสิ้นเดือน จำนวนวันอาจต่างกัน ไม่คำนวณเปอร์เซ็นต์เมื่อฐานเป็นศูนย์หรือติดลบ'],
+  target: ['เป้ายอดขาย', 'กรอกเป้าสำหรับช่วงวันที่ในช่องด้านบน เป็นจำนวนมากกว่า 0 บาท\nความคืบหน้า = ยอดขายสุทธิ ÷ เป้า × 100\nเป้าเก็บอัตโนมัติเฉพาะเบราว์เซอร์นี้ แยกตามช่วงวันที่ ไม่ใช่เป้าจาก SML และไม่แชร์กับเครื่องอื่น\nเปอร์เซ็นต์เกิน 100% ได้ แต่หลอดแสดงสูงสุด 100%'],
+  products: ['5 สินค้าทำยอดสูงสุด', 'ที่มา: รายการสินค้า ic_trans_detail ที่มีเอกสารต้นทาง ic_trans ตรงกัน และมีรหัสในทะเบียน ic_inventory\nรวมยอด sum_amount ตามรหัสสินค้า จากทุกสาขาและพนักงานในช่วงวันที่เลือก: ขาย + เพิ่มหนี้ − รับคืน/ลดหนี้\nตัดเอกสารยกเลิก สำเนา และรายการหมายเหตุ เรียงยอดเงินจากมากไปน้อย เลือก 5 อันดับแรก\nจัดอันดับตามยอดเงิน ไม่ใช่จำนวนชิ้นหรือกำไร ยอดรายการอาจต่างจากยอดหัวเอกสาร'],
+  margin: ['กำไร / Margin ของสินค้า', 'กำไร = รวม (ยอดรายการก่อน VAT − ค่าสัมบูรณ์ต้นทุนรายการ sum_of_cost) โดยหักเอกสารรับคืน\nMargin = กำไร ÷ ยอดรายการก่อน VAT × 100 และเตือนเมื่อกำไรต่ำกว่า 10%\nไม่แสดงกำไรหากต้นทุน/รายได้ไม่ครบ หรือมีต้นทุนศูนย์ในรายการที่มีจำนวน ไม่ใช้ต้นทุนเฉลี่ยในทะเบียนแทน\nสูตรกำไรยังรอตรวจยืนยันกับรายงาน SML ก่อนใช้อ้างอิงทางบัญชี'],
+  team: ['5 อันดับทีมขาย', 'สลับดูสาขาหรือพนักงานขายที่มียอดรายการสุทธิสูงสุด 5 อันดับ ในช่วงวันที่เลือก\nใช้ branch_code หรือ sale_code จาก ic_trans_detail จับชื่อจาก erp_branch_list หรือ erp_user\nสูตร: ยอดรายการขาย + เพิ่มหนี้ − รับคืน/ลดหนี้ ไม่ใช่ยอดรวมจากหัวเอกสาร'],
+  alerts: ['เกณฑ์เรื่องที่ควรตัดสินใจ', 'ยอดสาขาลดลง: ยอดรายการลดเกิน 20% เทียบช่วงเดือนก่อนที่มีฐานเป็นบวก\nสต๊อก: สินค้า Top 5 ที่มียอดขายเป็นบวกและ balance_qty ในทะเบียนเหลือไม่เกิน 5 หน่วยมาตรฐาน ไม่ใช่สต๊อกพร้อมขายสด\nบิลสูง: มากกว่า 100,000 บาท และมากกว่า 3 เท่าของค่าเฉลี่ยบิลขาย\nยอดต่าง: ยอดเอกสารกับยอดรายการต่างเกินทั้ง 100 บาทและ 5% ของยอดเอกสาร\nเป็นสัญญาณให้ตรวจสอบ VAT/ส่วนลดและต้นทาง ไม่ใช่ข้อสรุปว่าข้อมูลผิด จำกัดการเตือนสาขาและบิลประเภทละ 20 รายการ']
+};
+const executiveHelp = {
+  net: {
+    summary: 'เห็นยอดขายที่เหลือหลังหักรับคืน เพื่อประเมินภาพรวมรายได้จากการขายในช่วงที่เลือก',
+    formula: 'ยอดขาย + เพิ่มหนี้ − รับคืน / ลดหนี้',
+    action: 'ดูควบคู่กับการเติบโตและเป้าหมาย หากยอดลดลง ให้ตรวจสาขา สินค้า และยอดรับคืนก่อนวางแผนเร่งยอดขาย',
+    caution: 'เป็นยอดตามเอกสาร ไม่ใช่เงินสดที่รับแล้ว และไม่ใช่กำไร ไม่รวมเอกสารยกเลิกและสำเนา'
+  },
+  activity: {
+    summary: 'รู้ว่าขายได้กี่บิล และแต่ละบิลมีมูลค่าเฉลี่ยเท่าไร ช่วยแยกปริมาณการขายออกจากขนาดบิล',
+    formula: 'ยอดเฉลี่ยต่อบิล = ยอดเอกสารขาย ÷ จำนวนบิลขาย',
+    action: 'หากต้องการเพิ่มยอดขาย ใช้สองตัวนี้ช่วยเลือกว่าจะเน้นเพิ่มจำนวนบิล หรือเพิ่มมูลค่าต่อบิลด้วยสินค้าที่เกี่ยวข้อง',
+    caution: 'นับเฉพาะบิลขาย ไม่รวมเพิ่มหนี้และรับคืน ค่าเฉลี่ยเป็นยอดก่อนหักคืน และไม่แสดงเมื่อไม่มีบิลขาย'
+  },
+  growth: {
+    summary: 'เห็นทิศทางยอดขายสุทธิ เทียบช่วงเดือนก่อน (MoM) และปีก่อน (YoY) ไม่ใช่ดูยอดปัจจุบันเพียงอย่างเดียว',
+    formula: '(ยอดปัจจุบัน − ยอดช่วงก่อน) ÷ ยอดช่วงก่อน × 100',
+    action: 'ใช้ MoM ดูการเปลี่ยนแปลงระยะสั้น และ YoY ประกอบการดูฤดูกาล หากติดลบ ให้ตรวจสินค้าหรือทีมขายที่ยอดลดลง',
+    caution: 'ช่วงเทียบเลื่อนย้อนหลังตามวันที่ จำนวนวันอาจต่างกัน ไม่คำนวณเปอร์เซ็นต์เมื่อยอดฐานเป็นศูนย์หรือติดลบ'
+  },
+  target: {
+    summary: 'รู้ว่าทำยอดได้กี่เปอร์เซ็นต์ของเป้า และยังต้องทำเพิ่มอีกเท่าไรในช่วงวันที่เลือก',
+    formula: 'ความคืบหน้า = ยอดขายสุทธิ ÷ เป้ายอดขาย × 100',
+    action: 'กรอกเป้าในช่องด้านบน แล้วใช้ยอดที่เหลือกำหนดงานให้ทีมขาย เปลี่ยนช่วงวันที่แล้วควรตรวจเป้าของช่วงนั้นอีกครั้ง',
+    caution: 'เป้าต้องมากกว่า 0 บาท บันทึกเฉพาะเบราว์เซอร์นี้ แยกตามช่วงวันที่ ไม่ใช่เป้าจาก SML และไม่แชร์ข้ามเครื่อง หลอดเต็มที่ 100% แต่ตัวเลขเกินได้'
+  },
+  products: {
+    summary: 'เห็นสินค้า 5 อันดับที่สร้างยอดเงินสุทธิสูงที่สุด จากทุกสาขาและพนักงานในช่วงวันที่เลือก',
+    formula: 'รวมยอดขาย + เพิ่มหนี้ − รับคืน ต่อสินค้า → เลือก 5 อันดับสูงสุด',
+    action: 'ใช้จัดลำดับสินค้าที่ต้องดูแลสต๊อกและติดตามการขาย แล้วดู Margin ประกอบ เพื่อไม่เร่งขายเฉพาะสินค้ายอดสูงแต่กำไรต่ำ',
+    caution: 'จัดอันดับตามยอดเงิน ไม่ใช่จำนวนชิ้นหรือกำไร ไม่รวมหมายเหตุและสินค้าที่ไม่มีในทะเบียน ยอดรายการอาจต่างจากยอดรวมเอกสาร'
+  },
+  margin: {
+    summary: 'ดูว่าสินค้าที่ขายสร้างกำไรขั้นต้นเท่าไร และเหลือกำไรกี่เปอร์เซ็นต์ของยอดรายการก่อน VAT',
+    formula: 'Margin = กำไรขั้นต้น ÷ ยอดรายการก่อน VAT × 100',
+    action: 'สินค้าที่ Margin ต่ำกว่า 10% จะมีสีเตือน ควรตรวจราคาขาย ส่วนลด และต้นทุน ก่อนตัดสินใจทำโปรโมชั่นเพิ่ม',
+    caution: 'ไม่ใช่กำไรสุทธิหลังค่าใช้จ่ายทั้งหมด ไม่ประมาณกำไรเมื่อต้นทุนไม่ครบ สูตรยังรอตรวจยืนยันกับรายงาน SML ก่อนใช้อ้างอิงทางบัญชี'
+  },
+  team: {
+    summary: 'รู้ว่าสาขาหรือพนักงานคนไหนสร้างยอดรายการสุทธิสูงสุด 5 อันดับ ในช่วงวันที่เลือก',
+    formula: 'ยอดรายการขาย + เพิ่มหนี้ − รับคืน / ลดหนี้ แยกตามทีม',
+    action: 'สลับแท็บสาขาและพนักงาน เพื่อดูทีมหลักที่ขับเคลื่อนยอดขาย ใช้ติดตามงานและเรียนรู้แนวทางจากทีมที่ทำยอดได้ดี',
+    caution: 'อันดับสะท้อนยอดเงิน ไม่ใช่ประสิทธิภาพหรือกำไรโดยตรง ควรพิจารณาขนาดสาขา ฐานลูกค้า และเป้าของแต่ละทีมร่วมด้วย'
+  },
+  alerts: {
+    summary: 'รวบรวมสัญญาณที่ควรตรวจสอบ เพื่อให้ผู้บริหารเห็นเรื่องที่ต้องติดตามโดยไม่ต้องไล่ดูทุกบิล',
+    formula: 'สาขายอดลด > 20% · สต๊อก Top 5 ≤ 5 หน่วย · บิลสูง / ยอดต่าง',
+    action: 'กด “ตรวจสอบ” เพื่อดูต้นทาง แล้วมอบหมายทีมขาย คลังสินค้า หรือบัญชีให้ตรวจตามประเภทของเรื่อง ก่อนตัดสินใจดำเนินการ',
+    caution: 'สัญญาณเตือนไม่ใช่ข้อสรุปว่าผิด สต๊อกเป็นยอดในทะเบียน ไม่ใช่ยอดพร้อมขายสด ส่วนต่างเอกสารอาจเกิดจาก VAT หรือส่วนลด'
+  }
+};
+function helpNode(tag, text, className = '') {
+  const item = document.createElement(tag);
+  item.textContent = text;
+  item.className = className;
+  return item;
+}
+document.querySelectorAll('[data-help]').forEach(button => button.addEventListener('click', () => {
+  const [title, content] = helpTopics[button.dataset.help];
+  document.getElementById('help-title').textContent = title;
+  const topic = executiveHelp[button.dataset.help];
+  const container = document.getElementById('help-content');
+  const summary = helpNode('p', topic.summary, 'help-summary');
+  summary.id = 'help-summary';
+  const formula = helpNode('div', '', 'help-formula');
+  formula.append(helpNode('span', 'วิธีอ่านตัวเลข', 'help-label'), helpNode('strong', topic.formula));
+  const action = helpNode('section', '', 'help-action');
+  action.append(helpNode('h3', 'ใช้ประกอบการตัดสินใจ'), helpNode('p', topic.action));
+  const caution = helpNode('section', '', 'help-caution');
+  caution.append(helpNode('h3', 'ข้อควรทราบ'), helpNode('p', topic.caution));
+  const source = helpNode('details', '', 'help-source');
+  source.append(helpNode('summary', 'ดูแหล่งข้อมูลและเงื่อนไขการคำนวณ'), helpNode('p', content));
+  container.replaceChildren(summary, formula, action, caution, source);
+  document.getElementById('help-dialog').showModal();
+}));
+document.getElementById('help-close').addEventListener('click', () => document.getElementById('help-dialog').close());
+document.querySelectorAll('dialog').forEach(dialog => {
+  let backdropPress = false;
+  function outsideDialog(event) {
+    const bounds = dialog.getBoundingClientRect();
+    return event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom);
+  }
+  dialog.addEventListener('pointerdown', event => {
+    backdropPress = event.button === 0 && outsideDialog(event);
+  });
+  dialog.addEventListener('click', event => {
+    if (backdropPress && outsideDialog(event)) dialog.close();
+    backdropPress = false;
+  });
+  dialog.addEventListener('pointercancel', () => { backdropPress = false; });
+  dialog.addEventListener('close', () => { backdropPress = false; });
+});
+</script>
 </main></body></html>

@@ -16,6 +16,21 @@ async function load(page=0,filters=applied){
 }
 function detail(product){$('detail-title').textContent=`${product.code} · ${product.name_1}`;$('detail-fields').replaceChildren();for(const f of current.fields){const label=document.createElement('div'),value=document.createElement('div');label.textContent=f.label===f.key?f.key:`${f.label} (${f.key})`;value.textContent=product[f.key]??'—';$('detail-fields').append(label,value);}$('product-detail').showModal();}
 $('close-detail').onclick=()=>$('product-detail').close();
+const productDialog = $('product-detail');
+let backdropPress = false;
+function outsideProductDialog(event) {
+  const bounds = productDialog.getBoundingClientRect();
+  return event.target === productDialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom);
+}
+productDialog.addEventListener('pointerdown', event => {
+  backdropPress = event.button === 0 && outsideProductDialog(event);
+});
+productDialog.addEventListener('click', event => {
+  if (backdropPress && outsideProductDialog(event)) productDialog.close();
+  backdropPress = false;
+});
+productDialog.addEventListener('pointercancel', () => { backdropPress = false; });
+productDialog.addEventListener('close', () => { backdropPress = false; });
 $('product-filters').onsubmit=e=>{e.preventDefault();load(0,{q:$('product-search').value.trim(),group:$('product-group').value});};
 $('clear-products').onclick=()=>{$('product-search').value='';$('product-group').value='';load(0,{q:'',group:''});};
 $('products-prev').onclick=()=>{if(current)load(current.page-1);};$('products-next').onclick=()=>{if(current)load(current.page+1);};$('export-scope').onchange=exportLabel;
