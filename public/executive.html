@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="th">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Executive Summary · PR PLUS</title><link rel="stylesheet" href="executive.css"><link rel="stylesheet" href="executive-alerts.css"><script src="executive-ui.js" defer></script></head>
+<body>
+<header><a href="/" class="brand"><img src="assets/pr-plus-logo.png" alt="PR PLUS"></a><nav aria-label="เมนูหลัก"><a href="executive.html" aria-current="page">สรุปผู้บริหาร</a><a href="/">ภาพรวมยอดขาย</a><a href="reports.html">รายงาน SML</a><a href="products.html">ข้อมูลสินค้า</a></nav><span class="source">SML / EXECUTIVE</span></header>
+<main>
+<div class="heading"><div><p class="eyebrow">THE BIG PICTURE, IN 10 SECONDS</p><h1>วันนี้ธุรกิจเป็นอย่างไร<span>?</span></h1><p>10-Second Executive Summary · เห็นภาพรวม รู้จุดสำคัญ พร้อมตัดสินใจ</p></div><span class="badge">ข้อมูลจริงจาก SML</span></div>
+<form id="filters">
+  <label>ตั้งแต่<input id="start" type="date" required></label>
+  <label>ถึง<input id="end" type="date" required></label>
+  <label class="target-input">เป้าสำหรับช่วงที่เลือก (บาท)<input id="target" type="text" inputmode="decimal" placeholder="เช่น 50,000" aria-describedby="target-storage"></label>
+  <button type="submit" id="refresh">อัปเดตข้อมูล ↻</button>
+  <div class="filter-notes"><span id="target-storage">บันทึกเป้าอัตโนมัติในเบราว์เซอร์นี้ · แยกตามช่วงวันที่</span></div>
+</form>
+<p id="status" role="status" aria-live="polite">กำลังโหลดข้อมูล…</p>
+<div id="summary" hidden>
+<section class="hero" aria-label="ตัวเลขหลัก">
+<button class="metric featured" data-detail="net"><span>ยอดขายสุทธิ ↗</span><strong id="net">—</strong><small id="net-note"></small><span class="metric-footer">ดูเอกสารขายและรับคืน →</span></button>
+<button class="metric" data-detail="activity"><span>จำนวนบิลขาย ↗</span><strong id="sales-invoice-count">—</strong><small id="average-sale"></small><span class="metric-footer">ดูรายละเอียดการขาย →</span></button>
+<button class="metric" data-detail="growth"><span>การเติบโต ↗</span><strong id="mom">—</strong><small id="yoy"></small><span class="metric-footer">ดูช่วงเวลาเปรียบเทียบ →</span></button>
+<button class="metric" data-detail="target"><span>เป้ายอดขาย ↗</span><strong id="achievement">—</strong><progress id="progress" max="100" value="0" aria-label="ความคืบหน้าเป้ายอดขาย"></progress><small id="remaining"></small><span class="metric-footer">ดูยอดที่ต้องทำเพิ่ม →</span></button>
+</section>
+<section class="drivers" aria-label="ปัจจัยขับเคลื่อนยอดขาย">
+<article class="panel"><div class="panel-heading"><div><p class="eyebrow">PRODUCT PERFORMANCE</p><h2>5 สินค้าทำยอดสูงสุด</h2></div><span class="badge">กำไรต่ำกว่า 10% = เตือน</span></div><div class="scroll"><table><thead><tr><th>สินค้า</th><th>ยอดขายสุทธิ</th><th>กำไร / Margin</th></tr></thead><tbody id="products"></tbody></table></div><p class="note">กำไรจากรายการก่อน VAT − ต้นทุนรายการ · ไม่ใช้ต้นทุนเฉลี่ยในทะเบียนแทน · สูตรกำไรรอตรวจยืนยันกับรายงาน SML</p></article>
+<article class="panel"><div class="panel-heading"><div><p class="eyebrow">TEAM PERFORMANCE</p><h2>5 อันดับทีมขาย</h2></div><div class="tabs"><button type="button" id="branches-tab" aria-pressed="true">สาขา</button><button type="button" id="staff-tab" aria-pressed="false">พนักงาน</button></div></div><div id="leaders"></div><p class="note">ยอดรายการขาย + เพิ่มหนี้ − รับคืน/ลดหนี้ ไม่ใช่ยอดรวมเอกสาร</p></article>
+</section>
+<section class="panel alerts"><div class="panel-heading"><div><p class="eyebrow">WHERE TO ACT NEXT</p><h2>เรื่องที่ควรตัดสินใจ <span id="alert-count" class="badge"></span></h2></div><span class="note">ตรวจอัตโนมัติทุก 60 วินาที</span></div><div id="alerts"></div><p class="note">สต๊อกเตือนเมื่อยอดในทะเบียน ≤ 5 หน่วยมาตรฐาน ไม่ใช่สต๊อกพร้อมขายสด · บิลสูง: มากกว่า ฿100,000 และ 3 เท่าของค่าเฉลี่ยบิลขาย · ส่วนต่าง: มากกว่า ฿100 และ 5% (อาจเกิดจาก VAT/ส่วนลด ต้องตรวจสอบก่อน)</p></section>
+<footer id="updated"></footer>
+</div>
+<dialog id="detail"><div class="panel-heading"><h2 id="detail-title"></h2><button id="close" type="button">ปิด ×</button></div><div id="detail-body"></div></dialog>
+</main></body></html>

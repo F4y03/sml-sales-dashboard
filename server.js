@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { installReports } from './reports.js';
 import { installProducts } from './products.js';
 import { installAnalytics } from './analytics.js';
+import { installExecutive } from './executive.js';
 
 const app = express();
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, max: 5, options: '-c default_transaction_read_only=on' });
@@ -19,6 +20,7 @@ app.use(express.json({ limit: '32kb' }));
 installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);
+installExecutive(app, pool);
 app.get('/api/dashboard', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { start, end } = req.query;
