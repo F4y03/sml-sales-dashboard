@@ -18,7 +18,7 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
       await page.setViewportSize({ width: 1440, height: 960 });
       await page.goto(`${base}/${file}.html`, { waitUntil: 'domcontentloaded' });
       await page.locator('.workspace-sidebar').waitFor();
-      assert.equal(await page.locator('.workspace-links a').count(), 7);
+      assert.equal(await page.locator('.workspace-links a').count(), 5);
       assert.equal(await page.locator('.workspace-links [aria-current]').getAttribute('data-page'), active);
       assert.ok((await page.locator('main').boundingBox()).x >= 246);
       await page.setViewportSize({ width: 390, height: 844 });
@@ -31,13 +31,13 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
       assert.ok(await page.locator('.workspace-links').isHidden());
     }
     await page.setViewportSize({ width: 1440, height: 960 });
-    await page.locator('[data-page="charts"]').click();
-    await page.waitForURL('**/index.html#charts');
-    assert.equal(await page.locator('.workspace-links [aria-current]').getAttribute('data-page'), 'charts');
-    await page.locator('[data-page="bestsellers"]').click();
-    await page.waitForURL('**/index.html#products');
-    await page.locator('[data-page="bestsellers"][aria-current="page"]').waitFor();
-    assert.equal(await page.locator('.workspace-links [aria-current]').getAttribute('data-page'), 'bestsellers');
+    await page.locator('[data-page="overview"]').click();
+    await page.waitForURL('**/index.html#overview');
+    for (const hash of ['charts', 'products']) {
+      await page.goto(`${base}/index.html#${hash}`, { waitUntil: 'domcontentloaded' });
+      await page.locator('[data-page="overview"][aria-current="page"]').waitFor();
+      assert.equal(await page.locator('[data-page="charts"], [data-page="bestsellers"]').count(), 0);
+    }
   } finally {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));
