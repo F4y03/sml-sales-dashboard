@@ -7,6 +7,21 @@ const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end
   && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;
 
+function customerQueryError(error) {
+  const codes = [error.code, ...(error.errors ?? []).map(item => item.code)];
+  if (codes.some(code => ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH', 'ENOTFOUND', 'EAI_AGAIN', '08001', '08006', '57P01', '57P03'].includes(code))
+    || /connection terminated|connection timeout|timeout exceeded when trying to connect/i.test(error.message ?? '')) {
+    return 'เชื่อมต่อฐานข้อมูล SML ไม่สำเร็จหรือการเชื่อมต่อถูกตัด กรุณาตรวจสอบเครือข่าย/VPN และบริการ PostgreSQL แล้วกดอัปเดตข้อมูลอีกครั้ง';
+  }
+  if (codes.some(code => ['28P01', '28000', '42501', '3D000'].includes(code))) {
+    return 'การตั้งค่าหรือสิทธิ์เข้าถึงฐานข้อมูล SML ไม่ถูกต้อง กรุณาให้ผู้ดูแลตรวจสอบค่าเชื่อมต่อใน .env และสิทธิ์ฐานข้อมูล แล้วรีสตาร์ตเซิร์ฟเวอร์';
+  }
+  if (codes.includes('57014')) {
+    return 'ดึงข้อมูลลูกค้าเกินเวลาที่กำหนด กรุณาลดช่วงวันที่แล้วกดอัปเดตข้อมูลอีกครั้ง';
+  }
+  return 'ดึงข้อมูลลูกค้าจาก SML ไม่สำเร็จ กรุณาลองใหม่';
+}
+
 export function installCustomerInsights(app, pool) {
   for (const detail of [false, true]) {
     app.get(`/api/customer-insights${detail ? '/products' : ''}`, async (req, res) => {
@@ -28,7 +43,7 @@ export function installCustomerInsights(app, pool) {
         res.json({ ...data, start, end, updatedAt: new Date().toISOString() });
       } catch (error) {
         console.error('Customer insights query failed:', error.code);
-        res.status(503).json({ error: 'ดึงข้อมูลลูกค้าจาก SML ไม่สำเร็จ กรุณาลองใหม่' });
+        res.status(503).json({ error: customerQueryError(error) });
       }
     });
   }

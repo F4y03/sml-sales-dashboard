@@ -54,6 +54,32 @@ test('customer API validates dates and codes, binds exact customer codes, and re
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test('customer API distinguishes connection, configuration and query timeout failures without exposing database details', async () => {
+  const app = express();
+  let failure;
+  installCustomerInsights(app, { query: async () => { throw failure; } });
+  const { server, base } = await listen(app);
+  try {
+    for (const [properties, expected] of [
+      [{ code: 'ECONNRESET' }, 'เครือข่าย/VPN'],
+      [{ errors: [{ code: 'ECONNREFUSED' }] }, 'เครือข่าย/VPN'],
+      [{ message: 'Connection terminated due to connection timeout' }, 'เครือข่าย/VPN'],
+      [{ code: '28P01' }, 'สิทธิ์เข้าถึงฐานข้อมูล'],
+      [{ code: '57014' }, 'ลดช่วงวันที่'],
+      [{ code: 'XX000' }, 'กรุณาลองใหม่'],
+    ]) {
+      failure = Object.assign(new Error('private database details'), properties);
+      for (const endpoint of ['', '/products']) {
+        const response = await fetch(`${base}/api/customer-insights${endpoint}?start=2026-09-01&end=2026-09-10&code=C1`);
+        assert.equal(response.status, 503);
+        const body = await response.json();
+        assert.ok(body.error.includes(expected));
+        assert.ok(!body.error.includes('private database details'));
+      }
+    }
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test('browser: HTML 404, HTML fallback and broken JSON show actionable errors and recover after retry', async () => {
   const app = express();
   app.use(express.static('public'));
