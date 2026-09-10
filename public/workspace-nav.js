@@ -6,8 +6,8 @@ workspace.innerHTML = `
   <button class="workspace-toggle" type="button" aria-expanded="false" aria-controls="workspace-links">☰ เมนู Workspace</button>
   <nav id="workspace-links" class="workspace-links" aria-label="หน้าหลัก">
     <p class="workspace-label">WORKSPACE</p>
-    <a href="index.html#overview" data-page="overview"><span aria-hidden="true">▦</span>Home</a>
-    <a href="customers.html" data-page="customers"><span aria-hidden="true">◎</span>ข้อมูลเชิงลึกลูกค้า</a>
+    <a href="index.html#overview" data-page="overview"><span aria-hidden="true">▦</span>ภาพรวม</a>
+    <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า"><span aria-hidden="true">◎</span><span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
     <a href="reports.html" data-page="reports"><span aria-hidden="true">▤</span>รายงาน SML ทั้งหมด</a>
     <a href="products.html" data-page="products"><span aria-hidden="true">▧</span>ข้อมูลสินค้า / ส่งออก</a>
     <a href="executive.html" data-page="executive"><span aria-hidden="true">◈</span>สรุปผู้บริหาร · 10 วินาที</a>

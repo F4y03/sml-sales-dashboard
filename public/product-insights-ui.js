@@ -169,16 +169,45 @@
   }
   function renderLeaders(id, products, watch) {
     const container = byId(id); container.replaceChildren();
+    const minimum = watch ? Math.min(0, ...products.map(item => item.net)) : 0;
+    const maximum = Math.max(0, ...products.flatMap(item => watch ? [item.previousNet, item.net] : [item.net]));
+    const range = maximum - minimum || 1;
+    const zero = -minimum / range * 100;
+    container.classList.toggle('leader-chart-paired', watch);
+    if (products.length) container.append(node('p', watch ? 'ยอดสุทธิช่วงก่อน เทียบช่วงนี้ · บาท' : 'ยอดขายสุทธิ · บาท', 'leader-chart-caption'));
     products.forEach((item, index) => {
       const button = node('button', '', 'performance-leader'), label = node('span', '', 'leader-label');
       button.type = 'button'; button.title = item.name;
       button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
       label.append(node('strong', item.name), node('small', item.code));
       const value = node('span', watch ? `−${money(item.previousNet - item.net)}` : money(item.net), `leader-value${watch ? ' performance-negative' : ''}`);
-      value.append(node('small', watch ? `ปัจจุบัน ${money(item.net)} · ${changeLabel(item)}` : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`));
+      value.append(node('small', watch ? `ลดลง ${changeLabel(item).replace(/^−|-/, '')}` : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`));
       button.append(node('span', String(index + 1).padStart(2, '0')), label, value);
+      const plot = node('span', '', 'leader-chart-plot');
+      const entries = watch ? [['ช่วงก่อน', item.previousNet, 'is-previous'], ['ช่วงนี้', item.net, 'is-current']] : [['', item.net, '']];
+      for (const [periodLabel, amount, className] of entries) {
+        const row = node('span', '', 'leader-chart-series');
+        if (watch) row.append(node('span', periodLabel, 'leader-series-label'));
+        const track = node('span', '', 'leader-chart-track');
+        track.setAttribute('aria-hidden', 'true');
+        track.style.setProperty('--zero', `${zero}%`);
+        const bar = node('span', '', `leader-chart-fill ${className}${amount < 0 ? ' is-negative' : ''}`);
+        bar.style.left = `${(Math.min(0, amount) - minimum) / range * 100}%`;
+        bar.style.width = `${Math.abs(amount) / range * 100}%`;
+        track.append(bar); row.append(track);
+        if (watch) row.append(node('span', money(amount), 'leader-series-amount'));
+        plot.append(row);
+      }
+      button.append(plot);
       button.addEventListener('click', () => openSku(item, button)); container.append(button);
     });
+    if (products.length) {
+      const axis = node('div', '', 'leader-chart-axis');
+      axis.setAttribute('aria-hidden', 'true');
+      axis.append(node('span', money(minimum)), node('span', money((minimum + maximum) / 2)), node('span', money(maximum)));
+      container.append(axis);
+      container.append(node('p', 'ความยาวแท่งเทียบกันภายในกราฟนี้ · แต่ละกราฟใช้สเกลต่างกัน', 'leader-chart-scale-note'));
+    }
     if (!products.length) container.append(node('p', watch ? 'ไม่พบสินค้าที่มียอดลดลงจากฐานบวกในช่วงเปรียบเทียบ' : 'ยังไม่มีสินค้าที่มียอดขายสุทธิเป็นบวกตามตัวกรอง', 'empty-state'));
   }
 
