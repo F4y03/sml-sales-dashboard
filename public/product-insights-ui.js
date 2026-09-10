@@ -101,10 +101,71 @@
     byId('performance-sold').textContent = num.format(scope.filter(item => item.invoiceCount > 0).length);
     byId('performance-unsold').textContent = num.format(scope.filter(unsold).length);
     byId('performance-declining').textContent = num.format(scope.filter(declining).length);
+    renderSummaryCharts(total, previous);
     renderLeaders('performance-best', scope.filter(item => item.net > 0 && item.invoiceCount > 0).sort(descending).slice(0, 5), false);
     renderLeaders('performance-watch', scope.filter(declining).sort((a, b) => (b.previousNet - b.net) - (a.previousNet - a.net) || a.code.localeCompare(b.code)).slice(0, 5), true);
     status(scope.length ? `พบ ${num.format(scope.length)} รหัสสินค้า · คลิกสินค้าเพื่อดูจำนวนขายและลูกค้าที่ซื้อ` : 'ไม่พบสินค้าตามคำค้นหาและหมวดหมู่ที่เลือก');
     page = 0; renderTable();
+  }
+  function renderSummaryCharts(total, previous) {
+    const svgNode = (tag, attrs = {}, text = '') => {
+      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+      element.textContent = text;
+      return element;
+    };
+    const registered = scope.filter(item => item.registered).length;
+    const comparable = scope.filter(item => item.previousNet > 0).length;
+    const cards = [
+      ['net', total, previous, 'ยอดสุทธิเทียบช่วงก่อนหน้า', '#e8b0a9'],
+      ['sold', scope.filter(item => item.invoiceCount > 0).length, scope.length, 'จากสินค้าทั้งหมดตามตัวกรอง', '#c93436'],
+      ['unsold', scope.filter(unsold).length, registered, 'จากสินค้าในทะเบียนตามตัวกรอง', '#b88935'],
+      ['declining', scope.filter(declining).length, comparable, 'จากสินค้าที่ช่วงก่อนมียอดสุทธิเป็นบวก', '#bb7261'],
+    ];
+    for (const [key, value, base, caption, color] of cards) {
+      const card = byId(`performance-${key}`).closest('.summary-card');
+      let chart = card.querySelector('.performance-summary-chart');
+      if (!chart) {
+        chart = node('span', '', 'summary-breakdown performance-summary-chart');
+        card.append(chart);
+      }
+      chart.replaceChildren(node('span', caption, 'summary-chart-caption'));
+      if (!scope.length) {
+        chart.append(node('span', 'ไม่มีข้อมูลตามตัวกรอง', 'summary-chart-empty'));
+        continue;
+      }
+      if (key === 'net') {
+        const svg = svgNode('svg', { viewBox: '0 0 280 140', 'aria-hidden': 'true', class: 'performance-comparison' });
+        const min = Math.min(0, value, base), max = Math.max(0, value, base);
+        const y = n => 116 - (n - min) / (max - min || 1) * 98;
+        svg.append(svgNode('line', { x1: 15, x2: 265, y1: y(0), y2: y(0), stroke: '#b88580' }));
+        [base, value].forEach((amount, index) => {
+          const x = 50 + index * 120;
+          svg.append(svgNode('rect', { x, y: Math.min(y(0), y(amount)), width: 60,
+            height: Math.max(1, Math.abs(y(amount) - y(0))), rx: 3, fill: amount < 0 ? '#ef9d9d' : index ? color : '#e8b0a9' }));
+          svg.append(svgNode('text', { x: x + 30, y: 137, 'text-anchor': 'middle', fill: '#f5dcd7', 'font-size': 14 }, index ? 'ช่วงที่เลือก' : 'ช่วงก่อนหน้า'));
+        });
+        chart.append(svg);
+        const legend = node('span', '', 'performance-comparison-legend');
+        for (const [label, amount] of [['ช่วงก่อนหน้า', base], ['ช่วงที่เลือก', value]]) {
+          const row = node('span', '', 'performance-comparison-value');
+          row.append(node('span', label), node('b', money(amount)));
+          legend.append(row);
+        }
+        chart.append(legend);
+      } else {
+        const ring = node('span', '', 'summary-donut');
+        const svg = svgNode('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' });
+        svg.append(svgNode('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: '#f4ebe7', 'stroke-width': 16 }));
+        const percent = base ? value / base * 100 : 0;
+        if (value) svg.append(svgNode('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: color,
+          'stroke-width': 16, pathLength: 100, 'stroke-dasharray': `${percent} ${100 - percent}`, transform: 'rotate(-90 70 70)' }));
+        const center = node('span', '', 'summary-donut-center');
+        center.append(node('b', base ? `${num.format(percent)}%` : '—'), node('span', 'ของกลุ่มอ้างอิง'));
+        ring.append(svg, center);
+        chart.append(ring, node('span', base ? `${num.format(value)} จาก ${num.format(base)} รหัสสินค้า` : 'ไม่มีสินค้าในกลุ่มอ้างอิง', 'performance-chart-note'));
+      }
+    }
   }
   function renderLeaders(id, products, watch) {
     const container = byId(id); container.replaceChildren();

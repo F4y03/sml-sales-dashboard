@@ -10,7 +10,9 @@
   <script src="customers-ui.js" defer></script>
   <script src="product-insights-ui.js" defer></script>
   <script src="workspace-nav.js" defer></script>
-</head>
+  <script src="insights-help.js" defer></script>
+  <link rel="stylesheet" href="insights-help.css">
+<link rel="stylesheet" href="theme.css"></head>
 <body>
 <main>
   <header class="page-heading">
@@ -35,9 +37,9 @@
 
   <div id="customer-dashboard" hidden>
     <section class="summary-grid" aria-label="สรุปลูกค้าตามตัวกรอง">
-      <article class="summary-card featured"><div><p>ยอดซื้อสุทธิรวม</p><strong id="total-net">—</strong><small>ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้</small></div><span class="summary-icon" aria-hidden="true">↗</span></article>
-      <article class="summary-card"><div><p>ลูกค้าที่มีรายการ</p><strong id="customer-count">—</strong><small>ราย ตามเงื่อนไขที่เลือก</small></div><span class="summary-icon" aria-hidden="true">◎</span></article>
-      <article class="summary-card"><div><p>จำนวนบิลขาย</p><strong id="invoice-count">—</strong><small>บิล ไม่รวมเอกสารเพิ่มหนี้และรับคืน</small></div><span class="summary-icon" aria-hidden="true">▤</span></article>
+      <article class="summary-card featured"><div><p>ยอดซื้อสุทธิรวม</p><strong id="total-net">—</strong><small>ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้</small></div><span class="summary-icon" aria-hidden="true">↗</span><div id="net-summary-chart" class="summary-breakdown" role="group" aria-label="กราฟแยกยอดสุทธิของลูกค้า"></div></article>
+      <article class="summary-card"><div><p>ลูกค้าที่มีรายการ</p><strong id="customer-count">—</strong><small>ราย ตามเงื่อนไขที่เลือก</small></div><span class="summary-icon" aria-hidden="true">◎</span><div id="count-summary-chart" class="summary-breakdown" role="group" aria-label="กราฟจำนวนลูกค้าตามจำนวนบิลขาย"></div></article>
+      <article class="summary-card"><div><p>จำนวนบิลขาย</p><strong id="invoice-count">—</strong><small>บิล ไม่รวมเอกสารเพิ่มหนี้และรับคืน</small></div><span class="summary-icon" aria-hidden="true">▤</span><div id="invoice-summary-chart" class="summary-breakdown" role="group" aria-label="กราฟจำนวนบิลของลูกค้า 5 อันดับแรกเทียบกับลูกค้าที่เหลือ"></div></article>
     </section>
 
     <section class="master-grid" aria-label="อันดับยอดซื้อของลูกค้า">

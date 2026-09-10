@@ -5,7 +5,7 @@ const dates = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short',
 const money = value => `฿${currency.format(value)}`;
 const dateLabel = value => value ? dates.format(new Date(`${value}T12:00:00`)) : 'ไม่มีบิลขายในช่วงนี้';
 const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const palette = ['#237d59', '#7eae83', '#b3cfa0', '#d8c984', '#669a9e', '#b499bb', '#c89678', '#7291b5'];
+const palette = ['#c93436', '#b88935', '#bb7261', '#813437', '#e8b0a9', '#e8b0a9', '#8e7867', '#d8c984'];
 const customerPageSize = 10, productPageSize = 8;
 let customers = [], filtered = [], selectedCode = null, detail = null, period = null;
 let customerPage = 0, productPage = 0, masterController, detailController, masterRequest = 0, detailRequest = 0;
@@ -193,6 +193,110 @@ function renderCustomers() {
   updateSelection();
 }
 
+function summarySvg(tag, attributes = {}, text = '') {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  element.textContent = text;
+  return element;
+}
+
+function renderSummaryCharts() {
+  const positive = filtered.reduce((sum, item) => sum + Math.max(0, item.net), 0);
+  const negative = filtered.reduce((sum, item) => sum + Math.min(0, item.net), 0);
+  const singles = filtered.filter(item => item.invoiceCount === 1).length;
+  const repeat = filtered.filter(item => item.invoiceCount > 1).length;
+  const invoices = filtered.reduce((sum, item) => sum + item.invoiceCount, 0);
+  const topInvoices = [...filtered].sort((a, b) => b.invoiceCount - a.invoiceCount)
+    .slice(0, 5).reduce((sum, item) => sum + item.invoiceCount, 0);
+  const charts = [
+    ['net-summary-chart', 'องค์ประกอบยอดสุทธิ · รวมตามลูกค้า', [
+      ['ลูกค้าที่มียอดสุทธิบวก', positive, money(positive)],
+      ['ลูกค้าที่มียอดสุทธิติดลบ', negative, money(negative)],
+      ['ยอดสุทธิรวม', positive + negative, money(positive + negative)],
+    ]],
+    ['count-summary-chart', 'แบ่งตามจำนวนบิลขายในช่วงที่เลือก', [
+      ['มี 2 บิลขึ้นไป', repeat, `${number.format(repeat)} ราย`],
+      ['มี 1 บิล', singles, `${number.format(singles)} ราย`],
+      ['ไม่มีบิลขาย', filtered.length - singles - repeat, `${number.format(filtered.length - singles - repeat)} ราย`],
+    ]],
+    ['invoice-summary-chart', 'สัดส่วนบิล · จัดอันดับลูกค้าตามจำนวนบิล', [
+      ['ลูกค้า 5 อันดับแรก', topInvoices, `${number.format(topInvoices)} บิล`],
+      ['ลูกค้าที่เหลือ', invoices - topInvoices, `${number.format(invoices - topInvoices)} บิล`],
+    ]],
+  ];
+  for (const [id, caption, values] of charts) {
+    const chart = el(id);
+    chart.replaceChildren(node('p', caption, 'summary-chart-caption'));
+    if (!filtered.length) {
+      chart.append(node('span', 'ไม่มีข้อมูลตามเงื่อนไขที่เลือก', 'summary-chart-empty'));
+      continue;
+    }
+    const netSummary = id === 'net-summary-chart';
+    const colors = netSummary ? ['#e8b0a9', '#fff4d6', positive + negative < 0 ? '#fff4d6' : '#dfb45f'] : ['#c93436', '#b88935', '#f4ebe7'];
+    const layout = node('div', '', netSummary ? 'summary-net-composition' : 'summary-donut-layout');
+    const svg = summarySvg('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' });
+    if (netSummary) {
+      const net = positive + negative;
+      const deduction = Math.abs(negative);
+      const overview = node('div', '', 'net-composition-overview');
+      if (positive > 0 && net >= 0) {
+        const retained = net / positive * 100;
+        const deducted = deduction / positive * 100;
+        const ring = node('div', '', 'net-retention-ring');
+        const graphic = summarySvg('svg', { viewBox: '0 0 160 160', 'aria-hidden': 'true' });
+        graphic.append(summarySvg('circle', { cx: 80, cy: 80, r: 68, fill: 'none', stroke: '#a45b5b', 'stroke-width': 7 }));
+        graphic.append(summarySvg('circle', { cx: 80, cy: 80, r: 68, fill: 'none', stroke: '#edcb89', 'stroke-width': 7,
+          pathLength: 100, 'stroke-dasharray': `${retained} ${100 - retained}`, transform: 'rotate(-90 80 80)' }));
+        const center = node('div', '', 'net-retention-center');
+        center.append(node('b', number.format(retained) + '%'), node('span', 'ยอดสุทธิคงเหลือ'));
+        ring.append(graphic, center);
+        const detail = node('div', '', 'net-retention-detail');
+        detail.append(node('span', 'สัดส่วนจากยอดบวก', 'net-retention-eyebrow'),
+          node('b', 'หักออก ' + number.format(deducted) + '%'),
+          node('span', money(deduction), 'net-retention-amount'),
+          node('span', 'จากยอดสุทธิติดลบของลูกค้า', 'net-retention-description'));
+        overview.append(ring, detail);
+      } else {
+        overview.classList.add('net-composition-empty');
+        overview.append(node('span', positive > 0 ? 'ยอดหักมากกว่ายอดบวก' : deduction > 0 ? 'มีเฉพาะยอดหักในช่วงนี้' : 'ไม่มียอดซื้อสุทธิในช่วงนี้', 'net-composition-note'));
+      }
+      layout.append(overview);
+    } else {
+      const total = values.reduce((sum, [, value]) => sum + value, 0);
+      const ring = node('div', '', 'summary-donut');
+      svg.append(summarySvg('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: '#f4ebe7', 'stroke-width': 16 }));
+      let offset = 0;
+      values.forEach(([label, value, formatted], index) => {
+        if (!value || !total) return;
+        const share = value / total * 100;
+        const arc = summarySvg('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: colors[index],
+          'stroke-width': 16, pathLength: 100, 'stroke-dasharray': `${share} ${100 - share}`,
+          'stroke-dashoffset': -offset, transform: 'rotate(-90 70 70)' });
+        arc.append(summarySvg('title', {}, `${label}: ${formatted} (${number.format(share)}%)`));
+        svg.append(arc);
+        offset += share;
+      });
+      const center = node('div', '', 'summary-donut-center');
+      center.append(node('b', total ? `${number.format(values[0][1] / total * 100)}%` : '—'),
+        node('span', total ? (id === 'count-summary-chart' ? 'มี 2 บิลขึ้นไป' : 'บิลจาก Top 5') : 'ไม่มีบิลขาย'));
+      ring.append(svg, center);
+      layout.append(ring);
+    }
+    const legend = node('div', '', 'summary-chart-legend');
+    for (const [index, [label, , formatted]] of values.entries()) {
+      const row = node('div', '', 'summary-chart-label');
+      const dot = node('i', '', 'summary-legend-dot');
+      dot.style.background = colors[index];
+      dot.setAttribute('aria-hidden', 'true');
+      row.append(dot, node('span', label), node('b', formatted));
+      legend.append(row);
+    }
+    layout.append(legend);
+    chart.append(layout);
+    if (netSummary) chart.append(node('p', 'ยอดติดลบนี้เป็นยอดสุทธิของกลุ่มลูกค้า ไม่ใช่ยอดรับคืนทั้งหมด', 'summary-method-note'));
+  }
+}
+
 function applySearch() {
   if (!period) return;
   if (el('customer-detail').open) closeCustomerDetail();
@@ -203,6 +307,7 @@ function applySearch() {
   el('customer-count').textContent = number.format(filtered.length);
   el('invoice-count').textContent = number.format(filtered.reduce((sum, customer) => sum + customer.invoiceCount, 0));
   el('matching-count').textContent = `${number.format(filtered.length)} ราย`;
+  renderSummaryCharts();
   renderChart();
   renderCustomers();
   message(filtered.length
@@ -290,11 +395,11 @@ function renderCategories() {
     svg.append(item);
     return item;
   };
-  circle('#edf3ee');
+  circle('#f4ebe7');
   let offset = 0;
   detail.categories.forEach((category, index) => {
     const percent = positiveTotal > 0 && category.total > 0 ? category.total / positiveTotal * 100 : 0;
-    const color = category.total > 0 ? palette[index % palette.length] : '#c5cec7';
+    const color = category.total > 0 ? palette[index % palette.length] : '#9b8c87';
     if (percent > 0) {
       const segment = circle(color, { pathLength: 100, 'stroke-dasharray': `${percent} ${100 - percent}`, 'stroke-dashoffset': -offset, transform: 'rotate(-90 100 100)' });
       const tip = document.createElementNS('http://www.w3.org/2000/svg', 'title');

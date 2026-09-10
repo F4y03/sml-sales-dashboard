@@ -8,26 +8,26 @@
 }
 
 .analysis-controls select {
-  border: 1px solid #dfe8e2;
+  border: 1px solid #e8e2de;
   border-radius: 10px;
-  background: #f8fbf9;
+  background: #faf7f5;
   min-width: 0;
   max-width: 100%;
   font-size: 12px;
   padding: 11px 14px;
-  color: #3d5347;
+  color: #65413e;
   font-weight: 500;
   transition: border-color 0.2s, box-shadow 0.2s;
   cursor: pointer;
 }
 
 .analysis-controls select:hover {
-  border-color: #b8d4c4;
+  border-color: #e8e2de;
 }
 
 .analysis-controls select:focus {
-  border-color: #22956a;
-  box-shadow: 0 0 0 3px rgba(34, 149, 106, 0.1);
+  border-color: #a33235;
+  box-shadow: 0 0 0 3px rgba(163, 50, 53, 0.1);
   outline: none;
 }
 
@@ -36,7 +36,7 @@
 
 #analysis-status {
   font-size: 10px;
-  color: #8c9a91;
+  color: #716b68;
   padding: 10px 0 6px;
   min-height: 32px;
   letter-spacing: 0.01em;
@@ -56,7 +56,7 @@
 .analysis-note {
   font-size: 10px;
   line-height: 1.9;
-  color: #86958b;
+  color: #716b68;
   margin: 16px 0 6px;
   padding: 0 2px;
 }
@@ -66,16 +66,16 @@
   gap: 10px;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #edf2ee;
+  border-top: 1px solid #faf7f5;
   padding: 14px 0 10px;
   font-size: 10px;
-  color: #7e9184;
+  color: #716b68;
 }
 
 .analysis-footer button {
   background: none;
   border: 0;
-  color: #198263;
+  color: #a33235;
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -85,8 +85,8 @@
 }
 
 .analysis-footer button:hover {
-  background: #edf7f1;
-  color: #14704f;
+  background: #faf7f5;
+  color: #813437;
 }
 
 .analysis-footer button:disabled {
@@ -96,7 +96,7 @@
 
 .analysis-details {
   font-size: 11px;
-  color: #728679;
+  color: #716b68;
   padding-bottom: 15px;
 }
 
@@ -109,14 +109,14 @@
 }
 
 .analysis-details summary:hover {
-  color: #198263;
+  color: #a33235;
 }
 
 .analysis-table-scroll {
   max-height: 280px;
   overflow: auto;
   margin-top: 12px;
-  border: 1px solid #edf2ee;
+  border: 1px solid #faf7f5;
   border-radius: 8px;
 }
 
@@ -127,19 +127,19 @@
 }
 
 .analysis-table-scroll th {
-  background: #f8faf9;
+  background: #faf7f5;
   font-weight: 500;
-  color: #7e9184;
+  color: #716b68;
   position: sticky;
   top: 0;
 }
 
 .analysis-table-scroll td {
-  border-top: 1px solid #f2f5f3;
+  border-top: 1px solid #faf7f5;
 }
 
 .analysis-table-scroll tr:hover td {
-  background: #f9fcfa;
+  background: #faf7f5;
 }
 
 #analysis-status.error { color: #b34242 }
@@ -150,7 +150,7 @@
 }
 
 .chart-card:hover {
-  box-shadow: 0 4px 20px rgba(32, 60, 44, 0.06);
+  box-shadow: 0 4px 20px rgba(101, 65, 62, 0.06);
 }
 
 .chart-wrap {
@@ -160,9 +160,9 @@
 .chart-note {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #eef2ef;
+  border-top: 1px solid #faf7f5;
   font-size: 10px;
-  color: #a1aaa5;
+  color: #9b8c87;
   margin-top: 20px;
   padding: 14px 0;
 }
@@ -172,7 +172,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #22956a, #2ebd88);
+  background: linear-gradient(135deg, #a33235, #c93436);
   display: inline-block;
 }
 

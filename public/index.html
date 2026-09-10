@@ -8,7 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="analytics.css"><script src="analytics-ui.js" defer></script><script src="app.js" defer></script>
-<link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script></head>
+  <link rel="stylesheet" href="insights-help.css"><script src="insights-help.js" defer></script>
+<link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script><link rel="stylesheet" href="theme.css"></head>
 <body>
   <div class="main-shell">
     <header class="topbar"><div class="text-sm text-slate-400">Workspace <span class="mx-3">/</span> <span class="text-slate-700">ภาพรวมยอดขาย</span></div><div class="flex items-center gap-4"><span class="text-xs text-slate-400 hidden sm:block">SML BUSINESS INTELLIGENCE</span><span class="avatar small">DA</span></div></header>
@@ -31,8 +32,8 @@
       <div class="data-notes"><details><summary>รายละเอียดการคำนวณ</summary><p id="reconciliation" aria-live="polite"></p></details></div>
       <input type="hidden" id="source" value="live">
       <section class="grid grid-cols-1 md:grid-cols-3 gap-5" aria-label="สรุปยอดขาย">
-        <article class="card kpi"><div class="kpi-top"><span>ยอดขายรวม</span><span class="metric-icon mint">฿</span></div><div class="metric" id="total-sales">—</div><div class="kpi-foot"><span class="mini-dot"></span> Total Sales <span class="ml-auto">บาท</span></div></article>
-        <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามเอกสาร · ยังไม่หักรับคืน</span><span class="metric-icon amber">฿</span></div><div class="metric" id="document-sales">—</div><div class="kpi-foot"><span class="mini-dot amber-dot"></span> รายงาน 4007 <span class="ml-auto">บาท</span></div></article>
+        <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามเอกสาร</span><span id="document-sales-help" class="metric-icon mint">ⓘ</span></div><div class="metric" id="total-sales">—</div><div class="kpi-foot"><span class="mini-dot"></span> รายงาน 4007 · ยังไม่หักรับคืน <span class="ml-auto">บาท</span></div></article>
+        <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามรายการสินค้า</span><span id="item-sales-help" class="metric-icon amber">ⓘ</span></div><div class="metric" id="item-sales">—</div><div class="kpi-foot"><span class="mini-dot amber-dot"></span> รายงาน 4014 · ยังไม่หักรับคืน <span class="ml-auto">บาท</span></div></article>
         <article class="card kpi clickable-kpi" id="invoice-card" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="invoice-dialog"><div class="kpi-top"><span>จำนวนบิลทั้งหมด</span><span class="metric-icon blue">▤</span></div><div class="metric" id="total-invoices">—</div><div class="kpi-foot"><span class="mini-dot blue-dot"></span> กดเพื่อดูรายการบิล <span class="ml-auto">บิล</span></div></article>
       </section>
       <dialog id="product-invoices" class="invoice-dialog" aria-labelledby="product-invoices-title">

@@ -121,14 +121,16 @@ function openInvoices() {
 function render(data) {
   $('total-sales').textContent = money(data.totalSales);
   $('total-invoices').textContent = number.format(data.totalInvoices);
-  $('document-sales').textContent = money(data.totalSales);
+  $('item-sales').textContent = money(data.itemSales);
+  $('total-sales').dataset.amount = String(data.totalSales);
+  $('item-sales').dataset.amount = String(data.itemSales);
   productPage = 0;
   renderProductPage(data.products);
   $('updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}`;
   charts.forEach(chart => chart.destroy()); charts = [];
   if (!window.Chart) return;
-  Chart.defaults.font.family = "Inter, 'IBM Plex Sans Thai', sans-serif";
-  Chart.defaults.color = '#8a9790';
+  Chart.defaults.font.family = "'Noto Sans Thai', Tahoma, sans-serif";
+  Chart.defaults.color = '#716b68';
   const options = () => ({
     responsive: true, maintainAspectRatio: false,
     interaction: { intersect: false, mode: 'index' },
@@ -136,7 +138,7 @@ function render(data) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#1a3329', titleColor: '#b8d5c8', bodyColor: '#fff',
+        backgroundColor: '#482629', titleColor: '#f5dcd7', bodyColor: '#fff',
         padding: { top: 10, bottom: 10, left: 14, right: 14 },
         cornerRadius: 10, displayColors: false,
         titleFont: { size: 11, weight: '500' }, bodyFont: { size: 13, weight: '600' },
@@ -144,16 +146,16 @@ function render(data) {
       }
     },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: '#a3ada7', maxRotation: 0, maxTicksLimit: 7, padding: 6 } },
-      y: { beginAtZero: true, border: { display: false }, grid: { color: '#f0f4f1', lineWidth: 1 }, ticks: { font: { size: 10, weight: '500' }, color: '#a3ada7', maxTicksLimit: 5, padding: 8, callback: v => Math.abs(v) >= 1000000 ? `${v / 1000000}m` : Math.abs(v) >= 1000 ? `${v / 1000}k` : v } }
+      x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: '#716b68', maxRotation: 0, maxTicksLimit: 7, padding: 6 } },
+      y: { beginAtZero: true, border: { display: false }, grid: { color: '#faf7f5', lineWidth: 1 }, ticks: { font: { size: 10, weight: '500' }, color: '#716b68', maxTicksLimit: 5, padding: 8, callback: v => Math.abs(v) >= 1000000 ? `${v / 1000000}m` : Math.abs(v) >= 1000 ? `${v / 1000}k` : v } }
     }
   });
   const ctx = $('daily-chart').getContext('2d'), gradient = ctx.createLinearGradient(0, 0, 0, 280);
-  gradient.addColorStop(0, 'rgba(37, 163, 111, 0.18)'); gradient.addColorStop(0.6, 'rgba(37, 163, 111, 0.06)'); gradient.addColorStop(1, 'rgba(37, 163, 111, 0)');
-  charts.push(new Chart(ctx, { type: 'line', data: { labels: data.daily.map(d => new Date(d.day + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })), datasets: [{ data: data.daily.map(d => Number(d.sales)), borderColor: '#22956a', backgroundColor: gradient, fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: data.daily.length === 1 ? 5 : 0, pointHoverRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: '#22956a', pointBorderWidth: 2.5, pointHoverBackgroundColor: '#22956a', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 3 }] }, options: options() }));
-  const warehouseColors = ['#1b8f60', '#2eaa7b', '#5ec19c', '#8fd4b8', '#b5e3cd', '#d0eede'];
+  gradient.addColorStop(0, 'rgba(129, 52, 55, 0.18)'); gradient.addColorStop(0.6, 'rgba(129, 52, 55, 0.06)'); gradient.addColorStop(1, 'rgba(129, 52, 55, 0)');
+  charts.push(new Chart(ctx, { type: 'line', data: { labels: data.daily.map(d => new Date(d.day + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })), datasets: [{ data: data.daily.map(d => Number(d.sales)), borderColor: '#813437', backgroundColor: gradient, fill: true, tension: 0, borderWidth: 2.5, pointRadius: data.daily.length === 1 ? 5 : 0, pointHoverRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: '#813437', pointBorderWidth: 2.5, pointHoverBackgroundColor: '#813437', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 3 }] }, options: options() }));
+  const warehouseColors = ['#813437', '#bb7261', '#cc9589', '#d9b7a6', '#e8c9bf', '#e8c9bf'];
   const warehouseChart = document.getElementById('warehouse-chart');
-  if (warehouseChart) charts.push(new Chart(warehouseChart, { type: 'bar', data: { labels: data.warehouses.map(w => w.name), datasets: [{ data: data.warehouses.map(w => Number(w.sales)), backgroundColor: data.warehouses.map((_, i) => warehouseColors[i % warehouseColors.length]), borderRadius: 7, maxBarThickness: 42, borderSkipped: false }] }, options: { ...options(), plugins: { ...options().plugins, tooltip: { ...options().plugins.tooltip, callbacks: { label: ctx => ` ${money(ctx.parsed.y)}` } } } } }));
+  if (warehouseChart) charts.push(new Chart(warehouseChart, { type: 'bar', data: { labels: data.warehouses.map(w => w.name), datasets: [{ data: data.warehouses.map(w => Number(w.sales)), backgroundColor: data.warehouses.map((w, i) => Number(w.sales) < 0 ? '#c34f52' : warehouseColors[i % warehouseColors.length]), borderRadius: 7, maxBarThickness: 42, borderSkipped: false }] }, options: { ...options(), plugins: { ...options().plugins, tooltip: { ...options().plugins.tooltip, callbacks: { label: ctx => ` ${money(ctx.parsed.y)}` } } } } }));
 }
 async function load() {
   syncControls();
@@ -189,7 +191,7 @@ async function load() {
     $('connection-badge').textContent = 'เชื่อมต่อไม่สำเร็จ'; $('connection-badge').className = 'live-badge failed';
     $('display-period').textContent = 'ยังไม่มีข้อมูลล่าสุด';
     charts.forEach(chart => chart.destroy()); charts = [];
-    ['total-sales', 'document-sales', 'total-invoices'].forEach(key => $(key).textContent = '—');
+    ['total-sales', 'item-sales', 'total-invoices'].forEach(key => { $(key).textContent = '—'; delete $(key).dataset.amount; });
     $('product-rows').replaceChildren(); $('invoice-rows').replaceChildren(); $('invoice-page-info').textContent = ''; $('updated').textContent = 'ยังไม่ได้อัปเดต';
     $('status').textContent = error.name === 'TimeoutError' ? 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่' : error.message; $('status').classList.add('error');
   } finally { if (id === requestId) { $('apply').disabled = false; $('refresh').disabled = false; } }
@@ -215,7 +217,12 @@ $('export').addEventListener('click', () => {
 });
 // Reset a browser-restored selection so the dashboard always starts with real SML data.
 function oneDay(value) { if (!value) return; $('period').value = 'day'; $('start').value = value; $('end').value = value; $('dashboard-day').value = value; load(); }
-function clearDay() { $('period').value = 'custom'; const end = new Date(), start = new Date(); start.setDate(end.getDate() - 6); $('start').value = iso(start); $('end').value = iso(end); syncControls(); $('day-today').setAttribute('aria-pressed','false'); $('day-yesterday').setAttribute('aria-pressed','false'); $('status').textContent = 'ล้างการเลือกวันแล้ว เลือกช่วงวันที่ใหม่แล้วกดแสดงข้อมูล'; }
+function clearDay() {
+  $('period').value = 'month';
+  $('dashboard-day').value = iso(new Date());
+  setPeriod();
+  load();
+}
 $('dashboard-day').value = iso(new Date());
 $('dashboard-day').addEventListener('change', () => oneDay($('dashboard-day').value));
 $('day-today').addEventListener('click', () => { const value = iso(new Date()); if ($('period').value === 'day' && $('start').value === value) clearDay(); else oneDay(value); });

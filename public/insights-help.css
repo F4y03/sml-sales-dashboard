@@ -1,0 +1,38 @@
+.insight-help-open{overflow:hidden}
+.insight-help-dialog{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(620px,calc(100vw - 32px));max-width:620px;max-height:calc(100dvh - 40px);padding:0;border:1px solid #eadbd5;border-radius:22px;color:#34292a;background:#fffdfb;box-shadow:0 28px 100px #48262945;overflow:auto;overscroll-behavior:contain}
+.insight-help-dialog::backdrop{background:#301c235e;backdrop-filter:blur(5px)}
+.insight-help-header{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding:28px 30px;background:#813437;color:#fff}
+.insight-help-tag{display:inline-block;font-size:12px;color:#edcb89;margin-bottom:10px;letter-spacing:.5px}
+.insight-help-dialog .insight-help-header h2{font-size:23px;line-height:1.5;color:#fff;margin:0;font-weight:600}
+.insight-help-close{display:grid;place-items:center;flex-shrink:0;width:40px;height:40px;border:1px solid #ffffff30;border-radius:12px;background:#ffffff12;color:#fff;font-size:26px;padding:0;cursor:pointer}
+.insight-help-body{padding:24px 30px}
+.insight-help-intro{font-size:15px;line-height:1.9;color:#71605c;margin:0 0 20px}
+.insight-help-value{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.insight-help-value>span{font-size:12px;color:#8a7772}
+.insight-help-value strong{font-size:25px;color:#813437;font-variant-numeric:tabular-nums}
+.insight-help-formula{padding:16px 18px;background:#fbf4e6;border:1px solid #eee0c5;border-radius:12px}
+.insight-help-formula>span{font-size:11px;color:#96702d}
+.insight-help-formula p{font-size:15px;font-weight:500;color:#654b26;line-height:1.8;margin:6px 0 0}
+.insight-help-breakdown{display:grid;gap:12px;margin:20px 0;padding:0 4px}
+.insight-help-breakdown>div{display:flex;justify-content:space-between;gap:16px;font-size:13px;line-height:1.7}
+.insight-help-breakdown b{white-space:nowrap;font-variant-numeric:tabular-nums;color:#813437}
+.insight-help-notes{display:grid;gap:22px;margin-top:24px}
+.insight-help-notes section{display:flex;align-items:flex-start;gap:14px}
+.insight-help-step{display:grid;place-items:center;flex-shrink:0;width:30px;height:30px;border-radius:9px;background:#f5e9e5;color:#a34b4e;font-size:11px;font-weight:600}
+.insight-help-notes h3{margin:2px 0 6px;font-size:15px;color:#482629}
+.insight-help-notes p{margin:0;font-size:13px;line-height:1.9;color:#716b68}
+.insight-help-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 30px;border-top:1px solid #eee3dc;background:#faf6f2}
+.insight-help-footer>span{font-size:11px;color:#8a7772}
+.insight-help-done{border:0;border-radius:10px;padding:11px 20px;white-space:nowrap;background:#813437;color:#fff;font-size:14px;cursor:pointer}
+.insight-help-card-wrap,.insight-help-card{position:relative;min-width:0}
+.insight-help-card-wrap>.summary-card{height:100%;width:100%}
+.performance-summary .insight-help-card>div:first-child,.insight-help-card-wrap .summary-card>div:first-child{padding-right:30px}
+.insight-help-trigger{position:absolute;right:12px;top:16px;z-index:1;width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:9px;background:#fbefed;color:#a33235;font-size:19px;padding:0;cursor:pointer}
+.featured>.insight-help-trigger{background:#ffffff18;color:#fff4ed}
+[data-insight-help]{cursor:pointer}
+button.summary-icon{border:0;padding:0}
+button.metric-icon[data-insight-help]{border:0;padding:0;font:inherit;font-size:20px}
+[data-insight-help]:hover{filter:brightness(.94)}
+.insight-help-dialog button:focus-visible,[data-insight-help]:focus-visible{outline:2px solid #b88935;outline-offset:3px}
+@media(max-width:650px){.insight-help-dialog{max-height:calc(100dvh - 24px);border-radius:18px}.insight-help-header{padding:22px}.insight-help-body{padding:22px}.insight-help-dialog .insight-help-header h2{font-size:20px}.insight-help-footer{padding:16px 22px}.insight-help-breakdown>div{flex-wrap:wrap;gap:4px}}
+@media(max-width:480px){.performance-summary .insight-help-card-wrap{grid-column:1 / -1}}
