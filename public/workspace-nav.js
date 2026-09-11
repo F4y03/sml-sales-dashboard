@@ -53,7 +53,7 @@ window.fetch = async (...args) => {
 const logout = document.createElement('button');
 logout.type = 'button';
 logout.textContent = 'ออกจากระบบ ↗';
-logout.style.cssText = 'margin-top:12px;width:100%;padding:10px;border:1px solid #e5d9d7;border-radius:8px;background:#fff;color:#b52b31;cursor:pointer;font:inherit;font-size:16px';
+logout.className = 'workspace-logout';
 workspace.querySelector('.workspace-bottom').append(logout);
 logout.addEventListener('click', async () => {
   logout.disabled = true;

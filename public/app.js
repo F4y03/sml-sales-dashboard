@@ -136,7 +136,8 @@ function render(data) {
   charts.forEach(chart => chart.destroy()); charts = [];
   if (!window.Chart) return;
   Chart.defaults.font.family = "'Noto Sans Thai', Tahoma, sans-serif";
-  Chart.defaults.color = '#716b68';
+  const theme = window.dashboardTheme?.palette() || {muted:'#656973',line:'#e0e2e6',brand:'#e10600',surface:'#fff'};
+  Chart.defaults.color = theme.muted;
   const options = () => ({
     responsive: true, maintainAspectRatio: false,
     interaction: { intersect: false, mode: 'index' },
@@ -152,13 +153,13 @@ function render(data) {
       }
     },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: '#716b68', maxRotation: 0, maxTicksLimit: 7, padding: 6 } },
-      y: { beginAtZero: true, border: { display: false }, grid: { color: '#faf7f5', lineWidth: 1 }, ticks: { font: { size: 10, weight: '500' }, color: '#716b68', maxTicksLimit: 5, padding: 8, callback: v => Math.abs(v) >= 1000000 ? `${v / 1000000}m` : Math.abs(v) >= 1000 ? `${v / 1000}k` : v } }
+      x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: theme.muted, maxRotation: 0, maxTicksLimit: 7, padding: 6 } },
+      y: { beginAtZero: true, border: { display: false }, grid: { color: theme.line, lineWidth: 1 }, ticks: { font: { size: 10, weight: '500' }, color: theme.muted, maxTicksLimit: 5, padding: 8, callback: v => Math.abs(v) >= 1000000 ? `${v / 1000000}m` : Math.abs(v) >= 1000 ? `${v / 1000}k` : v } }
     }
   });
   const ctx = $('daily-chart').getContext('2d'), gradient = ctx.createLinearGradient(0, 0, 0, 280);
-  gradient.addColorStop(0, 'rgba(129, 52, 55, 0.18)'); gradient.addColorStop(0.6, 'rgba(129, 52, 55, 0.06)'); gradient.addColorStop(1, 'rgba(129, 52, 55, 0)');
-  charts.push(new Chart(ctx, { type: 'line', data: { labels: data.daily.map(d => new Date(d.day + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })), datasets: [{ data: data.daily.map(d => Number(d.sales)), borderColor: '#813437', backgroundColor: gradient, fill: true, tension: 0, borderWidth: 2.5, pointRadius: data.daily.length === 1 ? 5 : 0, pointHoverRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: '#813437', pointBorderWidth: 2.5, pointHoverBackgroundColor: '#813437', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 3 }] }, options: options() }));
+  gradient.addColorStop(0, 'rgba(225, 6, 0, 0.18)'); gradient.addColorStop(0.6, 'rgba(225, 6, 0, 0.06)'); gradient.addColorStop(1, 'rgba(225, 6, 0, 0)');
+  charts.push(new Chart(ctx, { type: 'line', data: { labels: data.daily.map(d => new Date(d.day + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })), datasets: [{ data: data.daily.map(d => Number(d.sales)), borderColor: theme.brand, backgroundColor: gradient, fill: true, tension: 0, borderWidth: 2.5, pointRadius: data.daily.length === 1 ? 5 : 0, pointHoverRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: theme.brand, pointBorderWidth: 2.5, pointHoverBackgroundColor: theme.brand, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 3 }] }, options: options() }));
   const warehouseColors = ['#813437', '#bb7261', '#cc9589', '#d9b7a6', '#e8c9bf', '#e8c9bf'];
   const warehouseChart = document.getElementById('warehouse-chart');
   if (warehouseChart) charts.push(new Chart(warehouseChart, { type: 'bar', data: { labels: data.warehouses.map(w => w.name), datasets: [{ data: data.warehouses.map(w => Number(w.sales)), backgroundColor: data.warehouses.map((w, i) => Number(w.sales) < 0 ? '#c34f52' : warehouseColors[i % warehouseColors.length]), borderRadius: 7, maxBarThickness: 42, borderSkipped: false }] }, options: { ...options(), plugins: { ...options().plugins, tooltip: { ...options().plugins.tooltip, callbacks: { label: ctx => ` ${money(ctx.parsed.y)}` } } } } }));
@@ -237,3 +238,5 @@ setPeriod(); load();
 
 setInterval(() => { if (!document.hidden && !$('apply').disabled) { setPeriod(); load(); } }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('apply').disabled) { setPeriod(); load(); } });
+
+window.addEventListener('dashboard-theme-change', () => { const theme=window.dashboardTheme.palette(); for(const chart of charts){for(const scale of Object.values(chart.options.scales || {})){if(scale.ticks)scale.ticks.color=theme.muted;if(scale.grid)scale.grid.color=theme.line;}chart.data.datasets.forEach(dataset=>{dataset.borderColor=theme.brand;});chart.update('none');} });

@@ -59,7 +59,7 @@ export function installAuth(app, env = process.env) {
     res.clearCookie(cookieName, options);
     res.json({ ok: true });
   });
-  const publicPaths = new Set(['/login', '/login.html', '/login.css', '/login.js', '/assets/pr-plus-logo-red.png']);
+  const publicPaths = new Set(['/login', '/login.html', '/login.css', '/login.js', '/theme-modes.css', '/theme-mode.js', '/assets/pr-plus-logo-red.png']);
   app.use((req, res, next) => {
     if (publicPaths.has(req.path) && ['GET', 'HEAD'].includes(req.method)) return next();
     const session = sessions.get(digest(tokenOf(req)));
