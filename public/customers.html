@@ -29,7 +29,7 @@
     <label for="start">ตั้งแต่วันที่<input id="start" type="date" required></label>
     <label for="end">ถึงวันที่<input id="end" type="date" required></label>
     <label for="customer-search" class="search-label">ค้นหาลูกค้า<input id="customer-search" type="search" maxlength="200" placeholder="พิมพ์รหัสลูกค้า หรือชื่อลูกค้า" autocomplete="off"></label>
-    <label for="performance-search" class="search-label" hidden>ค้นหาสินค้า<input id="performance-search" type="search" maxlength="200" placeholder="พิมพ์รหัสสินค้า ชื่อสินค้า หรือรุ่น" autocomplete="off"></label>
+    <div id="performance-search-field" class="search-label" hidden><label for="performance-search">ค้นหาสินค้า</label><div class="performance-search-control"><input id="performance-search" type="search" maxlength="200" placeholder="พิมพ์ SKU หรือชื่อสินค้า" autocomplete="off"><button id="performance-search-button" type="button" aria-label="ค้นหาสินค้า" title="ค้นหาและเปิดรายละเอียดสินค้า" aria-haspopup="dialog" aria-controls="sku-detail"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div><small id="performance-search-message" role="status" aria-live="polite"></small></div>
     <button id="refresh" type="submit" class="primary-button">อัปเดตข้อมูล <span aria-hidden="true">↻</span></button>
     <div class="filter-caption"><span>ใช้ช่วงวันที่เดียวกันทั้งสองมุมมอง · ค้นหาตามมุมมองที่เลือก</span><span>เลือกช่วงเวลาได้สูงสุด 366 วัน · หน่วยเงิน: บาท</span></div>
   </form>
@@ -103,11 +103,12 @@
       <p id="sku-status" class="status" role="status" aria-live="polite"></p><button id="sku-retry" type="button" hidden>ลองโหลดรายละเอียดอีกครั้ง</button>
       <div id="sku-content" hidden>
         <div class="sku-metrics"><article><span>ยอดขายสุทธิ</span><strong id="sku-net"></strong><small id="sku-change"></small></article><article><span>ยอดขายก่อนหักคืน</span><strong id="sku-sales"></strong><small id="sku-added"></small></article><article><span>ยอดรับคืน / ลดหนี้</span><strong id="sku-returns"></strong><small>ตามวันที่เอกสารรับคืน</small></article><article><span>ลูกค้าที่ซื้อ</span><strong id="sku-buyers-count"></strong><small id="sku-bills"></small></article></div>
+        <section class="sku-stock-panel" aria-labelledby="sku-stock-title"><div><h3 id="sku-stock-title">สินค้าคงเหลือในทะเบียน</h3><strong id="sku-stock"></strong></div><div><p>ยอดรวมตามทะเบียน SML · ยังไม่แยกคลัง และไม่หักยอดจอง</p><p>ไม่อิงช่วงวันที่ขายที่เลือก และไม่ใช่ยอดพร้อมขายที่ยืนยันแล้ว</p><small id="sku-stock-updated"></small></div></section>
         <div class="sku-quantity-panel"><h3>ขายไปเท่าไร แยกตามหน่วย</h3><div class="table-scroll"><table><thead><tr><th scope="col">หน่วย</th><th scope="col" class="numeric">ขาย</th><th scope="col" class="numeric">เพิ่มหนี้</th><th scope="col" class="numeric">รับคืน</th><th scope="col" class="numeric">จำนวนสุทธิ</th></tr></thead><tbody id="sku-quantities"></tbody></table></div></div>
         <h3 class="sku-buyers-heading">ลูกค้าที่มีรายการสินค้านี้</h3>
         <div class="table-scroll" tabindex="0" role="region" aria-label="ลูกค้าที่ซื้อสินค้าที่เลือก"><table class="sku-buyers-table"><thead><tr><th scope="col">รหัส / ชื่อลูกค้า</th><th scope="col" class="numeric">จำนวนสุทธิ</th><th scope="col" class="numeric">จำนวนบิลขาย</th><th scope="col" class="numeric">ยอดซื้อสุทธิ</th><th scope="col">วันที่ซื้อล่าสุดในช่วง</th></tr></thead><tbody id="sku-buyers"></tbody></table></div>
         <nav class="pagination" aria-label="หน้ารายชื่อลูกค้าที่ซื้อสินค้า"><span id="sku-page-info"></span><div><button id="sku-prev" type="button" aria-label="ผู้ซื้อหน้าก่อนหน้า">←</button><button id="sku-next" type="button" aria-label="ผู้ซื้อหน้าถัดไป">→</button></div></nav>
-        <p class="panel-footnote">รวมลูกค้าที่มีรายการรับคืน/เพิ่มหนี้ด้วย จำนวนบิลและจำนวนลูกค้าที่ซื้อนับเฉพาะบิลขาย · ข้อมูลทั้งหมดใช้ช่วงวันที่ที่เลือก</p>
+        <p class="panel-footnote">รวมลูกค้าที่มีรายการรับคืน/เพิ่มหนี้ด้วย จำนวนบิลและจำนวนลูกค้าที่ซื้อนับเฉพาะบิลขาย · ข้อมูลขายใช้ช่วงวันที่ที่เลือก ส่วนคงเหลือใช้ยอดในทะเบียนขณะดึงข้อมูล</p>
       </div>
     </div>
   </dialog>

@@ -26,7 +26,7 @@ function switchInsightsView(view) {
   el('customers-view-button').setAttribute('aria-pressed', String(view === 'customers'));
   el('products-view-button').setAttribute('aria-pressed', String(view === 'products'));
   el('customer-search').closest('label').hidden = view !== 'customers';
-  el('performance-search').closest('label').hidden = view !== 'products';
+  el('performance-search-field').hidden = view !== 'products';
   el('status').hidden = view !== 'customers';
   productViewEvent('insights-view-change');
   if (view === 'customers') loadCustomers();

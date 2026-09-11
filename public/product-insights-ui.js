@@ -6,6 +6,8 @@
   const money = value => `฿${baht.format(value)}`;
   const date = value => value ? dayFormat.format(new Date(`${value}T12:00:00`)) : 'ไม่มีบิลขายในช่วงนี้';
   const pageSize = 10;
+  const skuLabel = code => `SKU-${code}`;
+  const searchText = item => `${item.code}\n${skuLabel(item.code)}\n${item.name}`.toLocaleLowerCase('th-TH');
   let active = false, data = null, scope = [], visible = [], page = 0, mode = 'all';
   let controller, requestId = 0, reloadTimer, buyerController, buyerRequest = 0, buyerData, buyerPage = 0, selectedSku, opener, outsideDown = false;
 
@@ -94,7 +96,7 @@
     if (!data) return;
     const search = byId('performance-search').value.trim().toLocaleLowerCase('th-TH'), category = byId('performance-category').value;
     scope = data.products.filter(item => (category === '*' || item.categoryCode === category)
-      && `${item.code}\n${item.name}`.toLocaleLowerCase('th-TH').includes(search));
+      && searchText(item).includes(search));
     const total = scope.reduce((sum, item) => sum + item.net, 0), previous = scope.reduce((sum, item) => sum + item.previousNet, 0);
     byId('performance-net').textContent = money(total);
     byId('performance-net-change').textContent = `${changeLabel({ net: total, previousNet: previous })} · เทียบช่วงก่อนหน้า`;
@@ -179,7 +181,7 @@
       const button = node('button', '', 'performance-leader'), label = node('span', '', 'leader-label');
       button.type = 'button'; button.title = item.name;
       button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
-      label.append(node('strong', item.name), node('small', item.code));
+      label.append(node('strong', item.name), node('small', skuLabel(item.code)));
       const value = node('span', watch ? `−${money(item.previousNet - item.net)}` : money(item.net), `leader-value${watch ? ' performance-negative' : ''}`);
       value.append(node('small', watch ? `ลดลง ${changeLabel(item).replace(/^−|-/, '')}` : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`));
       button.append(node('span', String(index + 1).padStart(2, '0')), label, value);
@@ -231,7 +233,7 @@
       button.type = 'button'; button.dataset.sku = item.code;
       button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
       button.addEventListener('click', () => openSku(item, button));
-      name.append(button, node('small', `${item.code} · ${item.category}`));
+      name.append(button, node('small', `${skuLabel(item.code)} · ${item.category}`));
       const statusText = item.invoiceCount === 0 ? (item.registered ? 'ไม่มีบิลขาย' : 'ไม่มีบิลขาย / ไม่พบในทะเบียน') : item.net <= 0 ? 'สุทธิไม่บวก' : declining(item) ? 'ยอดลดลง' : 'มีบิลขาย';
       name.append(node('span', statusText, `product-status ${item.invoiceCount === 0 || item.net <= 0 || declining(item) ? 'watch' : 'good'}`));
       const bills = node('td', `${num.format(item.invoiceCount)} บิล`, 'numeric'); bills.append(node('small', `${num.format(item.buyerCount)} ลูกค้า`));
@@ -258,7 +260,7 @@
     const currentRequest = ++buyerRequest; selectedSku = item; opener = trigger; buyerPage = 0; buyerData = null;
     const dialog = byId('sku-detail');
     byId('sku-title').textContent = item.name;
-    byId('sku-subtitle').textContent = `${item.code} · ${item.category} · ${date(data.start)} – ${date(data.end)}`;
+    byId('sku-subtitle').textContent = `${skuLabel(item.code)} · ${item.category} · ${date(data.start)} – ${date(data.end)}`;
     byId('sku-status').textContent = 'กำลังโหลดจำนวนขายและลูกค้าที่มีรายการ…'; byId('sku-status').hidden = false;
     byId('sku-content').hidden = true; byId('sku-retry').hidden = true;
     dialog.setAttribute('aria-busy', 'true');
@@ -268,6 +270,9 @@
       const result = await getJSON(`/api/customer-insights/product-buyers?${new URLSearchParams({ start: data.start, end: data.end, code: item.code })}`, currentController.signal);
       if (currentRequest !== buyerRequest) return;
       buyerData = result; const product = result.product;
+      const stock = product.stock == null || product.stock === '' ? null : Number(product.stock);
+      byId('sku-stock').textContent = stock !== null && Number.isFinite(stock) ? `${num.format(stock)} ${product.stockUnit || 'ไม่ระบุหน่วย'}` : 'ไม่มีข้อมูลคงเหลือ';
+      byId('sku-stock-updated').textContent = `ดึงข้อมูล ${new Date(result.updatedAt).toLocaleString('th-TH')}`;
       byId('sku-net').textContent = money(product.net); byId('sku-change').textContent = `${changeLabel(product)} · เทียบ ${date(result.previous.start)} – ${date(result.previous.end)}`;
       byId('sku-sales').textContent = money(product.sales); byId('sku-added').textContent = `เพิ่มหนี้ ${money(product.added)}`;
       byId('sku-returns').textContent = money(product.returns); byId('sku-buyers-count').textContent = `${num.format(product.buyerCount)} ราย`;
@@ -308,7 +313,28 @@
     status(event.detail.valid ? 'กำลังอัปเดตการวิเคราะห์สินค้าตามช่วงวันที่…' : 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน', !event.detail.valid);
     if (event.detail.valid) reloadTimer = setTimeout(() => load(event.detail), 250);
   });
-  byId('performance-search').addEventListener('input', renderScope);
+  function searchSku(trigger) {
+    const query = byId('performance-search').value.trim().toLocaleLowerCase('th-TH');
+    const message = byId('performance-search-message');
+    if (!query) { message.textContent = 'กรุณาพิมพ์ SKU หรือชื่อสินค้า'; byId('performance-search').focus(); return; }
+    if (!data) { message.textContent = 'ข้อมูลสินค้ายังไม่พร้อม กรุณารอโหลดข้อมูลหรือกดอัปเดตข้อมูล'; return; }
+    const matches = data.products.filter(item => searchText(item).includes(query));
+    const exact = matches.find(item => item.code.toLocaleLowerCase('th-TH') === query)
+      || matches.find(item => skuLabel(item.code).toLocaleLowerCase('th-TH') === query);
+    if (exact || matches.length === 1) {
+      message.textContent = '';
+      openSku(exact || matches[0], trigger);
+      return;
+    }
+    byId('performance-category').value = '*'; mode = 'all'; renderScope();
+    message.textContent = matches.length ? `พบ ${num.format(matches.length)} สินค้า กรุณาเลือกสินค้าในตารางด้านล่าง หรือระบุ SKU ให้ครบ` : 'ไม่พบสินค้า กรุณาตรวจสอบ SKU หรือชื่อสินค้า';
+    if (matches.length) byId('performance-table-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  byId('performance-search-button').addEventListener('click', event => searchSku(event.currentTarget));
+  byId('performance-search').addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); searchSku(event.currentTarget); }
+  });
+  byId('performance-search').addEventListener('input', () => { byId('performance-search-message').textContent = ''; renderScope(); });
   byId('performance-category').addEventListener('change', renderScope);
   document.querySelectorAll('[data-performance-filter]').forEach(button => button.addEventListener('click', () => { mode = button.dataset.performanceFilter; page = 0; if (data) renderTable(); }));
   for (const [direction, delta] of [['prev', -1], ['next', 1]]) {
