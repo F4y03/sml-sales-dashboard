@@ -1,9 +1,8 @@
 (() => {
   const get = id => document.getElementById(id);
-  let chart, controller, version = 0, data;
+  let chart, controller, version = 0, data, yearsLoaded = false;
   const currentYear = new Date().getFullYear();
-  for (let year = currentYear + 1; year >= currentYear - 15; year--)
-    get('trend-year').append(new Option(String(year + 543), String(year), year === currentYear, year === currentYear));
+  get('trend-year').disabled = true;
   const money = value => '฿' + Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 });
   function draw() {
     chart?.destroy(); chart = null;
@@ -42,6 +41,21 @@
     get('monthly-status').hidden = false; get('monthly-status').classList.remove('error');
     get('monthly-status').textContent = 'กำลังโหลดยอดขายรายเดือน…'; get('monthly-retry').hidden = true;
     try {
+      if (!yearsLoaded) {
+        const response = await fetch('/api/sales-trend/years', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
+        if (!response.ok) throw new Error('โหลดปีไม่สำเร็จ');
+        const { years } = await response.json();
+        if (id !== version) return;
+        get('trend-year').replaceChildren(...years.map(year => new Option(String(year + 543), String(year))));
+        if (!years.length) {
+          get('monthly-status').textContent = 'ยังไม่มีข้อมูลยอดขาย';
+          get('trend-year').disabled = true;
+          return;
+        }
+        get('trend-year').value = String(years.includes(currentYear) ? currentYear : years[0]);
+        get('trend-year').disabled = false;
+        yearsLoaded = true;
+      }
       const response = await fetch(`/api/sales-trend?year=${get('trend-year').value}`, { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
       if (!response.ok) throw new Error('โหลดยอดขายรายเดือนไม่สำเร็จ');
       const result = await response.json();

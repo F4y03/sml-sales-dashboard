@@ -1,4 +1,23 @@
 export function installSalesTrend(app, pool) {
+  app.get('/api/sales-trend/years', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const { rows } = await pool.query(`
+        SELECT DISTINCT EXTRACT(YEAR FROM doc_date)::int AS year
+        FROM ic_trans
+        WHERE trans_flag = 44 AND last_status = 0
+          AND doc_date >= DATE '1900-01-01' AND doc_date < DATE '2101-01-01'
+          AND to_timestamp(doc_date::date || ' ' || doc_time, 'YYYY/MM/DD HH24:MI')::timestamp
+              BETWEEN date_trunc('year', doc_date) AND
+                (date_trunc('year', doc_date) + INTERVAL '1 year')::date - 1 + TIME '23:59'
+        ORDER BY year DESC
+      `);
+      res.json({ years: rows.map(row => row.year) });
+    } catch (error) {
+      console.error('Sales years query failed:', error.code);
+      res.status(503).json({ error: 'โหลดปีที่มีข้อมูลไม่สำเร็จ' });
+    }
+  });
   app.get('/api/sales-trend', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (typeof req.query.year !== 'string' || !/^\d{4}$/.test(req.query.year) || Number(req.query.year) < 1900 || Number(req.query.year) > 2100) {

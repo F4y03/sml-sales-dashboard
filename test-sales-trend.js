@@ -8,6 +8,7 @@ test('monthly endpoint validates years and chart switches between daily and mont
   const app = express(); let failed = false;
   installSalesTrend(app, { query: async (sql, params) => {
     assert.match(sql, /trans_flag = 44 AND last_status = 0/);
+    if (sql.includes('SELECT DISTINCT')) return { rows: [{ year: 2025 }, { year: 2024 }] };
     assert.deepEqual(params, ['2025-01-01', '2026-01-01']);
     if (failed) throw Object.assign(new Error('offline'), { code: 'TEST_OFFLINE' });
     return { rows: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, sales: i === 1 ? 0 : (i + 1) * 1000 })) };
@@ -25,9 +26,9 @@ test('monthly endpoint validates years and chart switches between daily and mont
     await page.route('https://**', route => route.abort());
     await page.route('**/api/dashboard?**', route => route.fulfill({json:{totalSales:100,itemSales:100,totalInvoices:1,products:[],warehouses:[],daily:[{day:'2026-09-01',sales:100}],updatedAt:new Date().toISOString()}}));
     await page.goto(base+'/index.html');
-    await page.evaluate(() => document.getElementById('trend-year').value='2025');
     await page.locator('#trend-mode').selectOption('monthly');
     await expect(page.locator('#monthly-status')).toContainText('76,000');
+    assert.deepEqual(await page.locator('#trend-year option').evaluateAll(options => options.map(o => o.textContent)), ['2568', '2567']);
     assert.deepEqual(await page.evaluate(() => Chart.getChart('monthly-chart').data.datasets[0].data), [1000,0,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000]);
     await expect(page.locator('#daily-trend-wrap')).not.toBeVisible();
     for (const mode of ['light','dark']) {
@@ -49,6 +50,7 @@ test('monthly endpoint validates years and chart switches between daily and mont
     await page.route(`**/api/sales-trend?year=${futureYear}`, route => route.fulfill({ json: {
       year: futureYear, months: Array.from({length:12}, (_,i) => ({month:i+1, sales:i===0 ? 500 : 0})), updatedAt:new Date().toISOString(),
     } }));
+    await page.evaluate(year => document.getElementById('trend-year').append(new Option(String(year+543),String(year))), futureYear);
     await page.locator('#trend-year').selectOption(String(futureYear));
     await expect(page.locator('#monthly-status')).toContainText('500');
     assert.deepEqual(await page.evaluate(() => Chart.getChart('monthly-chart').data.datasets[0].data), [500,...Array(11).fill(null)]);

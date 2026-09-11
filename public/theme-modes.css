@@ -16,6 +16,7 @@ html[data-theme] :is(.button.primary,.primary-button,#submit,#performance-search
 html[data-theme] :is(button[aria-pressed=true],.tabs button[aria-pressed=true],.report-categories button[aria-pressed=true],.quick-periods button[aria-pressed=true],.insight-views button[aria-pressed=true]){color:var(--brand);background:var(--brand-soft);border-color:var(--brand-border)}
 html[data-theme] .report-categories button[aria-pressed=true]{background:linear-gradient(135deg,#e10600,#ab0000);color:#fff;border-color:#e10600}
 html[data-theme] :is(.quantity-link,.performance-product-button,.refresh-button#refresh){background:transparent;color:var(--brand);box-shadow:none}
+html[data-theme] .quantity-link,html[data-theme] .quantity-link:hover:not(:disabled){color:var(--ink);background:transparent;text-decoration:none;font-weight:inherit;font-variant-numeric:tabular-nums}
 html[data-theme] :is(.metric-icon,.summary-icon,.rank,.badge,.pill,.source-badge,.welcome-icon){background:var(--brand-soft);color:var(--brand);border-color:var(--brand-border)}
 html[data-theme] :is(th,.result-scroll th,.sku-buyers-table th){background:var(--surface-raised);color:var(--muted)}
 html[data-theme] :is(td,th,.leader,.filter-caption,.control-footer,.filter-notes,.detail-heading,.sku-heading,.workspace-profile,.summary-breakdown,.summary-chart-label,.access-note,.bars){border-color:var(--line)}
