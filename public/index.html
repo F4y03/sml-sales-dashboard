@@ -21,15 +21,14 @@
       <section class="dashboard-controls card" aria-label="เลือกช่วงข้อมูล">
         <div class="control-heading"><div><span class="control-caption">ช่วงข้อมูลที่แสดง</span><h2 id="display-period">กำลังโหลดข้อมูล…</h2></div><span id="connection-badge" class="live-badge">SML · กำลังเชื่อมต่อ</span></div>
         <form id="filters" class="dashboard-filter">
-          <div class="quick-periods" aria-label="เลือกวันอย่างรวดเร็ว"><button id="day-today" type="button" aria-pressed="false">วันนี้</button><button id="day-yesterday" type="button" aria-pressed="false">เมื่อวาน</button><button id="clear-day" type="button">ล้าง</button></div>
+          <div class="quick-periods" aria-label="เลือกวันอย่างรวดเร็ว"><button id="day-today" type="button" aria-pressed="false">วันนี้</button><button id="day-yesterday" type="button" aria-pressed="false">เมื่อวาน</button></div>
           <label class="period-field"><span class="sr-only">ช่วงเวลา</span><select id="period" aria-label="เลือกช่วงเวลา"><option value="month">เดือนนี้</option><option value="7">7 วันล่าสุด</option><option value="30">30 วันล่าสุด</option><option value="day">เลือก 1 วัน</option><option value="custom">กำหนดช่วงเอง</option></select></label>
           <div id="range-fields" class="filter-dates"><label><span>จากวันที่</span><input type="date" id="start" required></label><span class="date-divider" aria-hidden="true">→</span><label><span>ถึงวันที่</span><input type="date" id="end" required></label></div>
           <label id="single-field" class="single-date" hidden><span>วันที่ต้องการดู</span><input id="dashboard-day" type="date" aria-label="ดูยอดขาย 1 วัน"></label>
-          <button class="button primary" id="apply" type="submit">แสดงข้อมูล</button>
+          <div class="dashboard-filter-actions"><button class="button secondary" id="clear-day" type="button">ล้าง</button><button class="button primary" id="apply" type="submit">แสดงข้อมูล</button></div>
         </form>
         <div class="control-footer"><div id="status" class="status" role="status" aria-live="polite"></div><button id="refresh" type="button" class="refresh-button"><span aria-hidden="true">↻</span> รีเฟรช</button></div>
       </section>
-      <div class="data-notes"><details><summary>รายละเอียดการคำนวณ</summary><p id="reconciliation" aria-live="polite"></p></details></div>
       <input type="hidden" id="source" value="live">
       <section class="grid grid-cols-1 md:grid-cols-3 gap-5" aria-label="สรุปยอดขาย">
         <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามเอกสาร</span><span id="document-sales-help" class="metric-icon mint">ⓘ</span></div><div class="metric" id="total-sales">—</div><div class="kpi-foot"><span class="mini-dot"></span> รายงาน 4007 · ยังไม่หักรับคืน <span class="ml-auto">บาท</span></div></article>

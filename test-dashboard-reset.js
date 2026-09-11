@@ -36,6 +36,11 @@ test('clear restores the initial month and reloads both charts after a single-da
       return url.hostname === '127.0.0.1' ? route.continue() : route.abort();
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
+    await expect(page.locator('.quick-periods #clear-day')).toHaveCount(0);
+    await expect(page.locator('.dashboard-filter-actions #clear-day')).toBeVisible();
+    const clearBounds = await page.locator('#clear-day').boundingBox();
+    const applyBounds = await page.locator('#apply').boundingBox();
+    assert.ok(clearBounds.x < applyBounds.x && Math.abs(clearBounds.y - applyBounds.y) < 2, 'clear sits beside apply');
     await expect.poll(() => page.evaluate(() => window.chartData['daily-chart']?.labels.length)).toBe(2);
     await expect(page.locator('#total-sales')).toHaveText('฿200');
     await expect(page.locator('#item-sales')).toHaveText('฿180');

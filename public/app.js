@@ -184,10 +184,8 @@ async function load() {
     $('display-period').textContent = start === end ? dateLabel(start) : `${dateLabel(start)} – ${dateLabel(end)}`;
     $('connection-badge').textContent = '● เชื่อมต่อ SML แล้ว'; $('connection-badge').className = 'live-badge connected';
     $('status').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · รีเฟรชอัตโนมัติทุก 60 วินาที`;
-    $('reconciliation').textContent = `รายงาน 4007: ยอดเอกสาร ${money(data.totalSales)} · รายงาน 4014: ยอดรายการสินค้า ${money(data.itemSales)} · ส่วนต่าง ${money(Number(data.totalSales) - Number(data.itemSales))} · ทั้งสองชุดไม่หักเอกสารรับคืน`;
   } catch (error) {
     if (id !== requestId) return;
-    $('reconciliation').textContent = 'ขาดการเชื่อมต่อ — ยังไม่มีข้อมูลล่าสุดจาก SML';
     $('connection-badge').textContent = 'เชื่อมต่อไม่สำเร็จ'; $('connection-badge').className = 'live-badge failed';
     $('display-period').textContent = 'ยังไม่มีข้อมูลล่าสุด';
     charts.forEach(chart => chart.destroy()); charts = [];
