@@ -45,7 +45,13 @@ function renderProductPage(products) {
     quantityButton.type = 'button'; quantityButton.className = 'quantity-link';
     quantityButton.textContent = `${number.format(p.quantity)} ${p.unit || ''}`;
     quantityButton.setAttribute('aria-label', `ดูบิลของ ${p.name || p.code}`);
-    quantityButton.addEventListener('click', () => openProductInvoices(p));
+    quantityButton.setAttribute('aria-haspopup', 'dialog');
+    quantityButton.setAttribute('aria-controls', 'product-invoices');
+    row.classList.add('product-invoice-row');
+    row.addEventListener('click', () => {
+      quantityButton.focus({ preventScroll: true });
+      openProductInvoices(p);
+    });
     cell(row, '', 'text-right').append(quantityButton); cell(row, money(p.sales), 'text-right font-medium');
     const percent = sum > 0 ? Number(p.sales) / sum * 100 : 0;
     const share = cell(row, '', 'text-right'), track = document.createElement('span'), bar = document.createElement('i');

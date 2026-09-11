@@ -7,3 +7,4 @@
 .quantity-link{color:#813437;text-decoration:underline;text-underline-offset:3px;cursor:pointer;background:transparent;border:0;font:inherit;padding:6px}.quantity-link:focus-visible{outline:2px solid #813437;outline-offset:2px}
 
 .dashboard-filter-actions{display:flex;align-items:center;gap:10px;margin-left:auto}.dashboard-filter-actions .button{min-height:43px;padding:10px 22px;white-space:nowrap}@media(max-width:1200px){.dashboard-filter-actions{order:4}}@media(max-width:760px){.dashboard-filter-actions{width:100%;margin-left:0}.dashboard-filter-actions .primary{flex:1}}
+#product-rows .product-invoice-row{cursor:pointer}#product-rows .product-invoice-row:hover,#product-rows .product-invoice-row:focus-within{background:#fcf0ef}

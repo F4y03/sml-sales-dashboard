@@ -29,7 +29,7 @@ test('clear restores the initial month and reloads both charts after a single-da
         requests.push({ path: url.pathname, start, end });
         const days = start === end ? [end] : [start, end];
         const data = url.pathname === '/api/dashboard'
-          ? { totalSales: days.length * 100, totalInvoices: days.length, itemSales: days.length * 90, products: [], warehouses: [], daily: days.map(day => ({ day, sales: 100 })), updatedAt: '2026-09-10T12:00:00' }
+          ? { totalSales: days.length * 100, totalInvoices: days.length, itemSales: days.length * 90, products: [{ code: 'P001', name: 'Test product', quantity: 2, unit: 'pcs', sales: 90, invoices: [{ date: end, docNo: 'INV001', quantity: 2, sales: 90 }] }], warehouses: [], daily: days.map(day => ({ day, sales: 100 })), updatedAt: '2026-09-10T12:00:00' }
           : { mode: 'group', title: 'Sales', note: '', start, end, updatedAt: '2026-09-10T12:00:00', rows: [{ name: 'Group', value: days.length * 100 }] };
         return route.fulfill({ json: data });
       }
@@ -42,6 +42,16 @@ test('clear restores the initial month and reloads both charts after a single-da
     const applyBounds = await page.locator('#apply').boundingBox();
     assert.ok(clearBounds.x < applyBounds.x && Math.abs(clearBounds.y - applyBounds.y) < 2, 'clear sits beside apply');
     await expect.poll(() => page.evaluate(() => window.chartData['daily-chart']?.labels.length)).toBe(2);
+    for (let index = 0; index < 6; index++) {
+      await page.locator('#product-rows tr').first().locator('td').nth(index).click();
+      await expect(page.locator('#product-invoices')).toBeVisible();
+      await expect(page.locator('#product-invoice-rows')).toContainText('INV001');
+      await page.locator('#close-product-invoices').click();
+    }
+    await page.locator('#product-rows .quantity-link').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#product-invoices')).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.locator('#total-sales')).toHaveText('฿200');
     await expect(page.locator('#item-sales')).toHaveText('฿180');
     // Reproduce the dashboard's framework reset, which removes native dialog margins.

@@ -99,8 +99,8 @@ export function installReports(app, pool) {
   app.get('/api/reports', async (req,res) => {
     try {
       if (!catalog || Date.now()-catalog.time>60000) {
-        const { rows } = await pool.query('SELECT roworder,menuid,menuname FROM sml_fastreport ORDER BY menuid, roworder');
-        catalog = {time:Date.now(),items:rows.map(r=>({key:r.roworder,id:r.menuid,name:r.menuname}))};
+        const { rows } = await pool.query('SELECT roworder,menuid,menuname,report_type FROM sml_fastreport ORDER BY menuid, roworder');
+        catalog = {time:Date.now(),items:rows.map(r=>({key:r.roworder,id:r.menuid,name:r.menuname,reportType:r.report_type}))};
       }
       res.set('Cache-Control','no-store').json({reports:catalog.items});
     } catch { res.status(503).json({error:'โหลดรายการรายงาน SML ไม่สำเร็จ'}); }
