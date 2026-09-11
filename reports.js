@@ -114,7 +114,8 @@ export function installReports(app, pool) {
   });
   app.post('/api/reports/:key/run', async(req,res)=>{
     res.set('Cache-Control','no-store');
-    if (req.get('origin') && req.get('origin') !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({error:'ต้นทางไม่ถูกต้อง'});
+    // HTTPS may terminate at the tunnel. Require the same non-simple header as login.
+    if (req.get('X-PRPlus-Request') !== '1' || req.get('Sec-Fetch-Site') === 'cross-site') return res.status(403).json({error:'ต้นทางไม่ถูกต้อง'});
     if (!/^\d+$/.test(req.params.key)) return res.status(400).json({error:'รหัสรายงานไม่ถูกต้อง'});
     let client;
     try {
