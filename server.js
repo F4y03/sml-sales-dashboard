@@ -9,6 +9,7 @@ import { installAnalytics } from './analytics.js';
 import { installExecutive } from './executive.js';
 import { installCustomerInsights } from './customer-insights.js';
 import { installProductPerformance } from './product-performance.js';
+import { installSalesTrend } from './sales-trend.js';
 
 const app = express();
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, max: 5, options: '-c default_transaction_read_only=on' });
@@ -27,6 +28,7 @@ installAnalytics(app, pool);
 installExecutive(app, pool);
 installCustomerInsights(app, pool);
 installProductPerformance(app, pool);
+installSalesTrend(app, pool);
 app.get('/api/dashboard', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { start, end } = req.query;

@@ -9,7 +9,7 @@
   <script src="assets/chart.umd.js" defer></script>
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="analytics.css"><script src="analytics-ui.js" defer></script><script src="app.js" defer></script>
   <link rel="stylesheet" href="insights-help.css"><script src="insights-help.js" defer></script>
-<link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/theme-modes.css"><script src="/theme-mode.js"></script></head>
+<link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/theme-modes.css"><script src="/theme-mode.js"></script><script src="monthly-trend.js" defer></script></head>
 <body>
   <div class="main-shell">
     <header class="topbar"><div class="text-sm text-slate-400">Workspace <span class="mx-3">/</span> <span class="text-slate-700">ภาพรวมยอดขาย</span></div><div class="flex items-center gap-4"><span class="text-xs text-slate-400 hidden sm:block">SML BUSINESS INTELLIGENCE</span><span class="avatar small">DA</span></div></header>
@@ -61,7 +61,13 @@
         </div>
       </dialog>
       <section id="charts" class="grid grid-cols-1 xl:grid-cols-5 gap-5 mt-6">
-        <article class="card chart-card xl:col-span-3"><div class="chart-heading"><div><h2>แนวโน้มยอดขายรายวัน</h2><p>Daily Sales Trend</p></div><span class="legend"><i></i> ยอดขาย</span></div><div class="chart-wrap"><canvas id="daily-chart" role="img" aria-label="กราฟเส้นแสดงยอดขายรายวัน"></canvas></div><div class="chart-note">ยอดขายรวมตามวันที่เอกสาร <span>THB</span></div></article>
+        <article class="card chart-card xl:col-span-3">
+          <div class="chart-heading"><div><h2 id="trend-title">แนวโน้มยอดขายรายวัน</h2><p id="trend-subtitle">Daily Sales Trend</p></div><div class="trend-controls"><label><span class="sr-only">รูปแบบกราฟยอดขาย</span><select id="trend-mode"><option value="daily">รายวัน</option><option value="monthly">รายเดือน</option></select></label><label id="trend-year-label" hidden>ปี <select id="trend-year" aria-label="ปีของกราฟรายเดือน"></select></label></div></div>
+          <div class="chart-wrap" id="daily-trend-wrap"><canvas id="daily-chart" role="img" aria-label="กราฟเส้นแสดงยอดขายรายวัน"></canvas></div>
+          <div class="chart-wrap" id="monthly-trend-wrap" hidden><canvas id="monthly-chart" role="img" aria-label="กราฟยอดขายรายเดือน"></canvas></div>
+          <p id="monthly-status" class="note" role="status" hidden></p><button id="monthly-retry" type="button" hidden>ลองใหม่</button>
+          <div class="chart-note"><span id="trend-note">ยอดขายรวมตามวันที่เอกสาร</span><span>THB</span></div>
+        </article>
         <article class="card chart-card xl:col-span-2 analysis-card"><div class="chart-heading"><div><h2 id="analysis-title">ยอดขายแยกตามกลุ่มสินค้า</h2><p>เลือกมุมมองการขาย</p></div></div>
           <div class="analysis-controls"><label for="analysis-mode" class="sr-only">รูปแบบการวิเคราะห์</label><select id="analysis-mode"><option value="group">1. ยอดขายตามกลุ่มสินค้า</option><option value="salesperson">2. ยอดขายตามพนักงานขาย</option><option value="customer">3. ยอดขายตามลูกค้า</option><option value="brand">4. ยอดขายตามยี่ห้อ</option><option value="branch">5. ยอดขายตามสาขา</option><option value="type">6. ยอดขายตามประเภทสินค้า</option><option value="net">7. ยอดขายสุทธิรายวัน / เดือน</option><option value="quantity">8. จำนวนขายตามกลุ่มสินค้า</option></select><select id="analysis-grain" aria-label="สรุปยอดสุทธิ" hidden><option value="day">รายวัน</option><option value="month">รายเดือน</option></select></div>
           <div id="analysis-status" role="status" aria-live="polite"></div><div class="analysis-scroll"><div id="analysis-plot"><canvas id="analysis-chart" role="img" aria-label="กราฟวิเคราะห์ยอดขาย"></canvas></div></div>

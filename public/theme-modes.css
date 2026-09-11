@@ -96,6 +96,7 @@ html[data-theme] .performance-table .product-status.good{background:var(--positi
 html[data-theme] :is(.performance-table .product-status.watch,.watch-pill){background:var(--warning-soft);color:var(--warning)}
 html[data-theme] :is(.preview-dot,.private-badge span){color:var(--brand)}
 html[data-theme] .access-note>span:first-child{color:var(--muted)}
+.trend-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.trend-controls label{display:flex;align-items:center;gap:6px;font-size:12px}.trend-controls select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font:inherit}.chart-heading:has(.trend-controls){gap:12px;flex-wrap:wrap}.trend-controls [hidden],#monthly-trend-wrap[hidden],#daily-trend-wrap[hidden],#monthly-status[hidden],#monthly-retry[hidden]{display:none!important}
 html[data-theme] [class*="text-slate-"]{color:var(--muted)}
 html[data-theme] :is(button,input,select,a,summary):focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 @media(max-width:1000px){html[data-theme] .workspace-sidebar .theme-switch{grid-column:1/-1;justify-self:end;width:190px;margin-top:12px}html[data-theme] .workspace-sidebar .workspace-toggle{background:var(--surface-raised);color:var(--ink);border-color:var(--line)}}
