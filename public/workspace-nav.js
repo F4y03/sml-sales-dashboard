@@ -1,4 +1,13 @@
 const workspace = document.createElement('aside');
+const workspaceIcons = {
+  overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="4" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
+  customers: '<circle cx="8" cy="7" r="3"/><path d="M2 20v-3a6 6 0 0 1 10-4M15 20v-4m4 4v-7m4 7V9"/>',
+  consignment: '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v8l7 3m11-11v5M12 11v5m2 0h7m-3-3 3 3-3 3m-5 2h7m-4-3-3 3 3 3"/>',
+  reports: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6M8 17v-3m4 3v-6m4 6v-4"/>',
+  products: '<path d="m3 7 8-4 8 4-8 4-8-4Zm0 0v10l8 4m0-10v10m8-14v4m-4 6h7m-3-3 3 3-3 3"/>',
+  executive: '<path d="M3 3h18M5 3v13h14V3M8 12l3-3 3 2 3-4M12 16v5m-4 0 4-3 4 3"/>',
+};
+const workspaceIcon = name => `<svg class="workspace-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${workspaceIcons[name]}</svg>`;
 workspace.className = 'workspace-sidebar';
 workspace.setAttribute('aria-label', 'เมนู Workspace');
 workspace.innerHTML = `
@@ -6,12 +15,12 @@ workspace.innerHTML = `
   <button class="workspace-toggle" type="button" aria-expanded="false" aria-controls="workspace-links">☰ เมนู Workspace</button>
   <nav id="workspace-links" class="workspace-links" aria-label="หน้าหลัก">
     <p class="workspace-label">WORKSPACE</p>
-    <a href="index.html#overview" data-page="overview"><span aria-hidden="true">▦</span>ภาพรวม</a>
-    <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า"><span aria-hidden="true">◎</span><span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
-    <a href="consignment.html" data-page="consignment"><span aria-hidden="true">▥</span>รับ–เบิกสินค้าฝาก</a>
-    <a href="reports.html" data-page="reports"><span aria-hidden="true">▤</span>รายงาน SML ทั้งหมด</a>
-    <a href="products.html" data-page="products"><span aria-hidden="true">▧</span>ข้อมูลสินค้า / ส่งออก</a>
-    <a href="executive.html" data-page="executive"><span aria-hidden="true">◈</span>สรุปผู้บริหาร · 10 วินาที</a>
+    <a href="index.html#overview" data-page="overview">${workspaceIcon('overview')}ภาพรวม</a>
+    <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon('customers')}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
+    <a href="consignment.html" data-page="consignment">${workspaceIcon('consignment')}รับ–เบิกสินค้าฝาก</a>
+    <a href="reports.html" data-page="reports">${workspaceIcon('reports')}รายงาน SML ทั้งหมด</a>
+    <a href="products.html" data-page="products">${workspaceIcon('products')}ข้อมูลสินค้า / ส่งออก</a>
+    <a href="executive.html" data-page="executive">${workspaceIcon('executive')}สรุปผู้บริหาร · 10 วินาที</a>
   </nav>
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
 document.body.classList.add('workspace-layout');
