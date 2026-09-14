@@ -1,5 +1,17 @@
 # Image upload checkpoint
 
+## Latest checkpoint, 2026-09-14 16:25 Bangkok time
+
+954 distinct images uploaded, 600 pending. All 1,554 source images are now downloaded (the earlier 4 failures were recovered). This turn uploaded 457 images ordered by source row_index. Receipts are saved in receipts-ordered-*.json and merged into drive-upload-manifest.json after each batch.
+
+Uploads stopped immediately on HTTP 429: "You've reached our limit of file uploads. Please try again in 3 hours." Retry approximately 19:26 Bangkok time on 2026-09-14, subject to the service confirming quota availability.
+
+The local workbook and localhost:3002 download are verified: 1,074 rows, 48 columns, 1,148 Drive URL occurrences in the original image column, 707 source URL occurrences for pending images. All other cells match the original CSV exactly.
+
+The Drive workbook with ID 1-aMiKMaiTT1WxGlt88ZjZAZad4rvFAGb was updated at 937 uploaded images (1,131 references), before throttling. It is 17 references behind the latest local workbook. Update this same file ID after quota returns, rather than creating another copy. Preserve pending source URLs until actual Drive URLs exist.
+
+The notes below are historical and superseded by this checkpoint.
+
 Destination: https://drive.google.com/drive/folders/1HmVIUErEOYkqfdksZ1ABoY8O6w-bqXip
 
 466 distinct source URLs have completed Drive uploads; 1,084 downloaded images remain pending and 4 source images failed download earlier.

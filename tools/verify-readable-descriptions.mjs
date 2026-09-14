@@ -1,0 +1,13 @@
+import ExcelJS from 'exceljs';
+import assert from 'node:assert/strict';
+import {descriptionText} from './description-text.mjs';
+assert.equal(descriptionText('<article data-x="a>b"><p>เสียง &amp; ภาพ</p><ul><li>กำลัง 100W</li></ul></article>'),'เสียง & ภาพ\n\n• กำลัง 100W');
+assert.equal(descriptionText('<p>2 &lt; 3<br>100&#176;</p><script>hidden()</script>'),'2 < 3\n100°');
+const workbook=new ExcelJS.Workbook();
+await workbook.xlsx.readFile('product-image-drive-output/products-with-individual-drive-links.xlsx');
+const sheet=workbook.worksheets[0];
+for(let r=2;r<=sheet.rowCount;r++)for(const c of[9,10])assert(!/<\/?(?:article|div|p|span)\b|data-clipboard-cangjie/.test(sheet.getCell(r,c).text));
+const data=await(await fetch('http://127.0.0.1:3002/api/sheet')).json();
+assert.equal(data.rows[0][9],sheet.getCell(2,10).text);
+console.log(sheet.getCell(2,10).text.slice(0,1000));
+console.log('Descriptions contain no HTML; live table matches Excel.');

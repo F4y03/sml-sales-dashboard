@@ -1,12 +1,14 @@
 import ExcelJS from 'exceljs';
 import { readFile, writeFile } from 'node:fs/promises';
 import JSZip from 'jszip';
+import { descriptionText } from './description-text.mjs';
 const [csvPath, manifestPath, outputPath] = process.argv.slice(2);
 const workbook = new ExcelJS.Workbook();
 const sheet = await workbook.csv.readFile(csvPath, { map: value => value });
 const mapping = new Map(JSON.parse(await readFile(manifestPath, 'utf8')).filter(x => x.drive_url).map(x => [x.source_url, x.drive_url]));
 let replacements = 0;
 for (let r = 2; r <= sheet.rowCount; r++) {
+  for (const column of [9,10]) sheet.getCell(r,column).value = descriptionText(sheet.getCell(r,column).text);
   const cell = sheet.getCell(r, 31);
   const updated = cell.text.replace(/https?:\/\/[^,\s]+/g, url => {
     if (!mapping.has(url)) return url;
@@ -17,7 +19,7 @@ for (let r = 2; r <= sheet.rowCount; r++) {
 }
 sheet.views = [{state:'frozen', ySplit:1}];
 sheet.autoFilter = {from:'A1', to:{row:sheet.rowCount,column:sheet.columnCount}};
-sheet.columns.forEach((column,i) => {column.width = i === 30 ? 90 : i === 4 ? 48 : 24;});
+sheet.columns.forEach((column,i) => {column.width = i === 30 ? 90 : [8,9].includes(i) ? 70 : i === 4 ? 48 : 24;});
 sheet.eachRow((row,r) => row.eachCell(cell => {
   cell.numFmt = '@';
   cell.alignment = {vertical:'top',wrapText:true};

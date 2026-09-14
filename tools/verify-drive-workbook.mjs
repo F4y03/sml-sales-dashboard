@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { readFile } from 'node:fs/promises';
+import { descriptionText } from './description-text.mjs';
 const root = new URL('../', import.meta.url);
 const original = new ExcelJS.Workbook();
 const source = await original.csv.readFile('C:/Users/User/Downloads/wc-product-export-14-9-2026-1789352138863.csv', { map: value => value });
@@ -13,6 +14,7 @@ const mapping = new Map(manifest.filter(x=>x.drive_url).map(x=>[x.source_url,x.d
 let links=0,missing=0;
 for (let r=1;r<=source.rowCount;r++) for(let c=1;c<=48;c++) {
   let expected = String(source.getCell(r,c).value ?? '');
+  if(r>1&&[9,10].includes(c))expected=descriptionText(expected);
   if(r>1&&c===31) expected=expected.replace(/https?:\/\/[^,\s]+/g,url=>{if(mapping.has(url)){links++;return mapping.get(url)}missing++;return url});
   if (sheet.getCell(r,c).text !== expected) throw Error(`Original data differs at ${r},${c}`);
 }
