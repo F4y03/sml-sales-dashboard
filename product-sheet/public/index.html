@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตารางสินค้า · Excel</title><link rel="stylesheet" href="sheet.css"><script src="sheet.js" defer></script></head>
+<body><header><div class="brand-icon" aria-hidden="true">X</div><div><p class="eyebrow">PRODUCT WORKBOOK</p><h1>รายการสินค้า</h1><p>ข้อมูลจากไฟล์ WooCommerce · พร้อมนำไปใช้งานใน Excel</p></div><a id="download" class="download" href="download.xlsx">↓ ดาวน์โหลด Excel</a></header>
+<main><section class="toolbar"><div><strong>สินค้า</strong><span id="count">กำลังโหลด…</span></div><p>ดาวน์โหลดครบทุกแถวและทุกคอลัมน์ ตามลำดับในตาราง</p></section>
+<div class="formula"><span id="cell-name">A1</span><span class="fx">fx</span><textarea id="cell-value" readonly aria-label="ข้อมูลเต็มของเซลล์ที่เลือก" placeholder="คลิกเซลล์เพื่ออ่านข้อมูลเต็ม"></textarea></div>
+<div class="sheet-scroll" tabindex="0" role="region" aria-label="ตารางสินค้า เลื่อนซ้ายขวาเพื่อดูทุกคอลัมน์"><table id="sheet"><colgroup id="columns"></colgroup><thead id="head"></thead><tbody id="rows"></tbody></table></div>
+<footer><span class="sheet-tab">สินค้า</span><span id="page-info"></span><div class="pager"><button id="prev" disabled>← ก่อนหน้า</button><button id="next" disabled>ถัดไป →</button></div></footer>
+<p id="status" role="status">ข้อมูลเป็นข้อความตามไฟล์ต้นฉบับ เพื่อรักษารหัสสินค้าและเลขศูนย์นำหน้า · แสดงหน้าละ 100 รายการ</p></main></body></html>
