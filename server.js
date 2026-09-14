@@ -1,3 +1,4 @@
+import { installConsignment } from './consignment.js';
 import express from 'express';
 import { installAuth } from './auth.js';
 import pg from 'pg';
@@ -88,6 +89,7 @@ app.get('/api/invoices', async (req, res) => {
     res.status(503).json({ error: 'ดึงรายการบิลไม่สำเร็จ กรุณาลองใหม่' });
   }
 });
+installConsignment(app, pool);
 // API requests must never fall through to Express's HTML 404 page.
 app.use('/api', (req, res) => {
   res.set('Cache-Control', 'no-store');

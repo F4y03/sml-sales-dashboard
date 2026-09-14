@@ -8,6 +8,7 @@ workspace.innerHTML = `
     <p class="workspace-label">WORKSPACE</p>
     <a href="index.html#overview" data-page="overview"><span aria-hidden="true">▦</span>ภาพรวม</a>
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า"><span aria-hidden="true">◎</span><span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
+    <a href="consignment.html" data-page="consignment"><span aria-hidden="true">▥</span>รับ–เบิกสินค้าฝาก</a>
     <a href="reports.html" data-page="reports"><span aria-hidden="true">▤</span>รายงาน SML ทั้งหมด</a>
     <a href="products.html" data-page="products"><span aria-hidden="true">▧</span>ข้อมูลสินค้า / ส่งออก</a>
     <a href="executive.html" data-page="executive"><span aria-hidden="true">◈</span>สรุปผู้บริหาร · 10 วินาที</a>
@@ -33,7 +34,7 @@ workspace.addEventListener('keydown', event => {
 workspace.querySelectorAll('nav a').forEach(link => link.addEventListener('click', collapseWorkspace));
 function updateWorkspace() {
   const filename = location.pathname.split('/').pop();
-  const page = filename === 'customers.html' ? 'customers' : filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : 'overview';
+  const page = filename === 'customers.html' ? 'customers' : filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : filename === 'consignment.html' ? 'consignment' : 'overview';
   workspace.querySelectorAll('[data-page]').forEach(link => {
     if (link.dataset.page === page) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
