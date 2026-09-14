@@ -179,7 +179,11 @@
     if (products.length) container.append(node('p', watch ? 'ยอดสุทธิช่วงก่อน เทียบช่วงนี้ · บาท' : 'ยอดขายสุทธิ · บาท', 'leader-chart-caption'));
     products.forEach((item, index) => {
       const button = node('button', '', 'performance-leader'), label = node('span', '', 'leader-label');
-      button.type = 'button'; button.title = item.name;
+      const currentPeriod = `${date(data.start)} – ${date(data.end)}`;
+      const previousPeriod = `${date(data.previous.start)} – ${date(data.previous.end)}`;
+      button.type = 'button';
+      button.title = `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` + (watch ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}` : '');
+      button.setAttribute('aria-label', `${button.title}\nกดเพื่อดูรายละเอียดสินค้า`);
       button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
       label.append(node('strong', item.name), node('small', skuLabel(item.code)));
       const value = node('span', watch ? `−${money(item.previousNet - item.net)}` : money(item.net), `leader-value${watch ? ' performance-negative' : ''}`);
@@ -189,6 +193,7 @@
       const entries = watch ? [['ช่วงก่อน', item.previousNet, 'is-previous'], ['ช่วงนี้', item.net, 'is-current']] : [['', item.net, '']];
       for (const [periodLabel, amount, className] of entries) {
         const row = node('span', '', 'leader-chart-series');
+        row.title = `${periodLabel || 'ช่วงนี้'}: ${className === 'is-previous' ? previousPeriod : currentPeriod}\nยอดขายสุทธิ ${money(amount)}`;
         if (watch) row.append(node('span', periodLabel, 'leader-series-label'));
         const track = node('span', '', 'leader-chart-track');
         track.setAttribute('aria-hidden', 'true');
@@ -270,6 +275,14 @@
       const result = await getJSON(`/api/customer-insights/product-buyers?${new URLSearchParams({ start: data.start, end: data.end, code: item.code })}`, currentController.signal);
       if (currentRequest !== buyerRequest) return;
       buyerData = result; const product = result.product;
+      const selectedPeriod = `${date(result.start)} – ${date(result.end)}`;
+      byId('sku-previous-period').textContent = `${date(result.previous.start)} – ${date(result.previous.end)}`;
+      byId('sku-current-period').textContent = selectedPeriod;
+      byId('sku-previous-net').textContent = money(product.previousNet);
+      byId('sku-current-net').textContent = money(product.net);
+      const difference = Number(product.net) - Number(product.previousNet);
+      byId('sku-period-difference').textContent = difference === 0 ? 'ยอดขายสุทธิเท่ากับช่วงก่อน' : `ยอดขายสุทธิ${difference < 0 ? 'ลดลง' : 'เพิ่มขึ้น'} ${money(Math.abs(difference))} จากช่วงก่อน${Number(product.previousNet) > 0 ? ` (${num.format(Math.abs(difference) / Number(product.previousNet) * 100)}%)` : ' · ไม่มีฐานบวกสำหรับคำนวณเปอร์เซ็นต์'}`;
+      byId('sku-period-explanation').textContent = `เปรียบเทียบกับช่วงก่อนหน้าที่มีจำนวนวันเท่ากัน โดยไม่ทับช่วงนี้ · ยอดขายและตารางลูกค้าด้านล่างใช้เฉพาะช่วงนี้: ${selectedPeriod} · ยอดสุทธิ = ขาย + เพิ่มหนี้ − รับคืน/ลดหนี้`;
       const stock = product.stock == null || product.stock === '' ? null : Number(product.stock);
       byId('sku-stock').textContent = stock !== null && Number.isFinite(stock) ? `${num.format(stock)} ${product.stockUnit || 'ไม่ระบุหน่วย'}` : 'ไม่มีข้อมูลคงเหลือ';
       byId('sku-stock-updated').textContent = `ดึงข้อมูล ${new Date(result.updatedAt).toLocaleString('th-TH')}`;

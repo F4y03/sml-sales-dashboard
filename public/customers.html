@@ -102,6 +102,11 @@
     <div class="sku-body">
       <p id="sku-status" class="status" role="status" aria-live="polite"></p><button id="sku-retry" type="button" hidden>ลองโหลดรายละเอียดอีกครั้ง</button>
       <div id="sku-content" hidden>
+        <section class="sku-period-comparison" aria-labelledby="sku-period-title">
+          <h3 id="sku-period-title">เปรียบเทียบยอดขายสองช่วง</h3>
+          <div class="sku-period-grid"><article><span>ช่วงก่อน · ใช้เป็นฐานเปรียบเทียบ</span><p id="sku-previous-period"></p><strong id="sku-previous-net"></strong></article><article><span>ช่วงนี้ · ช่วงวันที่เลือก</span><p id="sku-current-period"></p><strong id="sku-current-net"></strong></article></div>
+          <p id="sku-period-difference"></p><p id="sku-period-explanation"></p>
+        </section>
         <div class="sku-metrics"><article><span>ยอดขายสุทธิ</span><strong id="sku-net"></strong><small id="sku-change"></small></article><article><span>ยอดขายก่อนหักคืน</span><strong id="sku-sales"></strong><small id="sku-added"></small></article><article><span>ยอดรับคืน / ลดหนี้</span><strong id="sku-returns"></strong><small>ตามวันที่เอกสารรับคืน</small></article><article><span>ลูกค้าที่ซื้อ</span><strong id="sku-buyers-count"></strong><small id="sku-bills"></small></article></div>
         <section class="sku-stock-panel" aria-labelledby="sku-stock-title"><div><h3 id="sku-stock-title">สินค้าคงเหลือในทะเบียน</h3><strong id="sku-stock"></strong></div><div><p>ยอดรวมตามทะเบียน SML · ยังไม่แยกคลัง และไม่หักยอดจอง</p><p>ไม่อิงช่วงวันที่ขายที่เลือก และไม่ใช่ยอดพร้อมขายที่ยืนยันแล้ว</p><small id="sku-stock-updated"></small></div></section>
         <div class="sku-quantity-panel"><h3>ขายไปเท่าไร แยกตามหน่วย</h3><div class="table-scroll"><table><thead><tr><th scope="col">หน่วย</th><th scope="col" class="numeric">ขาย</th><th scope="col" class="numeric">เพิ่มหนี้</th><th scope="col" class="numeric">รับคืน</th><th scope="col" class="numeric">จำนวนสุทธิ</th></tr></thead><tbody id="sku-quantities"></tbody></table></div></div>
