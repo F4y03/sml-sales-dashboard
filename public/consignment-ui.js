@@ -35,8 +35,13 @@ function renderHistory(){
  const p=selected,rows=[...p.rows].sort((a,b)=>b.index-a.index);$('history-title').textContent=p.product;$('history-subtitle').textContent=p.code+' · '+p.customer;
  $('history-totals').textContent=`รับเข้า/ยกมา ${fmt(p.in)} · เบิกออก ${fmt(p.out)} · คงเหลือล่าสุด ${fmt(p.balance)} ${p.unit}`;
  $('history-rows').replaceChildren();
- for(const r of rows.slice(historyPage*size,(historyPage+1)*size)){const tr=document.createElement('tr');cell(tr,date(r.date));cell(tr,r.docNo||'—');cell(tr,r.flag===54?'รับเข้า / ยกมา':r.flag===44?'เบิกออก (ขาย)':r.flag===58?'รับคืนจากเบิก':r.type);cell(tr,fmt(r.quantity)+' '+p.unit,r.type==='เบิกออก'?'out-number':'');cell(tr,fmt(r.balance)+' '+p.unit);$('history-rows').append(tr);}
+ for(const r of rows.slice(historyPage*size,(historyPage+1)*size)){const tr=document.createElement('tr');cell(tr,date(r.date));const documentCell=cell(tr,'');if(r.docNo){const button=document.createElement('button');button.type='button';button.className='document-link';button.textContent=r.docNo;button.onclick=()=>openDocument(r);documentCell.append(button);}else documentCell.textContent='—';cell(tr,r.flag===54?'รับเข้า / ยกมา':r.flag===44?'เบิกออก (ขาย)':r.flag===58?'รับคืนจากเบิก':r.type);cell(tr,fmt(r.quantity)+' '+p.unit,r.type==='เบิกออก'?'out-number':'');cell(tr,fmt(r.balance)+' '+p.unit);$('history-rows').append(tr);}
  $('history-page').textContent=`${fmt(rows.length)} รายการ · หน้า ${historyPage+1} / ${Math.ceil(rows.length/size)}`;$('history-prev').disabled=historyPage===0;$('history-next').disabled=(historyPage+1)*size>=rows.length;
+}
+async function openDocument(row){
+ const dialog=$('document-detail'),body=$('document-rows');$('document-title').textContent='เอกสาร '+row.docNo;$('document-subtitle').textContent=`${date(row.date)} · ${row.type}`;body.replaceChildren();$('document-status').textContent='กำลังโหลดรายละเอียดเอกสาร…';dialog.showModal();
+ try{const params=new URLSearchParams({docNo:row.docNo,date:row.date,flag:String(row.flag)}),response=await fetch('/api/consignment/document?'+params,{cache:'no-store'}),data=await response.json();if(!response.ok)throw new Error(data.error||'โหลดข้อมูลไม่สำเร็จ');$('document-status').textContent=data.rows.length?`พบ ${fmt(data.rows.length)} รายการในเอกสาร`:'ไม่พบรายการในเอกสาร';for(const item of data.rows){const tr=document.createElement('tr');cell(tr,item.code);cell(tr,item.product);cell(tr,fmt(item.quantity));cell(tr,item.unit);cell(tr,item.type);body.append(tr);}}
+ catch(error){$('document-status').textContent=error.message;}
 }
 async function load(silent=false){
  let changed=false;$('check-source').disabled=true;if(!silent){$('source').textContent='กำลังโหลดข้อมูลสินค้าฝากจาก SML…';$('error').textContent='';}
@@ -58,4 +63,4 @@ $('export-excel').onclick=async()=>{
  finally{exporting=false;render();}
 };
 $('reset').onclick=()=>{for(const id of ['search','region','customer','unit','stock'])$(id).value='';$('sort').value='recent';page=0;render();};
- $('prev').onclick=()=>{page--;render();};$('next').onclick=()=>{page++;render();};$('history-prev').onclick=()=>{historyPage--;renderHistory();};$('history-next').onclick=()=>{historyPage++;renderHistory();};$('close-history').onclick=()=>$('history').close();$('check-source').onclick=()=>load();render();load();setInterval(()=>load(true),60000);
+ $('prev').onclick=()=>{page--;render();};$('next').onclick=()=>{page++;render();};$('history-prev').onclick=()=>{historyPage--;renderHistory();};$('history-next').onclick=()=>{historyPage++;renderHistory();};$('close-history').onclick=()=>$('history').close();$('close-document').onclick=()=>$('document-detail').close();$('check-source').onclick=()=>load();render();load();setInterval(()=>load(true),60000);

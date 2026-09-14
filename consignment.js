@@ -32,6 +32,22 @@ export async function readConsignment(pool) {
     message:rows.length ? 'พบสินค้ารหัสขึ้นต้น ฝ' : 'ไม่พบความเคลื่อนไหวของสินค้ารหัสขึ้นต้น ฝ',
     updatedAt:new Date().toISOString()};
 }
+const documentSQL = `
+ SELECT to_char(d.doc_date, 'YYYY-MM-DD') AS date, d.doc_no AS "docNo",
+   d.trans_flag AS flag, d.item_code AS code,
+   COALESCE(NULLIF(d.item_name,''),d.item_code) AS product,
+   COALESCE(NULLIF(i.unit_standard,''),'ไม่ระบุหน่วย') AS unit,
+   CASE WHEN d.calc_flag = -1 THEN 'เบิกออก' ELSE 'รับเข้า' END AS type,
+   d.qty * d.stand_value / NULLIF(d.divide_value,0) AS quantity
+ FROM ic_trans_detail d LEFT JOIN ic_inventory i ON i.code=d.item_code
+ WHERE d.doc_no=$1 AND d.doc_date=$2::date AND d.trans_flag=$3
+   AND d.last_status=0 AND NOT (d.doc_ref<>'' AND d.is_pos=1)
+ ORDER BY d.line_number,d.roworder`;
+
+export async function readConsignmentDocument(pool, docNo, date, flag) {
+  const {rows} = await pool.query(documentSQL,[docNo,date,flag]);
+  return {docNo,date,flag,rows};
+}
 export function installConsignment(app,pool) {
   const handler=async(req,res)=>{
     res.set('Cache-Control','no-store');
@@ -39,4 +55,11 @@ export function installConsignment(app,pool) {
     catch(error){console.error('Consignment query failed:',error.code);res.status(503).json({error:error.code==='57014'?'ดึงข้อมูล SML เกินเวลาที่กำหนด กรุณาลองใหม่':'ดึงข้อมูลสินค้าฝากไม่สำเร็จ กรุณาลองใหม่'});}
   };
   app.get('/api/consignment',handler);app.get('/api/consignment/source',handler);
+  app.get('/api/consignment/document',async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    const {docNo,date,flag}=req.query;
+    if(!docNo||!date||!flag)return res.status(400).json({error:'ข้อมูลเอกสารไม่ครบ'});
+    try{res.json(await readConsignmentDocument(pool,docNo,date,Number(flag)));}
+    catch(error){console.error('Consignment document query failed:',error.code);res.status(503).json({error:'ดึงรายละเอียดเอกสารไม่สำเร็จ กรุณาลองใหม่'});}
+  });
 }
