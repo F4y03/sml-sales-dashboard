@@ -1,5 +1,15 @@
 # Image upload checkpoint
 
+## Latest checkpoint: 2026-09-15 09:07 Bangkok
+
+1,440 images uploaded, 114 pending (all source images downloaded). This run uploaded 486 images. Stopped on HTTP 429 stating to retry in 3 hours; next approximate retry is 12:07 Bangkok on 2026-09-15, subject to provider availability.
+
+Local products-with-individual-drive-links.xlsx is regenerated and verified: 1,074 rows, 48 columns, 1,705 Drive URL occurrences, 150 retained source URL occurrences for the pending images. Descriptions remain cleaned plain text. Original non-description/non-image cells match the CSV. Receipts from this run are receipts-resume-*.json, merged into drive-upload-manifest.json.
+
+The Drive workbook remains older; upload the local workbook to existing ID 1-aMiKMaiTT1WxGlt88ZjZAZad4rvFAGb once upload quota allows. No attempt to upload this Excel was made after the quota error. Localhost:3002 was not running at verification time; the local workbook verification passed, but the live table check could not connect.
+
+Earlier checkpoints below are historical.
+
 ## Latest checkpoint, 2026-09-14 16:25 Bangkok time
 
 954 distinct images uploaded, 600 pending. All 1,554 source images are now downloaded (the earlier 4 failures were recovered). This turn uploaded 457 images ordered by source row_index. Receipts are saved in receipts-ordered-*.json and merged into drive-upload-manifest.json after each batch.
