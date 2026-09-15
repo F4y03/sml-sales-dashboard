@@ -1,5 +1,31 @@
 (() => {
   const byId = id => document.getElementById(id);
+  const tooltip = document.createElement('div');
+  tooltip.id = 'product-chart-tooltip'; tooltip.className = 'product-chart-tooltip';
+  tooltip.setAttribute('role', 'tooltip'); tooltip.hidden = true; document.body.append(tooltip);
+  function hideChartTooltip() { tooltip.hidden = true; }
+  document.addEventListener('scroll', hideChartTooltip, true);
+  window.addEventListener('resize', hideChartTooltip);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') hideChartTooltip(); });
+  function showChartTooltip(button, item, periods, watch, selected) {
+    tooltip.replaceChildren(node('strong', item.name, 'chart-tip-name'), node('span', skuLabel(item.code), 'chart-tip-code'));
+    for (const [key, title, period, amount] of [
+      ['previous', 'ช่วงก่อน', periods.previous, item.previousNet],
+      ['current', 'ช่วงนี้', periods.current, item.net],
+    ]) {
+      if (!watch && key === 'previous') continue;
+      const section = node('div', '', `chart-tip-period${selected === key ? ' is-highlighted' : ''}`);
+      section.append(node('span', title, `chart-tip-label ${key}`), node('span', period, 'chart-tip-date'), node('b', money(amount), 'chart-tip-value'));
+      tooltip.append(section);
+    }
+    tooltip.append(node('span', 'ยอดขายสุทธิ · คลิกเพื่อดูรายละเอียดสินค้า', 'chart-tip-footer'));
+    tooltip.hidden = false;
+    const bounds = button.getBoundingClientRect(), width = tooltip.offsetWidth, height = tooltip.offsetHeight;
+    const right = bounds.right + 12;
+    const left = right + width <= innerWidth - 12 ? right : bounds.left - width - 12 >= 12 ? bounds.left - width - 12 : Math.max(12, innerWidth - width - 12);
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${Math.max(12, Math.min(bounds.top, innerHeight - height - 12))}px`;
+  }
   const num = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 });
   const baht = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const dayFormat = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -170,6 +196,7 @@
     }
   }
   function renderLeaders(id, products, watch) {
+    hideChartTooltip();
     const container = byId(id); container.replaceChildren();
     const minimum = watch ? Math.min(0, ...products.map(item => item.net)) : 0;
     const maximum = Math.max(0, ...products.flatMap(item => watch ? [item.previousNet, item.net] : [item.net]));
@@ -182,8 +209,13 @@
       const currentPeriod = `${date(data.start)} – ${date(data.end)}`;
       const previousPeriod = `${date(data.previous.start)} – ${date(data.previous.end)}`;
       button.type = 'button';
-      button.title = `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` + (watch ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}` : '');
-      button.setAttribute('aria-label', `${button.title}\nกดเพื่อดูรายละเอียดสินค้า`);
+      button.setAttribute('aria-label', `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` + (watch ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}` : '') + '\nกดเพื่อดูรายละเอียดสินค้า');
+      const showTip = selected => showChartTooltip(button, item, { current: currentPeriod, previous: previousPeriod }, watch, selected);
+      button.addEventListener('pointerenter', event => { if (event.pointerType !== 'touch') showTip(); });
+      button.addEventListener('pointermove', event => { if (event.pointerType !== 'touch') showTip(event.target.closest('.leader-chart-series')?.dataset.period); });
+      button.addEventListener('pointerleave', hideChartTooltip);
+      button.addEventListener('focus', () => { if (!byId('sku-detail').open) showTip(); });
+      button.addEventListener('blur', hideChartTooltip);
       button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
       label.append(node('strong', item.name), node('small', skuLabel(item.code)));
       const value = node('span', watch ? `−${money(item.previousNet - item.net)}` : money(item.net), `leader-value${watch ? ' performance-negative' : ''}`);
@@ -193,7 +225,9 @@
       const entries = watch ? [['ช่วงก่อน', item.previousNet, 'is-previous'], ['ช่วงนี้', item.net, 'is-current']] : [['', item.net, '']];
       for (const [periodLabel, amount, className] of entries) {
         const row = node('span', '', 'leader-chart-series');
-        row.title = `${periodLabel || 'ช่วงนี้'}: ${className === 'is-previous' ? previousPeriod : currentPeriod}\nยอดขายสุทธิ ${money(amount)}`;
+        row.dataset.period = className === 'is-previous' ? 'previous' : 'current';
+        row.addEventListener('pointerenter', event => { if (event.pointerType !== 'touch') showTip(className === 'is-previous' ? 'previous' : 'current'); });
+        row.addEventListener('pointerleave', () => showTip());
         if (watch) row.append(node('span', periodLabel, 'leader-series-label'));
         const track = node('span', '', 'leader-chart-track');
         track.setAttribute('aria-hidden', 'true');
@@ -206,7 +240,7 @@
         plot.append(row);
       }
       button.append(plot);
-      button.addEventListener('click', () => openSku(item, button)); container.append(button);
+      button.addEventListener('click', () => { hideChartTooltip(); openSku(item, button); }); container.append(button);
     });
     if (products.length) {
       const axis = node('div', '', 'leader-chart-axis');

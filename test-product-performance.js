@@ -102,6 +102,16 @@ test('product view: search, rankings, no-sales, quantities, buyers popup, filter
     await expect(page.locator('#performance-best .leader-chart-fill')).toHaveCount(5);
     await expect(page.locator('#performance-watch .leader-chart-fill.is-previous')).toHaveCount(5);
     await expect(page.locator('#performance-watch .leader-chart-fill.is-current')).toHaveCount(5);
+    await page.locator('#performance-watch .leader-chart-series').first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(150);
+    await page.locator('#performance-watch .leader-chart-series').first().hover();
+    const tip = page.locator('#product-chart-tooltip');
+    await expect(tip).toBeVisible();
+    await expect(tip.locator('.chart-tip-period')).toHaveCount(2);
+    await expect(tip.locator('.chart-tip-period.is-highlighted .chart-tip-label')).toHaveText('ช่วงก่อน');
+    assert.ok(await tip.evaluate(el => { const r=el.getBoundingClientRect(); return r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight; }));
+    await page.keyboard.press('Escape');
+    await expect(tip).toBeHidden();
     const bestWidths = await page.locator('#performance-best .leader-chart-fill').evaluateAll(bars => bars.map(bar => parseFloat(bar.style.width)));
     const watchWidths = await page.locator('#performance-watch .leader-chart-fill.is-previous').evaluateAll(bars => bars.map(bar => parseFloat(bar.style.width)));
     const currentWidths = await page.locator('#performance-watch .leader-chart-fill.is-current').evaluateAll(bars => bars.map(bar => parseFloat(bar.style.width)));
