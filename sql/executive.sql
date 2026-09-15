@@ -29,10 +29,15 @@ WITH periods AS (
   FROM lines WHERE period IN ('current','previous') GROUP BY branch_code
 ), staff AS (
   SELECT sale_code AS code, SUM(direction * sum_amount) AS sales FROM lines WHERE period = 'current' GROUP BY sale_code
+), bill_totals AS (
+  SELECT doc_no, day, trans_flag, SUM(sum_amount) AS total
+  FROM lines WHERE period = 'current'
+  GROUP BY doc_no, day, trans_flag
 ), bills AS (
   SELECT h.doc_no AS "docNo", h.day AS date, h.trans_flag AS flag, h.total_amount AS total,
-    (SELECT SUM(l.sum_amount) FROM lines l WHERE l.period = 'current' AND l.doc_no = h.doc_no AND l.day = h.day AND l.trans_flag = h.trans_flag) AS "lineTotal"
-  FROM headers h WHERE h.period = 'current'
+    l.total AS "lineTotal"
+  FROM headers h LEFT JOIN bill_totals l ON l.doc_no = h.doc_no AND l.day = h.day AND l.trans_flag = h.trans_flag
+  WHERE h.period = 'current'
 ), unusual AS (
   SELECT *, abs(total - COALESCE("lineTotal",0)) AS difference FROM bills
   WHERE (total > 100000 AND total > (SELECT AVG(total) * 3 FROM bills WHERE flag = 44))
@@ -52,7 +57,7 @@ SELECT json_build_object(
   'products', COALESCE((SELECT json_agg(product) FROM (SELECT p.*, i.balance_qty AS stock, i.unit_standard AS unit FROM products p LEFT JOIN (SELECT code, MAX(balance_qty) balance_qty, MAX(unit_standard) unit_standard FROM ic_inventory GROUP BY code) i ON i.code = p.code ORDER BY p.sales DESC, p.code) product), '[]'::json),
   'branches', COALESCE((SELECT json_agg(branch) FROM (SELECT b.*, COALESCE((SELECT MAX(name_1) FROM erp_branch_list WHERE code = b.code),NULLIF(b.code,''),'ไม่ระบุสาขา') AS name FROM branches b ORDER BY sales DESC, code LIMIT 5) branch), '[]'::json),
   'declines', COALESCE((SELECT json_agg(branch) FROM (SELECT b.*, COALESCE((SELECT MAX(name_1) FROM erp_branch_list WHERE code = b.code),NULLIF(b.code,''),'ไม่ระบุสาขา') AS name FROM branches b WHERE previous > 0 AND sales < previous * 0.8 ORDER BY sales / previous LIMIT 20) branch), '[]'::json),
-  'staff', COALESCE((SELECT json_agg(person) FROM (SELECT s.*, COALESCE((SELECT MAX(name_1) FROM erp_user WHERE code = s.code),NULLIF(s.code,''),'ไม่ระบุพนักงาน') AS name FROM staff s ORDER BY sales DESC, code LIMIT 5) person), '[]'::json),
+  'staff', COALESCE((SELECT json_agg(person) FROM (SELECT s.*, COALESCE((SELECT MAX(name_1) FROM erp_user WHERE code = s.code),NULLIF(s.code,''),'ไม่ระบุพนักงาน') AS name, (SELECT MAX(NULLIF(TRIM(a.name_1),'')) FROM ar_sale_area a WHERE a.code = COALESCE((SELECT MAX(NULLIF(TRIM(u.area_code),'')) FROM erp_user u WHERE u.code=s.code),s.code)) AS area FROM staff s ORDER BY sales DESC, code LIMIT 5) person), '[]'::json),
   'bills', COALESCE((SELECT json_agg(bill) FROM (SELECT * FROM bills ORDER BY date DESC, "docNo" DESC LIMIT 100) bill), '[]'::json),
   'unusual', COALESCE((SELECT json_agg(bill) FROM (SELECT * FROM unusual ORDER BY total DESC LIMIT 20) bill), '[]'::json)
 ) AS summary;

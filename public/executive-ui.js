@@ -45,15 +45,97 @@ function renderTarget() {
   element('progress').value = target ? Math.max(0, Math.min(100, current.net / target * 100)) : 0;
   element('remaining').textContent = target ? (current.net >= target ? 'เกินเป้า ' + money(current.net - target) : 'เหลืออีก ' + money(target - current.net)) : 'กรอกเป้าของช่วงวันที่ด้านบน';
 }
+function teamRegion(item) {
+  const code = String(item.code || '').trim().replace(/^ฝ/, '').replace(/^กท-/, 'ก');
+  const regions = {
+    'กจ': 'ภาคกลาง', 'กณ': 'ภาคกลาง', 'กต': 'ภาคกลาง',
+    'กร': 'ภาคกลาง', 'กภ': 'ภาคกลาง', 'บอ': 'ภาคกลาง',
+    'หย': 'ภาคเหนือ', 'ตช': 'ภาคใต้', 'ลภ': 'ภาคตะวันออก',
+    'อย': 'ภาคตะวันออกเฉียงเหนือ',
+  };
+  // Explicit region assignments take precedence over the SML area name.
+  return regions[code] || item.area || '';
+}
 function renderTeam() {
   element('branches-tab').setAttribute('aria-pressed', String(activeTeam === 'branches'));
   element('staff-tab').setAttribute('aria-pressed', String(activeTeam === 'staff'));
   const container = element('leaders'); container.replaceChildren();
   current[activeTeam].forEach((item, index) => {
-    const row = node('div', '', 'leader');
-    row.append(node('span', index + 1, 'rank'), node('span', item.name), node('strong', money(item.sales))); container.append(row);
+    const row = node('button', '', 'leader team-detail-button');
+    row.type = 'button';
+    row.setAttribute('aria-haspopup', 'dialog');
+    row.setAttribute('aria-controls', 'detail');
+    row.setAttribute('aria-label', `ดูรายละเอียด ${item.name} รหัส ${item.code || 'ไม่ระบุ'}`);
+    row.addEventListener('click', () => openTeamDetail(item, index, activeTeam));
+    const identity = node('div', '', 'team-identity');
+    identity.append(node('span', item.name, 'team-name'));
+    if (activeTeam === 'staff') {
+      const meta = node('div', '', 'team-meta');
+      const region = teamRegion(item);
+      meta.append(node('span', region ? `เขตการขาย: ${region}` : 'ยังไม่ระบุเขตการขาย', 'team-area'));
+      meta.append(node('span', `รหัส: ${item.code || '—'}`, 'team-code'));
+      identity.append(meta);
+    }
+    row.append(node('span', index + 1, 'rank'), identity, node('strong', money(item.sales))); container.append(row);
   });
   if (!current[activeTeam].length) container.append(node('p', 'ไม่พบรายการในช่วงวันที่เลือก', 'note'));
+}
+function openTeamDetail(item, index, team) {
+  if (!current) return;
+  element('detail-title').textContent = `รายละเอียด${team === 'staff' ? 'พนักงานขาย' : 'สาขา'} · ${item.name}`;
+  const body = element('detail-body'); body.replaceChildren();
+  const date = value => new Date(value + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+  const layout = node('div', '', 'team-profile');
+  const heading = node('div', '', 'team-profile-heading');
+  const avatar = node('span', (item.name || '—').trim().slice(0, 1), 'team-profile-avatar');
+  avatar.setAttribute('aria-hidden', 'true');
+  const identity = node('div', '', 'team-profile-identity');
+  identity.append(node('h3', item.name), node('p', 'รหัสพนักงาน/สาขา ' + (item.code || 'ไม่ระบุ')));
+  heading.append(avatar, identity);
+  if (team === 'staff') heading.append(node('span', teamRegion(item) || 'ยังไม่ระบุเขต', 'team-profile-region'));
+  layout.append(heading, node('p', date(current.start) + ' – ' + date(current.end), 'team-profile-period'));
+  const metrics = node('div', '', 'team-profile-metrics');
+  const sales = node('section', '', 'team-profile-sales');
+  sales.append(node('span', 'ยอดรายการขายสุทธิ'), node('strong', money(item.sales)), node('small', 'ขาย + เพิ่มหนี้ − รับคืน/ลดหนี้'));
+  const rank = node('section', '', 'team-profile-rank');
+  rank.append(node('span', 'อันดับยอดขาย'), node('strong', '#' + (index + 1)), node('small', 'ในช่วงวันที่เลือก'));
+  metrics.append(sales, rank); layout.append(metrics);
+  const explanation = node('div', '', 'team-profile-explanation');
+  for (const [title, text] of [
+    ['ยอดนี้คำนวณอย่างไร', 'รวมยอดเงินจากรายการสินค้าในเอกสารขายและเพิ่มหนี้ แล้วหักรับคืน/ลดหนี้ เฉพาะช่วงวันที่เลือก โดยไม่นับเอกสารยกเลิกและสำเนา ยอดอาจต่างจากยอดรวมหน้าเอกสาร'],
+    ['ทำไมชื่อเดียวกันมีหลายแถว', team === 'staff' ? 'แยกอันดับตามรหัสพนักงานขาย ชื่อเดียวกันแต่คนละรหัสจึงแสดงแยกกัน เขตการขายใช้บอกพื้นที่ของรหัสนั้น ไม่ใช่ยอดรวมทั้งภาค' : 'แยกอันดับตามรหัสสาขา ชื่อเดียวกันแต่คนละรหัสจึงแสดงแยกกัน'],
+  ]) { const section = node('section', ''); section.append(node('h3', title), node('p', text)); explanation.append(section); }
+  layout.append(explanation);
+  if (team === 'staff') layout.append(node('p', 'เขตการขายอ้างอิงการจับคู่รหัสที่กำหนดไว้ หรือทะเบียน SML หากยังไม่ได้กำหนด', 'team-profile-source'));
+  layout.append(node('p', 'อัปเดตล่าสุด ' + new Date(current.updatedAt).toLocaleString('th-TH'), 'team-profile-updated'));
+  body.append(layout);
+  if (team === 'staff') {
+    const customers = node('section', '', 'team-customer-list');
+    customers.append(node('h3', 'ลูกค้าของพนักงานในช่วงที่เลือก'));
+    const status = node('p', 'กำลังโหลดรหัสลูกค้าเต็ม…', 'note'); status.setAttribute('role', 'status'); customers.append(status);
+    layout.insertBefore(customers, explanation);
+    const params = new URLSearchParams({start:current.start,end:current.end,code:item.code || ''});
+    const load = async () => {
+      status.textContent = 'กำลังโหลดรหัสลูกค้าเต็ม…';
+      try {
+        const response = await fetch('/api/executive/customers?' + params, {cache:'no-store',signal:AbortSignal.timeout(20000)});
+        if (!response.ok) throw new Error();
+        const data = await response.json(); if (!customers.isConnected) return;
+        status.textContent = `พบ ${data.rows.length} รายการ · ยอดรายการขายสุทธิของพนักงานคนนี้`;
+        const scroll = node('div', '', 'team-customer-scroll'), table = node('table', ''), head = node('thead', ''), row = node('tr', '');
+        for (const label of ['รหัสลูกค้าเต็ม', 'ชื่อลูกค้า', 'ยอดขายสุทธิ']) row.append(node('th', label));
+        head.append(row); table.append(head); const tbody = node('tbody', '');
+        for (const customer of data.rows) { const tr = node('tr', ''); tr.append(node('td', customer.code || 'ไม่ระบุรหัส'), node('td', customer.name || 'ไม่พบชื่อในทะเบียน'), node('td', money(customer.sales))); tbody.append(tr); }
+        table.append(tbody); scroll.append(table); customers.append(scroll);
+      } catch {
+        if (!customers.isConnected) return;
+        status.textContent = 'โหลดรายการลูกค้าไม่สำเร็จ ';
+        const retry = node('button', 'ลองใหม่'); retry.type='button'; retry.onclick=load; status.append(retry);
+      }
+    };
+    load();
+  }
+  element('detail').showModal();
 }
 function render() {
   element('net').textContent = money(current.net);

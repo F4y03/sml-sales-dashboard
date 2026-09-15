@@ -18,6 +18,24 @@ export function growth(current, previous) {
 }
 
 export function installExecutive(app, pool) {
+  app.get('/api/executive/customers', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { start, end, code } = req.query;
+    if (!validDate(start) || !validDate(end) || start > end || (Date.parse(end)-Date.parse(start))/86400000 > 365 || typeof code !== 'string' || code.length > 100) return res.status(400).json({error:'ช่วงวันที่หรือรหัสพนักงานไม่ถูกต้อง'});
+    try {
+      const { rows } = await pool.query(`
+        SELECT COALESCE(d.cust_code,'') AS code,
+          (SELECT MAX(c.name_1) FROM ar_customer c WHERE c.code=d.cust_code) AS name,
+          SUM(CASE WHEN d.trans_flag=48 THEN -1 ELSE 1 END * d.sum_amount) AS sales
+        FROM ic_trans_detail d
+        WHERE d.doc_date >= $1::date AND d.doc_date < $2::date + INTERVAL '1 day'
+          AND d.sale_code=$3 AND d.last_status=0 AND d.trans_flag IN (44,46,48)
+          AND EXISTS (SELECT 1 FROM ic_trans h WHERE h.doc_no=d.doc_no AND h.doc_date::date=d.doc_date::date
+            AND h.trans_flag=d.trans_flag AND h.last_status=0 AND h.is_doc_copy=0)
+        GROUP BY d.cust_code ORDER BY sales DESC, code`, [start,end,code]);
+      res.json({rows});
+    } catch { res.status(503).json({error:'โหลดรายการลูกค้าไม่สำเร็จ กรุณาลองใหม่'}); }
+  });
   app.get('/api/executive', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const { start, end } = req.query;

@@ -26,6 +26,17 @@ export const movementsSQL = `
  FROM movements WHERE quantity<>0 OR quantity IS NULL ORDER BY index`;
 export async function readConsignment(pool) {
   const {rows} = await pool.query(movementsSQL,['ฝ%','^ฝ[^0-9]{2}[0-9]{3}']);
+  const customers = (await pool.query('SELECT code FROM ar_customer')).rows;
+  const customerCodes = new Map();
+  for (const {code} of customers) {
+    const match = /^([^0-9-]{2})-(\d+)$/.exec(code || '');
+    if (!match) continue;
+    const deposit = 'ฝ' + match[1] + match[2].padStart(3, '0');
+    // Ambiguous matches must not be presented as a confirmed customer.
+    if (customerCodes.has(deposit) && customerCodes.get(deposit) !== code) customerCodes.set(deposit, null);
+    else customerCodes.set(deposit, code);
+  }
+  for (const row of rows) row.customerCode = customerCodes.get(row.customer) || null;
   if(rows.some(r=>r.quantity===null || r.balance===null)) throw new Error('Invalid inventory unit conversion');
   return {ready:rows.length>0,rows,source:'SML · รายงานเคลื่อนไหวสินค้า ตามคลัง (2060)',reportKey:1132,
     customers:new Set(rows.map(r=>r.customer)).size, products:new Set(rows.map(r=>r.productCode)).size,
