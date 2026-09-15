@@ -1,5 +1,14 @@
 # Image upload checkpoint
 
+## COMPLETE — 2026-09-15 16:29 Bangkok
+
+All 1,554 distinct source images have Drive IDs and returned URLs. Pending: 0.
+The final workbook contains 1,074 product rows and 48 columns. All 1,855 image URL occurrences in the original image column are replaced with their corresponding Drive URLs; remaining source image URLs: 0. Descriptions remain readable plain text; all other data verified against the source CSV.
+
+The final local workbook is products-with-individual-drive-links.xlsx. The existing Drive Excel file 1-aMiKMaiTT1WxGlt88ZjZAZad4rvFAGb was successfully updated at 2026-09-15T09:29:20.256Z, size 333170 bytes. Link: https://docs.google.com/spreadsheets/d/1-aMiKMaiTT1WxGlt88ZjZAZad4rvFAGb/edit
+
+Local MD5: DD5B92E30EC37DFBD06AED56A15040A5. drive-upload-manifest.json contains the complete mapping. Do not resume image uploads; they are complete. Earlier checkpoints below are historical.
+
 ## Latest checkpoint: 2026-09-15 09:07 Bangkok
 
 1,440 images uploaded, 114 pending (all source images downloaded). This run uploaded 486 images. Stopped on HTTP 429 stating to retry in 3 hours; next approximate retry is 12:07 Bangkok on 2026-09-15, subject to provider availability.
