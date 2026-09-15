@@ -10,7 +10,12 @@ function filters(query) {
   return {q:q.trim(),group};
 }
 const where=`($1::text='' OR strpos(lower(COALESCE(i.code,'')),lower($1))>0 OR strpos(lower(COALESCE(i.name_1,'')),lower($1))>0) AND ($2::text='' OR i.group_main=$2)`;
-const select=`SELECT i.*, (SELECT MAX(g.name_1) FROM ic_group g WHERE g.code=i.group_main) AS group_main_name FROM ic_inventory i WHERE ${where} ORDER BY i.code,i.roworder`;
+productLabels.catalog_sale_price = 'ราคาขายในทะเบียน (price_0 ตามหน่วยมาตรฐาน)';
+const select=`SELECT i.*, (SELECT MAX(g.name_1) FROM ic_group g WHERE g.code=i.group_main) AS group_main_name,
+  (SELECT NULLIF(TRIM(p.price_0), '') FROM ic_inventory_price_formula p
+   WHERE p.ic_code=i.code AND p.unit_code=i.unit_standard AND p.sale_type=0
+   ORDER BY p.roworder DESC LIMIT 1) AS catalog_sale_price
+  FROM ic_inventory i WHERE ${where} ORDER BY i.code,i.roworder`;
 const fieldsOf=result=>result.fields.map(f=>({key:f.name,label:productLabels[f.name]||f.name}));
 export function csvValue(value){let s=String(value??'');if(/^[\s]*[=+@\-]/.test(s)||/^[\t\r\n]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
 export async function excelBuffer(rows,fields,metadata){
