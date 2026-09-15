@@ -12,9 +12,9 @@ let customerPage = 0, productPage = 0, masterController, detailController, maste
 let filterTimer, masterUpdatedAt, detailOpener, backdropPointerDown = false;
 let activeInsightsView = 'customers';
 
-function productViewEvent(type) {
+function productViewEvent(type, silent = false) {
   document.dispatchEvent(new CustomEvent(type, { detail: {
-    view: activeInsightsView, start: el('start').value, end: el('end').value, valid: validateDates()
+    silent, view: activeInsightsView, start: el('start').value, end: el('end').value, valid: validateDates()
   } }));
 }
 
@@ -297,12 +297,12 @@ function renderSummaryCharts() {
   }
 }
 
-function applySearch() {
+function applySearch(preservePage = false) {
   if (!period) return;
   if (el('customer-detail').open) closeCustomerDetail();
   const query = el('customer-search').value.trim().toLocaleLowerCase('th-TH');
   filtered = customers.filter(customer => `${customer.code}\n${customer.name}`.toLocaleLowerCase('th-TH').includes(query));
-  customerPage = 0;
+  if (preservePage !== true) customerPage = 0;
   el('total-net').textContent = money(filtered.reduce((sum, customer) => sum + customer.net, 0));
   el('customer-count').textContent = number.format(filtered.length);
   el('invoice-count').textContent = number.format(filtered.reduce((sum, customer) => sum + customer.invoiceCount, 0));
@@ -442,10 +442,10 @@ function invalidateMaster() {
   el('refresh').disabled = false;
 }
 
-async function loadCustomers() {
+async function loadCustomers(silent = false) {
   if (activeInsightsView !== 'customers') return;
   clearTimeout(filterTimer);
-  invalidateMaster();
+  if (!silent) invalidateMaster();
   if (!validateDates()) {
     message('กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน', true);
     return;
@@ -455,7 +455,7 @@ async function loadCustomers() {
   const controller = new AbortController();
   masterController = controller;
   const request = ++masterRequest;
-  message('กำลังโหลดข้อมูลลูกค้าจาก SML…');
+if (!silent) message('กำลังโหลดข้อมูลลูกค้าจาก SML…');
   el('refresh').disabled = true;
   try {
     const data = await requestJSON(`/api/customer-insights?${new URLSearchParams(requestedPeriod)}`, controller.signal);
@@ -471,7 +471,7 @@ async function loadCustomers() {
     if (previous) selectedCode = previous.code;
     detailController = null;
     el('customer-dashboard').hidden = false;
-    applySearch();
+    applySearch(silent);
     el('updated').textContent = `อัปเดตข้อมูล ${new Date(masterUpdatedAt).toLocaleString('th-TH')}`;
   } catch (error) {
     if (controller.signal.aborted || request !== masterRequest) return;
@@ -549,3 +549,8 @@ const today = new Date();
 el('start').value = iso(new Date(today.getFullYear(), today.getMonth(), 1));
 el('end').value = iso(today);
 loadCustomers();
+setInterval(() => {
+  if (document.hidden || el('refresh').disabled || document.querySelector('dialog[open]')) return;
+  if (activeInsightsView === 'customers') loadCustomers(true);
+  else productViewEvent('insights-product-refresh', true);
+}, 60000);

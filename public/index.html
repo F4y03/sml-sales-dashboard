@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="overview-layout.css">
   <script src="assets/chart.umd.js" defer></script>
+  <link rel="stylesheet" href="overview-growth.css"><script src="overview-growth.js" defer></script>
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="analytics.css"><script src="analytics-ui.js" defer></script><script src="app.js" defer></script>
   <link rel="stylesheet" href="insights-help.css"><script src="insights-help.js" defer></script>
 <link rel="stylesheet" href="workspace-nav.css"><script src="workspace-nav.js" defer></script><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="/theme-modes.css"><script src="/theme-mode.js"></script><script src="monthly-trend.js" defer></script></head>
@@ -27,14 +28,18 @@
           <label id="single-field" class="single-date" hidden><span>วันที่ต้องการดู</span><input id="dashboard-day" type="date" aria-label="ดูยอดขาย 1 วัน"></label>
           <div class="dashboard-filter-actions"><button class="button secondary" id="clear-day" type="button">ล้าง</button><button class="button primary" id="apply" type="submit">แสดงข้อมูล</button></div>
         </form>
-        <div class="control-footer"><div id="status" class="status" role="status" aria-live="polite"></div><button id="refresh" type="button" class="refresh-button"><span aria-hidden="true">↻</span> รีเฟรช</button></div>
+        <div id="status" class="status overview-status" role="status" aria-live="polite"></div>
       </section>
       <input type="hidden" id="source" value="live">
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-5" aria-label="สรุปยอดขาย">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-5 overview-kpis" aria-label="สรุปยอดขาย">
         <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามเอกสาร</span><span id="document-sales-help" class="metric-icon mint">ⓘ</span></div><div class="metric" id="total-sales">—</div><div class="kpi-foot"><span class="mini-dot"></span> รายงาน 4007 · ยังไม่หักรับคืน <span class="ml-auto">บาท</span></div></article>
         <article class="card kpi"><div class="kpi-top"><span>ยอดขายตามรายการสินค้า</span><span id="item-sales-help" class="metric-icon amber">ⓘ</span></div><div class="metric" id="item-sales">—</div><div class="kpi-foot"><span class="mini-dot amber-dot"></span> รายงาน 4014 · ยังไม่หักรับคืน <span class="ml-auto">บาท</span></div></article>
         <article class="card kpi clickable-kpi" id="invoice-card" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="invoice-dialog"><div class="kpi-top"><span>จำนวนบิลทั้งหมด</span><span class="metric-icon blue">▤</span></div><div class="metric" id="total-invoices">—</div><div class="kpi-foot"><span class="mini-dot blue-dot"></span> กดเพื่อดูรายการบิล <span class="ml-auto">บิล</span></div></article>
       </section>
+      <dialog id="growth-dialog" class="invoice-dialog" aria-labelledby="growth-title">
+        <div class="dialog-heading"><h2 id="growth-title">เปรียบเทียบช่วงเวลา</h2><button type="button" class="button secondary" id="growth-close">ปิด ×</button></div>
+        <div id="growth-details" class="growth-details"></div>
+      </dialog>
       <dialog id="product-invoices" class="invoice-dialog" aria-labelledby="product-invoices-title">
         <div class="dialog-heading"><div><h2 id="product-invoices-title">บิลขายสินค้า</h2><p id="product-invoices-period"></p></div><button type="button" class="button secondary" id="close-product-invoices">ปิด ×</button></div>
         <div class="invoice-table-wrap"><table><thead><tr><th>วันที่</th><th>เลขบิล</th><th>จำนวนขาย</th><th>ยอดขายสินค้า</th></tr></thead><tbody id="product-invoice-rows"></tbody></table></div>

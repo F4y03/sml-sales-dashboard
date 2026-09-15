@@ -124,13 +124,13 @@ function openInvoices() {
   $('invoice-dialog').showModal();
   loadInvoices(0);
 }
-function render(data) {
+function render(data, silent = false) {
   $('total-sales').textContent = money(data.totalSales);
   $('total-invoices').textContent = number.format(data.totalInvoices);
   $('item-sales').textContent = money(data.itemSales);
   $('total-sales').dataset.amount = String(data.totalSales);
   $('item-sales').dataset.amount = String(data.itemSales);
-  productPage = 0;
+  if (!silent) productPage = 0;
   renderProductPage(data.products);
   $('updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}`;
   charts.forEach(chart => chart.destroy()); charts = [];
@@ -139,7 +139,7 @@ function render(data) {
   const theme = window.dashboardTheme?.palette() || {muted:'#656973',line:'#e0e2e6',brand:'#e10600',surface:'#fff'};
   Chart.defaults.color = theme.muted;
   const options = () => ({
-    responsive: true, maintainAspectRatio: false,
+    responsive: true, maintainAspectRatio: false, animation: false,
     interaction: { intersect: false, mode: 'index' },
     layout: { padding: { top: 8, right: 4 } },
     plugins: {
@@ -164,16 +164,19 @@ function render(data) {
   const warehouseChart = document.getElementById('warehouse-chart');
   if (warehouseChart) charts.push(new Chart(warehouseChart, { type: 'bar', data: { labels: data.warehouses.map(w => w.name), datasets: [{ data: data.warehouses.map(w => Number(w.sales)), backgroundColor: data.warehouses.map((w, i) => Number(w.sales) < 0 ? '#c34f52' : warehouseColors[i % warehouseColors.length]), borderRadius: 7, maxBarThickness: 42, borderSkipped: false }] }, options: { ...options(), plugins: { ...options().plugins, tooltip: { ...options().plugins.tooltip, callbacks: { label: ctx => ` ${money(ctx.parsed.y)}` } } } } }));
 }
-async function load() {
+async function load(silent = false) {
   syncControls();
   const id = ++requestId, start = $('start').value, end = $('end').value;
-  current = null; $('export').disabled = true;
-  $('product-invoices').close();
+  silent = silent && !!current;
+  if (!silent) { current = null; $('export').disabled = true; }
+  if (!silent) window.resetOverviewGrowth?.();
+  if (!silent) $('product-invoices').close();
   $('status').classList.remove('error');
   if (!start || !end || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 365) {
     $('status').textContent = 'กรุณาเลือกช่วงวันที่ให้ถูกต้อง ไม่เกิน 366 วัน'; $('status').classList.add('error'); return;
   }
-  $('apply').disabled = true; $('refresh').disabled = true; $('status').textContent = 'กำลังอัปเดตข้อมูลจาก SML…';
+  $('apply').disabled = true; $('status').textContent = 'กำลังอัปเดตข้อมูลจาก SML…';
+  window.loadOverviewGrowth?.(start, end);
   $('connection-badge').textContent = 'SML · กำลังอัปเดต'; $('connection-badge').className = 'live-badge';
   try {
     let data;
@@ -184,9 +187,9 @@ async function load() {
       data = await response.json(); if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
     }
     if (id !== requestId) return;
-    invoiceSearch = ''; invoicePage = 0;
-    render(data); current = data; current.period = { start, end }; $('export').disabled = false;
-    window.loadSalesAnalysis?.(start, end);
+    if (!silent) { invoiceSearch = ''; invoicePage = 0; }
+    render(data, silent); current = data; current.period = { start, end }; $('export').disabled = false;
+    window.loadSalesAnalysis?.(start, end, silent);
     const dateLabel = value => new Date(value+'T00:00:00').toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'});
     $('display-period').textContent = start === end ? dateLabel(start) : `${dateLabel(start)} – ${dateLabel(end)}`;
     $('connection-badge').textContent = '● เชื่อมต่อ SML แล้ว'; $('connection-badge').className = 'live-badge connected';
@@ -194,12 +197,13 @@ async function load() {
   } catch (error) {
     if (id !== requestId) return;
     $('connection-badge').textContent = 'เชื่อมต่อไม่สำเร็จ'; $('connection-badge').className = 'live-badge failed';
+    if (silent) { $('status').textContent = error.message; $('status').classList.add('error'); return; }
     $('display-period').textContent = 'ยังไม่มีข้อมูลล่าสุด';
     charts.forEach(chart => chart.destroy()); charts = [];
     ['total-sales', 'item-sales', 'total-invoices'].forEach(key => { $(key).textContent = '—'; delete $(key).dataset.amount; });
     $('product-rows').replaceChildren(); $('invoice-rows').replaceChildren(); $('invoice-page-info').textContent = ''; $('updated').textContent = 'ยังไม่ได้อัปเดต';
     $('status').textContent = error.name === 'TimeoutError' ? 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่' : error.message; $('status').classList.add('error');
-  } finally { if (id === requestId) { $('apply').disabled = false; $('refresh').disabled = false; } }
+  } finally { if (id === requestId) { $('apply').disabled = false; } }
 }
 $('filters').addEventListener('submit', e => { e.preventDefault(); load(); });
 $('product-prev').addEventListener('click', () => { if (current) { productPage--; renderProductPage(current.products); } });
@@ -212,7 +216,6 @@ $('invoice-prev').addEventListener('click', () => loadInvoices(invoicePage - 1))
 $('invoice-next').addEventListener('click', () => loadInvoices(invoicePage + 1));
 $('period').addEventListener('change', () => { if ($('period').value === 'day') { oneDay($('dashboard-day').value || iso(new Date())); return; } setPeriod(); syncControls(); if ($('period').value !== 'custom') load(); });
 ['start', 'end'].forEach(id => $(id).addEventListener('change', () => { $('period').value = 'custom'; syncControls(); $('status').textContent = 'ช่วงวันที่เปลี่ยนแล้ว กดแสดงข้อมูลเพื่ออัปเดต'; }));
-$('refresh').addEventListener('click', () => { setPeriod(); load(); });
 $('export').addEventListener('click', () => {
   if (!current) return;
   const rows = [['Period', current.period.start, current.period.end], ['Report', '4007 / 4014'], ['แหล่งข้อมูล', current.source], ['ยอดขายรวม', current.totalSales], ['จำนวนบิล', current.totalInvoices], [], ['วันที่', 'ยอดขาย'], ...current.daily.map(d => [d.day, d.sales]), [], ['คลังสินค้า', 'ยอดขาย'], ...current.warehouses.map(w => [w.name, w.sales]), [], ['รหัสสินค้า', 'สินค้า', 'จำนวน', 'หน่วย', 'ยอดขาย'], ...current.products.map(p => [p.code, p.name, p.quantity, p.unit, p.sales])];
@@ -236,7 +239,7 @@ $('clear-day').addEventListener('click', clearDay);
 $('source').value = 'live';
 setPeriod(); load();
 
-setInterval(() => { if (!document.hidden && !$('apply').disabled) { setPeriod(); load(); } }, 60000);
+setInterval(() => { if (!document.hidden && !$('apply').disabled && !document.querySelector('dialog[open]')) { setPeriod(); load(true); } }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('apply').disabled) { setPeriod(); load(); } });
 
 window.addEventListener('dashboard-theme-change', () => { const theme=window.dashboardTheme.palette(); for(const chart of charts){for(const scale of Object.values(chart.options.scales || {})){if(scale.ticks)scale.ticks.color=theme.muted;if(scale.grid)scale.grid.color=theme.line;}chart.data.datasets.forEach(dataset=>{dataset.borderColor=theme.brand;});chart.update('none');} });

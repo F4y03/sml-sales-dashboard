@@ -91,7 +91,7 @@
     if (byId('sku-detail').open) closeSku();
   }
   async function load(detail) {
-    reset();
+    if (!detail.silent) reset();
     if (!active) return;
     if (!detail.valid) { status('กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน', true); byId('refresh').disabled = false; return; }
     const currentRequest = ++requestId;
@@ -111,14 +111,14 @@
       byId('performance-dashboard').hidden = false;
       byId('performance-period').textContent = `${date(data.start)} – ${date(data.end)} · เทียบ ${date(data.previous.start)} – ${date(data.previous.end)} (${num.format(data.previous.days)} วันเท่ากัน)`;
       byId('performance-updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH')}`;
-      renderScope();
+      renderScope(detail.silent);
     } catch (error) {
       if (currentController.signal.aborted || currentRequest !== requestId) return;
       status(error.message === 'Failed to fetch' ? 'เชื่อมต่อ SML ไม่สำเร็จ กรุณากดอัปเดตข้อมูลเพื่อลองใหม่' : error.message, true);
     } finally { if (currentRequest === requestId && active) byId('refresh').disabled = false; }
   }
 
-  function renderScope() {
+  function renderScope(preservePage = false) {
     if (!data) return;
     const search = byId('performance-search').value.trim().toLocaleLowerCase('th-TH'), category = byId('performance-category').value;
     scope = data.products.filter(item => (category === '*' || item.categoryCode === category)
@@ -133,7 +133,7 @@
     renderLeaders('performance-best', scope.filter(item => item.net > 0 && item.invoiceCount > 0).sort(descending).slice(0, 5), false);
     renderLeaders('performance-watch', scope.filter(declining).sort((a, b) => (b.previousNet - b.net) - (a.previousNet - a.net) || a.code.localeCompare(b.code)).slice(0, 5), true);
     status(scope.length ? `พบ ${num.format(scope.length)} รหัสสินค้า · คลิกสินค้าเพื่อดูจำนวนขายและลูกค้าที่ซื้อ` : 'ไม่พบสินค้าตามคำค้นหาและหมวดหมู่ที่เลือก');
-    page = 0; renderTable();
+    if (preservePage !== true) page = 0; renderTable();
   }
   function renderSummaryCharts(total, previous) {
     const svgNode = (tag, attrs = {}, text = '') => {

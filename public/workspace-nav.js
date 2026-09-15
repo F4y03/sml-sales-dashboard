@@ -79,3 +79,29 @@ fetch('/api/auth/me').then(response => response.ok ? response.json() : null).the
   workspace.querySelector('.workspace-profile > span').textContent = user.username.slice(0, 2).toUpperCase();
 }).catch(() => {});
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+
+const connection = document.createElement('div');
+connection.className = 'workspace-connection';
+connection.innerHTML = '<strong role="status" data-state="checking">กำลังตรวจการเชื่อมต่อ…</strong><small class="connection-checked">ยังไม่ได้ตรวจสอบ</small>';
+workspace.querySelector('.workspace-source').replaceChildren(connection);
+let checkingConnection = false;
+async function checkConnection() {
+  if (checkingConnection) return;
+  checkingConnection = true;
+  const state = connection.querySelector('[role="status"]');
+  try {
+    const response = await fetch('/api/connection-status', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+    if (!response.ok || !(await response.json()).connected) throw new Error('Disconnected');
+    state.dataset.state = 'connected';
+    state.textContent = 'เชื่อมต่อ SML แล้ว';
+  } catch {
+    state.dataset.state = 'offline';
+    state.textContent = 'เชื่อมต่อ SML ไม่สำเร็จ';
+  } finally {
+    connection.querySelector('.connection-checked').textContent = 'ตรวจล่าสุด ' + new Date().toLocaleTimeString('th-TH');
+    checkingConnection = false;
+  }
+}
+checkConnection();
+setInterval(() => { if (!document.hidden) checkConnection(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkConnection(); });

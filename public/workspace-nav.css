@@ -34,3 +34,9 @@ body.workspace-layout{padding-left:246px}
   .workspace-label{margin-bottom:4px}
 }
 @media print{body.workspace-layout{padding-left:0}.workspace-sidebar{display:none!important}}
+.workspace-connection{display:grid;gap:6px}
+.workspace-connection [role=status]{font-size:12px;line-height:1.6}
+.workspace-connection [role=status]::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:7px}
+.workspace-connection [data-state=connected]{color:var(--positive,#168044)}
+.workspace-connection [data-state=offline]{color:var(--negative,#c52c35)}
+.workspace-connection small{font-size:11px;line-height:1.6}

@@ -1,7 +1,43 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
+
+test('sidebar checks the database every minute and recovers after failure', async () => {
+  const app = express(); app.use(express.static('public'));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  let browser;
+  try {
+    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    const page = await browser.newPage();
+    await page.clock.install();
+    await page.route('https://**', route => route.abort());
+    let connected = true, requests = 0;
+    await page.route('**/api/**', route => {
+      if (route.request().url().includes('/connection-status')) {
+        requests++;
+        return route.fulfill({ status: connected ? 200 : 503, json: { connected } });
+      }
+      return route.fulfill({ status: 503, json: { error: 'Test offline' } });
+    });
+    await page.goto(`http://127.0.0.1:${server.address().port}/products.html`);
+    const status = page.locator('.workspace-connection [role=status]');
+    await expect(status).toHaveAttribute('data-state', 'connected');
+    assert.equal(requests, 1);
+    connected = false;
+    await page.clock.fastForward(60000);
+    await expect(status).toHaveAttribute('data-state', 'offline');
+    assert.equal(requests, 2);
+    connected = true;
+    await page.clock.fastForward(60000);
+    await expect(status).toHaveAttribute('data-state', 'connected');
+    assert.equal(requests, 3);
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 test('shared navigation: all pages, active links, cross-page anchors and mobile menu', async () => {
   const app = express(); app.use(express.static('public'));

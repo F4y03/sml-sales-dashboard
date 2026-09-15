@@ -23,6 +23,15 @@ const validPeriod = (start, end) => validDate(start) && validDate(end) && start 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
 installAuth(app);
+app.get('/api/connection-status', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    await pool.query('SELECT 1');
+    res.json({ connected: true, checkedAt: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ connected: false });
+  }
+});
 installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);

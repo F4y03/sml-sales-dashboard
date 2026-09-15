@@ -23,7 +23,7 @@
         { type: 'line', label: 'ยอดขาย', data: values, borderColor: theme.ink, pointBackgroundColor: theme.ink, pointBorderColor: theme.surface, pointRadius: 3, borderWidth: 2, tension: 0, order: 0 },
         { label: 'ยอดขาย', data: values, backgroundColor: gradient, borderRadius: 4, maxBarThickness: 35, order: 1 },
       ] },
-      options: { responsive: true, maintainAspectRatio: false,
+      options: { responsive: true, maintainAspectRatio: false, animation: false,
         interaction: { intersect: false, mode: 'index' },
         plugins: { legend: { display: false }, tooltip: { filter: item => item.datasetIndex === 0, callbacks: { label: item => money(item.parsed.y) } } },
         scales: {
@@ -34,12 +34,13 @@
     });
     get('monthly-chart').setAttribute('aria-label', `ยอดขายรายเดือน ปี ${year + 543}: ` + data.months.map((row, i) => `${chart.data.labels[i]} ${values[i] === null ? 'ยังไม่ถึงเดือนนี้' : money(values[i])}`).join(', '));
   }
-  async function load() {
+  async function load(silent = false) {
+    silent = silent === true;
     const id = ++version;
     controller?.abort(); controller = new AbortController();
-    data = null; draw();
+    if (!silent) { data = null; draw(); }
     get('monthly-status').hidden = false; get('monthly-status').classList.remove('error');
-    get('monthly-status').textContent = 'กำลังโหลดยอดขายรายเดือน…'; get('monthly-retry').hidden = true;
+    if (!silent) get('monthly-status').textContent = 'กำลังโหลดยอดขายรายเดือน…'; get('monthly-retry').hidden = true;
     try {
       if (!yearsLoaded) {
         const response = await fetch('/api/sales-trend/years', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
@@ -60,7 +61,8 @@
       if (!response.ok) throw new Error('โหลดยอดขายรายเดือนไม่สำเร็จ');
       const result = await response.json();
       if (id !== version) return;
-      data = result; draw();
+      const changed = !data || data.year !== result.year || JSON.stringify(data.months) !== JSON.stringify(result.months);
+      data = result; if (!silent || changed) draw();
       get('monthly-status').textContent = `รวมปี ${Number(data.year) + 543}: ${money(chart.data.datasets[0].data.reduce((sum, value) => sum + (value ?? 0), 0))} · อัปเดต ${new Date(data.updatedAt).toLocaleTimeString('th-TH')}`;
     } catch (error) {
       if (id !== version) return;
@@ -83,5 +85,5 @@
   get('trend-year').addEventListener('change', load);
   get('monthly-retry').addEventListener('click', load);
   window.addEventListener('dashboard-theme-change', draw);
-  setInterval(() => { if (get('trend-mode').value === 'monthly' && !document.hidden) load(); }, 60000);
+  setInterval(() => { if (get('trend-mode').value === 'monthly' && !document.hidden) load(true); }, 60000);
 })();

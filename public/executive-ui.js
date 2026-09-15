@@ -253,7 +253,7 @@ function openDetail(kind, bill, product) {
   }
   if (!element('detail').open) element('detail').showModal();
 }
-async function refresh() {
+async function refresh(silent = false) {
   if (!element('filters').reportValidity()) return;
   const start = element('start').value, end = element('end').value;
   if (start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 365) {
@@ -263,8 +263,8 @@ async function refresh() {
   controller?.abort(); controller = new AbortController();
   const activeController = controller, request = ++requestId;
   const timeout = setTimeout(() => activeController.abort(), 30000);
-  element('refresh').disabled = true; element('summary').hidden = true;
-  element('detail').close(); current = null; element('status').textContent = 'กำลังโหลดข้อมูล SML…';
+  element('refresh').disabled = true; if (!silent) element('summary').hidden = true;
+  if (!silent) { element('detail').close(); current = null; } if (!silent) element('status').textContent = 'กำลังโหลดข้อมูล SML…';
   try {
     const response = await fetch('/api/executive?' + new URLSearchParams({ start, end }), { signal: activeController.signal, cache: 'no-store' });
     const data = await response.json();
@@ -293,6 +293,6 @@ element('target').addEventListener('input', () => {
 ['branches', 'staff'].forEach(team => element(team + '-tab').addEventListener('click', () => { activeTeam = team; if (current) renderTeam(); }));
 document.querySelectorAll('[data-detail]').forEach(button => button.addEventListener('click', () => openDetail(button.dataset.detail)));
 element('close').addEventListener('click', () => element('detail').close());
-setInterval(() => { if (!document.hidden && !element('refresh').disabled && !element('detail').open) refresh(); }, 60000);
+setInterval(() => { if (!document.hidden && !element('refresh').disabled && !element('detail').open) refresh(true); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !element('detail').open) refresh(); });
 restoreTarget(); refresh();
