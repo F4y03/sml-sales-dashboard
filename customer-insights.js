@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 const customersSql = await readFile(new URL('./sql/customer-insights.sql', import.meta.url), 'utf8');
 const productsSql = await readFile(new URL('./sql/customer-products.sql', import.meta.url), 'utf8');
+const nonBuyersSql = await readFile(new URL('./sql/non-buyers.sql', import.meta.url), 'utf8');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end
@@ -23,6 +24,18 @@ function customerQueryError(error) {
 }
 
 export function installCustomerInsights(app, pool) {
+  app.get('/api/customer-insights/non-buyers', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { start, end } = req.query;
+    if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน' });
+    try {
+      const { rows } = await pool.query(nonBuyersSql, [start, end]);
+      res.json({ ...rows[0].insights, start, end, updatedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error('Non-buyers query failed:', error.code);
+      res.status(503).json({ error: customerQueryError(error) });
+    }
+  });
   for (const detail of [false, true]) {
     app.get(`/api/customer-insights${detail ? '/products' : ''}`, async (req, res) => {
       res.set('Cache-Control', 'no-store');

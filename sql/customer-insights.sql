@@ -14,7 +14,23 @@ WITH customers AS (
   -- NULL and empty customer codes are one explicit, selectable unassigned group.
   SELECT code, MAX(name) AS name, SUM("invoiceCount") AS "invoiceCount", SUM(net) AS net
   FROM customers GROUP BY code
+), last_sales AS (
+  SELECT COALESCE(h.cust_code, '') AS code, MAX(h.doc_date) AS last_purchased
+  FROM ic_trans h
+  WHERE h.doc_date <= $2::date AND h.trans_flag = 44
+    AND h.last_status = 0 AND h.is_doc_copy = 0
+  GROUP BY COALESCE(h.cust_code, '')
 )
 SELECT json_build_object(
-  'customers', COALESCE((SELECT json_agg(c ORDER BY net DESC, code) FROM consolidated c), '[]'::json)
+  'customers', COALESCE((SELECT json_agg(c ORDER BY net DESC, code) FROM consolidated c), '[]'::json),
+  'nonBuyers', COALESCE((SELECT json_agg(c ORDER BY c.code) FROM (
+    SELECT r.code, COALESCE(NULLIF(MAX(r.name_1), ''), r.code) AS name,
+      TO_CHAR(MAX(s.last_purchased), 'YYYY-MM-DD') AS "lastPurchased",
+      CASE WHEN MAX(s.last_purchased) IS NULL THEN NULL ELSE ($2::date - MAX(s.last_purchased))::integer END AS "daysSincePurchase"
+    FROM ar_customer r
+    LEFT JOIN last_sales s ON s.code = r.code
+    WHERE NULLIF(BTRIM(r.code), '') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM consolidated s WHERE s.code = r.code AND s."invoiceCount" > 0)
+    GROUP BY r.code
+  ) c), '[]'::json)
 ) AS insights;

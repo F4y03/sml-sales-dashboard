@@ -59,6 +59,19 @@
       </article>
     </section>
 
+    <section class="panel" aria-labelledby="non-buyer-title">
+      <div class="panel-heading"><div><p class="eyebrow">CUSTOMERS WITHOUT PURCHASES</p><h2 id="non-buyer-title">ลูกค้าที่ไม่ได้ซื้อในช่วงวันที่เลือก</h2></div><span id="non-buyer-count" class="pill" aria-live="polite"></span></div>
+      <form id="non-buyer-filters" class="non-buyer-filters" aria-label="ตัวกรองลูกค้าที่ไม่ได้ซื้อ">
+        <label for="non-buyer-start">ตั้งแต่วันที่<input id="non-buyer-start" type="date" required></label>
+        <label for="non-buyer-end">ถึงวันที่<input id="non-buyer-end" type="date" required></label>
+        <label for="non-buyer-search">ค้นหาลูกค้า<input id="non-buyer-search" type="search" maxlength="200" placeholder="พิมพ์รหัสลูกค้า หรือชื่อลูกค้า" autocomplete="off"></label>
+        <button id="non-buyer-refresh" type="submit">อัปเดตรายการ <span aria-hidden="true">↻</span></button>
+      </form>
+      <p id="non-buyer-status" class="panel-hint" role="status" aria-live="polite">กำลังโหลดรายชื่อลูกค้า…</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="ตารางลูกค้าที่ไม่ได้ซื้อ"><table class="customer-table"><thead><tr><th scope="col">รหัสลูกค้า</th><th scope="col">ชื่อลูกค้า</th><th scope="col">ซื้อครั้งล่าสุด</th><th scope="col" class="numeric">ไม่ได้ซื้อมานาน</th></tr></thead><tbody id="non-buyer-rows"></tbody></table></div>
+      <nav class="pagination" aria-label="หน้าตารางลูกค้าที่ไม่ได้ซื้อ"><span id="non-buyer-page-info"></span><div><button id="non-buyer-prev" type="button" aria-label="ลูกค้าที่ไม่ได้ซื้อหน้าก่อนหน้า">←</button><button id="non-buyer-next" type="button" aria-label="ลูกค้าที่ไม่ได้ซื้อหน้าถัดไป">→</button></div></nav>
+      <p class="panel-footnote">“ไม่ได้ซื้อมานาน” นับถึงวันสิ้นสุดที่เลือก · “ไม่เคยมีบิลขาย” หมายถึงไม่พบก่อนหรือในวันนั้น · ไม่นับบิลยกเลิกหรือสำเนา</p>
+    </section>
     <footer><span>Customer Insights &amp; Buying Behavior</span><span id="updated"></span></footer>
   </div>
 

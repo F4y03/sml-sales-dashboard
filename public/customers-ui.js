@@ -11,6 +11,73 @@ let customers = [], filtered = [], selectedCode = null, detail = null, period = 
 let customerPage = 0, productPage = 0, masterController, detailController, masterRequest = 0, detailRequest = 0;
 let filterTimer, masterUpdatedAt, detailOpener, backdropPointerDown = false;
 let activeInsightsView = 'customers';
+let nonBuyers = [], filteredNonBuyers = [], nonBuyerPage = 0, nonBuyerController, nonBuyerRequest = 0, nonBuyerTimer;
+
+function renderNonBuyers() {
+  const body = el('non-buyer-rows');
+  body.replaceChildren();
+  nonBuyerPage = Math.min(nonBuyerPage, Math.max(0, Math.ceil(filteredNonBuyers.length / customerPageSize) - 1));
+  for (const customer of filteredNonBuyers.slice(nonBuyerPage * customerPageSize, (nonBuyerPage + 1) * customerPageSize)) {
+    const row = node('tr');
+    const lastPurchased = customer.lastPurchased ? dateLabel(customer.lastPurchased) : 'ไม่เคยมีบิลขาย';
+    const days = Number.isInteger(customer.daysSincePurchase) ? `${number.format(customer.daysSincePurchase)} วัน` : '—';
+    row.append(node('td', customer.code), node('td', customer.name), node('td', lastPurchased), node('td', days, 'numeric'));
+    body.append(row);
+  }
+  if (!filteredNonBuyers.length) emptyRow(body, 4, 'ไม่พบลูกค้าที่ไม่ได้ซื้อตามเงื่อนไขที่เลือก');
+  el('non-buyer-count').textContent = `${number.format(filteredNonBuyers.length)} ราย`;
+  pagination('non-buyer', nonBuyerPage, customerPageSize, filteredNonBuyers.length, 'ราย');
+}
+
+function validateNonBuyerDates() {
+  const start = el('non-buyer-start'), end = el('non-buyer-end');
+  end.setCustomValidity('');
+  if (start.value && end.value && (start.value > end.value || (Date.parse(end.value) - Date.parse(start.value)) / 86400000 > 365)) {
+    end.setCustomValidity('กรุณาเลือกวันสิ้นสุดตั้งแต่วันเริ่มต้น และช่วงเวลาไม่เกิน 366 วัน');
+  }
+  return el('non-buyer-filters').checkValidity();
+}
+
+function syncNonBuyerPeriodToMaster() {
+  el('non-buyer-start').value = el('start').value;
+  el('non-buyer-end').value = el('end').value;
+}
+
+function applyNonBuyerSearch() {
+  const query = el('non-buyer-search').value.trim().toLocaleLowerCase('th-TH');
+  filteredNonBuyers = nonBuyers.filter(customer => `${customer.code}\n${customer.name}`.toLocaleLowerCase('th-TH').includes(query));
+  nonBuyerPage = 0;
+  renderNonBuyers();
+}
+
+async function loadNonBuyers() {
+  clearTimeout(nonBuyerTimer);
+  if (!validateNonBuyerDates()) {
+    el('non-buyer-status').textContent = 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน';
+    return;
+  }
+  nonBuyerController?.abort();
+  const request = ++nonBuyerRequest, controller = new AbortController();
+  nonBuyerController = controller;
+  const selectedPeriod = { start: el('non-buyer-start').value, end: el('non-buyer-end').value };
+  el('non-buyer-refresh').disabled = true;
+  el('non-buyer-status').textContent = 'กำลังโหลดรายชื่อลูกค้าที่ไม่ได้ซื้อ…';
+  try {
+    const data = await requestJSON(`/api/customer-insights/non-buyers?${new URLSearchParams(selectedPeriod)}`, controller.signal);
+    if (request !== nonBuyerRequest) return;
+    nonBuyers = data.nonBuyers;
+    applyNonBuyerSearch();
+    el('non-buyer-status').textContent = `${dateLabel(selectedPeriod.start)} – ${dateLabel(selectedPeriod.end)} · พบ ${number.format(nonBuyers.length)} ราย`;
+  } catch (error) {
+    if (controller.signal.aborted || request !== nonBuyerRequest) return;
+    el('non-buyer-status').textContent = error.message === 'Failed to fetch' ? 'เชื่อมต่อ SML ไม่สำเร็จ กรุณาลองใหม่' : error.message;
+  } finally {
+    if (request === nonBuyerRequest) {
+      nonBuyerController = null;
+      el('non-buyer-refresh').disabled = false;
+    }
+  }
+}
 
 function productViewEvent(type, silent = false) {
   document.dispatchEvent(new CustomEvent(type, { detail: {
@@ -483,16 +550,35 @@ if (!silent) message('กำลังโหลดข้อมูลลูกค�
 
 el('customer-filters').addEventListener('submit', event => {
   event.preventDefault();
+  syncNonBuyerPeriodToMaster();
+  loadNonBuyers();
   if (activeInsightsView === 'customers') loadCustomers();
   else productViewEvent('insights-product-refresh');
 });
 el('customers-view-button').addEventListener('click', () => switchInsightsView('customers'));
 el('products-view-button').addEventListener('click', () => switchInsightsView('products'));
 el('customer-search').addEventListener('input', applySearch);
+el('non-buyer-search').addEventListener('input', applyNonBuyerSearch);
+el('non-buyer-filters').addEventListener('submit', event => { event.preventDefault(); loadNonBuyers(); });
+for (const id of ['non-buyer-start', 'non-buyer-end']) {
+  el(id).addEventListener('input', () => {
+    clearTimeout(nonBuyerTimer);
+    if (validateNonBuyerDates()) nonBuyerTimer = setTimeout(loadNonBuyers, 250);
+  });
+}
+for (const [direction, change] of [['prev', -1], ['next', 1]]) {
+  el(`non-buyer-${direction}`).addEventListener('click', () => {
+    nonBuyerPage = Math.max(0, nonBuyerPage + change);
+    renderNonBuyers();
+  });
+}
 for (const id of ['start', 'end']) {
   el(id).addEventListener('input', () => {
     invalidateMaster();
     clearTimeout(filterTimer);
+    syncNonBuyerPeriodToMaster();
+    clearTimeout(nonBuyerTimer);
+    if (validateNonBuyerDates()) nonBuyerTimer = setTimeout(loadNonBuyers, 250);
     if (activeInsightsView === 'products') {
       productViewEvent('insights-period-change');
       return;
@@ -548,7 +634,10 @@ el('customer-detail').addEventListener('click', event => {
 const today = new Date();
 el('start').value = iso(new Date(today.getFullYear(), today.getMonth(), 1));
 el('end').value = iso(today);
+el('non-buyer-start').value = el('start').value;
+el('non-buyer-end').value = el('end').value;
 loadCustomers();
+loadNonBuyers();
 setInterval(() => {
   if (document.hidden || el('refresh').disabled || document.querySelector('dialog[open]')) return;
   if (activeInsightsView === 'customers') loadCustomers(true);

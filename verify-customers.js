@@ -53,6 +53,15 @@ try {
   const params = ['2026-09-01', '2026-09-09'];
   const fixtureCustomers = (await client.query(withFixtures(customerSql), params)).rows[0].insights.customers;
   assert.equal(fixtureCustomers.length, 3);
+  const nonBuyerFixture = `WITH ar_customer(code,name_1) AS (VALUES
+    ('001','Never'),('001','Never'),('002','Returned'),('003','Zero sale'),
+    ('004','Cancelled'),('005','Copy'),('006','Old'),('','Blank')),
+    ic_trans(cust_code,doc_date,trans_flag,last_status,is_doc_copy,total_amount) AS (VALUES
+    ('002','2026-09-01'::date,48,0,0,10),('003','2026-09-01'::date,44,0,0,0),
+    ('004','2026-09-01'::date,44,1,0,10),('005','2026-09-01'::date,44,0,1,10),
+    ('006','2026-08-31'::date,44,0,0,10)), `;
+  const nonBuyerResult = (await client.query(customerSql.replace(/\bWITH\s/, nonBuyerFixture), params)).rows[0].insights;
+  assert.deepEqual(nonBuyerResult.nonBuyers.map(customer => customer.code), ['001', '002', '004', '005', '006']);
   assert.deepEqual(fixtureCustomers.find(customer => customer.code === 'C1'), { code: 'C1', name: 'Customer one', invoiceCount: 2, net: 315 });
   assert.deepEqual(fixtureCustomers.find(customer => customer.code === ''), { code: '', name: 'ไม่ระบุลูกค้า', invoiceCount: 2, net: 30 });
   const fixtureDetail = (await client.query(withFixtures(productSql), [...params, 'C1'])).rows[0].insights;

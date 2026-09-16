@@ -47,6 +47,7 @@ body.customer-dialog-open{overflow:hidden}
 @media(min-width:801px) and (max-width:1450px){.summary-donut-layout{grid-template-columns:1fr}.summary-donut{width:180px}}
 @media(min-width:481px) and (max-width:650px){.summary-donut-layout{grid-template-columns:1fr}}
 .customer-name,.bar-name{white-space:normal;overflow-wrap:anywhere;line-height:1.7}
+.non-buyer-filters{display:grid;grid-template-columns:minmax(140px,1fr) minmax(140px,1fr) minmax(200px,1.8fr) auto;gap:12px;align-items:end;margin:18px 0}.non-buyer-filters label{display:grid;gap:7px;color:#716b68;font-size:14px}.non-buyer-filters input{height:42px;min-width:0;width:100%;border:1px solid #e8e2de;border-radius:8px;padding:8px 10px;background:#fff;color:#65413e}.non-buyer-filters button{min-height:42px;padding:8px 12px;white-space:nowrap}.non-buyer-filters+ .panel-hint{margin-top:0}@media(max-width:800px){.non-buyer-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.non-buyer-filters label:last-of-type{grid-column:1 / -1}}@media(max-width:480px){.non-buyer-filters{grid-template-columns:1fr}.non-buyer-filters label:last-of-type,.non-buyer-filters button{grid-column:auto}}
 .customer-table{min-width:580px}
 .summary-chart-label{grid-template-columns:8px minmax(0,1fr);align-items:start}
 .summary-chart-label b{grid-column:2;white-space:normal;overflow-wrap:anywhere}
