@@ -5,13 +5,15 @@ import { PassThrough } from 'node:stream';
 export const productLabels = {code:'รหัสสินค้า',code_old:'รหัสสินค้าเดิม',name_1:'ชื่อสินค้า',name_2:'ชื่อสินค้า 2',name_eng_1:'ชื่อภาษาอังกฤษ',group_main:'รหัสกลุ่มหลัก',group_main_name:'ชื่อกลุ่มหลัก',group_sub:'รหัสกลุ่มย่อย',unit_standard:'หน่วยมาตรฐาน',item_brand:'รหัสยี่ห้อ',item_model:'รุ่น',description:'รายละเอียด',remark:'หมายเหตุ',average_cost:'ต้นทุนเฉลี่ยในทะเบียน',balance_qty:'ยอดคงเหลือในทะเบียน',item_status:'สถานะสินค้า (รหัส)',status:'สถานะ (รหัส)'};
 const types={getTypeParser:(oid,format)=>[1082,1114,1184].includes(oid)?v=>v:pg.types.getTypeParser(oid,format)};
 function filters(query) {
-  const q=query.q??'', group=query.group??'';
+  const q=query.q??'', group=query.group??'', stock=query.stock??'all';
   if(typeof q!=='string'||typeof group!=='string'||q.length>200||group.length>100)throw new Error('ตัวกรองไม่ถูกต้อง');
-  return {q:q.trim(),group};
+  const activity=query.activity??'all';if(!['all','active','inactive'].includes(activity)||!['all','in','out'].includes(stock))throw new Error('สถานะไม่ถูกต้อง');return {q:q.trim(),group,activity,stock};
 }
-const where=`($1::text='' OR strpos(lower(COALESCE(i.code,'')),lower($1))>0 OR strpos(lower(COALESCE(i.name_1,'')),lower($1))>0) AND ($2::text='' OR i.group_main=$2)`;
+const activityScope = "EXISTS (SELECT 1 FROM ic_trans_detail d WHERE d.item_code=i.code AND d.doc_date >= DATE '2025-01-01' AND d.doc_date < DATE '2027-01-01' AND d.last_status=0)";
+const where=`($1::text='' OR strpos(lower(COALESCE(i.code,'')),lower($1))>0 OR strpos(lower(COALESCE(i.name_1,'')),lower($1))>0) AND ($2::text='' OR i.group_main=$2) AND ($3::text='all' OR ($3='active' AND ${activityScope}) OR ($3='inactive' AND NOT ${activityScope})) AND ($4::text='all' OR ($4='in' AND i.balance_qty>0) OR ($4='out' AND i.balance_qty<=0))`;
+productLabels.activity_2568_2569 = 'การเคลื่อนไหวปี 2568–2569';
 productLabels.catalog_sale_price = 'ราคาขายในทะเบียน (price_0 ตามหน่วยมาตรฐาน)';
-const select=`SELECT i.*, (SELECT MAX(g.name_1) FROM ic_group g WHERE g.code=i.group_main) AS group_main_name,
+const select=`SELECT i.*, CASE WHEN ${activityScope} THEN 'มีการเคลื่อนไหว' ELSE 'ไม่มีการเคลื่อนไหว' END AS activity_2568_2569, (SELECT MAX(g.name_1) FROM ic_group g WHERE g.code=i.group_main) AS group_main_name,
   (SELECT NULLIF(TRIM(p.price_0), '') FROM ic_inventory_price_formula p
    WHERE p.ic_code=i.code AND p.unit_code=i.unit_standard AND p.sale_type=0
    ORDER BY p.roworder DESC LIMIT 1) AS catalog_sale_price
@@ -36,11 +38,11 @@ export function installProducts(app,pool){
       const f=filters(req.query),page=Number(req.query.page??0);
       if(!Number.isInteger(page)||page<0||page>100000)throw new Error('หน้าข้อมูลไม่ถูกต้อง');
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const counts=(await client.query(`SELECT COUNT(*) AS total,COUNT(*) FILTER(WHERE ${where}) AS matching FROM ic_inventory i`,[f.q,f.group])).rows[0];
-      const result=await client.query({text:select+' LIMIT 50 OFFSET $3',values:[f.q,f.group,page*50],types});
-      const groups=(await client.query("SELECT i.group_main AS code,COALESCE(MAX(g.name_1),i.group_main) AS name,COUNT(*) AS count FROM ic_inventory i LEFT JOIN (SELECT code,MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main WHERE COALESCE(i.group_main,'')<>'' GROUP BY i.group_main ORDER BY i.group_main")).rows;
+      const counts=(await client.query(`SELECT COUNT(*) AS total,COUNT(*) FILTER(WHERE ${activityScope}) AS active_count,COUNT(*) FILTER(WHERE ${where}) AS matching FROM ic_inventory i`,[f.q,f.group,f.activity,f.stock])).rows[0];
+      const result=await client.query({text:select+' LIMIT 50 OFFSET $5',values:[f.q,f.group,f.activity,f.stock,page*50],types});
+      const groups=(await client.query(`SELECT i.group_main AS code,COALESCE(MAX(g.name_1),i.group_main) AS name,COUNT(*) AS count FROM ic_inventory i LEFT JOIN (SELECT code,MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main WHERE COALESCE(i.group_main,'')<>'' GROUP BY i.group_main ORDER BY i.group_main`)).rows;
       await client.query('COMMIT');
-      res.json({rows:result.rows,fields:fieldsOf(result),total:Number(counts.total),matching:Number(counts.matching),page,pageSize:50,groups,updatedAt:new Date().toISOString()});
+      res.json({rows:result.rows,fields:fieldsOf(result),total:Number(counts.total),activeCount:Number(counts.active_count),inactiveCount:Number(counts.total)-Number(counts.active_count),matching:Number(counts.matching),page,pageSize:50,groups,updatedAt:new Date().toISOString()});
     }catch(e){if(client)await client.query('ROLLBACK').catch(()=>{});res.status(e.code?503:400).json({error:e.code?'โหลดสินค้าไม่สำเร็จ กรุณาลองใหม่':e.message});}finally{client?.release();}
   });
   let exporting=false;
@@ -50,13 +52,13 @@ export function installProducts(app,pool){
     let client;
     try{
       const format=req.query.format??'xlsx',scope=req.query.scope??'all';
-      if(!['xlsx','csv','json'].includes(format)||!['all','filtered'].includes(scope))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
-      const f=scope==='all'?{q:'',group:''}:filters(req.query);exporting=true;
+      if(!['xlsx','csv','json'].includes(format)||!['all','filtered','active','inactive'].includes(scope))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
+      const f=filters(scope==='filtered'?req.query:{q:'',group:'',activity:scope,stock:req.query.stock});exporting=true;
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const result=await client.query({text:select,values:[f.q,f.group],types});
+      const result=await client.query({text:select,values:[f.q,f.group,f.activity,f.stock],types});
       await client.query('COMMIT');client.release();client=null;
       const fields=fieldsOf(result),updatedAt=new Date().toISOString();
-      const metadata={source:'SML ski / ic_inventory',exportedAt:updatedAt,scope,search:f.q,group:f.group,count:result.rows.length,note:'ทะเบียนสินค้าทุกคอลัมน์ ไม่ใช่รายงานคงเหลือคำนวณตามวันที่; numeric ทศนิยมเก็บเป็นข้อความเพื่อรักษาค่าต้นฉบับ'};
+      const metadata={source:'SML ski / ic_inventory',exportedAt:updatedAt,scope,search:f.q,group:f.group,count:result.rows.length,activityStart:'2025-01-01',activityEnd:'2026-12-31',note:'สินค้าทั้งทะเบียน รวมมีและไม่มีการเคลื่อนไหว; สถานะการเคลื่อนไหวอ้างอิงรายการไม่ยกเลิกในปี 2568–2569 ชื่อและราคาเป็นค่าปัจจุบัน; ทะเบียนสินค้าทุกคอลัมน์ ไม่ใช่รายงานคงเหลือคำนวณตามวันที่; numeric ทศนิยมเก็บเป็นข้อความเพื่อรักษาค่าต้นฉบับ'};
       let body,contentType;
       if(format==='xlsx'){body=await excelBuffer(result.rows,fields,metadata);contentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';}
       else if(format==='csv'){body='\ufeff'+[fields.map(f=>csvValue(`${f.label} [${f.key}]`)).join(','),...result.rows.map(row=>fields.map(f=>csvValue(row[f.key])).join(','))].join('\r\n');contentType='text/csv; charset=utf-8';}
