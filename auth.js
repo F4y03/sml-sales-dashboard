@@ -8,6 +8,7 @@ export function installAuth(app, env = process.env) {
   const secure = env.AUTH_COOKIE_SECURE !== 'false';
   const cookieName = secure ? '__Host-prplus_session' : 'prplus_session';
   const options = { httpOnly: true, secure, sameSite: 'lax', path: '/' };
+  const bypassLocal = env.AUTH_BYPASS_LOCAL === 'true';
   const sessions = new Map();
   const attempts = new Map();
   const ttl = 8 * 60 * 60 * 1000;
@@ -62,6 +63,13 @@ export function installAuth(app, env = process.env) {
   const publicPaths = new Set(['/login', '/login.html', '/login.css', '/login.js', '/theme-modes.css', '/theme-mode.js', '/assets/pr-plus-logo-red.png']);
   app.use((req, res, next) => {
     if (publicPaths.has(req.path) && ['GET', 'HEAD'].includes(req.method)) return next();
+    const host = (req.hostname || req.headers.host || '').toLowerCase();
+    const ip = (req.ip || req.socket?.remoteAddress || '').toLowerCase();
+    const isLocalhost = host === 'localhost' || host.startsWith('localhost:') || host === '127.0.0.1' || host.startsWith('127.0.0.1:') || host === '::1' || host.startsWith('::1:') || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1';
+    if (bypassLocal && isLocalhost) {
+      req.auth = { username: env.AUTH_USERNAME || 'local-dev' };
+      return next();
+    }
     const session = sessions.get(digest(tokenOf(req)));
     if (session && session.expires > Date.now()) { req.auth = session; return next(); }
     if (req.path === '/api' || req.path.startsWith('/api/')) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ', code: 'AUTH_REQUIRED' });

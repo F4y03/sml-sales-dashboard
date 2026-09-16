@@ -8,6 +8,7 @@ async function fixture(t, overrides = {}) {
   app.use(express.json());
   installAuth(app, { AUTH_USERNAME: 'admin', AUTH_PASSWORD_HASH: await hashPassword('test-password-123'), ...overrides });
   app.get('/executive.html', (req, res) => res.send('protected'));
+  app.get('/api/dashboard', (req, res) => res.json({ ok: true, totalSales: 1, totalInvoices: 1, itemSales: 1, products: [], warehouses: [], daily: [], updatedAt: new Date().toISOString() }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
@@ -46,4 +47,9 @@ test('missing configuration fails closed', async t => {
   const { login, request } = await fixture(t, { AUTH_PASSWORD_HASH: '' });
   assert.equal((await login()).status, 503);
   assert.equal((await request('/api/dashboard')).status, 401);
+});
+
+test('allows local localhost requests when bypass is enabled', async t => {
+  const { request } = await fixture(t, { AUTH_BYPASS_LOCAL: 'true' });
+  assert.equal((await request('/api/dashboard')).status, 200);
 });

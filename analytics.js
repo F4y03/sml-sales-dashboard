@@ -2,7 +2,6 @@ const dimensions = {
   group: {title:'ยอดขายแยกตามกลุ่มสินค้า',code:'i.group_main',name:'g.name_1'},
   salesperson: {title:'ยอดขายแยกตามพนักงานขาย',code:'d.sale_code',name:'u.name_1'},
   customer: {title:'ยอดขายแยกตามลูกค้า',code:'d.cust_code',name:'c.name_1'},
-  brand: {title:'ยอดขายแยกตามยี่ห้อสินค้า',code:'i.item_brand',name:'b.name_1'},
   branch: {title:'ยอดขายแยกตามสาขา',code:'d.branch_code',name:'s.name_1'},
   type: {title:'ยอดขายแยกตามประเภทสินค้า',code:'i.item_type::text',name:"CASE WHEN i.item_type IS NULL THEN NULL ELSE 'ประเภท ' || i.item_type::text END"},
   quantity: {title:'จำนวนขายแยกตามกลุ่มสินค้า',code:'i.group_main',name:'g.name_1'}
@@ -12,7 +11,6 @@ const joins=`FROM ic_trans_detail d
  LEFT JOIN (SELECT code,MAX(name_1) name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main
  LEFT JOIN (SELECT code,MAX(name_1) name_1 FROM erp_user GROUP BY code) u ON u.code=d.sale_code
  LEFT JOIN (SELECT code,MAX(name_1) name_1 FROM ar_customer GROUP BY code) c ON c.code=d.cust_code
- LEFT JOIN (SELECT code,MAX(name_1) name_1 FROM ic_brand GROUP BY code) b ON b.code=i.item_brand
  LEFT JOIN (SELECT code,MAX(name_1) name_1 FROM erp_branch_list GROUP BY code) s ON s.code=d.branch_code
  WHERE d.trans_flag=44 AND d.last_status=0 AND d.item_code<>'' AND d.doc_date >= $1::date AND d.doc_date < $2::date + INTERVAL '1 day'`;
 export function analyticsQuery(mode,grain='day') {

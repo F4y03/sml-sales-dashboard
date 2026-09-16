@@ -53,7 +53,7 @@ export function installProducts(app,pool){
     try{
       const format=req.query.format??'xlsx',scope=req.query.scope??'all';
       if(!['xlsx','csv','json'].includes(format)||!['all','filtered','active','inactive'].includes(scope))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
-      const f=filters(scope==='filtered'?req.query:{q:'',group:'',activity:scope,stock:req.query.stock});exporting=true;
+      const f=filters(scope==='filtered'?req.query:{q:'',group:'',activity:scope,stock:'all'});exporting=true;
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       const result=await client.query({text:select,values:[f.q,f.group,f.activity,f.stock],types});
       await client.query('COMMIT');client.release();client=null;

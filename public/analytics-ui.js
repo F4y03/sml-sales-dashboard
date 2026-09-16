@@ -1,7 +1,14 @@
 (() => {
   const el=id=>document.getElementById(id),format=new Intl.NumberFormat('th-TH',{maximumFractionDigits:2});
   let chart=null,period=null,data=null,version=0,controller;
-  const label=r=>`${r.name}${r.code&&r.code!==r.name?' · '+r.code:''}${r.unit?' ('+r.unit+')':''}`;
+  const safeText=value=>value==null||value===''||String(value).trim()==='-'?'-':String(value).trim();
+  const safeNumber=value=>{const num=Number(value);return Number.isFinite(num)?format.format(num):'-';};
+  const label=r=>{
+    const name=safeText(r?.name);
+    const code=r?.code!=null&&String(r.code).trim()!==''&&String(r.code).trim()!==name?String(r.code).trim():'';
+    const unit=r?.unit!=null&&String(r.unit).trim()!==''?` (${String(r.unit).trim()})`:'';
+    return code ? `${name} · ${code}${unit}` : `${name}${unit}`;
+  };
   window.addEventListener('dashboard-theme-change',()=>{if(data)draw(data);});
   function clear(){chart?.destroy();chart=null;data=null;el('analysis-rows').replaceChildren();el('analysis-export').disabled=true;el('analysis-summary').textContent='';el('analysis-note').textContent='';}
   function draw(d){
@@ -15,7 +22,7 @@
     const barPalette=['#e10600','#ff3b30','#c52929','#91939d','#af1421','#727680','#ef6363','#c1c3ca','#a34141','#7f111a'];
     chart=new Chart(el('analysis-chart'),{type:timeline?'line':'bar',data:{labels,datasets:[{data:shown.map(r=>r.value),borderColor:theme.brand,backgroundColor:timeline?'rgba(225, 6, 0,0.08)':shown.map((r,i)=>Number(r.value)<0?'#c34f52':barPalette[i%barPalette.length]),borderRadius:timeline?0:6,borderWidth:timeline?2.5:0,borderSkipped:false,pointRadius:timeline?3:0,pointBackgroundColor:'#fff',pointBorderColor:theme.brand,pointBorderWidth:2,pointHoverRadius:6,pointHoverBackgroundColor:theme.brand,pointHoverBorderColor:'#fff',pointHoverBorderWidth:3,tension:0,fill:timeline,maxBarThickness:24,barPercentage:0.75,categoryPercentage:0.82}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0,easing:'easeOutQuart'},indexAxis:timeline?'x':'y',layout:{padding:{top:4,right:timeline?4:16,left:4}},plugins:{legend:{display:false},tooltip:{backgroundColor:'#482629',titleColor:'#f5dcd7',bodyColor:'#fff',padding:{top:10,bottom:10,left:14,right:14},cornerRadius:10,displayColors:false,titleFont:{size:11,weight:'500'},bodyFont:{size:13,weight:'600'},callbacks:{title:items=>labels[items[0].dataIndex],label:ctx=>`${isQty?'':'฿'}${format.format(timeline?ctx.parsed.y:ctx.parsed.x)}${isQty?' '+shown[ctx.dataIndex].unit:''}`}}},scales:timeline?{x:{grid:{display:false},border:{display:false},ticks:{maxTicksLimit:6,maxRotation:0,font:{size:10,weight:'500'},color:theme.muted,padding:6}},y:{beginAtZero:true,border:{display:false},grid:{color:theme.line,lineWidth:1},ticks:{font:{size:10,weight:'500'},color:theme.muted,padding:8}}}:{x:{beginAtZero:true,border:{display:false},grid:{color:theme.line,lineWidth:1},ticks:{maxTicksLimit:4,font:{size:10,weight:'500'},color:theme.muted,padding:4,callback:v=>Math.abs(v)>=1000000?v/1000000+'m':Math.abs(v)>=1000?v/1000+'k':v}},y:{grid:{display:false},border:{display:false},ticks:{autoSkip:false,font:{size:11,weight:'500'},color:theme.muted,padding:8,callback:(_,i)=>labels[i]?.length>22?labels[i].slice(0,22)+'…':labels[i]}}}}});
     el('analysis-chart').setAttribute('aria-label',d.title);el('analysis-rows').replaceChildren();
-    for(const row of d.rows){const tr=document.createElement('tr');for(const text of [label({...row,unit:''}),format.format(row.value),row.unit||'บาท']){const td=document.createElement('td');td.textContent=text;tr.append(td);}el('analysis-rows').append(tr);}
+    for(const row of d.rows){const tr=document.createElement('tr');const valueText=safeNumber(row.value);const unitText=safeText(row.unit ?? 'บาท');for(const text of [label({...row,unit:''}),valueText,unitText]){const td=document.createElement('td');td.textContent=text;tr.append(td);}el('analysis-rows').append(tr);}
     el('analysis-export').disabled=false;
   }
   async function load(silent=false){silent=silent===true;

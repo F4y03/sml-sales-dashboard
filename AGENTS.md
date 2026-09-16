@@ -1,88 +1,49 @@
-# แนวทางทำงานสำหรับ AI coding agents
+# AGENTS
 
-เอกสารนี้ใช้กับทั้ง repository เว้นแต่โฟลเดอร์ย่อยมี `AGENTS.md` ที่เฉพาะเจาะจงกว่า ทำตามคำขอของผู้ใช้ปัจจุบัน และตรวจโค้ดจริงก่อนแก้ไข เพราะเอกสารบางส่วนอาจอธิบายพฤติกรรมรุ่นก่อน
+## หลักการทั่วไป
+- ทำตามคำขอของผู้ใช้ และอย่าเขียนทับงานที่ผู้ใช้แก้ค้างไว้
+- อย่าเปิดเผยหรือแก้ `.env` โดยพลการ
+- ห้ามเผยข้อมูลลับ: credentials, hashes, cookies, tokens, SSH keys, connection strings, secrets หรือส่งต่อให้ browser/Git
+- ถ้าไม่แน่ใจ ให้ตรวจ code จาก symbol/usage ก่อนอ่านไฟล์เต็ม
 
-## ภาพรวมและโครงสร้าง
+## Serena-first workflow
+- ใช้ Serena เมื่อมีให้: `activate_project` เมื่อจำเป็น
+- ใช้ `get_symbols_overview` / `find_symbol` / `find_referencing_symbols` / `get_diagnostics_for_file` ก่อนอ่านไฟล์เต็ม
+- ดึงเฉพาะ context/code ที่จำเป็น
+- หลีกเลี่ยง broad repo search หาก Serena ทำงานได้
+- fallback ไป `rg` / file search เฉพาะเมื่อ Serena ไม่สามารถตอบโจทย์ได้
 
-- โปรเจกต์ SML Sales Dashboard ใช้ข้อมูล PostgreSQL จริง หน้าเว็บภาษาไทย มีธีมสว่างและมืด
-- Backend: Node.js >= 22, ES modules, Express 5, `pg` และ ExcelJS ไม่มีขั้นตอน build สำหรับหน้าเว็บ
-- Frontend: HTML, CSS, JavaScript ปกติใน `public/` และ Chart.js ที่เก็บไว้ใน `public/assets/` ไม่เพิ่ม framework หรือ dependency โดยไม่จำเป็น
-- `server.js`: ประกอบระบบ auth, API, database pool และ static files
-- `auth.js`, `AUTH-SETUP.md`: การเข้าสู่ระบบ cookie และ session
-- `sql/dashboard.sql`, `public/app.js`: ภาพรวมยอดขาย
-- `products.js`, `public/products.html`, `public/products-ui.js`, `public/products.css`: ทะเบียนสินค้า ตัวกรอง สต็อก และการส่งออก
-- `customer-insights.js`, `product-performance.js`, `public/customers*`, `public/product-insights*`: วิเคราะห์ลูกค้าและสินค้า
-- `executive.js`, `sql/executive.sql`, `public/executive*`: สรุปผู้บริหาร
-- `reports.js`, `public/reports*`: รายงาน SML
-- `consignment.js`, `public/consignment*`: สินค้าฝาก
-- `sales-trend.js`, `public/monthly-trend.js`, `public/trend-compare.js`: แนวโน้มและการเปรียบเทียบยอดขาย
-- `public/workspace-nav*`, `public/theme*`: เมนูและธีมร่วมหลายหน้า การแก้ไขต้องตรวจหน้าที่ได้รับผลกระทบ
-- `product-sheet/` มีเอกสารและการใช้งานแยกต่างหาก อย่าสมมติว่าเป็นเซิร์ฟเวอร์เดียวกับ dashboard
+## กฎสำคัญของ repository
+- SML เป็น read-only: ห้าม INSERT/UPDATE/DELETE/DDL/migration ในฐาน SML
+- ใช้ parameterized SQL เสมอ; อย่าเชื่อม input จากผู้ใช้เข้ากับ SQL โดยตรง
+- รักษา business definitions: 4007/4014, trans_flag 44/46/48, YYYY-MM-DD vs พ.ศ./ค.ศ., NULL stock != 0, export ต้องตรง filters
+- อย่าเปลี่ยนนิยามข้อมูลหรือสูตรโดยสมมติเอง
+- ตรวจ shared navigation/theme และหน้าจอเล็กเมื่อแก้ UI
+- แยก loading / empty / error และไม่เอาค่าศูนย์มาแทนข้อผิดพลาด
+- ตรวจผลกระทบที่ส่งต่อจากการเปลี่ยน shared UI
 
-## เริ่มงานและรันโปรเจกต์
+## ข้อมูล/feature doc ที่ต้องอ่านเมื่อจำเป็น
+- Products -> `PRODUCTS.md`
+- Customers -> `CUSTOMERS.md`
+- Executive -> `EXECUTIVE.md`
+- Reports -> `REPORTS.md`
+- Auth -> `AUTH-SETUP.md`
+- Consignment -> `consignment-source.md`
+- README -> เหลือไว้สำหรับ context กว้างเมื่อจำเป็น
 
-1. ตรวจ `git status --short` และอ่านไฟล์ที่เกี่ยวข้องก่อนแก้ไข รักษางานที่ผู้ใช้แก้ค้างไว้ ห้าม reset หรือเขียนทับงานที่ไม่เกี่ยวข้อง
-2. อ่าน `README.md` และเอกสารของส่วนที่แก้ เช่น `PRODUCTS.md`, `CUSTOMERS.md`, `EXECUTIVE.md`, `REPORTS.md`, `consignment-source.md`
-3. ใช้ `npm install` เมื่อต้องติดตั้ง dependency; ใช้ `npm start` หรือ `node --env-file=.env server.js` เพื่อรันจากรากโปรเจกต์ ค่าเริ่มต้นพอร์ต 3000 ตรวจค่า config และโปรเซสที่รันอยู่ก่อน
-4. สร้าง `.env` จาก `.env.example` เฉพาะเมื่อยังไม่มีไฟล์ อย่าแทนที่ค่าการเชื่อมต่อหรือบัญชีเดิมโดยพลการ
-5. การตั้งบัญชีครั้งแรกใช้ `node scripts/setup-auth.js` ตาม `AUTH-SETUP.md` ไม่เรียกคำสั่งนี้เพื่อทดสอบทั่วไป เพราะเปลี่ยนค่าบัญชี
-6. ถ้าใช้ SSH tunnel ให้อ่าน `scripts/start-sml-tunnel.ps1` และตรวจปลายทาง/พอร์ตตาม config ปัจจุบันก่อนใช้งาน แยกให้ออกว่าปัญหาเกิดจาก tunnel, PostgreSQL, authentication หรือ SQL
+## การทดลอง/ทดสอบ
+- ทดสอบเฉพาะส่วนที่เปลี่ยน
+- ถ้าไม่รันทดสอบจริง อย่า claim ว่า pass
+- ใช้ `node --check` หรือ test ที่เกี่ยวข้องเท่านั้น
+- เก็บ artifact ใน `test-results/` และอย่าถอด secrets ลง Git
 
-สภาพแวดล้อมหลักเป็น Windows PowerShell ใช้คำสั่งและการอ้าง path ให้ถูก shell รักษาไฟล์เป็น UTF-8 โดยเฉพาะข้อความภาษาไทย หากต้องเริ่มโปรเซสเบื้องหลังด้วย `Start-Process` ให้ใช้ `-WindowStyle Hidden` ตรวจ PID และคำสั่งของโปรเซสก่อนรีสตาร์ต ห้ามหยุด Node ทุกโปรเซสรวมกัน การรีสตาร์ต backend ทำให้ session ในหน่วยความจำหมดอายุ
+## การรันงาน/เริ่มต้น
+- ตรวจงานที่ผู้ใช้แก้ค้างไว้ก่อน; อย่า reset/overwrite งานที่ไม่ใช่ของเรา
+- เรียกไฟล์ config และสถานะ process ให้ชัดก่อนเริ่ม backend/server
+- ใช้ `.env.example` เป็น template เฉพาะเมื่อยังไม่มี `.env`
+- จัดการ Windows PowerShell/UTF-8 ให้ถูกต้อง
 
-## ฐานข้อมูลและความลับ
-
-- SML เป็นแหล่งข้อมูลแบบอ่านอย่างเดียว รักษา `default_transaction_read_only=on` และ read-only transactions ห้าม INSERT, UPDATE, DELETE, DDL หรือ migration ในฐาน SML สำหรับงาน dashboard
-- ใช้ parameterized SQL ตรวจชนิดตัวกรอง วันเริ่ม/สิ้นสุด ขอบเขตวันที่ และ pagination ที่ backend ไม่ต่อ input ผู้ใช้เป็น SQL
-- ห้ามแสดงหรือ commit เนื้อหา `.env`, รหัสผ่าน, hash บัญชี, cookie, token, SSH private key หรือ connection string ที่มีความลับ
-- ไม่ส่งค่าการเชื่อมต่อฐานข้อมูลให้ browser และไม่ถอด auth middleware ออกจาก production เพื่อให้ทดสอบง่ายขึ้น
-- ใช้ข้อมูลจำลองได้ในชุดทดสอบที่แยกชัดเจน ห้ามใช้แทนข้อมูลจริงเมื่อ API หรือฐานข้อมูลล้มเหลว
-- จำกัด query และการส่งออกให้เหมาะกับ pool/timeout ที่มีอยู่ ไม่เพิ่ม timeout กลบปัญหาโดยไม่ตรวจสาเหตุ และไม่ดึงข้อมูลลูกค้าหรือเอกสารจำนวนมากลง log โดยไม่จำเป็น
-
-## นิยามข้อมูลที่ต้องรักษา
-
-- ยอดตามรายงาน 4007 ใช้ header `ic_trans.total_amount` ขาย `trans_flag=44` ส่วนยอดรายการตาม 4014 ใช้ `ic_trans_detail.sum_amount` ทั้งสองอาจไม่เท่ากัน ห้ามปรับยอดสมมติให้ตรงกันหรือบวก VAT เอง
-- ยอดขายสุทธิในหน้าที่นิยามไว้ เช่น สรุปผู้บริหาร ใช้ขาย 44 + เพิ่มหนี้ 46 − รับคืน/ลดหนี้ 48 ตามเงื่อนไขยกเลิก/สำเนาของหน้านั้น อย่านำสูตรนี้ไปแทนยอด 4007/4014 โดยเงียบ ๆ
-- ตรวจการ join header/detail ไม่ให้ยอดซ้ำ รักษาหน่วยสินค้าและรหัสเป็นข้อความ รวมเลขศูนย์ด้านหน้า
-- วันที่ใน API/SQL ใช้ ค.ศ. รูปแบบ `YYYY-MM-DD`; UI ภาษาไทยแสดง พ.ศ. ได้ ปี 2568–2569 ตรงกับ 2025–2026 อย่าเลื่อนช่วงข้อมูลที่ผู้ใช้กำหนดเองเพียงเพราะปีปัจจุบันเปลี่ยน
-- `ic_inventory.balance_qty` คือคงเหลือในทะเบียนปัจจุบัน ไม่ใช่ยอดย้อนหลังหรือยอดพร้อมขายหลังหักจอง ค่า NULL คือไม่ทราบยอด ไม่ใช่ศูนย์; มีสินค้าเมื่อ > 0 และไม่มีสินค้าเมื่อ <= 0
-- สถานะการเคลื่อนไหวสินค้าอ้างอิงรายการไม่ยกเลิกในช่วงที่กำหนด ไม่ใช่สิ่งเดียวกับมีสินค้าในสต็อก
-- ชื่อ ราคา และต้นทุนจากทะเบียนเป็นค่าปัจจุบัน อย่าอ้างว่าเป็นค่า ณ วันที่ย้อนหลัง สูตรกำไรใน `EXECUTIVE.md` ยังมีข้อจำกัดที่ต้องรักษาไว้
-- ไม่ hardcode จำนวนสินค้า ยอดขาย หรือเวลาข้อมูลจากภาพตัวอย่างและผลทดสอบเก่า
-
-## ตัวกรอง UI และการส่งออก
-
-- กลุ่มสินค้า การเคลื่อนไหว และสถานะสินค้าเปลี่ยนแล้วต้องใช้ตัวกรองทันที ตามพฤติกรรมหน้าสินค้าที่ผู้ใช้ต้องการ
-- ตาราง จำนวนผลลัพธ์ จำนวนบนปุ่มดาวน์โหลด และไฟล์ส่งออกต้องใช้ตัวกรองที่โหลดสำเร็จชุดเดียวกัน ป็อปอัพและหน้าหลักต้องแสดงค่าตรงกัน รวมถึงหลังล้างตัวกรอง
-- ส่งออกผลลัพธ์ครบทุกหน้าตามตัวกรอง ไม่ใช่เฉพาะ 50 แถวที่แสดง จำนวนอาจเปลี่ยนได้หากฐานข้อมูลมีการแก้ไขระหว่างการโหลดและส่งออก จึงไม่รับประกัน snapshot ข้ามคำขอ
-- ป้องกัน response เก่าเขียนทับผลตัวกรองใหม่ และไม่ให้ดาวน์โหลดจากผลเก่าขณะกำลังโหลดตัวกรองใหม่
-- การ refresh อัตโนมัติควรรักษาตัวกรอง หน้า pagination และบริบทการใช้งาน ไม่ทำให้หน้ากระพริบ ถ้าเก็บผลเดิมเมื่อ refresh ล้มเหลว ต้องแจ้งว่าเป็นข้อมูลเดิมและไม่เปลี่ยนเวลาที่โหลดสำเร็จ
-- แยกสถานะกำลังโหลด ไม่มีผลลัพธ์ และเชื่อมต่อผิดพลาด ไม่แสดงศูนย์แทนข้อผิดพลาด
-- รักษา Excel เป็น `.xlsx` จริง รหัสเป็นข้อความ และการป้องกันสูตรใน CSV ใช้ `textContent` แสดงข้อมูลจากฐานใน DOM แทนการประกอบ `innerHTML` ด้วยข้อมูลภายนอก
-- ตรวจทั้งธีมสว่าง/มืดและหน้าจอเล็ก ป็อปอัพต้องปิดด้วยปุ่มและ Escape ได้ ใช้ label, focus และสถานะ loading ที่เข้าถึงได้
-
-## การตรวจสอบก่อนส่งงาน
-
-ไม่มี `npm test` รวมใน `package.json` เลือกชุดทดสอบตามส่วนที่เปลี่ยน และอ่านสคริปต์ก่อนรันเพื่อทราบว่าต้องใช้ฐานข้อมูล เซิร์ฟเวอร์ auth หรือ browser อะไร
-
-```powershell
-# ตรวจ syntax ของไฟล์ที่แก้ (เพิ่มไฟล์อื่นตามงาน)
-node --check server.js
-node --check products.js
-node --check public/products-ui.js
-
-# ตัวอย่างชุดทดสอบที่ไม่ต้องเชื่อม SML
-node --test test-auth.js
-node --test test-executive.js
-
-# Integration หน้าสินค้า: ใช้ฐาน SML แบบอ่านอย่างเดียวและเปิดเซิร์ฟเวอร์ทดสอบเอง
-node --env-file=.env test-product-filter-flow.js
-```
-
-- `test-product-filter-flow.js` ใช้ Playwright และ Chrome ที่ path ระบุในสคริปต์ ตรวจตัวกรองร่วม จำนวนส่งออก Excel การซิงก์ป็อปอัพ ล้างตัวกรอง และผลค้นหาว่าง
-- `test-products.js` เป็นสคริปต์เดิมที่ใช้ `TEST_URL` (ค่าเริ่มต้นพอร์ต 3002) มีสมมติฐานเรื่องข้อมูลและการเข้าถึง API อย่ารันชี้ไปยังบริการอื่นหรือสรุปว่าทำงานได้กับ auth ปัจจุบันโดยไม่ตรวจ
-- ชุดทดสอบอื่นอยู่ใน `test-*.js` เช่น workspace navigation, theme, reports, consignment และ sales trend เลือกใช้เฉพาะที่เกี่ยวข้อง
-- งาน UI ให้ตรวจใน browser จริง: dropdown, ค้นหา, ล้างตัวกรอง, pagination, popup, ดาวน์โหลด และ console errors ตามขอบเขตที่แก้ ตรวจ regression ของ shared styles/navigation เมื่อเกี่ยวข้อง
-- ถ้าฐานข้อมูลหรือ browser ไม่พร้อม ให้รายงานว่าตรวจอะไรผ่านและอะไรยังไม่ได้ตรวจ ห้ามอ้างว่าทดสอบจริงแล้วจากการอ่านโค้ดอย่างเดียว
-- เก็บ screenshot/artifact ทดสอบใน `test-results/` และอย่าเพิ่มข้อมูลธุรกิจหรือความลับลง Git
-- สรุปผู้ใช้เป็นภาษาไทยสั้น ๆ ว่าแก้อะไร ทดสอบอะไร และมีข้อจำกัดใด อัปเดตเอกสารที่เกี่ยวข้องเมื่อเปลี่ยนนิยามข้อมูลหรือวิธีใช้งาน
+## ความสำคัญที่ต้องคงไว้
+- ห้ามปล่อย secrets/database credentials ไป browser หรือ Git
+- คงคุณสมบัติ read-only / SML และ business logic เดิม
+- ไม่ทำให้กฎด้านความปลอดภัยหรือ business definition สูญหายเพราะลดเอกสาร

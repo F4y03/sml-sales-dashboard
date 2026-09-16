@@ -18,8 +18,8 @@ workspace.innerHTML = `
     <a href="index.html#overview" data-page="overview">${workspaceIcon('overview')}ภาพรวม</a>
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon('customers')}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
     <a href="consignment.html" data-page="consignment">${workspaceIcon('consignment')}รับ–เบิกสินค้าฝาก</a>
+    <a href="products.html" data-page="products">${workspaceIcon('products')}เช็คราคา/สต๊อก</a>
     <a href="reports.html" data-page="reports">${workspaceIcon('reports')}รายงาน SML ทั้งหมด</a>
-    <a href="products.html" data-page="products">${workspaceIcon('products')}ข้อมูลสินค้า / ส่งออก</a>
     <a href="executive.html" data-page="executive">${workspaceIcon('executive')}สรุปผู้บริหาร · 10 วินาที</a>
   </nav>
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
