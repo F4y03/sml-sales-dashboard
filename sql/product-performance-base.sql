@@ -14,13 +14,16 @@ WITH periods AS (
   FROM periods p JOIN ic_trans_detail d ON d.doc_date >= p.start_date AND d.doc_date < p.end_date + INTERVAL '1 day'
   WHERE d.trans_flag IN (44,46,48) AND d.last_status = 0 AND d.is_doc_copy = 0
     AND COALESCE(btrim(d.item_code), '') NOT IN ('', 'หมายเหตุ')
+    AND position('ฝ' in d.item_code) = 0
     AND ($5::text IS NULL OR d.item_code = $5)
     AND EXISTS (SELECT 1 FROM headers h WHERE h.period = p.period AND h.doc_no = d.doc_no AND h.day = d.doc_date::date
       AND h.trans_flag = d.trans_flag AND h.customer_code = COALESCE(d.cust_code, '')
       AND (NULLIF(btrim(h.branch_code), '') IS NULL OR h.branch_code = d.branch_code))
 ), inventory AS (
   SELECT code, MAX(name_1) AS name, MAX(group_main) AS category_code, MAX(balance_qty) AS stock, MAX(unit_standard) AS stock_unit
-  FROM ic_inventory WHERE COALESCE(btrim(code), '') NOT IN ('', 'หมายเหตุ') AND ($5::text IS NULL OR code = $5)
+  FROM ic_inventory WHERE COALESCE(btrim(code), '') NOT IN ('', 'หมายเหตุ')
+    AND position('ฝ' in code) = 0
+    AND ($5::text IS NULL OR code = $5)
   GROUP BY code
 ), codes AS (
   SELECT code FROM inventory UNION SELECT code FROM lines

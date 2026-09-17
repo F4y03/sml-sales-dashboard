@@ -102,7 +102,9 @@
       const result = await getJSON(`/api/customer-insights/catalog?${new URLSearchParams({ start: detail.start, end: detail.end })}`, currentController.signal);
       if (currentRequest !== requestId || !active) return;
       data = result;
-      data.products = result.products.map(item => ({ ...item, net: Number(item.net), previousNet: Number(item.previousNet), invoiceCount: Number(item.invoiceCount), buyerCount: Number(item.buyerCount) }));
+      data.products = result.products
+        .filter(item => !String(item.code ?? '').replace(/^[\s\u200B-\u200D\uFEFF]+/u, '').startsWith('ฝ'))
+        .map(item => ({ ...item, net: Number(item.net), previousNet: Number(item.previousNet), invoiceCount: Number(item.invoiceCount), buyerCount: Number(item.buyerCount) }));
       const category = byId('performance-category'), previousCategory = category.value;
       const groups = new Map(data.products.map(item => [item.categoryCode, item.category]));
       category.replaceChildren(new Option('ทุกหมวดหมู่', '*'));

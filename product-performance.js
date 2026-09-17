@@ -25,6 +25,7 @@ SELECT json_build_object(
 
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+const isConsignmentCode = code => String(code ?? '').replace(/^[\s\u200B-\u200D\uFEFF]+/u, '').startsWith('ฝ');
 
 export function previousPeriod(start, end) {
   const days = (Date.parse(end) - Date.parse(start)) / 86400000 + 1;
@@ -43,10 +44,12 @@ export function installProductPerformance(app, pool) {
       if (detail && (typeof code !== 'string' || !code.trim() || code.length > 200)) {
         return res.status(400).json({ error: 'กรุณาระบุรหัสสินค้าให้ถูกต้อง' });
       }
+      if (detail && isConsignmentCode(code)) return res.status(404).json({ error: 'ไม่พบสินค้าที่เลือก' });
       const previous = previousPeriod(start, end);
       try {
         const { rows } = await pool.query(detail ? buyersSql : catalogSql, [start, end, previous.start, previous.end, detail ? code : null]);
         const data = rows[0].insights;
+        if (!detail) data.products = (data.products ?? []).filter(product => !isConsignmentCode(product.code));
         if (detail && !data.product) return res.status(404).json({ error: 'ไม่พบสินค้าที่เลือก' });
         res.json({ ...data, start, end, previous, updatedAt: new Date().toISOString() });
       } catch (error) {

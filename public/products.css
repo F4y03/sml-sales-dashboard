@@ -38,3 +38,32 @@ html #product-detail{width:min(1100px,96vw);max-height:92dvh;padding:0;border:1p
 .product-detail-field dd{margin:0;font-size:14px;line-height:1.7;color:#1e2733;white-space:pre-wrap;overflow-wrap:anywhere}
 .product-detail-field .value-empty{color:#758194}
 @media(max-width:700px){#detail-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.product-detail-section dl{grid-template-columns:1fr}#product-detail>.detail-heading{padding:16px}.product-detail-body{padding:0 16px 20px}#detail-title{font-size:20px}.product-detail-metric{padding:12px 14px}.product-detail-metric strong{font-size:17px}}
+
+/* Product detail: keep the dialog aligned with the dashboard palette. */
+html[data-theme] #product-detail{background:var(--canvas);border-color:var(--line);color:var(--ink);box-shadow:0 28px 72px rgba(0,0,0,.38)}
+html[data-theme] #product-detail>.detail-heading{background:linear-gradient(135deg,var(--surface),var(--surface-raised));border-color:var(--line)}
+html[data-theme] #detail-title{color:var(--ink)}
+html[data-theme] #close-detail{background:var(--surface-raised);border-color:var(--line);color:var(--ink);font-weight:700}
+html[data-theme] #close-detail:hover{background:var(--brand-soft);border-color:var(--brand-border);color:var(--brand)}
+html[data-theme] .product-detail-body{padding-top:4px}
+html[data-theme] #detail-subtitle{display:flex;align-items:center;min-height:42px;margin:0 -24px;padding:0 24px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface-raised) 72%,transparent);color:var(--muted)}
+html[data-theme] #detail-summary{gap:14px;margin:20px 0 14px}
+html[data-theme] .product-detail-metric{position:relative;min-height:108px;padding:17px 18px;background:var(--surface);border-color:var(--line);box-shadow:0 6px 18px rgba(0,0,0,.08);overflow:hidden}
+html[data-theme] .product-detail-metric::after{content:'';position:absolute;right:-20px;bottom:-26px;width:74px;height:74px;border-radius:50%;background:var(--brand);opacity:.09}
+html[data-theme] .product-detail-metric span{position:relative;color:var(--muted);font-weight:600}
+html[data-theme] .product-detail-metric strong{position:relative;color:var(--ink);font-variant-numeric:tabular-nums}
+html[data-theme] .product-detail-metric.status-good{background:linear-gradient(135deg,var(--positive-soft),var(--surface));border-color:color-mix(in srgb,var(--positive) 42%,var(--line))}
+html[data-theme] .product-detail-metric.status-good strong{color:var(--positive)}
+html[data-theme] .product-detail-metric.status-bad{background:linear-gradient(135deg,var(--brand-soft),var(--surface));border-color:var(--brand-border)}
+html[data-theme] .product-detail-metric.status-bad strong{color:var(--negative)}
+html[data-theme] .product-detail-metric.status-info{background:linear-gradient(135deg,color-mix(in srgb,#2d6cdf 13%,var(--surface)),var(--surface));border-color:color-mix(in srgb,#2d6cdf 42%,var(--line))}
+html[data-theme] .product-detail-metric.status-info strong{color:#4f87ff}
+html[data-theme] .product-detail-note{margin:0 0 16px;padding:11px 14px;border-left:3px solid var(--brand);border-radius:0 8px 8px 0;background:var(--surface-raised);color:var(--muted)}
+html[data-theme] .product-detail-section{margin-top:14px;background:var(--surface);border-color:var(--line);box-shadow:0 4px 14px rgba(0,0,0,.06)}
+html[data-theme] .product-detail-section h3{padding:13px 18px;background:var(--surface-raised);border-color:var(--line);color:var(--muted);font-weight:700}
+html[data-theme] #product-detail #detail-fields .product-detail-field{padding:13px 18px;border-color:var(--line)}
+html[data-theme] #product-detail #detail-fields .product-detail-field:nth-child(odd){background:color-mix(in srgb,var(--surface-raised) 55%,var(--surface))}
+html[data-theme] .product-detail-field dt{color:var(--muted);font-weight:600}
+html[data-theme] .product-detail-field dt small{color:color-mix(in srgb,var(--muted) 78%,transparent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+html[data-theme] .product-detail-field dd{color:var(--ink);font-weight:600}
+@media(max-width:700px){html[data-theme] #detail-subtitle{margin:0 -16px;padding:0 16px;align-items:flex-start;padding-top:10px;padding-bottom:10px}html[data-theme] .product-detail-metric{min-height:94px}html[data-theme] #product-detail #detail-fields .product-detail-field{padding:12px 14px}}

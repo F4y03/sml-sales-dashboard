@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);
 const exportDialog = $('product-export-dialog');
+window.addEventListener('prplus-access',event=>{const allowed=event.detail?.role==='super_admin';$('open-export').hidden=!allowed;exportDialog.hidden=!allowed;if(!allowed&&exportDialog.open)exportDialog.close();});
 $('open-export').onclick = () => exportDialog.showModal();
 $('close-export').onclick = () => exportDialog.close();
 let exportBackdrop = false;
@@ -68,18 +69,9 @@ function detail(product){
     if(status) card.classList.add(status);
     card.append(detailNode('span',label),detailNode('strong',value));summary.append(card);
   }
-  const groups=[['ข้อมูลสินค้า',/^(code|name|short_name|description|remark|item_model|group|unit|item_category|item_type)/],['ราคาและต้นทุน',/price|cost|discount|tax|vat/],['สต๊อกและการจัดเก็บ',/qty|stock|warehouse|shelf|balance|weight|width|height|length|volume|activity/],['ข้อมูลอื่นในทะเบียน',/.*/]];
-  const sections=groups.map(([title])=>{const section=detailNode('section','','product-detail-section');section.append(detailNode('h3',title),document.createElement('dl'));return section;});
-  for(const f of current.fields){
-    const raw=product[f.key];
-    if(!hasMeaningfulValue(raw)) continue;
-    const index=groups.findIndex(([,pattern])=>pattern.test(f.key));const entry=detailNode('div','','product-detail-field');entry.dataset.field=f.key;
-    const term=detailNode('dt',f.label||f.key);if(f.label&&f.label!==f.key)term.append(detailNode('small',f.key));
-    entry.append(term,detailNode('dd',typeof raw==='object'?JSON.stringify(raw):String(raw)));
-    sections[index].lastElementChild.append(entry);
-  }
-  $('detail-fields').replaceChildren(...sections.filter(section=>section.lastElementChild.children.length));
-  $('detail-subtitle').textContent=`รหัส ${product.code} · ข้อมูลทะเบียนปัจจุบัน · ${Array.from($('detail-fields').querySelectorAll('.product-detail-field')).length} ช่องข้อมูลที่มีค่า · ดึงข้อมูล ${new Date(current.updatedAt).toLocaleString('th-TH')}`;
+  // Keep this quick-view focused on the summary cards; full SML field values are intentionally omitted.
+  $('detail-fields').replaceChildren();
+  $('detail-subtitle').textContent=`รหัส ${product.code} · ข้อมูลทะเบียนปัจจุบัน · ดึงข้อมูล ${new Date(current.updatedAt).toLocaleString('th-TH')}`;
   $('product-detail').showModal();$('product-detail').scrollTop=0;
 }
 $('close-detail').onclick=()=>$('product-detail').close();

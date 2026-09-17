@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { installProductPerformance, previousPeriod } from './product-performance.js';
+import { installProductPerformance, performanceBaseSql, previousPeriod } from './product-performance.js';
 
 async function listen(app) {
   const server=app.listen(0,'127.0.0.1'); await new Promise(resolve=>server.once('listening',resolve));
@@ -15,11 +15,15 @@ test('equal-length comparison handles leap days and year boundaries',()=>{
   assert.deepEqual(previousPeriod('2024-03-01','2024-03-31'),{start:'2024-01-30',end:'2024-02-29',days:31});
   assert.deepEqual(previousPeriod('2026-01-01','2026-01-01'),{start:'2025-12-31',end:'2025-12-31',days:1});
 });
+test('product explorer excludes consignment product codes',()=>{
+  assert.match(performanceBaseSql,/position\('ฝ' in d\.item_code\) = 0/);
+  assert.match(performanceBaseSql,/position\('ฝ' in code\) = 0/);
+});
 test('product API validates dates, binds exact SKU and previous dates, and returns JSON errors',async()=>{
   const app=express(),calls=[];let fail=false,missing=false;
   installProductPerformance(app,{query:async(sql,params)=>{
     calls.push(params);if(fail)throw Object.assign(new Error('private details'),{code:'TEST_OFFLINE'});
-    return {rows:[{insights:params[4]===null?{products:[]}:{product:missing?null:{code:params[4]},buyers:[]}}]};
+    return {rows:[{insights:params[4]===null?{products:[{code:'ฝTEST'},{code:'P1'}]}:{product:missing?null:{code:params[4]},buyers:[]}}]};
   }});
   const {server,base}=await listen(app);
   try{
@@ -31,7 +35,7 @@ test('product API validates dates, binds exact SKU and previous dates, and retur
     assert.equal(calls.length,0);
     const response=await fetch(`${base}/api/customer-insights/catalog?${period}`);
     assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
-    assert.deepEqual((await response.json()).previous,{start:'2026-08-23',end:'2026-08-31',days:9});
+    const catalog=await response.json();assert.deepEqual(catalog.previous,{start:'2026-08-23',end:'2026-08-31',days:9});assert.deepEqual(catalog.products.map(product=>product.code),['P1']);
     assert.deepEqual(calls[0],['2026-09-01','2026-09-09','2026-08-23','2026-08-31',null]);
     const code="สินค้า/&' OR 1=1 --";
     const detail=await fetch(`${base}/api/customer-insights/product-buyers?${period}&${new URLSearchParams({code})}`);

@@ -22,6 +22,7 @@ export function installAccess(app) {
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
+    if(path==='/api/products/export'&&req.auth.role!=='super_admin')return forbidden();
     const module=MODULES.find(m=>m.pages.includes(path)||m.apis.some(p=>path===p||path.startsWith(p+'/')));
     if(!module){
       // Static assets contain no data. All unknown data/page routes fail closed.

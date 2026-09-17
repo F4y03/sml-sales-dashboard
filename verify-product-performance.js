@@ -12,7 +12,7 @@ const fixture = `WITH ic_trans(doc_no,doc_date,trans_flag,cust_code,branch_code,
   ('OUTSIDE','2026-09-10'::date,44,'C1','B1',0,0)
 ), ic_inventory(code,name_1,group_main,balance_qty,unit_standard) AS (VALUES
   ('P1','Product one','G1',5,'piece'),('P1','Product one','G1',5,'piece'),('P2','Product two','G2',10,'piece'),
-  ('P3','Returns only','G1',20,'piece'),('P4','Zero value sale','G1',30,'piece'),('P5','No sales','G1',100,'piece'),('P6','Previously sold','G1',40,'piece')
+  ('P3','Returns only','G1',20,'piece'),('P4','Zero value sale','G1',30,'piece'),('P5','No sales','G1',100,'piece'),('P6','Previously sold','G1',40,'piece'),('ฝP7','Consignment','G1',999,'piece')
 ), ic_group(code,name_1) AS (VALUES ('G1','Category one'),('G1','Category one'),('G2','Category two')),
 ar_customer(code,name_1) AS (VALUES ('C1','Customer one'),('C1','Customer one'),('C2','Customer two')),
 ic_trans_detail(doc_no,doc_date,trans_flag,cust_code,branch_code,item_code,item_name,unit_code,qty,sum_amount,last_status,is_doc_copy) AS (VALUES
@@ -28,6 +28,7 @@ ic_trans_detail(doc_no,doc_date,trans_flag,cust_code,branch_code,item_code,item_
   ('V1','2026-08-30'::date,44,'C1','B1','P3','Returns only','piece',2,40,0,0),
   ('V1','2026-08-30'::date,44,'C1','B1','P6','Previously sold','piece',5,100,0,0),
   ('H1','2026-09-01'::date,44,'C1','000','NEW','Unregistered','piece',1,50,0,0),
+  ('H1','2026-09-01'::date,44,'C1','000','ฝP7','Consignment','piece',99,9999,0,0),
   ('H2','2026-09-02'::date,44,'C2','B2','P1','Wrong branch','piece',999,99999,0,0),
   ('H1','2026-09-01'::date,44,'C3','000','P1','Wrong customer','piece',999,99999,0,0),
   ('COPY','2026-09-01'::date,44,'C1','B1','P1','Copied header','piece',999,99999,0,0),
@@ -46,6 +47,7 @@ try {
   const params = ['2026-09-01','2026-09-09','2026-08-23','2026-08-31',null];
   const products = (await client.query(withFixture(catalogSql), params)).rows[0].insights.products;
   assert.equal(products.length, 7);
+  assert.equal(products.some(product => product.code.startsWith('ฝ')), false);
   const one = products.find(product => product.code === 'P1');
   assert.equal(one.net, 350); assert.equal(one.previousNet, 800); assert.equal(one.sales, 400); assert.equal(one.returns, 50);
   assert.equal(one.invoiceCount, 2); assert.equal(one.buyerCount, 2); assert.equal(one.lastSold, '2026-09-02');
@@ -72,6 +74,7 @@ try {
       FROM ic_trans_detail d WHERE d.doc_date >= $1::date AND d.doc_date < $2::date + INTERVAL '1 day'
       AND d.trans_flag IN (44,46,48) AND d.last_status=0 AND d.is_doc_copy=0
       AND COALESCE(btrim(d.item_code),'') NOT IN ('','หมายเหตุ')
+      AND position('ฝ' in d.item_code) = 0
       AND EXISTS (SELECT 1 FROM ic_trans h WHERE h.doc_no=d.doc_no AND h.doc_date=d.doc_date AND h.trans_flag=d.trans_flag
         AND COALESCE(h.cust_code,'')=COALESCE(d.cust_code,'') AND h.last_status=0 AND h.is_doc_copy=0
         AND (NULLIF(btrim(h.branch_code),'') IS NULL OR h.branch_code=d.branch_code))
