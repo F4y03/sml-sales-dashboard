@@ -33,7 +33,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     const valid=await verifyPassword(password,row?.password_hash||'$2b$12$......................J7sA2Mbc/7FGDyMVElRgSLy8QLUhOse');
     const fresh=row&&store.get('SELECT * FROM users WHERE id=?',row.id);
     if(!valid||!fresh?.is_active||fresh.auth_version!==row.auth_version){audit.record(null,'login.failed','auth',{},null,ip);return res.status(401).json({error:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'});}
-    if(!fresh.password_hash.startsWith('$2')&&password.length>=12&&Buffer.byteLength(password)<=72)store.run('UPDATE users SET password_hash=? WHERE id=? AND auth_version=?',await makePassword(password),row.id,fresh.auth_version);
+    if(!fresh.password_hash.startsWith('$2')&&password.length>0&&Buffer.byteLength(password)<=72)store.run('UPDATE users SET password_hash=? WHERE id=? AND auth_version=?',await makePassword(password),row.id,fresh.auth_version);
     const latest=store.get('SELECT is_active,auth_version FROM users WHERE id=?',row.id);
     if(!latest?.is_active||latest.auth_version!==fresh.auth_version)return res.status(401).json({error:'สิทธิ์มีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่'});
     const user=loadUser(store,row.id),allowed=territories.list(user.id),territoryId=user.scope==='territory'&&allowed.length===1?allowed[0].id:null;

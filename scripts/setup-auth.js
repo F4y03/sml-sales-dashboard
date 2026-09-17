@@ -15,7 +15,7 @@ async function secret(prompt) {
 }
 try {
   const username = (await rl.question('Admin username: ')).trim();
-  const password = await secret('New password (at least 12 characters; input hidden): ');
+  const password = await secret('New password (required; input hidden): ');
   const confirm = await secret('Confirm password: ');
   if (!/^[a-zA-Z0-9_.@-]{3,100}$/.test(username)) throw new Error('Use 3–100 letters, numbers, _, ., @ or - for username.');
   if (password !== confirm) throw new Error('Passwords must match.');

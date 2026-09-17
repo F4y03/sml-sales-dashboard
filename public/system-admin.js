@@ -23,7 +23,7 @@ function editUser(user){
   field(grid,'ชื่อ–นามสกุล','full_name',user?.full_name).required=true;field(grid,'Username','username',user?.username).required=true;
   const role=select(grid,'Role','role',catalog.roles.filter(r=>me.role==='super_admin'||r.code!=='super_admin'),user?.role||'admin');if(me.role!=='super_admin'&&user)role.disabled=true;
   const active=check(grid,'เปิดใช้งานบัญชี','is_active','1',user?.is_active??true);
-  const pass=field(grid,user?'รหัสผ่านใหม่ (เว้นว่างเพื่อคงเดิม)':'รหัสผ่านอย่างน้อย 12 ตัวอักษร','password','','password');pass.minLength=12;pass.required=!user;
+  const pass=field(grid,user?'รหัสผ่านใหม่ (เว้นว่างเพื่อคงเดิม)':'รหัสผ่าน','password','','password');pass.required=!user;
   const permissions=node('fieldset');permissions.append(node('legend','Additional Permissions'));const checks=node('div',undefined,'checks');permissions.append(checks);form.append(permissions);
   for(const p of catalog.permissions.filter(p=>p.code!=='environment_settings')){const c=check(checks,p.name,'permissions',p.code,user?.additionalPermissions?.includes(p.code));c.disabled=me.role!=='super_admin';}
   const territory=node('fieldset');territory.append(node('legend','Sales Territories'));const tchecks=node('div',undefined,'checks');territory.append(tchecks);form.append(territory);

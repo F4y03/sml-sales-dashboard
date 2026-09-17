@@ -31,7 +31,7 @@ Central role/permission administration and Environment Settings require Super Ad
 ## Add or change a user
 
 1. System Admin → Users → เพิ่มผู้ใช้.
-2. Enter full name, unique username, role, active status and password (at least 12 characters, at most 72 UTF-8 bytes).
+2. Enter full name, unique username, role, active status and password (any non-empty length, at most 72 UTF-8 bytes).
 3. Select additional permissions. Defaults inherited from the role appear above the form and are not copied into additional grants.
 4. For a territory-scoped role, select one or more active territories; saving without territories is allowed but no business data can be accessed.
 5. Save. Editing users, changing role permissions, disabling accounts or resetting passwords revokes affected sessions. Users log in again to get the new access.
@@ -79,7 +79,7 @@ Activity records logins/failures, logout, switches, user creation/edits/password
 
 ## Security and extensions
 
-- New/reset passwords use bcrypt cost 12. Legacy scrypt hashes authenticate and upgrade on a successful login if compatible with the new password length bounds; longer/shorter legacy passwords continue authenticating until reset. No plaintext passwords are stored.
+- New/reset passwords use bcrypt cost 12. Legacy scrypt hashes authenticate and upgrade on a successful login if compatible with the new password length bounds; longer legacy passwords continue authenticating until reset. No plaintext passwords are stored.
 - Session tokens are random, only SHA-256 digests are stored in SQLite, with 8-hour expiry. HttpOnly, SameSite=Lax and Secure cookies by default; `AUTH_COOKIE_SECURE=false` is only for HTTP development. Sessions persist across restart; disabling users/version changes invalidate them.
 - Mutation endpoints require the existing non-simple `X-PRPlus-Request: 1` header, reject cross-site requests and mismatched Origin, and do not enable CORS. This extends the existing CSRF defense.
 - Login rate limiting remains 10 attempts/15 minutes per socket IP, with no trust in spoofed forwarded headers. Rate limits are in process memory; use one Node instance and an external rate limiter/shared store before scaling to multiple processes.

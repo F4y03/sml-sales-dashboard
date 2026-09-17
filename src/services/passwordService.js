@@ -3,7 +3,7 @@ import { scrypt as scryptCallback,timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 const scrypt=promisify(scryptCallback);
 export function validatePassword(password) {
-  if(typeof password!=='string'||password.length<12||Buffer.byteLength(password,'utf8')>72) throw Object.assign(new Error('รหัสผ่านต้องมีอย่างน้อย 12 ตัวอักษร และไม่เกิน 72 bytes'),{status:400});
+  if(typeof password!=='string'||password.length===0||Buffer.byteLength(password,'utf8')>72) throw Object.assign(new Error('กรุณาระบุรหัสผ่าน และต้องไม่เกิน 72 bytes'),{status:400});
 }
 export async function makePassword(password) {validatePassword(password);return bcrypt.hash(password,12);}
 export async function verifyPassword(password,hash) {
