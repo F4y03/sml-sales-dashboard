@@ -1,5 +1,5 @@
 import { loadUser } from './permissionService.js';
-import { makePassword } from './passwordService.js';
+import { makePassword,verifyPassword } from './passwordService.js';
 import { ADMIN_PERMISSIONS } from '../config/access.js';
 export const bad=(message,status=400)=>Object.assign(new Error(message),{status});
 export const positiveId=value=>{const n=Number(value);if(!Number.isSafeInteger(n)||n<=0)throw bad('รหัสไม่ถูกต้อง');return n;};
@@ -31,6 +31,10 @@ export function createUserService(store,audit) {
     if(role.scope==='territory'&&permissions.some(p=>ADMIN_PERMISSIONS.includes(p)))throw bad('บัญชีจำกัดเขตไม่สามารถจัดการระบบส่วนกลาง');
     const ids=[...new Set(territories.map(positiveId))];
     for(const t of ids)if(!store.get('SELECT 1 FROM sales_territories WHERE id=? AND is_active=1',t))throw bad('เขตไม่พร้อมใช้งาน');
+    if(target&&body.password){
+      const stored=store.get('SELECT password_hash FROM users WHERE id=?',id);
+      if(typeof body.currentPassword!=='string'||!await verifyPassword(body.currentPassword,stored?.password_hash))throw bad('รหัสผ่านเดิมไม่ถูกต้อง');
+    }
     const hash=body.password?await makePassword(body.password):null;if(!target&&!hash)throw bad('กรุณาระบุรหัสผ่าน');
     return store.transaction(()=>{
       const currentActor=loadUser(store,actor.id);
@@ -58,5 +62,5 @@ export function createUserService(store,audit) {
       if(hash)audit.record(actor,'user.password_reset','users',{userId:id},null,ip);
       return get(id);
     });
-  },async resetPassword(actor,id,password,ip){const target=get(id);guard(actor,target,{});const hash=await makePassword(password);store.transaction(()=>{const current=loadUser(store,actor.id);if(!current?.is_active||current.auth_version!==actor.auth_version)throw bad('กรุณาเข้าสู่ระบบใหม่',401);guard(current,get(id),{});store.run('UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,id);store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(actor,'user.password_reset','users',{userId:id},null,ip);});}};
+  },async resetPassword(actor,id,password,currentPassword,ip){const target=get(id);guard(actor,target,{});const stored=store.get('SELECT password_hash FROM users WHERE id=?',id);if(typeof currentPassword!=='string'||!await verifyPassword(currentPassword,stored?.password_hash))throw bad('รหัสผ่านเดิมไม่ถูกต้อง');const hash=await makePassword(password);store.transaction(()=>{const current=loadUser(store,actor.id);if(!current?.is_active||current.auth_version!==actor.auth_version)throw bad('กรุณาเข้าสู่ระบบใหม่',401);guard(current,get(id),{});store.run('UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,id);store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(actor,'user.password_reset','users',{userId:id},null,ip);});}};
 }

@@ -66,7 +66,23 @@ const logout = document.createElement('button');
 logout.type = 'button';
 logout.textContent = 'ออกจากระบบ ↗';
 logout.className = 'workspace-logout';
-workspace.querySelector('.workspace-bottom').append(logout);
+const changePassword = document.createElement('button');
+changePassword.type = 'button';
+changePassword.textContent = 'เปลี่ยนรหัสผ่าน';
+changePassword.className = 'workspace-password-button';
+const passwordDialog = document.createElement('dialog');
+passwordDialog.className = 'workspace-password-dialog';
+passwordDialog.setAttribute('aria-labelledby','workspace-password-title');
+passwordDialog.innerHTML = `<form method="dialog" class="workspace-password-form"><div class="workspace-password-heading"><div><small>บัญชีของฉัน</small><h2 id="workspace-password-title">เปลี่ยนรหัสผ่าน</h2></div><button type="button" class="workspace-password-close" aria-label="ปิด">×</button></div><label>รหัสผ่านเดิม<input name="currentPassword" type="password" autocomplete="current-password" required></label><label>รหัสผ่านใหม่<input name="newPassword" type="password" autocomplete="new-password" required></label><label>ยืนยันรหัสผ่านใหม่<input name="confirmPassword" type="password" autocomplete="new-password" required></label><label class="workspace-password-show"><input name="showPassword" type="checkbox"> แสดงรหัสผ่าน</label><p class="workspace-password-status" role="alert" aria-live="assertive"></p><div class="workspace-password-actions"><button type="button" class="workspace-password-cancel">ยกเลิก</button><button type="submit" class="workspace-password-submit">บันทึกรหัสผ่าน</button></div></form>`;
+document.body.append(passwordDialog);
+workspace.querySelector('.workspace-bottom').append(changePassword,logout);
+const passwordForm=passwordDialog.querySelector('form'),passwordStatus=passwordDialog.querySelector('.workspace-password-status'),passwordSubmit=passwordDialog.querySelector('.workspace-password-submit');
+const closePasswordDialog=()=>{passwordDialog.close();passwordForm.reset();passwordStatus.textContent='';};
+changePassword.addEventListener('click',()=>passwordDialog.showModal());
+passwordDialog.querySelector('.workspace-password-close').addEventListener('click',closePasswordDialog);
+passwordDialog.querySelector('.workspace-password-cancel').addEventListener('click',closePasswordDialog);
+passwordForm.elements.showPassword.addEventListener('change',()=>{for(const input of passwordForm.querySelectorAll('input[type=password],input[type=text]'))input.type=passwordForm.elements.showPassword.checked?'text':'password';});
+passwordForm.addEventListener('submit',async event=>{event.preventDefault();passwordStatus.textContent='';const currentPassword=passwordForm.elements.currentPassword.value,newPassword=passwordForm.elements.newPassword.value,confirmPassword=passwordForm.elements.confirmPassword.value;if(newPassword!==confirmPassword){passwordStatus.textContent='รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน';passwordForm.elements.confirmPassword.focus();return;}passwordSubmit.disabled=true;try{const response=await nativeFetch('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({currentPassword,newPassword,confirmPassword})});const data=await response.json();if(!response.ok)throw new Error(data.error||'เปลี่ยนรหัสผ่านไม่สำเร็จ');passwordStatus.dataset.success='true';passwordStatus.textContent='เปลี่ยนรหัสผ่านแล้ว กำลังกลับไปหน้าเข้าสู่ระบบ…';location.replace(data.redirect||'/login.html');}catch(error){passwordStatus.dataset.success='false';passwordStatus.textContent=error.message;}finally{passwordSubmit.disabled=false;}});
 logout.addEventListener('click', async () => {
   logout.disabled = true;
   try {
@@ -91,13 +107,16 @@ window.prplusUser.then(user => {
     const link=document.createElement('a');link.href='/system-admin.html';link.textContent='⚙ System Admin';if(location.pathname==='/system-admin.html')link.setAttribute('aria-current','page');workspace.querySelector('nav').append(link);
   }
   const sourceBadge=document.querySelector('.source-badge');
-  const updateSourceBadge=text=>{if(!sourceBadge)return;const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');sourceBadge.replaceChildren(dot,document.createTextNode(text));sourceBadge.setAttribute('aria-label','ขอบเขตข้อมูล '+text);};
-  if(user.scope==='territory'){
+  const updateSourceBadge=(text,selected=false)=>{if(!sourceBadge)return;const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');sourceBadge.replaceChildren(dot,document.createTextNode(text));sourceBadge.classList.toggle('territory-selected',selected);sourceBadge.setAttribute('aria-label','ขอบเขตข้อมูล '+text);};
+  if(user.scope==='territory' && !['/select-territory.html','/products.html','/consignment.html'].includes(location.pathname)){
     const bar=document.createElement('div');bar.className='territory-bar';const label=document.createElement('label');label.textContent='เขตปัจจุบัน: ';const select=document.createElement('select');select.setAttribute('aria-label','เขตปัจจุบัน');
     const blank=document.createElement('option');blank.value='';blank.textContent='เลือกเขต';select.append(blank);
     for(const t of user.territories){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;select.append(o);}select.value=user.territoryId||'';label.append(select);bar.append(label);
-    const selectedTerritory=user.territories.find(t=>Number(t.id)===Number(user.territoryId));updateSourceBadge(selectedTerritory?.name||'ยังไม่ได้เลือกเขต');if(sourceBadge)bar.append(sourceBadge);
-    document.body.insertBefore(bar,workspace.nextSibling);
+    const selectedTerritory=user.territories.find(t=>Number(t.id)===Number(user.territoryId));updateSourceBadge(selectedTerritory?.name||'ยังไม่ได้เลือกเขต',Boolean(selectedTerritory));if(sourceBadge)bar.append(sourceBadge);
+    // Customer Insights keeps the territory switcher beside its page heading.
+    // Other workspace pages retain the full-width selector below the sidebar.
+    const territoryHost=location.pathname==='/customers.html'?document.querySelector('main > .page-heading'):null;
+    if(territoryHost)territoryHost.append(bar);else document.body.insertBefore(bar,workspace.nextSibling);
     select.onchange=async()=>{if(!select.value)return;select.disabled=true;try{const r=await nativeFetch('/api/auth/territory',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({territoryId:Number(select.value)})});const data=await r.json();if(!r.ok)throw new Error(data.error);location.replace(data.redirect);}catch(e){select.value=user.territoryId||'';select.disabled=false;let error=bar.querySelector('[role=alert]');if(!error){error=document.createElement('span');error.setAttribute('role','alert');bar.append(error);}error.textContent=e.message;}};
   } else updateSourceBadge('ทุกเขตการขาย');
   window.dispatchEvent(new CustomEvent('prplus-access',{detail:user}));

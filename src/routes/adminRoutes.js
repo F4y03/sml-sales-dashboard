@@ -14,7 +14,7 @@ export function installAdminRoutes(app,store,audit,envPath) {
   app.post('/api/admin/users',requirePermission('users_manage'),handle(async(req,res)=>res.status(201).json(await users.save(req.auth,null,req.body,req.socket.remoteAddress))));
   app.put('/api/admin/users/:id',requirePermission('users_manage'),handle(async(req,res)=>res.json(await users.save(req.auth,positiveId(req.params.id),req.body,req.socket.remoteAddress))));
   app.delete('/api/admin/users/:id',requirePermission('users_manage'),handle((req,res)=>{users.remove(req.auth,positiveId(req.params.id),req.socket.remoteAddress);res.json({ok:true});}));
-  app.post('/api/admin/users/:id/password',requirePermission('users_manage'),handle(async(req,res)=>{await users.resetPassword(req.auth,positiveId(req.params.id),req.body?.password,req.socket.remoteAddress);res.json({ok:true});}));
+  app.post('/api/admin/users/:id/password',requirePermission('users_manage'),handle(async(req,res)=>{await users.resetPassword(req.auth,positiveId(req.params.id),req.body?.password,req.body?.currentPassword,req.socket.remoteAddress);res.json({ok:true});}));
   app.post('/api/admin/roles',requireSuperAdmin,handle((req,res)=>{
     const code=text(req.body?.code,'Code'),name=text(req.body?.name,'ชื่อ');if(!/^[a-z][a-z0-9_]{1,49}$/.test(code))throw bad('Role Code ไม่ถูกต้อง');
     if(!['all','territory'].includes(req.body.scope))throw bad('Scope ไม่ถูกต้อง');

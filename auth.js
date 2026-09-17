@@ -60,6 +60,17 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     res.redirect('/login.html?next='+encodeURIComponent(req.originalUrl));
   });
   app.get('/api/auth/me',(req,res)=>{const {auth_version,...user}=req.auth;res.json({...user,landing:landingPage(req.auth),dashboardName:store.get("SELECT value FROM system_settings WHERE key='dashboard_name'")?.value||env.DASHBOARD_NAME||'SML analytics',supportMessage:store.get("SELECT value FROM system_settings WHERE key='support_message'")?.value||''});});
+  app.post('/api/auth/password',sameSite,async(req,res)=>{
+    const {currentPassword,newPassword,confirmPassword}=req.body||{};
+    if(typeof currentPassword!=='string'||typeof newPassword!=='string'||typeof confirmPassword!=='string')return res.status(400).json({error:'กรุณากรอกรหัสผ่านให้ครบ'});
+    if(newPassword!==confirmPassword)return res.status(400).json({error:'รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน'});
+    const row=store.get('SELECT password_hash,auth_version,is_active FROM users WHERE id=?',req.auth.id);
+    if(!row?.is_active||row.auth_version!==req.auth.auth_version)return res.status(401).json({error:'กรุณาเข้าสู่ระบบใหม่'});
+    if(!await verifyPassword(currentPassword,row.password_hash))return res.status(400).json({error:'รหัสผ่านเดิมไม่ถูกต้อง'});
+    let hash;try{hash=await makePassword(newPassword);}catch(e){return res.status(e.status||400).json({error:e.message});}
+    try{store.transaction(()=>{const fresh=store.get('SELECT password_hash,auth_version,is_active FROM users WHERE id=?',req.auth.id);if(!fresh?.is_active||fresh.auth_version!==row.auth_version||fresh.password_hash!==row.password_hash)throw Object.assign(new Error('ข้อมูลบัญชีมีการเปลี่ยนแปลง กรุณาลองใหม่'),{status:409});store.run('UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,req.auth.id);store.run('DELETE FROM sessions WHERE user_id=?',req.auth.id);audit.record(req.auth,'user.password_change','users',{userId:req.auth.id},req.auth.territoryId,req.socket.remoteAddress);});}catch(e){return res.status(e.status||500).json({error:e.status?e.message:'เปลี่ยนรหัสผ่านไม่สำเร็จ'});}
+    res.clearCookie(cookieName,options);res.json({ok:true,redirect:'/login.html?password=changed'});
+  });
   app.post('/api/auth/territory',sameSite,(req,res)=>{
     if(req.auth.scope!=='territory')return res.status(400).json({error:'บัญชีนี้ดูได้ทุกเขต'});
     const id=req.body?.territoryId;if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({error:'เขตไม่ถูกต้อง'});

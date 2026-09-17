@@ -53,3 +53,15 @@ test('localhost bypass cannot bypass RBAC even when the legacy flag is enabled',
   const { request } = await fixture(t, { AUTH_BYPASS_LOCAL: 'true' });
   assert.equal((await request('/api/dashboard')).status, 401);
 });
+
+test('users can change their own password with current-password verification', async t => {
+  const { request,login } = await fixture(t);
+  const session = await login(),cookie = session.headers.get('set-cookie').split(';')[0];
+  const change = body => request('/api/auth/password',{method:'POST',headers:{cookie,'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify(body)});
+  assert.equal((await change({currentPassword:'wrong',newPassword:'new-password-456',confirmPassword:'new-password-456'})).status,400);
+  assert.equal((await change({currentPassword:'test-password-123',newPassword:'new-password-456',confirmPassword:'different'})).status,400);
+  assert.equal((await change({currentPassword:'test-password-123',newPassword:'new-password-456',confirmPassword:'new-password-456'})).status,200);
+  assert.equal((await request('/api/auth/me',{headers:{cookie}})).status,401);
+  assert.equal((await login()).status,401);
+  assert.equal((await login('new-password-456')).status,200);
+});

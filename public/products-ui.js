@@ -18,7 +18,19 @@ exportStockLabel.querySelector('select').addEventListener('change', () => {
   $('product-stock').value = exportStockLabel.querySelector('select').value;
   applyProductFilters();
 });
-let current=null,applied={q:'',group:'',activity:'all',stock:'all'},version=0,exporting=false;
+let current=null,applied={q:'',group:'',activity:'all',stock:'all',sort:'code',direction:'asc'},version=0,exporting=false;
+const productSortKeys=['code','name','group','unit','price','activity','stock','status'];
+const productHeaders=[...document.querySelectorAll('.product-panel thead th')];
+productHeaders.forEach((header,index)=>{
+  const button=document.createElement('button');
+  button.type='button';button.className='product-sort';button.dataset.sort=productSortKeys[index];
+  button.append(document.createTextNode(header.textContent),Object.assign(document.createElement('span'),{className:'product-sort-icon',textContent:'↕'}));
+  header.replaceChildren(button);header.setAttribute('aria-sort','none');
+  button.onclick=()=>{const sort=button.dataset.sort,direction=applied.sort===sort&&applied.direction==='asc'?'desc':'asc';load(0,{...applied,sort,direction});};
+});
+function updateSortHeaders(){
+  productHeaders.forEach(header=>{const button=header.querySelector('.product-sort'),active=button.dataset.sort===applied.sort;header.setAttribute('aria-sort',active?(applied.direction==='asc'?'ascending':'descending'):'none');button.querySelector('.product-sort-icon').textContent=active?(applied.direction==='asc'?'▲':'▼'):'↕';});
+}
 const textCell=value=>value==null||String(value).trim()===''?'—':String(value).trim();
 const priceLabel=value=>value==null||String(value).trim()===''?'—':Number.isFinite(Number(value))?Number(value).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):String(value);
 const stockLabel=value=>value==null||String(value).trim()===''?'—':Number(value).toLocaleString('th-TH',{maximumFractionDigits:2});
@@ -30,7 +42,7 @@ async function load(page=0,filters=applied,silent=false){
   const id=++version;$('search-products').disabled=true;$('products-prev').disabled=true;$('products-next').disabled=true;$('download-products').disabled=true;$('product-status').classList.remove('error');if (!silent) $('product-status').textContent='กำลังโหลดสินค้าจาก SML…';
   try{
     const r=await fetch('/api/products?'+new URLSearchParams({...filters,page}),{cache:'no-store',signal:AbortSignal.timeout(20000)});const data=await r.json();if(!r.ok)throw new Error(data.error);if(id!==version)return;
-    current=data;applied={...filters};$('product-table').replaceChildren();$('product-count').textContent=`ตามตัวกรอง ${count(data.matching)} รายการ · ทั้งหมด ${count(data.total)} รายการ`;$('product-updated').textContent='ดึงข้อมูล '+new Date(data.updatedAt).toLocaleString('th-TH');
+    current=data;applied={...filters,sort:data.sort??filters.sort,direction:data.direction??filters.direction};updateSortHeaders();$('product-table').replaceChildren();$('product-count').textContent=`ตามตัวกรอง ${count(data.matching)} รายการ · ทั้งหมด ${count(data.total)} รายการ`;$('product-updated').textContent='ดึงข้อมูล '+new Date(data.updatedAt).toLocaleString('th-TH');
     $('product-filtered-count').textContent = `พบ ${count(data.matching)} รายการ`;
     const selectedGroup=$('product-group').value;$('product-group').replaceChildren(new Option('ทุกกลุ่มสินค้า',''));for(const g of data.groups)$('product-group').add(new Option(`${g.code} · ${g.name} (${count(g.count)})`,g.code));$('product-group').value=selectedGroup;
     for(const p of data.rows){
@@ -91,7 +103,7 @@ productDialog.addEventListener('click', event => {
 productDialog.addEventListener('pointercancel', () => { backdropPress = false; });
 productDialog.addEventListener('close', () => { backdropPress = false; });
 function applyProductFilters(){
-  const filters={q:$('product-search').value.trim(),group:$('product-group').value,activity:$('product-activity').value,stock:$('product-stock').value};
+  const filters={q:$('product-search').value.trim(),group:$('product-group').value,activity:$('product-activity').value,stock:$('product-stock').value,sort:applied.sort,direction:applied.direction};
   const exportStock=$('export-stock'); if(exportStock) exportStock.value=filters.stock;
   $('export-scope').value=filters.q||filters.group?'filtered':filters.activity;
   load(0,filters);

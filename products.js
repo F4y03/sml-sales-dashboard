@@ -17,7 +17,13 @@ const select=`SELECT i.*, CASE WHEN ${activityScope} THEN 'มีการเค
   (SELECT NULLIF(TRIM(p.price_0), '') FROM ic_inventory_price_formula p
    WHERE p.ic_code=i.code AND p.unit_code=i.unit_standard AND p.sale_type=0
    ORDER BY p.roworder DESC LIMIT 1) AS catalog_sale_price
-  FROM ic_inventory i WHERE ${where} ORDER BY i.code,i.roworder`;
+  FROM ic_inventory i WHERE ${where}`;
+const productSorts={code:'code',name:'name_1',group:'group_main_name',unit:'unit_standard',price:"CASE WHEN catalog_sale_price ~ '^[+-]?[0-9]+([.][0-9]+)?$' THEN catalog_sale_price::numeric END",activity:'activity_2568_2569',stock:'balance_qty',status:'balance_qty'};
+function productOrder(query){
+  const sort=query.sort??'code',direction=query.direction??'asc';
+  if(!Object.hasOwn(productSorts,sort)||!['asc','desc'].includes(direction))throw new Error('การเรียงลำดับไม่ถูกต้อง');
+  return {sort,direction,sql:`${productSorts[sort]} ${direction.toUpperCase()} NULLS LAST, code ASC, roworder ASC`};
+}
 const fieldsOf=result=>result.fields.map(f=>({key:f.name,label:productLabels[f.name]||f.name}));
 export function csvValue(value){let s=String(value??'');if(/^[\s]*[=+@\-]/.test(s)||/^[\t\r\n]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
 export async function excelBuffer(rows,fields,metadata){
@@ -35,14 +41,14 @@ export function installProducts(app,pool){
   app.get('/api/products',async(req,res)=>{
     res.set('Cache-Control','no-store');let client;
     try{
-      const f=filters(req.query),page=Number(req.query.page??0);
+      const f=filters(req.query),page=Number(req.query.page??0),order=productOrder(req.query);
       if(!Number.isInteger(page)||page<0||page>100000)throw new Error('หน้าข้อมูลไม่ถูกต้อง');
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       const counts=(await client.query(`SELECT COUNT(*) AS total,COUNT(*) FILTER(WHERE ${activityScope}) AS active_count,COUNT(*) FILTER(WHERE ${where}) AS matching FROM ic_inventory i`,[f.q,f.group,f.activity,f.stock])).rows[0];
-      const result=await client.query({text:select+' LIMIT 50 OFFSET $5',values:[f.q,f.group,f.activity,f.stock,page*50],types});
+      const result=await client.query({text:`SELECT * FROM (${select}) product_rows ORDER BY ${order.sql} LIMIT 50 OFFSET $5`,values:[f.q,f.group,f.activity,f.stock,page*50],types});
       const groups=(await client.query(`SELECT i.group_main AS code,COALESCE(MAX(g.name_1),i.group_main) AS name,COUNT(*) AS count FROM ic_inventory i LEFT JOIN (SELECT code,MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main WHERE COALESCE(i.group_main,'')<>'' GROUP BY i.group_main ORDER BY i.group_main`)).rows;
       await client.query('COMMIT');
-      res.json({rows:result.rows,fields:fieldsOf(result),total:Number(counts.total),activeCount:Number(counts.active_count),inactiveCount:Number(counts.total)-Number(counts.active_count),matching:Number(counts.matching),page,pageSize:50,groups,updatedAt:new Date().toISOString()});
+      res.json({rows:result.rows,fields:fieldsOf(result),total:Number(counts.total),activeCount:Number(counts.active_count),inactiveCount:Number(counts.total)-Number(counts.active_count),matching:Number(counts.matching),page,pageSize:50,groups,sort:order.sort,direction:order.direction,updatedAt:new Date().toISOString()});
     }catch(e){if(client)await client.query('ROLLBACK').catch(()=>{});res.status(e.code?503:400).json({error:e.code?'โหลดสินค้าไม่สำเร็จ กรุณาลองใหม่':e.message});}finally{client?.release();}
   });
   let exporting=false;
@@ -55,7 +61,7 @@ export function installProducts(app,pool){
       if(!['xlsx','csv','json'].includes(format)||!['all','filtered','active','inactive'].includes(scope))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
       const f=filters(scope==='filtered'?req.query:{q:'',group:'',activity:scope,stock:'all'});exporting=true;
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const result=await client.query({text:select,values:[f.q,f.group,f.activity,f.stock],types});
+      const result=await client.query({text:`${select} ORDER BY code ASC, roworder ASC`,values:[f.q,f.group,f.activity,f.stock],types});
       await client.query('COMMIT');client.release();client=null;
       const fields=fieldsOf(result),updatedAt=new Date().toISOString();
       const metadata={source:'SML ski / ic_inventory',exportedAt:updatedAt,scope,search:f.q,group:f.group,count:result.rows.length,activityStart:'2025-01-01',activityEnd:'2026-12-31',note:'สินค้าทั้งทะเบียน รวมมีและไม่มีการเคลื่อนไหว; สถานะการเคลื่อนไหวอ้างอิงรายการไม่ยกเลิกในปี 2568–2569 ชื่อและราคาเป็นค่าปัจจุบัน; ทะเบียนสินค้าทุกคอลัมน์ ไม่ใช่รายงานคงเหลือคำนวณตามวันที่; numeric ทศนิยมเก็บเป็นข้อความเพื่อรักษาค่าต้นฉบับ'};

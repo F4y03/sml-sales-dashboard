@@ -34,10 +34,13 @@ test('short passwords work for creation, login and reset; empty is rejected or p
   assert.equal((await login('x')).status,200);
   assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:''})).status,200);
   assert.equal((await login('x')).status,200);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:''})).status,400);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก'})).status,200);
-  assert.equal((await login('ก')).status,200);assert.equal((await login('x')).status,401);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก'.repeat(25)})).status,400);
+  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'y',currentPassword:'wrong'})).status,400);
+  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'y',currentPassword:'x'})).status,200);
+  assert.equal((await login('y')).status,200);assert.equal((await login('x')).status,401);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก',currentPassword:'wrong'})).status,400);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก',currentPassword:'y'})).status,200);
+  assert.equal((await login('ก')).status,200);assert.equal((await login('y')).status,401);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก'.repeat(25),currentPassword:'ก'})).status,400);
 });
 
 test('all four roles enforce pages/APIs; unknown routes and encoded URLs fail closed',async t=>{

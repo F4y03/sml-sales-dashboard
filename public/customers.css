@@ -23,7 +23,12 @@ body.customer-dialog-open{overflow:hidden}
 .detail-modal-body{padding:24px 28px 28px}
 #customer-detail .detail-status{padding:24px 0;min-height:90px}
 #customer-detail .detail-grid{grid-template-columns:minmax(0,1fr) 270px}
+.page-heading>.territory-bar{margin:0;min-width:315px;min-height:0;padding:8px 10px;border-radius:10px;box-shadow:none;background:var(--surface-raised,#f8f9fb)}
+.page-heading>.territory-bar label{font-size:13px;white-space:nowrap}
+.page-heading>.territory-bar select{min-width:138px}
+.page-heading>.territory-bar .source-badge{padding:7px 9px;font-size:13px;white-space:nowrap}
 @media(max-width:850px){#customer-detail .detail-grid{grid-template-columns:1fr}#customer-detail .category-panel{border-left:0;border-top:1px solid #faf7f5;padding:24px 0 0}}
+@media(max-width:800px){.page-heading{align-items:flex-start;flex-direction:column}.page-heading>.territory-bar{width:100%;min-width:0}.page-heading>.territory-bar .source-badge{display:flex}}
 @media(max-width:600px){#customer-detail{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:12px}#customer-detail>.detail-heading{padding:20px 16px 16px;gap:12px}#customer-detail .detail-heading h2{font-size:16px}#customer-detail .detail-heading .eyebrow{font-size:14px;letter-spacing:1px}.detail-actions{flex-direction:column-reverse;align-items:flex-end;gap:8px}.detail-actions .pill{max-width:85px;font-size:14px}#detail-close{padding:6px 10px;min-height:40px;font-size:16px;gap:8px}.detail-modal-body{padding:20px 16px}#customer-detail .detail-heading .panel-hint{font-size:14px}}
 /* Customer summary charts share the active date and customer filters. */
 #customer-dashboard .summary-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:start}
