@@ -1,6 +1,8 @@
 import { createInterface } from 'node:readline/promises';
-import { readFile, writeFile } from 'node:fs/promises';
-import { hashPassword } from '../auth.js';
+import { fileURLToPath } from 'node:url';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { makePassword } from '../src/services/passwordService.js';
+import { createAuditService } from '../src/services/auditService.js';
 import { Writable } from 'node:stream';
 let hidden = false;
 const output = new Writable({ write(chunk, encoding, callback) { if (!hidden) process.stdout.write(chunk, encoding); callback(); } });
@@ -16,11 +18,20 @@ try {
   const password = await secret('New password (at least 12 characters; input hidden): ');
   const confirm = await secret('Confirm password: ');
   if (!/^[a-zA-Z0-9_.@-]{3,100}$/.test(username)) throw new Error('Use 3–100 letters, numbers, _, ., @ or - for username.');
-  if (password.length < 12 || password.length > 1024 || password !== confirm) throw new Error('Passwords must match and contain 12–1024 characters.');
-  const path = new URL('../.env', import.meta.url);
-  let env = await readFile(path, 'utf8').catch(error => { if (error.code === 'ENOENT') return ''; throw error; });
-  env = env.split(/\r?\n/).filter(line => !/^AUTH_(USERNAME|PASSWORD_HASH)=/.test(line)).join('\n').trimEnd();
-  await writeFile(path, `${env}\nAUTH_USERNAME=${username}\nAUTH_PASSWORD_HASH=${await hashPassword(password)}\n`, { mode: 0o600 });
-  console.log('Account saved. Restart the server to activate it.');
+  if (password !== confirm) throw new Error('Passwords must match.');
+  const hash=await makePassword(password);
+  const store=createAccessStore(fileURLToPath(new URL('../data/access.sqlite',import.meta.url)));
+  try {
+    store.transaction(()=>{
+      const role=store.get("SELECT id FROM roles WHERE code='super_admin'");
+      const existing=store.get('SELECT id FROM users WHERE username=?',username);
+      let id=existing?.id;
+      if(id)store.run('UPDATE users SET password_hash=?,role_id=?,is_active=1,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,role.id,id);
+      else id=Number(store.run('INSERT INTO users(username,full_name,password_hash,role_id) VALUES(?,?,?,?)',username,username,hash,role.id).lastInsertRowid);
+      store.run('DELETE FROM sessions WHERE user_id=?',id);
+      createAuditService(store).record({id},'super_admin.recovery','security',{source:'local-cli'});
+    });
+  } finally {store.close();}
+  console.log('Super Admin account saved. No SML or .env changes.');
 } catch (error) { console.error(error.message); process.exitCode = 1; }
 finally { rl.close(); }

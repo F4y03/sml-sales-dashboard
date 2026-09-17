@@ -1,4 +1,5 @@
 const workspace = document.createElement('aside');
+const accessStyle=document.createElement('link');accessStyle.rel='stylesheet';accessStyle.href='/access-ui.css';document.head.append(accessStyle);
 const workspaceIcons = {
   overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="4" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
   customers: '<circle cx="8" cy="7" r="3"/><path d="M2 20v-3a6 6 0 0 1 10-4M15 20v-4m4 4v-7m4 7V9"/>',
@@ -25,6 +26,7 @@ workspace.innerHTML = `
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
 document.body.classList.add('workspace-layout');
 document.body.prepend(workspace);
+workspace.querySelectorAll('nav a').forEach(link=>{link.hidden=true;});
 const toggle = workspace.querySelector('.workspace-toggle');
 function collapseWorkspace() {
   toggle.setAttribute('aria-expanded', 'false');
@@ -43,7 +45,7 @@ workspace.addEventListener('keydown', event => {
 workspace.querySelectorAll('nav a').forEach(link => link.addEventListener('click', collapseWorkspace));
 function updateWorkspace() {
   const filename = location.pathname.split('/').pop();
-  const page = filename === 'customers.html' ? 'customers' : filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : filename === 'consignment.html' ? 'consignment' : 'overview';
+  const page = ['system-admin.html','select-territory.html','access-denied.html'].includes(filename) ? '' : filename === 'customers.html' ? 'customers' : filename === 'executive.html' ? 'executive' : filename === 'reports.html' ? 'reports' : filename === 'products.html' ? 'products' : filename === 'consignment.html' ? 'consignment' : 'overview';
   workspace.querySelectorAll('[data-page]').forEach(link => {
     if (link.dataset.page === page) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -73,10 +75,28 @@ logout.addEventListener('click', async () => {
     location.replace('/login.html');
   } catch { logout.textContent = 'ลองออกจากระบบอีกครั้ง'; logout.disabled = false; }
 });
-fetch('/api/auth/me').then(response => response.ok ? response.json() : null).then(user => {
+window.prplusUser = fetch('/api/auth/me').then(response => response.ok ? response.json() : null);
+window.prplusUser.then(user => {
   if (!user) return;
   workspace.querySelector('.workspace-profile strong').textContent = user.username;
   workspace.querySelector('.workspace-profile > span').textContent = user.username.slice(0, 2).toUpperCase();
+  // Keep compatibility with standalone fixture pages, while the backend remains authoritative.
+  const can=p=>user.role==='super_admin'||user.permissions?.includes(p);
+  const policy={overview:['dashboard'],executive:['dashboard'],customers:['customer_analysis','product_analysis'],consignment:['consignment'],products:['price_stock','product_info'],reports:['reports']};
+  workspace.querySelectorAll('nav a').forEach(link=>{link.hidden=Array.isArray(user.permissions)?!policy[link.dataset.page]?.some(can):false;if(link.dataset.page==='reports'&&user.scope==='territory')link.hidden=true;});
+  workspace.querySelector('.workspace-brand').href=user.landing||'/';
+  workspace.querySelector('.workspace-profile small').textContent=user.role||'Sales workspace';
+  if(user.dashboardName)workspace.querySelector('.workspace-brand > span').textContent=user.dashboardName;
+  if(['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'].some(can)){
+    const link=document.createElement('a');link.href='/system-admin.html';link.textContent='⚙ System Admin';if(location.pathname==='/system-admin.html')link.setAttribute('aria-current','page');workspace.querySelector('nav').append(link);
+  }
+  if(user.scope==='territory'){
+    const bar=document.createElement('div');bar.className='territory-bar';const label=document.createElement('label');label.textContent='เขตปัจจุบัน: ';const select=document.createElement('select');select.setAttribute('aria-label','เขตปัจจุบัน');
+    const blank=document.createElement('option');blank.value='';blank.textContent='เลือกเขต';select.append(blank);
+    for(const t of user.territories){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;select.append(o);}select.value=user.territoryId||'';label.append(select);bar.append(label);document.body.insertBefore(bar,workspace.nextSibling);
+    select.onchange=async()=>{if(!select.value)return;select.disabled=true;try{const r=await nativeFetch('/api/auth/territory',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({territoryId:Number(select.value)})});const data=await r.json();if(!r.ok)throw new Error(data.error);location.replace(data.redirect);}catch(e){select.value=user.territoryId||'';select.disabled=false;let error=bar.querySelector('[role=alert]');if(!error){error=document.createElement('span');error.setAttribute('role','alert');bar.append(error);}error.textContent=e.message;}};
+  }
+  window.dispatchEvent(new CustomEvent('prplus-access',{detail:user}));
 }).catch(() => {});
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 

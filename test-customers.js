@@ -1,3 +1,4 @@
+import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -82,7 +83,7 @@ test('customer API distinguishes connection, configuration and query timeout fai
 
 test('browser: HTML 404, HTML fallback and broken JSON show actionable errors and recover after retry', async () => {
   const app = express();
-  app.use(express.static('public'));
+  installFixtureIdentity(app); app.use(express.static('public'));
   const { server, base } = await listen(app);
   let browser;
   try {
@@ -125,7 +126,7 @@ test('browser: HTML 404, HTML fallback and broken JSON show actionable errors an
 
 test('browser: filters, chart/table master-detail, pagination, safe text, races, errors and responsive layout', async () => {
   const app = express();
-  app.use(express.static('public'));
+  installFixtureIdentity(app); app.use(express.static('public'));
   const { server, base } = await listen(app);
   let browser;
   try {

@@ -1,3 +1,4 @@
+import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -9,7 +10,7 @@ test('two themes work on every page, login assets are public, choice persists an
   const app = express(); app.use(express.json());
   installAuth(app, { AUTH_USERNAME: 'test', AUTH_PASSWORD_HASH: await hashPassword('theme-test-password'), AUTH_COOKIE_SECURE: 'false' });
   app.use('/api', (req, res) => res.status(503).json({ error: 'Test offline' }));
-  app.use(express.static('public'));
+  installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
@@ -59,7 +60,7 @@ test('two themes work on every page, login assets are public, choice persists an
 });
 
 test('executive detail and explanation dialogs keep readable surfaces and text in both themes', async () => {
-  const app = express(); app.use(express.static('public'));
+  const app = express(); installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
@@ -107,7 +108,7 @@ test('executive detail and explanation dialogs keep readable surfaces and text i
 });
 
 test('customer detail and shared help dialog keep readable inherited text when switching themes', async () => {
-  const app = express(); app.use(express.static('public'));
+  const app = express(); installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   let browser;

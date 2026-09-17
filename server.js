@@ -11,10 +11,16 @@ import { installExecutive } from './executive.js';
 import { installCustomerInsights } from './customer-insights.js';
 import { installProductPerformance } from './product-performance.js';
 import { installSalesTrend } from './sales-trend.js';
+import { createAccessStore } from './src/models/accessStore.js';
+import { createScopedPool } from './src/services/territoryService.js';
+import { installAccess } from './src/middleware/access.js';
+import { installAdminRoutes } from './src/routes/adminRoutes.js';
 
 const app = express();
-const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, max: 5, options: '-c default_transaction_read_only=on' });
-pool.on('error', error => console.error('Idle database connection:', error.code));
+const smlPool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, max: 5, options: '-c default_transaction_read_only=on' });
+smlPool.on('error', error => console.error('Idle database connection:', error.code));
+const pool = createScopedPool(smlPool);
+pool.end = () => smlPool.end();
 const sql = await readFile(new URL('./sql/dashboard.sql', import.meta.url), 'utf8');
 // SML report 4007 explicitly selects sales flag 44. Do not silently change its meaning.
 const flag = 44;
@@ -22,7 +28,10 @@ const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
-installAuth(app);
+const accessStore = createAccessStore(fileURLToPath(new URL('./data/access.sqlite', import.meta.url)), process.env);
+const auth = installAuth(app, process.env, accessStore);
+installAccess(app);
+installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)));
 app.get('/api/connection-status', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
@@ -105,6 +114,12 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'ไม่พบ API ที่ร้องขอ กรุณาตรวจสอบ URL หรือรีสตาร์ตเซิร์ฟเวอร์ Dashboard' });
 });
 app.use(express.static(fileURLToPath(new URL('./public', import.meta.url))));
+app.use((error,req,res,next)=>{
+  if(res.headersSent)return next(error);
+  const status=error.type==='entity.parse.failed'?400:error.type==='entity.too.large'?413:500;
+  console.error('Request failed:',error.code||error.type||'INTERNAL');
+  res.status(status).json({error:status===500?'ระบบขัดข้อง กรุณาลองใหม่':'รูปแบบคำขอไม่ถูกต้อง'});
+});
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
 const server = app.listen(port, host, () => console.log(`Dashboard: http://localhost:${port} (Intranet: http://<server-ip>:${port})`));

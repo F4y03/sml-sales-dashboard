@@ -21,7 +21,7 @@ form.addEventListener('submit', async event => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่');
     const next = new URLSearchParams(location.search).get('next');
-    const target = new URL(next || '/executive.html', location.origin);
+    const target = new URL(data.redirect || next || '/executive.html', location.origin);
     location.replace(target.origin === location.origin && !target.pathname.startsWith('/login') && !target.pathname.startsWith('/api/') ? target.href : '/executive.html');
   } catch (error) { document.querySelector('#login-error').textContent = error.message === 'Failed to fetch' ? 'เชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่' : error.message; }
   finally { button.disabled = false; button.firstElementChild.textContent = 'เข้าสู่ระบบ'; }

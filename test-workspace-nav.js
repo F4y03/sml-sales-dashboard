@@ -1,10 +1,11 @@
+import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
 
 test('sidebar checks the database every minute and recovers after failure', async () => {
-  const app = express(); app.use(express.static('public'));
+  const app = express(); installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
@@ -40,7 +41,7 @@ test('sidebar checks the database every minute and recovers after failure', asyn
 });
 
 test('shared navigation: all pages, active links, cross-page anchors and mobile menu', async () => {
-  const app = express(); app.use(express.static('public'));
+  const app = express(); installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
@@ -48,7 +49,7 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
     browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
     await page.route('https://**', route => route.abort());
-    await page.route('**/api/**', route => route.fulfill({ status: 503, json: { error: 'Test offline' } }));
+    await page.route('**/api/**', route => route.fulfill(new URL(route.request().url()).pathname === '/api/auth/me' ? { json: fixtureIdentity } : { status: 503, json: { error: 'Test offline' } }));
     const base = `http://127.0.0.1:${server.address().port}`;
     for (const [file, active] of [['index', 'overview'], ['executive', 'executive'], ['customers', 'customers'], ['reports', 'reports'], ['products', 'products'], ['consignment', 'consignment']]) {
       await page.setViewportSize({ width: 1440, height: 960 });

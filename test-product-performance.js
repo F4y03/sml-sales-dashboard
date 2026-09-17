@@ -1,3 +1,4 @@
+import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -42,7 +43,7 @@ test('product API validates dates, binds exact SKU and previous dates, and retur
 });
 
 test('product view: search, rankings, no-sales, quantities, buyers popup, filters, errors, races and mobile',async()=>{
-  const app=express();app.use(express.static('public'));const {server,base}=await listen(app);let browser;
+  const app=express();installFixtureIdentity(app); app.use(express.static('public'));const {server,base}=await listen(app);let browser;
   try{
     browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
     const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[],requests=[];

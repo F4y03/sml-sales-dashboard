@@ -1,0 +1,35 @@
+import { DatabaseSync } from 'node:sqlite';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { PERMISSIONS, ROLES, INITIAL_TERRITORIES } from '../config/access.js';
+
+export function createAccessStore(path = ':memory:', env = {}) {
+  if (path !== ':memory:') mkdirSync(dirname(path), { recursive:true });
+  const db = new DatabaseSync(path);
+  db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
+  db.exec(readFileSync(new URL('../../migrations/001-access.sql', import.meta.url), 'utf8'));
+  const store = {
+    db,
+    all: (sql, ...params) => db.prepare(sql).all(...params),
+    get: (sql, ...params) => db.prepare(sql).get(...params),
+    run: (sql, ...params) => db.prepare(sql).run(...params),
+    transaction(fn) { db.exec('BEGIN IMMEDIATE'); try { const result=fn(); db.exec('COMMIT'); return result; } catch(e) { db.exec('ROLLBACK'); throw e; } },
+    close: () => db.close(),
+  };
+  store.transaction(() => {
+    for (const [code,name] of Object.entries(PERMISSIONS)) store.run('INSERT OR IGNORE INTO permissions(code,name) VALUES(?,?)',code,name);
+    for (const [code,name,scope,permissions] of ROLES) {
+      const added=store.run('INSERT OR IGNORE INTO roles(code,name,scope,built_in) VALUES(?,?,?,1)',code,name,scope);
+      if (added.changes) for (const p of permissions) store.run('INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code=? AND p.code=?',code,p);
+    }
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','territories_seeded')) {
+      for (const [code,name,teams] of INITIAL_TERRITORIES) store.run('INSERT OR IGNORE INTO sales_territories(code,name,mapping_json) VALUES(?,?,?)',code,name,JSON.stringify({teams,customerCodes:[],consignmentPrefixes:teams.map(x=>'ฝ'+x)}));
+      store.run('INSERT INTO system_settings VALUES(?,?)','territories_seeded','true');
+    }
+    // Import the existing account once; never overwrite managed users on restart.
+    if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {
+      store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT ?,?,?,id FROM roles WHERE code='super_admin'",env.AUTH_USERNAME,env.AUTH_PASSWORD_HASH,env.AUTH_USERNAME);
+    }
+  });
+  return store;
+}

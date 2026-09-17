@@ -1,0 +1,15 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS roles (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, scope TEXT NOT NULL CHECK(scope IN ('all','territory')), built_in INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS role_permissions (role_id INTEGER NOT NULL REFERENCES roles(id), permission_id INTEGER NOT NULL REFERENCES permissions(id), PRIMARY KEY(role_id,permission_id));
+CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, full_name TEXT NOT NULL, role_id INTEGER NOT NULL REFERENCES roles(id), is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0,1)), auth_version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS user_permissions (user_id INTEGER NOT NULL REFERENCES users(id), permission_id INTEGER NOT NULL REFERENCES permissions(id), PRIMARY KEY(user_id,permission_id));
+CREATE TABLE IF NOT EXISTS sales_territories (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0,1)), mapping_json TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS user_territories (user_id INTEGER NOT NULL REFERENCES users(id), territory_id INTEGER NOT NULL REFERENCES sales_territories(id), PRIMARY KEY(user_id,territory_id));
+CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), auth_version INTEGER NOT NULL, territory_id INTEGER REFERENCES sales_territories(id), expires INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS activity_logs (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users(id), action TEXT NOT NULL, module TEXT NOT NULL, territory_id INTEGER, ip_address TEXT, details TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS activity_time ON activity_logs(id DESC);
+INSERT OR IGNORE INTO schema_migrations(version) VALUES(1);

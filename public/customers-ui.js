@@ -51,6 +51,7 @@ function applyNonBuyerSearch() {
 }
 
 async function loadNonBuyers() {
+  if (window.prplusAccess && !window.prplusAccess.customer) return;
   clearTimeout(nonBuyerTimer);
   if (!validateNonBuyerDates()) {
     el('non-buyer-status').textContent = 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน';
@@ -86,6 +87,7 @@ function productViewEvent(type, silent = false) {
 }
 
 function switchInsightsView(view) {
+  if(window.prplusAccess && !(view==='customers'?window.prplusAccess.customer:window.prplusAccess.product))return;
   if (view === activeInsightsView) return;
   activeInsightsView = view;
   clearTimeout(filterTimer);
@@ -510,6 +512,7 @@ function invalidateMaster() {
 }
 
 async function loadCustomers(silent = false) {
+  if (window.prplusAccess && !window.prplusAccess.customer) return;
   if (activeInsightsView !== 'customers') return;
   clearTimeout(filterTimer);
   if (!silent) invalidateMaster();
@@ -636,8 +639,20 @@ el('start').value = iso(new Date(today.getFullYear(), today.getMonth(), 1));
 el('end').value = iso(today);
 el('non-buyer-start').value = el('start').value;
 el('non-buyer-end').value = el('end').value;
-loadCustomers();
-loadNonBuyers();
+async function startInsightsAccess() {
+  try {
+    const response=await fetch('/api/auth/me');
+    if(!response.ok)return;
+    const user=await response.json();
+    const has=p=>!Array.isArray(user.permissions)||user.role==='super_admin'||user.permissions.includes(p);
+    window.prplusAccess={customer:has('customer_analysis'),product:has('product_analysis')};
+    el('customers-view-button').hidden=!window.prplusAccess.customer;
+    el('products-view-button').hidden=!window.prplusAccess.product;
+    if(window.prplusAccess.customer){loadCustomers();loadNonBuyers();}
+    else if(window.prplusAccess.product)switchInsightsView('products');
+  } catch { message('ตรวจสิทธิ์ไม่สำเร็จ กรุณารีเฟรชหน้า', true); }
+}
+startInsightsAccess();
 setInterval(() => {
   if (document.hidden || el('refresh').disabled || document.querySelector('dialog[open]')) return;
   if (activeInsightsView === 'customers') loadCustomers(true);

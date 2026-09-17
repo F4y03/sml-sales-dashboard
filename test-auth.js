@@ -49,7 +49,7 @@ test('missing configuration fails closed', async t => {
   assert.equal((await request('/api/dashboard')).status, 401);
 });
 
-test('allows local localhost requests when bypass is enabled', async t => {
+test('localhost bypass cannot bypass RBAC even when the legacy flag is enabled', async t => {
   const { request } = await fixture(t, { AUTH_BYPASS_LOCAL: 'true' });
-  assert.equal((await request('/api/dashboard')).status, 200);
+  assert.equal((await request('/api/dashboard')).status, 401);
 });
