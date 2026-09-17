@@ -26,6 +26,10 @@ export function createAccessStore(path = ':memory:', env = {}) {
       for (const [code,name,teams] of INITIAL_TERRITORIES) store.run('INSERT OR IGNORE INTO sales_territories(code,name,mapping_json) VALUES(?,?,?)',code,name,JSON.stringify({teams,customerCodes:[],consignmentPrefixes:teams.map(x=>'ฝ'+x)}));
       store.run('INSERT INTO system_settings VALUES(?,?)','territories_seeded','true');
     }
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','northeast_name_v2')) {
+      store.run('UPDATE sales_territories SET name=? WHERE code=?','ภาคตะวันออกเฉียงเหนือ','NORTHEAST');
+      store.run('INSERT INTO system_settings VALUES(?,?)','northeast_name_v2','true');
+    }
     // Import the existing account once; never overwrite managed users on restart.
     if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {
       store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT ?,?,?,id FROM roles WHERE code='super_admin'",env.AUTH_USERNAME,env.AUTH_PASSWORD_HASH,env.AUTH_USERNAME);

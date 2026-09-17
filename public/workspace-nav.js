@@ -90,12 +90,16 @@ window.prplusUser.then(user => {
   if(['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'].some(can)){
     const link=document.createElement('a');link.href='/system-admin.html';link.textContent='⚙ System Admin';if(location.pathname==='/system-admin.html')link.setAttribute('aria-current','page');workspace.querySelector('nav').append(link);
   }
+  const sourceBadge=document.querySelector('.source-badge');
+  const updateSourceBadge=text=>{if(!sourceBadge)return;const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');sourceBadge.replaceChildren(dot,document.createTextNode(text));sourceBadge.setAttribute('aria-label','ขอบเขตข้อมูล '+text);};
   if(user.scope==='territory'){
     const bar=document.createElement('div');bar.className='territory-bar';const label=document.createElement('label');label.textContent='เขตปัจจุบัน: ';const select=document.createElement('select');select.setAttribute('aria-label','เขตปัจจุบัน');
     const blank=document.createElement('option');blank.value='';blank.textContent='เลือกเขต';select.append(blank);
-    for(const t of user.territories){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;select.append(o);}select.value=user.territoryId||'';label.append(select);bar.append(label);document.body.insertBefore(bar,workspace.nextSibling);
+    for(const t of user.territories){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;select.append(o);}select.value=user.territoryId||'';label.append(select);bar.append(label);
+    const selectedTerritory=user.territories.find(t=>Number(t.id)===Number(user.territoryId));updateSourceBadge(selectedTerritory?.name||'ยังไม่ได้เลือกเขต');if(sourceBadge)bar.append(sourceBadge);
+    document.body.insertBefore(bar,workspace.nextSibling);
     select.onchange=async()=>{if(!select.value)return;select.disabled=true;try{const r=await nativeFetch('/api/auth/territory',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({territoryId:Number(select.value)})});const data=await r.json();if(!r.ok)throw new Error(data.error);location.replace(data.redirect);}catch(e){select.value=user.territoryId||'';select.disabled=false;let error=bar.querySelector('[role=alert]');if(!error){error=document.createElement('span');error.setAttribute('role','alert');bar.append(error);}error.textContent=e.message;}};
-  }
+  } else updateSourceBadge('ทุกเขตการขาย');
   window.dispatchEvent(new CustomEvent('prplus-access',{detail:user}));
 }).catch(() => {});
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });

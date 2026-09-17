@@ -9,7 +9,7 @@ test('latest customer/product snapshots, month gaps and intersecting slicers', (
   const all = summarize(rows); assert.equal(all.balance,145); assert.equal(all.withdrawal,20); assert.equal(all.byMonth.get('2026-02'),0);
   assert.equal(summarize(rows,new Set(['ฝหย-001'])).balance,95);
   assert.equal(summarize(rows,new Set(['ฝหย-001']),new Set(['ภาคกลาง'])).count,0);
-  assert.equal(regionFor('ฝอย-12'),'ภาคอีสาน'); assert.equal(regionFor('ฝใหม่'),'ไม่ระบุภูมิภาค');
+  assert.equal(regionFor('ฝอย-12'),'ภาคตะวันออกเฉียงเหนือ'); assert.equal(regionFor('ฝใหม่'),'ไม่ระบุภูมิภาค');
 });
 test('CSV quotes, invalid dates, negative balances and malformed numbers', () => {
   const line = '2026-01-01,ฝหย,,"สินค้า, รุ่น ""A""",รับเข้า,1,-1';

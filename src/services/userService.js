@@ -14,7 +14,11 @@ export function createUserService(store,audit) {
     if((body.additionalPermissions?.length)||body.territoryIds?.length)throw bad('ต้องให้ Super Admin กำหนดสิทธิ์และเขต',403);
     if(target && body.role!==undefined && body.role!==target.role)throw bad('ต้องให้ Super Admin เปลี่ยน Role',403);
   }
-  return {get,list:()=>store.all('SELECT id FROM users ORDER BY username').map(x=>get(x.id)),async save(actor,id,body,ip) {
+  return {get,list:()=>store.all('SELECT id FROM users ORDER BY username').map(x=>get(x.id)),remove(actor,id,ip){
+    id=positiveId(id);const target=get(id),current=loadUser(store,actor.id);if(!current?.is_active)throw bad('กรุณาเข้าสู่ระบบใหม่',401);if(id===actor.id)throw bad('ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่');guard(current,target,{});
+    if(target.role==='super_admin'&&store.get("SELECT COUNT(*) n FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='super_admin' AND u.is_active=1").n<=1)throw bad('ไม่สามารถลบ Super Admin คนสุดท้าย');
+    store.transaction(()=>{store.run('DELETE FROM sessions WHERE user_id=?',id);store.run('DELETE FROM user_permissions WHERE user_id=?',id);store.run('DELETE FROM user_territories WHERE user_id=?',id);store.run('UPDATE activity_logs SET user_id=NULL WHERE user_id=?',id);store.run('DELETE FROM users WHERE id=?',id);audit.record(current,'user.delete','users',{userId:id},null,ip);});
+  },async save(actor,id,body,ip) {
     if(!body||typeof body!=='object'||Array.isArray(body))throw bad('ข้อมูลผู้ใช้ไม่ถูกต้อง');
     const target=id?get(id):null;guard(actor,target,body);
     const username=text(body.username,'Username');if(!/^[a-zA-Z0-9_.@-]+$/.test(username))throw bad('Username ใช้ตัวอักษรอังกฤษ ตัวเลข _ . @ -');

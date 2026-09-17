@@ -50,7 +50,7 @@ Seeded assignments come from the existing executive/consignment mapping:
 | NORTH | ภาคเหนือ | หย | ฝหย |
 | SOUTH | ภาคใต้ | ตช | ฝตช |
 | EAST | ภาคตะวันออก | ลภ | ฝลภ |
-| NORTHEAST | ภาคอีสาน | อย | ฝอย |
+| NORTHEAST | ภาคตะวันออกเฉียงเหนือ | อย | ฝอย |
 
 Bangkok or other territories can be added once their mapping is defined; unknown codes are not guessed. Existing `กท-` / `ฝ` team normalization is preserved. Different territories may intentionally share mappings; administrators must review overlaps before assigning accounts.
 

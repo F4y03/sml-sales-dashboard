@@ -6,12 +6,14 @@
 - ห้ามเผยข้อมูลลับ: credentials, hashes, cookies, tokens, SSH keys, connection strings, secrets หรือส่งต่อให้ browser/Git
 - ถ้าไม่แน่ใจ ให้ตรวจ code จาก symbol/usage ก่อนอ่านไฟล์เต็ม
 
-## Serena-first workflow
-- ใช้ Serena เมื่อมีให้: `activate_project` เมื่อจำเป็น
-- ใช้ `get_symbols_overview` / `find_symbol` / `find_referencing_symbols` / `get_diagnostics_for_file` ก่อนอ่านไฟล์เต็ม
+## Context-efficient workflow
+- งานเล็กหรือเมื่อผู้ใช้ระบุไฟล์ชัดเจน ให้เปิดเฉพาะไฟล์ที่เกี่ยวข้องและแก้โดยตรง
+- ใช้ Serena เฉพาะเมื่อจำเป็นต้องค้นหา symbol, references หรือวิเคราะห์หลายไฟล์
+- ไม่ต้อง activate_project ซ้ำหาก project พร้อมใช้งานแล้ว
 - ดึงเฉพาะ context/code ที่จำเป็น
-- หลีกเลี่ยง broad repo search หาก Serena ทำงานได้
-- fallback ไป `rg` / file search เฉพาะเมื่อ Serena ไม่สามารถตอบโจทย์ได้
+- หลีกเลี่ยง broad repo search
+- ใช้ rg/file search เมื่อเร็วและตรงกว่าสำหรับงานนั้น
+- อย่ารัน test, browser หรือ diagnostics ซ้ำโดยไม่มีเหตุผล
 
 ## กฎสำคัญของ repository
 - SML เป็น read-only: ห้าม INSERT/UPDATE/DELETE/DDL/migration ในฐาน SML
