@@ -5,14 +5,24 @@ import { exportConsignment } from './consignment-export.js';
 const $=id=>document.getElementById(id), fmt=n=>new Intl.NumberFormat('th-TH',{maximumFractionDigits:2}).format(n);
 const date=d=>d ? new Date(d+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'}) : '—';
 let products=[], visible=[], page=0, selected=null, historyPage=0, loaded=false, dataSignature='';
-let exporting=false;
+let exporting=false,sortDirection='desc';
 const size=25;
+const summaryTable=document.querySelector('.panel .movement-table');
+const sortableSummaryHeaders=[...summaryTable.querySelectorAll('thead th')].slice(1,5);
+const summarySortKeys=['recent','in','out','balance'];
+sortableSummaryHeaders.forEach((header,index)=>{
+ const key=summarySortKeys[index],button=document.createElement('button'),icon=document.createElement('span');
+ button.type='button';button.className='consignment-sort';icon.className='consignment-sort-icon';icon.setAttribute('aria-hidden','true');
+ button.append(document.createTextNode(header.textContent),icon);header.replaceChildren(button);header.setAttribute('aria-sort','none');
+ button.onclick=()=>{if($('sort').value===key)sortDirection=sortDirection==='asc'?'desc':'asc';else{sortDirection='asc';$('sort').value=key;}render();};
+});
+function updateSummarySortHeaders(){sortableSummaryHeaders.forEach((header,index)=>{const active=$('sort').value===summarySortKeys[index];header.setAttribute('aria-sort',active?(sortDirection==='asc'?'ascending':'descending'):'none');header.querySelector('.consignment-sort-icon').textContent=active?(sortDirection==='asc'?'▲':'▼'):'↕';});}
 function cell(tr,text,className=''){const td=document.createElement('td');td.textContent=text;td.className=className;tr.append(td);return td;}
 function options(id,values){const old=$(id).value;$(id).replaceChildren(new Option('ทั้งหมด',''),...[...new Set(values)].filter(Boolean).sort().map(v=>new Option(v,v)));if([...$(id).options].some(o=>o.value===old))$(id).value=old;}
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase(),region=$('region').value,customer=$('customer').value,unit=$('unit').value,stock=$('stock').value;
  visible=products.filter(p=>(!q||[p.product,p.code,p.customer,p.customerCode].join(' ').toLocaleLowerCase().includes(q))&&(!region||p.region===region)&&(!customer||p.customer.slice(0,3)===customer)&&(!unit||p.unit===unit)&&(!stock||(stock==='positive'?p.balance>0:stock==='zero'?p.balance===0:p.balance<0)));
- visible.sort((a,b)=>($('sort').value==='balance'?b.balance-a.balance:$('sort').value==='out'?b.out-a.out:b.last.localeCompare(a.last))||a.code.localeCompare(b.code));
+ const sort=$('sort').value;visible.sort((a,b)=>{const factor=sortDirection==='asc'?1:-1;const value=sort==='balance'?a.balance-b.balance:sort==='out'?a.out-b.out:sort==='in'?a.in-b.in:a.last.localeCompare(b.last);return factor*value||a.code.localeCompare(b.code);});updateSummarySortHeaders();
  $('export-excel').disabled=exporting||!loaded||!visible.length;
  renderRegionalChart(visible,unit,loaded);
  page=Math.min(page,Math.max(0,Math.ceil(visible.length/size)-1));
@@ -53,7 +63,7 @@ async function load(silent=false){
   $('source').textContent=`${data.source} · ${fmt(data.rows.length)} รายการ · อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH')}`;
  }catch(e){if(!silent||!loaded){$('source').textContent='โหลดข้อมูลไม่สำเร็จ';$('error').textContent=(e.name==='TimeoutError'?'โหลดเกินเวลาที่กำหนด กรุณาลองใหม่':e.message)+(loaded?' · กำลังแสดงข้อมูลจากครั้งก่อน':'');}}finally{if(!silent||changed)render();}
 }
-for(const id of ['search','region','customer','unit','stock','sort'])$(id).addEventListener(id==='search'?'input':'change',()=>{page=0;render();});
+for(const id of ['search','region','customer','unit','stock','sort'])$(id).addEventListener(id==='search'?'input':'change',()=>{if(id==='sort')sortDirection='desc';page=0;render();});
 $('export-excel').onclick=async()=>{
  if(exporting||!visible.length)return;
  const snapshot=[...visible], filters=['search','region','customer','unit','stock','sort'].map(id=>[id,$(id).value]);

@@ -19,17 +19,22 @@ exportStockLabel.querySelector('select').addEventListener('change', () => {
   applyProductFilters();
 });
 let current=null,applied={q:'',group:'',activity:'all',stock:'all',sort:'code',direction:'asc'},version=0,exporting=false;
-const productSortKeys=['code','name','group','unit','price','activity','stock','status'];
-const productHeaders=[...document.querySelectorAll('.product-panel thead th')];
-productHeaders.forEach((header,index)=>{
-  const button=document.createElement('button');
-  button.type='button';button.className='product-sort';button.dataset.sort=productSortKeys[index];
-  button.append(document.createTextNode(header.textContent),Object.assign(document.createElement('span'),{className:'product-sort-icon',textContent:'↕'}));
-  header.replaceChildren(button);header.setAttribute('aria-sort','none');
-  button.onclick=()=>{const sort=button.dataset.sort,direction=applied.sort===sort&&applied.direction==='asc'?'desc':'asc';load(0,{...applied,sort,direction});};
-});
+const sortableHeaders=[];
+for(const [index,sort] of [[4,'price'],[6,'stock']]){
+  const header=document.querySelectorAll('.product-panel thead th')[index];
+  const button=document.createElement('button'),icon=document.createElement('span');
+  button.type='button';button.className='product-sort';button.dataset.sort=sort;
+  icon.className='product-sort-icon';icon.textContent='↕';icon.setAttribute('aria-hidden','true');
+  button.append(document.createTextNode(header.textContent),icon);
+  header.replaceChildren(button);header.setAttribute('aria-sort','none');sortableHeaders.push(header);
+  button.onclick=()=>load(0,{...applied,sort,direction:applied.sort===sort&&applied.direction==='asc'?'desc':'asc'});
+}
 function updateSortHeaders(){
-  productHeaders.forEach(header=>{const button=header.querySelector('.product-sort'),active=button.dataset.sort===applied.sort;header.setAttribute('aria-sort',active?(applied.direction==='asc'?'ascending':'descending'):'none');button.querySelector('.product-sort-icon').textContent=active?(applied.direction==='asc'?'▲':'▼'):'↕';});
+  for(const header of sortableHeaders){
+    const button=header.querySelector('button'),active=button.dataset.sort===applied.sort;
+    header.setAttribute('aria-sort',active?(applied.direction==='asc'?'ascending':'descending'):'none');
+    button.querySelector('span').textContent=active?(applied.direction==='asc'?'▲':'▼'):'↕';
+  }
 }
 const textCell=value=>value==null||String(value).trim()===''?'—':String(value).trim();
 const priceLabel=value=>value==null||String(value).trim()===''?'—':Number.isFinite(Number(value))?Number(value).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}):String(value);

@@ -12,6 +12,19 @@ let customerPage = 0, productPage = 0, masterController, detailController, maste
 let filterTimer, masterUpdatedAt, detailOpener, backdropPointerDown = false;
 let activeInsightsView = 'customers';
 let nonBuyers = [], filteredNonBuyers = [], nonBuyerPage = 0, nonBuyerController, nonBuyerRequest = 0, nonBuyerTimer;
+let nonBuyerSortDirection = 'desc';
+const nonBuyerSortHeader = document.querySelector('#non-buyer-rows')?.closest('table')?.querySelector('thead th:last-child');
+if (nonBuyerSortHeader) {
+  const button = document.createElement('button'), icon = document.createElement('span');
+  button.type = 'button'; button.className = 'customer-sort'; icon.className = 'customer-sort-icon'; icon.textContent = '↕'; icon.setAttribute('aria-hidden', 'true');
+  button.append(document.createTextNode(nonBuyerSortHeader.textContent), icon); nonBuyerSortHeader.replaceChildren(button); nonBuyerSortHeader.setAttribute('aria-sort', 'none');
+  button.onclick = () => { nonBuyerSortDirection = nonBuyerSortDirection === 'asc' ? 'desc' : 'asc'; applyNonBuyerSearch(); };
+}
+function updateNonBuyerSortHeader() {
+  if (!nonBuyerSortHeader) return;
+  nonBuyerSortHeader.setAttribute('aria-sort', nonBuyerSortDirection === 'asc' ? 'ascending' : 'descending');
+  nonBuyerSortHeader.querySelector('.customer-sort-icon').textContent = nonBuyerSortDirection === 'asc' ? '▲' : '▼';
+}
 
 function renderNonBuyers() {
   const body = el('non-buyer-rows');
@@ -46,6 +59,8 @@ function syncNonBuyerPeriodToMaster() {
 function applyNonBuyerSearch() {
   const query = el('non-buyer-search').value.trim().toLocaleLowerCase('th-TH');
   filteredNonBuyers = nonBuyers.filter(customer => `${customer.code}\n${customer.name}`.toLocaleLowerCase('th-TH').includes(query));
+  filteredNonBuyers.sort((a, b) => { const av = Number.isInteger(a.daysSincePurchase) ? a.daysSincePurchase : -1; const bv = Number.isInteger(b.daysSincePurchase) ? b.daysSincePurchase : -1; return (nonBuyerSortDirection === 'asc' ? av - bv : bv - av) || String(a.code).localeCompare(String(b.code)); });
+  updateNonBuyerSortHeader();
   nonBuyerPage = 0;
   renderNonBuyers();
 }
