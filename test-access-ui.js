@@ -35,7 +35,18 @@ try {
   await page.getByRole('button',{name:'Sales Territories',exact:true}).click();await page.getByRole('button',{name:'+ เพิ่มเขต'}).click();await page.locator('[name=code]').fill('TEST');await page.locator('[name=name]').fill('เขตทดสอบ');await page.locator('[name=teams]').fill('กจ');await page.locator('[name=consignmentPrefixes]').fill('ฝกจ');await page.getByRole('button',{name:'บันทึกเขต',exact:true}).click();await page.getByRole('cell',{name:'TEST',exact:true}).waitFor();
   await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'test-results/access-territories-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'☰ เมนู Workspace'}).click();await page.getByRole('button',{name:'ออกจากระบบ ↗'}).click();await page.waitForURL('**/login.html');
-  await login('ui-sales');await page.waitForURL('**/select-territory.html');await page.waitForLoadState('networkidle');await page.getByRole('button',{name:'ภาคเหนือ',exact:true}).click();await page.waitForURL('**/customers.html');await page.waitForLoadState('networkidle');
+  await login('ui-sales');await page.waitForURL('**/select-territory.html');await page.waitForLoadState('networkidle');
+  for(const width of [1440,390]) {
+    await page.setViewportSize({width,height:844});
+    if(width===390)await page.getByRole('button',{name:'☰ เมนู Workspace'}).click();
+    await page.locator('nav a[data-page=products]').click();await page.waitForURL('**/products.html');await page.waitForLoadState('networkidle');
+    assert.equal((await page.request.get(base+'/api/products')).status(),200);
+    assert.equal((await page.request.get(base+'/api/customer-insights')).status(),403);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.screenshot({path:`test-results/price-stock-no-territory-${width}.png`,fullPage:true});
+    await page.goto(base+'/select-territory.html');await page.waitForLoadState('networkidle');
+  }
+  await page.getByRole('button',{name:'ภาคเหนือ',exact:true}).click();await page.waitForURL('**/customers.html');await page.waitForLoadState('networkidle');
   assert.equal(await page.getByLabel('เขตปัจจุบัน').inputValue(),'2');assert.equal(await page.locator('.source-badge').innerText(),'ภาคเหนือ');assert.equal(await page.locator('a[href="/system-admin.html"]').count(),0);assert.equal((await page.request.get(base+'/api/admin/users')).status(),403);
   await page.getByLabel('เขตปัจจุบัน').selectOption('1');await page.waitForLoadState('networkidle');await page.waitForFunction(()=>document.querySelector('[aria-label="เขตปัจจุบัน"]')?.value==='1');
   await page.screenshot({path:'test-results/access-sales-mobile.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);

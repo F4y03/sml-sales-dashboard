@@ -24,7 +24,9 @@ The CLI prompts for a hidden password, creates/recovers a Super Admin in SQLite,
 | Admin | Price/stock, product information, consignment | None unless granted additional permission |
 | Sales | Price/stock, consignment, customer/product analysis; selected assigned territory | No central administration |
 
-Effective permissions are the union of role permissions and additional user permissions. Roles can be added, with an immutable data scope of `all` or `territory`. The built-in `sales` role always has territory scope. Super Admin has all current/future permissions; it cannot lose its built-in privileges, and the last active Super Admin cannot be disabled or demoted.
+Price/stock is available to every authenticated account, without a permission grant or territory selection. Before selection, territory-scoped accounts can read shared product reference data; territory-owned inventory and transaction activity remain excluded. Other modules still require their permissions and territory selection. Product export remains Super Admin only.
+
+Effective permissions are the union of role permissions and additional user permissions, plus shared price/stock access. Roles can be added, with an immutable data scope of `all` or `territory`. The built-in `sales` role always has territory scope. Super Admin has all current/future permissions; it cannot lose its built-in privileges, and the last active Super Admin cannot be disabled or demoted.
 
 Central role/permission administration and Environment Settings require Super Admin. Delegated user managers cannot manage Super Admin, elevate their own account, grant privileges they do not hold, change role assignments on existing accounts, or assign additional permissions/territories. Those tasks remain with Super Admin. Territory-scoped accounts cannot receive central administration permissions because those screens cover all users/territories.
 

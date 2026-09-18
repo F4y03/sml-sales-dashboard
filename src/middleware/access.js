@@ -34,6 +34,12 @@ export function installAccess(app) {
       return forbidden();
     }
     if(req.auth.scope==='territory'&&module.permissions.includes('reports'))return res.status(403).send(path.startsWith('/api/')?{error:'รายงาน SML แบบ native ยังไม่รองรับการจำกัดเขต กรุณาใช้หน้าวิเคราะห์หรือภาพรวม'}:'รายงาน SML แบบ native ยังไม่รองรับการจำกัดเขต');
+    if(module.permissions.includes('price_stock')) {
+      // Shared product reference data is available before territory selection.
+      // An empty scope still excludes territory-owned inventory and transactions.
+      const territory=req.territory||(req.auth.scope==='territory'?{mapping:{teams:[],customerCodes:[],consignmentPrefixes:[]}}:null);
+      return accessContext.run({territory,module:module.permissions[0]},next);
+    }
     requireSalesTerritory(req,res,()=>accessContext.run({territory:req.territory,module:module.permissions[0]},next));
   });
 }

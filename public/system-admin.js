@@ -25,7 +25,7 @@ async function refreshCatalog(){catalog=await api('catalog');}
 
 async function usersView(){
   const list=card('ผู้ใช้งาน'),{users}=await api('users');list.append(button('+ เพิ่มผู้ใช้',()=>editUser()));
-  table(list,['ชื่อ / Username','Role','สถานะ','การจัดการ'],users.map(u=>{const actions=node('div',undefined,'actions');actions.append(button('แก้ไข',()=>editUser(u)));if(u.id!==me.id)actions.append(button('ลบ',async()=>{if(!confirm(`ยืนยันการลบผู้ใช้ ${u.username} หรือไม่? การลบไม่สามารถย้อนกลับได้`))return;try{await api('users/'+u.id,'DELETE');message('ลบผู้ใช้แล้ว');await show('users');}catch(e){message(e.message,true);}}));return [u.full_name+' / '+u.username,u.role,u.is_active?'เปิดใช้งาน':'ปิดใช้งาน',actions];}));
+  table(list,['ชื่อ / Username','Role','สถานะ','การจัดการ'],users.map(u=>{const actions=node('div',undefined,'actions');actions.append(button('แก้ไข',()=>editUser(u),'action-edit'));if(u.id!==me.id)actions.append(button('ลบ',async()=>{if(!confirm(`ยืนยันการลบผู้ใช้ ${u.username} หรือไม่? การลบไม่สามารถย้อนกลับได้`))return;try{await api('users/'+u.id,'DELETE');message('ลบผู้ใช้แล้ว');await show('users');}catch(e){message(e.message,true);}},'action-delete'));return [u.full_name+' / '+u.username,u.role,u.is_active?'เปิดใช้งาน':'ปิดใช้งาน',actions];}));
 }
 function editUser(user){
   content.querySelector('#user-editor')?.remove();const panel=card(user?'แก้ไขผู้ใช้':'เพิ่มผู้ใช้');panel.id='user-editor';if(user)panel.classList.add('editing-user');const form=node('form'),grid=node('div',undefined,'admin-grid');form.append(grid);panel.append(form);
@@ -55,10 +55,16 @@ function editUser(user){
 }
 async function territoriesView(){
   const list=card('เขตการขาย');list.append(node('p','Mapping เริ่มต้นใช้รหัสทีมและกลุ่มสินค้าฝากชุดเดิม รหัสที่ไม่กำหนดจะไม่เปิดให้ Sales เห็น','muted'),button('+ เพิ่มเขต',()=>editTerritory()));
-  table(list,['Code','ชื่อ','สถานะ','การจัดการ'],catalog.territories.map(t=>[t.code,t.name,t.is_active?'เปิด':'ปิด',button('แก้ไข',()=>editTerritory(t))]));
+  table(list,['Code','ชื่อ','สถานะ','การจัดการ'],catalog.territories.map(t=>[t.code,t.name,t.is_active?'เปิด':'ปิด',button('แก้ไข',()=>editTerritory(t),'action-edit')]));
 }
 function editTerritory(territory){
-  content.querySelector('#territory-editor')?.remove();const panel=card(territory?'แก้ไขเขต':'เพิ่มเขต');panel.id='territory-editor';const form=node('form'),grid=node('div',undefined,'admin-grid');panel.append(form);form.append(grid);
+  content.querySelector('#territory-editor')?.remove();const panel=card(territory?'แก้ไขเขต':'เพิ่มเขต');panel.id='territory-editor';
+  const helpButton=button('?',()=>{const open=help.hidden;help.hidden=!open;helpButton.setAttribute('aria-expanded',String(open));helpButton.setAttribute('aria-label',open?'ซ่อนคำอธิบายการกำหนดเขต':'ดูคำอธิบายการกำหนดเขต');},'territory-help-button');
+  helpButton.setAttribute('aria-label','ดูคำอธิบายการกำหนดเขต');helpButton.setAttribute('aria-controls','territory-help');helpButton.setAttribute('aria-expanded','false');
+  const help=node('aside',undefined,'territory-help');help.id='territory-help';help.hidden=true;
+  help.append(node('strong','วิธีกำหนดขอบเขตข้อมูล'),node('p','ระบบจะแสดงข้อมูลที่ตรงกับรหัสทีมขาย หรือรหัสลูกค้าเพิ่มเติมอย่างใดอย่างหนึ่ง ส่วนรหัสกลุ่มสินค้าฝากใช้จำกัดข้อมูลในเมนูรับ–เบิกสินค้าฝาก'));
+  const helpList=node('ul');for(const text of ['รหัสทีมขาย: ใช้ค่า sale_code เช่น กจ, กบ','รหัสลูกค้าเพิ่มเติม: ใส่รหัสลูกค้าแบบเต็ม เมื่อต้องการรวมลูกค้าที่ไม่ตรงกับทีมขาย','รหัสกลุ่มสินค้าฝาก: ต้องขึ้นต้นด้วย ฝ เช่น ฝกจ, ฝกบ','กรอกหลายรหัสโดยคั่นด้วยจุลภาค และปิด “เปิดใช้งาน” หากยังไม่ต้องการให้เลือกเขตนี้'])helpList.append(node('li',text));help.append(helpList);panel.append(helpButton,help);
+  const form=node('form'),grid=node('div',undefined,'admin-grid');panel.append(form);form.append(grid);
   field(grid,'Territory Code เช่น BKK','code',territory?.code).required=true;field(grid,'ชื่อเขต','name',territory?.name).required=true;
   const active=check(grid,'เปิดใช้งาน','active','1',territory?.is_active??true);
   for(const [key,label] of [['teams','รหัสทีมขาย เช่น กจ, หย'],['customerCodes','รหัสลูกค้าเพิ่มเติม (ตรงรหัสเต็ม)'],['consignmentPrefixes','รหัสกลุ่มสินค้าฝาก เช่น ฝกจ, ฝหย']]){const input=field(grid,label,key,territory?.mapping[key]?.join(', ')||'','textarea');input.maxLength=20000;}

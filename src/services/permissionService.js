@@ -1,5 +1,5 @@
 import { ADMIN_PERMISSIONS } from '../config/access.js';
-export const hasPermission = (user,code) => !!user && (user.role === 'super_admin' || user.permissions.includes(code));
+export const hasPermission = (user,code) => !!user && (code === 'price_stock' || user.role === 'super_admin' || user.permissions.includes(code));
 export const canAdmin = user => ADMIN_PERMISSIONS.some(p=>hasPermission(user,p));
 export function loadUser(store,id) {
   const row=store.get('SELECT u.id,u.username,u.full_name,u.role_id,u.is_active,u.auth_version,r.code AS role,r.scope FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=?',id);

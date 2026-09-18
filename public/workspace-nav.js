@@ -97,7 +97,7 @@ window.prplusUser.then(user => {
   workspace.querySelector('.workspace-profile strong').textContent = user.username;
   workspace.querySelector('.workspace-profile > span').textContent = user.username.slice(0, 2).toUpperCase();
   // Keep compatibility with standalone fixture pages, while the backend remains authoritative.
-  const can=p=>user.role==='super_admin'||user.permissions?.includes(p);
+  const can=p=>p==='price_stock'||user.role==='super_admin'||user.permissions?.includes(p);
   const policy={overview:['dashboard'],executive:['dashboard'],customers:['customer_analysis','product_analysis'],consignment:['consignment'],products:['price_stock','product_info'],reports:['reports']};
   workspace.querySelectorAll('nav a').forEach(link=>{link.hidden=Array.isArray(user.permissions)?!policy[link.dataset.page]?.some(can):false;if(link.dataset.page==='reports'&&user.scope==='territory')link.hidden=true;});
   workspace.querySelector('.workspace-brand').href=user.landing||'/';

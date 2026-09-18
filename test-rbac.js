@@ -50,7 +50,7 @@ test('all four roles enforce pages/APIs; unknown routes and encoded URLs fail cl
   const {cookie}=await f.login('office');assert.equal((await f.request('/%65xecutive.html',cookie)).status,403);assert.equal((await f.request('/api/customer-insights/catalog',cookie)).status,403);assert.equal((await f.request('/login.html')).status,200);
 });
 test('territory zero/one/multiple selection; forged IDs; assignment removal and disabled territories',async t=>{
-  const f=await fixture(t);const rep=await f.create('rep','sales');let s=await f.login('rep');assert.equal(s.data.redirect,'/select-territory.html');assert.equal((await f.request('/api/products',s.cookie)).status,403);
+  const f=await fixture(t);const rep=await f.create('rep','sales');let s=await f.login('rep');assert.equal(s.data.redirect,'/select-territory.html');assert.equal((await f.request('/api/products',s.cookie)).status,200);
   await f.users.save(f.root,rep.id,{...rep,territoryIds:[1,2],password:undefined},'test');s=await f.login('rep');assert.equal(s.data.redirect,'/select-territory.html');
   assert.equal((await f.request('/api/auth/territory',s.cookie,'POST',{territoryId:3})).status,403);
   assert.equal((await f.request('/api/auth/territory',s.cookie,'POST',{territoryId:'1 OR 1=1'})).status,400);
@@ -60,6 +60,26 @@ test('territory zero/one/multiple selection; forged IDs; assignment removal and 
   assert.equal((await (await f.request('/api/customer-insights',s.cookie)).json()).territory,2);
   f.store.run('UPDATE sales_territories SET is_active=0 WHERE id=2');assert.equal((await f.request('/api/customer-insights',s.cookie)).status,403);
 });
+test('shared price/stock requires login but no permission grant or selected territory',async t=>{
+  const f=await fixture(t);
+  for(const [name,ids] of [['unassigned',[]],['multiple',[1,2]]]) {
+    await f.create(name,'sales',ids);
+    const s=await f.login(name);
+    for(const path of ['/products.html','/api/products'])assert.equal((await f.request(path,s.cookie)).status,200,path);
+    for(const path of ['/api/customer-insights','/api/consignment','/api/products/export'])assert.equal((await f.request(path,s.cookie)).status,403,path);
+    assert.equal((await f.request('/customers.html',s.cookie)).headers.get('location'),'/select-territory.html');
+  }
+  await f.create('restricted','admin');
+  f.store.run("DELETE FROM role_permissions WHERE role_id=(SELECT id FROM roles WHERE code='admin')");
+  const s=await f.login('restricted');
+  assert.equal((await f.request('/api/products',s.cookie)).status,200);
+  assert.equal((await f.request('/api/consignment',s.cookie)).status,403);
+  assert.equal((await f.request('/api/products')).status,401);
+  const scoped=scopeQuery('SELECT * FROM ic_inventory',[],{territory:{mapping:{teams:[],customerCodes:[],consignmentPrefixes:[]}},module:'price_stock'});
+  assert.deepEqual(scoped.values,[[],[],[]]);
+  assert.ok(scoped.text.includes('FROM public.ic_inventory'));
+});
+
 test('per-user grants, session invalidation, disabled login and last Super Admin protection',async t=>{
   const f=await fixture(t),a=await f.create('a','admin'),b=await f.create('b','admin');const old=await f.login('a');
   await f.users.save(f.root,a.id,{...a,additionalPermissions:['customer_analysis']},'test');assert.equal((await f.request('/api/products',old.cookie)).status,401);
