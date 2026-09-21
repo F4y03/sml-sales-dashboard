@@ -1,5 +1,7 @@
 /* ── Analysis Card ── */
-.analysis-card .chart-heading { margin-bottom: 16px }
+.analysis-card .chart-heading {
+  margin-bottom: 16px;
+}
 
 .analysis-controls {
   display: flex;
@@ -17,7 +19,9 @@
   padding: 11px 14px;
   color: #65413e;
   font-weight: 500;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   cursor: pointer;
 }
 
@@ -31,8 +35,12 @@
   outline: none;
 }
 
-.analysis-controls #analysis-mode { flex: 1 }
-.analysis-controls [hidden] { display: none !important }
+.analysis-controls #analysis-mode {
+  flex: 1;
+}
+.analysis-controls [hidden] {
+  display: none !important;
+}
 
 #analysis-status {
   font-size: 10px;
@@ -81,7 +89,9 @@
   white-space: nowrap;
   padding: 4px 8px;
   border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .analysis-footer button:hover {
@@ -142,7 +152,9 @@
   background: #faf7f5;
 }
 
-#analysis-status.error { color: #b34242 }
+#analysis-status.error {
+  color: #b34242;
+}
 
 /* ── Chart Card Polish ── */
 .chart-card {
@@ -177,12 +189,23 @@
 }
 
 @media (min-width: 1600px) {
-  .chart-wrap { height: 300px }
-  #analysis-plot { height: 300px }
+  .chart-wrap {
+    height: 300px;
+  }
+  #analysis-plot {
+    height: 300px;
+  }
 }
 
 @media (max-width: 760px) {
-  .analysis-controls select { padding: 10px 12px; font-size: 11px }
-  #analysis-plot { height: 250px }
-  .analysis-scroll { max-height: 300px }
+  .analysis-controls select {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  #analysis-plot {
+    height: 250px;
+  }
+  .analysis-scroll {
+    max-height: 300px;
+  }
 }

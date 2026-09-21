@@ -1,8 +1,229 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>คู่มือ Pivot และ Slicer · สินค้าฝาก</title><link rel="stylesheet" href="consignment.css"><link rel="stylesheet" href="theme-modes.css"><script src="theme-mode.js"></script></head>
-<body><main class="guide"><a href="consignment.html">← กลับหน้ารับ–เบิกสินค้าฝาก</a><h1>สร้าง Dashboard ใน Excel ทีละขั้น</h1><p>สำหรับ Excel บน Windows ที่มี PivotTable และ Slicer · ยอดในหน้านี้หมายถึงจำนวนสินค้า ไม่ใช่ยอดเงิน</p>
-<section class="panel"><h2>1. เตรียมตารางข้อมูล</h2><p>สร้างชีต Data ใส่คอลัมน์ วันที่ทำรายการ, รหัสลูกค้า, ภูมิภาค, ชื่อสินค้า, ประเภทรายการ, จำนวน, ยอดคงเหลือ แล้วเลือกข้อมูล กด Ctrl+T ติ๊ก My table has headers ตั้งชื่อตารางว่า Movements</p><p>วันที่ต้องเป็นวันที่จริง จำนวนเป็นตัวเลขไม่ติดลบ ประเภทรายการใช้ รับเข้า หรือ เบิกออก เท่านั้น ใช้หน่วยเดียวกันก่อนรวมยอด และใช้รหัสสินค้าแทนชื่อหากชื่อซ้ำกัน คงเหลือหมายถึงยอดหลังแต่ละรายการ ต้องมีข้อมูลล่าสุดครบทุกคู่ลูกค้า–สินค้า รวมคู่ที่ไม่มีความเคลื่อนไหวในช่วงนี้</p><p>สร้างตารางชื่อ RegionMap โดยมีคอลัมน์ รหัส และ ภูมิภาค:</p><div class="table-scroll"><table><thead><tr><th>รหัส</th><th>ภูมิภาค</th></tr></thead><tbody><tr><td>ฝกจ, ฝกณ, ฝกต, ฝกร, ฝกภ, ฝบอ (แยกเป็น 6 แถว)</td><td>ภาคกลาง</td></tr><tr><td>ฝหย</td><td>ภาคเหนือ</td></tr><tr><td>ฝตช</td><td>ภาคใต้</td></tr><tr><td>ฝลภ</td><td>ภาคตะวันออก</td></tr><tr><td>ฝอย</td><td>ภาคตะวันออกเฉียงเหนือ</td></tr></tbody></table></div><p>ในคอลัมน์ภูมิภาคของ Movements ใส่สูตร (จับสามตัวแรก เช่น ฝหย-001):</p><pre>=IFERROR(VLOOKUP(LEFT(TRIM([@[รหัสลูกค้า]]),3),RegionMap[[รหัส]:[ภูมิภาค]],2,FALSE),"ไม่ระบุภูมิภาค")</pre></section>
-<section class="panel"><h2>2. เพิ่มคอลัมน์สำหรับสรุปยอดที่ถูกต้อง</h2><p>เพิ่ม เดือน โดยเก็บเป็นวันแรกของเดือน แล้วตั้งรูปแบบเซลล์ mmm yyyy เพื่อแยกปีด้วย:</p><pre>=DATE(YEAR([@[วันที่ทำรายการ]]),MONTH([@[วันที่ทำรายการ]]),1)</pre><p>เพิ่ม ยอดเบิก:</p><pre>=IF([@[ประเภทรายการ]]="เบิกออก",[@จำนวน],0)</pre><p>เรียงตามวันที่และเวลาหรือลำดับรายการจากเก่าไปใหม่ หากมีหลายรายการวันเดียวกัน ต้องทราบลำดับจริง เพิ่มคอลัมน์ ลำดับ เป็นเลข 1, 2, 3… ไม่ซ้ำกันและเก็บเป็นค่า หลังเพิ่มข้อมูลใหม่ให้ใช้เลขต่อเนื่อง</p><p>เพิ่ม คงเหลือล่าสุด เพื่อใช้เฉพาะแถวล่าสุดของลูกค้า–สินค้าแต่ละคู่ แถวอื่นให้เป็น 0:</p><pre>=IF(COUNTIFS(Movements[รหัสลูกค้า],[@[รหัสลูกค้า]],Movements[ชื่อสินค้า],[@[ชื่อสินค้า]],Movements[ลำดับ],"&gt;"&amp;[@ลำดับ])=0,[@ยอดคงเหลือ],0)</pre><p>ตัวอย่าง รับเข้า 100 คงเหลือ 100 แล้วเบิก 20 คงเหลือ 80 → ยอดเบิก 20 และคงเหลือ 80 ไม่ใช่ 180 ห้ามใช้ Sum หรือ Max ของคงเหลือเดิมแทนสูตรนี้</p></section>
-<section class="panel"><h2>3. สร้าง PivotTable ชุดแรก แล้วคัดลอก</h2><p>คลิก Movements → Insert → PivotTable → New Worksheet ตั้งชื่อชีต Pivots และตั้งชื่อ Pivot แรก PT_KPI จากนั้นคัดลอก Pivot นี้อีก 3 ชุด วางให้ห่างกันเพื่อเผื่อขยาย ตั้งชื่อ PT_Region, PT_Month, PT_Customer วิธีนี้ช่วยให้ใช้แหล่งข้อมูลและ Pivot Cache ร่วมกัน</p><div class="table-scroll"><table><thead><tr><th>Pivot</th><th>Rows</th><th>Values (Sum)</th></tr></thead><tbody><tr><td>PT_KPI</td><td>ไม่ต้องใส่</td><td>ยอดเบิก, คงเหลือล่าสุด</td></tr><tr><td>PT_Region</td><td>ภูมิภาค</td><td>ยอดเบิก</td></tr><tr><td>PT_Month</td><td>เดือน (เรียงเก่าไปใหม่)</td><td>ยอดเบิก</td></tr><tr><td>PT_Customer</td><td>รหัสลูกค้า</td><td>คงเหลือล่าสุด</td></tr></tbody></table></div><p>ตรวจ Value Field Settings ให้เป็น Sum ไม่ใช่ Count ไม่ต้องกรองประเภทรายการเป็นเบิกออก เพราะคอลัมน์ยอดเบิกแยกไว้แล้ว และการกรองนั้นอาจตัดแถวคงเหลือล่าสุดที่เป็นรับเข้า</p></section>
-<section class="panel"><h2>4. ดึง PivotChart และจัดหน้า Dashboard</h2><ol><li>สร้างชีต Dashboard คลิก PT_Region → PivotTable Analyze → PivotChart → Bar / Clustered Bar แล้ว Move Chart → Object in: Dashboard</li><li>คลิก PT_Month → PivotChart → Line แล้วนำไปวางที่ Dashboard หากต้องแสดงเดือนว่าง ให้เตรียมรายการเดือนครบและกำหนดให้แสดงรายการที่ไม่มีข้อมูลตามโครงสร้างต้นทาง</li><li>คลิก PT_Customer → PivotChart → Doughnut เปิด Data Labels เป็นชื่อรหัสและเปอร์เซ็นต์ หากมีคงเหลือติดลบให้แก้ข้อมูลก่อนแสดงสัดส่วน หากรุ่น Excel ไม่รองรับ ให้สร้าง Doughnut ปกติจากช่วงสรุปที่ลิงก์กับ Pivot โดยไม่รวม Grand Total และตรวจว่าช่วงกราฟขยายครบเมื่อเพิ่มลูกค้า</li><li>สร้าง KPI ในเซลล์ Dashboard โดยพิมพ์ = แล้วคลิกยอดรวมที่ PT_KPI เพื่อให้ Excel สร้าง GETPIVOTDATA ให้อัตโนมัติ เปิด Generate GetPivotData หากยังไม่สร้างสูตร จัดตัวเลขให้ใหญ่ หรือใช้ Text Box ที่ลิงก์กับเซลล์ KPI</li></ol></section>
-<section class="panel"><h2>5. เชื่อม Slicer ให้ควบคุมทุกกราฟ</h2><ol><li>คลิก Pivot ใดก็ได้ → PivotTable Analyze → Insert Slicer → เลือก รหัสลูกค้า และ ภูมิภาค</li><li>ย้าย Slicer ทั้งสองไปชีต Dashboard</li><li>คลิกขวา Slicer รหัสลูกค้า → Report Connections / PivotTable Connections → ติ๊ก PT_KPI, PT_Region, PT_Month, PT_Customer ให้ครบ → OK</li><li>ทำซ้ำกับ Slicer ภูมิภาค ทั้งสองตัวต้องเชื่อมครบทั้ง 4 Pivot</li><li>คลิก ฝหย: KPI และกราฟทั้งหมดควรเหลือข้อมูลภาคเหนือ ใช้ Ctrl หรือปุ่ม Multi-Select เพื่อเลือกหลายรหัส และใช้ Clear Filter เพื่อล้าง เลือกสอง Slicer ร่วมกันจะเป็นเงื่อนไขตัดกัน</li></ol><p>ถ้า Pivot ไม่ปรากฏใน Report Connections ให้ตรวจว่าใช้ตารางต้นทางและ Cache เดียวกัน วิธีแก้ที่ตรงไปตรงมาคือคัดลอก Pivot ที่เชื่อมได้ แล้วจัด Rows/Values ใหม่</p></section>
-<section class="panel"><h2>6. ตรวจยอดและอัปเดต</h2><p>ทดลองเลือกทีละภูมิภาค เทียบยอดกับรายการต้นทาง ตรวจคู่ที่แถวล่าสุดเป็นรับเข้า ตรวจเดือนข้ามปี และทดสอบตัวกรองที่ไม่มีข้อมูล เมื่อเพิ่มแถวใน Movements ให้ต่อเลขลำดับ ตรวจสูตรคงเหลือล่าสุด แล้ว Data → Refresh All</p><p>ยอดคงเหลือเป็นยอดล่าสุดตามไฟล์ ไม่ใช่ยอดสด ณ วันนี้โดยอัตโนมัติ อย่าเชื่อม Timeline วันที่เข้ากับ Pivot คงเหลือแบบนี้ เพราะจะตัดสินค้าที่ไม่เคลื่อนไหวในช่วงที่เลือก หากต้องการคงเหลือ ณ วันย้อนหลัง ต้องคำนวณแถวล่าสุดก่อนหรือเท่ากับวันนั้นใหม่</p><p>อ้างอิง: <a href="https://support.microsoft.com/en-us/excel/overview-of-pivottables-and-pivotcharts">Microsoft: PivotTable, PivotChart และ Cache</a> · <a href="https://support.microsoft.com/en-US/Excel/unshare-a-data-cache-between-pivottable-reports">การแชร์แคชของ PivotTable</a></p></section></main></body></html>
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>คู่มือ Pivot และ Slicer · สินค้าฝาก</title>
+    <link rel="stylesheet" href="consignment.css" />
+    <link rel="stylesheet" href="theme-modes.css" />
+    <script src="theme-mode.js"></script>
+  </head>
+  <body>
+    <main class="guide">
+      <a href="consignment.html">← กลับหน้ารับ–เบิกสินค้าฝาก</a>
+      <h1>สร้าง Dashboard ใน Excel ทีละขั้น</h1>
+      <p>
+        สำหรับ Excel บน Windows ที่มี PivotTable และ Slicer ·
+        ยอดในหน้านี้หมายถึงจำนวนสินค้า ไม่ใช่ยอดเงิน
+      </p>
+      <section class="panel">
+        <h2>1. เตรียมตารางข้อมูล</h2>
+        <p>
+          สร้างชีต Data ใส่คอลัมน์ วันที่ทำรายการ, รหัสลูกค้า, ภูมิภาค,
+          ชื่อสินค้า, ประเภทรายการ, จำนวน, ยอดคงเหลือ แล้วเลือกข้อมูล กด Ctrl+T
+          ติ๊ก My table has headers ตั้งชื่อตารางว่า Movements
+        </p>
+        <p>
+          วันที่ต้องเป็นวันที่จริง จำนวนเป็นตัวเลขไม่ติดลบ ประเภทรายการใช้
+          รับเข้า หรือ เบิกออก เท่านั้น ใช้หน่วยเดียวกันก่อนรวมยอด
+          และใช้รหัสสินค้าแทนชื่อหากชื่อซ้ำกัน คงเหลือหมายถึงยอดหลังแต่ละรายการ
+          ต้องมีข้อมูลล่าสุดครบทุกคู่ลูกค้า–สินค้า
+          รวมคู่ที่ไม่มีความเคลื่อนไหวในช่วงนี้
+        </p>
+        <p>สร้างตารางชื่อ RegionMap โดยมีคอลัมน์ รหัส และ ภูมิภาค:</p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>รหัส</th>
+                <th>ภูมิภาค</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>ฝกจ, ฝกณ, ฝกต, ฝกร, ฝกภ, ฝบอ (แยกเป็น 6 แถว)</td>
+                <td>ภาคกลาง</td>
+              </tr>
+              <tr>
+                <td>ฝหย</td>
+                <td>ภาคเหนือ</td>
+              </tr>
+              <tr>
+                <td>ฝตช</td>
+                <td>ภาคใต้</td>
+              </tr>
+              <tr>
+                <td>ฝลภ</td>
+                <td>ภาคตะวันออก</td>
+              </tr>
+              <tr>
+                <td>ฝอย</td>
+                <td>ภาคตะวันออกเฉียงเหนือ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          ในคอลัมน์ภูมิภาคของ Movements ใส่สูตร (จับสามตัวแรก เช่น ฝหย-001):
+        </p>
+        <pre>
+=IFERROR(VLOOKUP(LEFT(TRIM([@[รหัสลูกค้า]]),3),RegionMap[[รหัส]:[ภูมิภาค]],2,FALSE),"ไม่ระบุภูมิภาค")</pre
+        >
+      </section>
+      <section class="panel">
+        <h2>2. เพิ่มคอลัมน์สำหรับสรุปยอดที่ถูกต้อง</h2>
+        <p>
+          เพิ่ม เดือน โดยเก็บเป็นวันแรกของเดือน แล้วตั้งรูปแบบเซลล์ mmm yyyy
+          เพื่อแยกปีด้วย:
+        </p>
+        <pre>=DATE(YEAR([@[วันที่ทำรายการ]]),MONTH([@[วันที่ทำรายการ]]),1)</pre>
+        <p>เพิ่ม ยอดเบิก:</p>
+        <pre>=IF([@[ประเภทรายการ]]="เบิกออก",[@จำนวน],0)</pre>
+        <p>
+          เรียงตามวันที่และเวลาหรือลำดับรายการจากเก่าไปใหม่
+          หากมีหลายรายการวันเดียวกัน ต้องทราบลำดับจริง เพิ่มคอลัมน์ ลำดับ
+          เป็นเลข 1, 2, 3… ไม่ซ้ำกันและเก็บเป็นค่า
+          หลังเพิ่มข้อมูลใหม่ให้ใช้เลขต่อเนื่อง
+        </p>
+        <p>
+          เพิ่ม คงเหลือล่าสุด เพื่อใช้เฉพาะแถวล่าสุดของลูกค้า–สินค้าแต่ละคู่
+          แถวอื่นให้เป็น 0:
+        </p>
+        <pre>
+=IF(COUNTIFS(Movements[รหัสลูกค้า],[@[รหัสลูกค้า]],Movements[ชื่อสินค้า],[@[ชื่อสินค้า]],Movements[ลำดับ],"&gt;"&amp;[@ลำดับ])=0,[@ยอดคงเหลือ],0)</pre
+        >
+        <p>
+          ตัวอย่าง รับเข้า 100 คงเหลือ 100 แล้วเบิก 20 คงเหลือ 80 → ยอดเบิก 20
+          และคงเหลือ 80 ไม่ใช่ 180 ห้ามใช้ Sum หรือ Max ของคงเหลือเดิมแทนสูตรนี้
+        </p>
+      </section>
+      <section class="panel">
+        <h2>3. สร้าง PivotTable ชุดแรก แล้วคัดลอก</h2>
+        <p>
+          คลิก Movements → Insert → PivotTable → New Worksheet ตั้งชื่อชีต
+          Pivots และตั้งชื่อ Pivot แรก PT_KPI จากนั้นคัดลอก Pivot นี้อีก 3 ชุด
+          วางให้ห่างกันเพื่อเผื่อขยาย ตั้งชื่อ PT_Region, PT_Month, PT_Customer
+          วิธีนี้ช่วยให้ใช้แหล่งข้อมูลและ Pivot Cache ร่วมกัน
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Pivot</th>
+                <th>Rows</th>
+                <th>Values (Sum)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>PT_KPI</td>
+                <td>ไม่ต้องใส่</td>
+                <td>ยอดเบิก, คงเหลือล่าสุด</td>
+              </tr>
+              <tr>
+                <td>PT_Region</td>
+                <td>ภูมิภาค</td>
+                <td>ยอดเบิก</td>
+              </tr>
+              <tr>
+                <td>PT_Month</td>
+                <td>เดือน (เรียงเก่าไปใหม่)</td>
+                <td>ยอดเบิก</td>
+              </tr>
+              <tr>
+                <td>PT_Customer</td>
+                <td>รหัสลูกค้า</td>
+                <td>คงเหลือล่าสุด</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          ตรวจ Value Field Settings ให้เป็น Sum ไม่ใช่ Count
+          ไม่ต้องกรองประเภทรายการเป็นเบิกออก เพราะคอลัมน์ยอดเบิกแยกไว้แล้ว
+          และการกรองนั้นอาจตัดแถวคงเหลือล่าสุดที่เป็นรับเข้า
+        </p>
+      </section>
+      <section class="panel">
+        <h2>4. ดึง PivotChart และจัดหน้า Dashboard</h2>
+        <ol>
+          <li>
+            สร้างชีต Dashboard คลิก PT_Region → PivotTable Analyze → PivotChart
+            → Bar / Clustered Bar แล้ว Move Chart → Object in: Dashboard
+          </li>
+          <li>
+            คลิก PT_Month → PivotChart → Line แล้วนำไปวางที่ Dashboard
+            หากต้องแสดงเดือนว่าง
+            ให้เตรียมรายการเดือนครบและกำหนดให้แสดงรายการที่ไม่มีข้อมูลตามโครงสร้างต้นทาง
+          </li>
+          <li>
+            คลิก PT_Customer → PivotChart → Doughnut เปิด Data Labels
+            เป็นชื่อรหัสและเปอร์เซ็นต์
+            หากมีคงเหลือติดลบให้แก้ข้อมูลก่อนแสดงสัดส่วน หากรุ่น Excel ไม่รองรับ
+            ให้สร้าง Doughnut ปกติจากช่วงสรุปที่ลิงก์กับ Pivot โดยไม่รวม Grand
+            Total และตรวจว่าช่วงกราฟขยายครบเมื่อเพิ่มลูกค้า
+          </li>
+          <li>
+            สร้าง KPI ในเซลล์ Dashboard โดยพิมพ์ = แล้วคลิกยอดรวมที่ PT_KPI
+            เพื่อให้ Excel สร้าง GETPIVOTDATA ให้อัตโนมัติ เปิด Generate
+            GetPivotData หากยังไม่สร้างสูตร จัดตัวเลขให้ใหญ่ หรือใช้ Text Box
+            ที่ลิงก์กับเซลล์ KPI
+          </li>
+        </ol>
+      </section>
+      <section class="panel">
+        <h2>5. เชื่อม Slicer ให้ควบคุมทุกกราฟ</h2>
+        <ol>
+          <li>
+            คลิก Pivot ใดก็ได้ → PivotTable Analyze → Insert Slicer → เลือก
+            รหัสลูกค้า และ ภูมิภาค
+          </li>
+          <li>ย้าย Slicer ทั้งสองไปชีต Dashboard</li>
+          <li>
+            คลิกขวา Slicer รหัสลูกค้า → Report Connections / PivotTable
+            Connections → ติ๊ก PT_KPI, PT_Region, PT_Month, PT_Customer ให้ครบ →
+            OK
+          </li>
+          <li>ทำซ้ำกับ Slicer ภูมิภาค ทั้งสองตัวต้องเชื่อมครบทั้ง 4 Pivot</li>
+          <li>
+            คลิก ฝหย: KPI และกราฟทั้งหมดควรเหลือข้อมูลภาคเหนือ ใช้ Ctrl หรือปุ่ม
+            Multi-Select เพื่อเลือกหลายรหัส และใช้ Clear Filter เพื่อล้าง
+            เลือกสอง Slicer ร่วมกันจะเป็นเงื่อนไขตัดกัน
+          </li>
+        </ol>
+        <p>
+          ถ้า Pivot ไม่ปรากฏใน Report Connections ให้ตรวจว่าใช้ตารางต้นทางและ
+          Cache เดียวกัน วิธีแก้ที่ตรงไปตรงมาคือคัดลอก Pivot ที่เชื่อมได้
+          แล้วจัด Rows/Values ใหม่
+        </p>
+      </section>
+      <section class="panel">
+        <h2>6. ตรวจยอดและอัปเดต</h2>
+        <p>
+          ทดลองเลือกทีละภูมิภาค เทียบยอดกับรายการต้นทาง
+          ตรวจคู่ที่แถวล่าสุดเป็นรับเข้า ตรวจเดือนข้ามปี
+          และทดสอบตัวกรองที่ไม่มีข้อมูล เมื่อเพิ่มแถวใน Movements ให้ต่อเลขลำดับ
+          ตรวจสูตรคงเหลือล่าสุด แล้ว Data → Refresh All
+        </p>
+        <p>
+          ยอดคงเหลือเป็นยอดล่าสุดตามไฟล์ ไม่ใช่ยอดสด ณ วันนี้โดยอัตโนมัติ
+          อย่าเชื่อม Timeline วันที่เข้ากับ Pivot คงเหลือแบบนี้
+          เพราะจะตัดสินค้าที่ไม่เคลื่อนไหวในช่วงที่เลือก หากต้องการคงเหลือ ณ
+          วันย้อนหลัง ต้องคำนวณแถวล่าสุดก่อนหรือเท่ากับวันนั้นใหม่
+        </p>
+        <p>
+          อ้างอิง:
+          <a
+            href="https://support.microsoft.com/en-us/excel/overview-of-pivottables-and-pivotcharts"
+            >Microsoft: PivotTable, PivotChart และ Cache</a
+          >
+          ·
+          <a
+            href="https://support.microsoft.com/en-US/Excel/unshare-a-data-cache-between-pivottable-reports"
+            >การแชร์แคชของ PivotTable</a
+          >
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

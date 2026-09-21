@@ -1,40 +1,294 @@
 (() => {
-  const el=id=>document.getElementById(id),format=new Intl.NumberFormat('th-TH',{maximumFractionDigits:2});
-  let chart=null,period=null,data=null,version=0,controller;
-  const safeText=value=>value==null||value===''||String(value).trim()==='-'?'-':String(value).trim();
-  const safeNumber=value=>{const num=Number(value);return Number.isFinite(num)?format.format(num):'-';};
-  const label=r=>{
-    const name=safeText(r?.name);
-    const code=r?.code!=null&&String(r.code).trim()!==''&&String(r.code).trim()!==name?String(r.code).trim():'';
-    const unit=r?.unit!=null&&String(r.unit).trim()!==''?` (${String(r.unit).trim()})`:'';
+  const el = (id) => document.getElementById(id),
+    format = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 });
+  let chart = null,
+    period = null,
+    data = null,
+    version = 0,
+    controller;
+  const safeText = (value) =>
+    value == null || value === "" || String(value).trim() === "-"
+      ? "-"
+      : String(value).trim();
+  const safeNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? format.format(num) : "-";
+  };
+  const label = (r) => {
+    const name = safeText(r?.name);
+    const code =
+      r?.code != null &&
+      String(r.code).trim() !== "" &&
+      String(r.code).trim() !== name
+        ? String(r.code).trim()
+        : "";
+    const unit =
+      r?.unit != null && String(r.unit).trim() !== ""
+        ? ` (${String(r.unit).trim()})`
+        : "";
     return code ? `${name} · ${code}${unit}` : `${name}${unit}`;
   };
-  window.addEventListener('dashboard-theme-change',()=>{if(data)draw(data);});
-  function clear(){chart?.destroy();chart=null;data=null;el('analysis-rows').replaceChildren();el('analysis-export').disabled=true;el('analysis-summary').textContent='';el('analysis-note').textContent='';}
-  function draw(d){
-    const theme = window.dashboardTheme?.palette() || {muted:'#656973',line:'#e0e2e6',brand:'#e10600',surface:'#fff'};
-    chart?.destroy();const timeline=d.mode==='net',shown=timeline?d.rows:d.rows.slice(0,10),isQty=d.unit==='quantity';
-    el('analysis-title').textContent=d.title;el('analysis-note').textContent=d.note;
-    el('analysis-status').textContent=`${d.start} ถึง ${d.end} · อัปเดต ${new Date(d.updatedAt).toLocaleTimeString('th-TH')}`;
-    el('analysis-summary').textContent=d.rows.length?timeline?`ทั้งหมด ${d.rows.length} ช่วงเวลา`:`แสดง ${shown.length} อันดับแรก จาก ${d.rows.length} รายการ`:'ไม่พบข้อมูลในช่วงที่เลือก';
-    el('analysis-plot').style.height=timeline?'280px':Math.max(250,shown.length*38)+'px';
-    const labels=shown.map(r=>timeline?r.name:label(r));
-    const barPalette=['#e10600','#ff3b30','#c52929','#91939d','#af1421','#727680','#ef6363','#c1c3ca','#a34141','#7f111a'];
-    chart=new Chart(el('analysis-chart'),{type:timeline?'line':'bar',data:{labels,datasets:[{data:shown.map(r=>r.value),borderColor:theme.brand,backgroundColor:timeline?'rgba(225, 6, 0,0.08)':shown.map((r,i)=>Number(r.value)<0?'#c34f52':barPalette[i%barPalette.length]),borderRadius:timeline?0:6,borderWidth:timeline?2.5:0,borderSkipped:false,pointRadius:timeline?3:0,pointBackgroundColor:'#fff',pointBorderColor:theme.brand,pointBorderWidth:2,pointHoverRadius:6,pointHoverBackgroundColor:theme.brand,pointHoverBorderColor:'#fff',pointHoverBorderWidth:3,tension:0,fill:timeline,maxBarThickness:24,barPercentage:0.75,categoryPercentage:0.82}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0,easing:'easeOutQuart'},indexAxis:timeline?'x':'y',layout:{padding:{top:4,right:timeline?4:16,left:4}},plugins:{legend:{display:false},tooltip:{backgroundColor:'#482629',titleColor:'#f5dcd7',bodyColor:'#fff',padding:{top:10,bottom:10,left:14,right:14},cornerRadius:10,displayColors:false,titleFont:{size:11,weight:'500'},bodyFont:{size:13,weight:'600'},callbacks:{title:items=>labels[items[0].dataIndex],label:ctx=>`${isQty?'':'฿'}${format.format(timeline?ctx.parsed.y:ctx.parsed.x)}${isQty?' '+shown[ctx.dataIndex].unit:''}`}}},scales:timeline?{x:{grid:{display:false},border:{display:false},ticks:{maxTicksLimit:6,maxRotation:0,font:{size:10,weight:'500'},color:theme.muted,padding:6}},y:{beginAtZero:true,border:{display:false},grid:{color:theme.line,lineWidth:1},ticks:{font:{size:10,weight:'500'},color:theme.muted,padding:8}}}:{x:{beginAtZero:true,border:{display:false},grid:{color:theme.line,lineWidth:1},ticks:{maxTicksLimit:4,font:{size:10,weight:'500'},color:theme.muted,padding:4,callback:v=>Math.abs(v)>=1000000?v/1000000+'m':Math.abs(v)>=1000?v/1000+'k':v}},y:{grid:{display:false},border:{display:false},ticks:{autoSkip:false,font:{size:11,weight:'500'},color:theme.muted,padding:8,callback:(_,i)=>labels[i]?.length>22?labels[i].slice(0,22)+'…':labels[i]}}}}});
-    el('analysis-chart').setAttribute('aria-label',d.title);el('analysis-rows').replaceChildren();
-    for(const row of d.rows){const tr=document.createElement('tr');const valueText=safeNumber(row.value);const unitText=safeText(row.unit ?? 'บาท');for(const text of [label({...row,unit:''}),valueText,unitText]){const td=document.createElement('td');td.textContent=text;tr.append(td);}el('analysis-rows').append(tr);}
-    el('analysis-export').disabled=false;
+  window.addEventListener("dashboard-theme-change", () => {
+    if (data) draw(data);
+  });
+  function clear() {
+    chart?.destroy();
+    chart = null;
+    data = null;
+    el("analysis-rows").replaceChildren();
+    el("analysis-export").disabled = true;
+    el("analysis-summary").textContent = "";
+    el("analysis-note").textContent = "";
   }
-  async function load(silent=false){silent=silent===true;
-    if(!period)return;const id=++version;controller?.abort();controller=new AbortController();const active=controller;
-    if(!silent)clear();const mode=el('analysis-mode').value,grain=el('analysis-grain').value;el('analysis-grain').hidden=mode!=='net';el('analysis-status').classList.remove('error');if (!silent) el('analysis-status').textContent='กำลังโหลดข้อมูลกราฟ…';
-    const timer=setTimeout(()=>active.abort(),20000);
-    try{const response=await fetch('/api/analytics?'+new URLSearchParams({...period,mode,grain}),{cache:'no-store',signal:active.signal});const result=await response.json();if(!response.ok)throw new Error(result.error);if(id!==version)return;data=result;draw(result);}
-    catch(e){if(id!==version)return;if(!silent)clear();el('analysis-status').textContent=e.name==='AbortError'?'การโหลดใช้เวลานานเกินไป กรุณาลองใหม่':e.message;el('analysis-status').classList.add('error');}
-    finally{clearTimeout(timer);}
+  function draw(d) {
+    const theme = window.dashboardTheme?.palette() || {
+      muted: "#656973",
+      line: "#e0e2e6",
+      brand: "#e10600",
+      surface: "#fff",
+    };
+    chart?.destroy();
+    const timeline = d.mode === "net",
+      shown = timeline ? d.rows : d.rows.slice(0, 10),
+      isQty = d.unit === "quantity";
+    el("analysis-title").textContent = d.title;
+    el("analysis-note").textContent = d.note;
+    el("analysis-status").textContent =
+      `${d.start} ถึง ${d.end} · อัปเดต ${new Date(d.updatedAt).toLocaleTimeString("th-TH")}`;
+    el("analysis-summary").textContent = d.rows.length
+      ? timeline
+        ? `ทั้งหมด ${d.rows.length} ช่วงเวลา`
+        : `แสดง ${shown.length} อันดับแรก จาก ${d.rows.length} รายการ`
+      : "ไม่พบข้อมูลในช่วงที่เลือก";
+    el("analysis-plot").style.height = timeline
+      ? "280px"
+      : Math.max(250, shown.length * 38) + "px";
+    const labels = shown.map((r) => (timeline ? r.name : label(r)));
+    const barPalette = [
+      "#e10600",
+      "#ff3b30",
+      "#c52929",
+      "#91939d",
+      "#af1421",
+      "#727680",
+      "#ef6363",
+      "#c1c3ca",
+      "#a34141",
+      "#7f111a",
+    ];
+    chart = new Chart(el("analysis-chart"), {
+      type: timeline ? "line" : "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: shown.map((r) => r.value),
+            borderColor: theme.brand,
+            backgroundColor: timeline
+              ? "rgba(225, 6, 0,0.08)"
+              : shown.map((r, i) =>
+                  Number(r.value) < 0
+                    ? "#c34f52"
+                    : barPalette[i % barPalette.length],
+                ),
+            borderRadius: timeline ? 0 : 6,
+            borderWidth: timeline ? 2.5 : 0,
+            borderSkipped: false,
+            pointRadius: timeline ? 3 : 0,
+            pointBackgroundColor: "#fff",
+            pointBorderColor: theme.brand,
+            pointBorderWidth: 2,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: theme.brand,
+            pointHoverBorderColor: "#fff",
+            pointHoverBorderWidth: 3,
+            tension: 0,
+            fill: timeline,
+            maxBarThickness: 24,
+            barPercentage: 0.75,
+            categoryPercentage: 0.82,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0, easing: "easeOutQuart" },
+        indexAxis: timeline ? "x" : "y",
+        layout: { padding: { top: 4, right: timeline ? 4 : 16, left: 4 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#482629",
+            titleColor: "#f5dcd7",
+            bodyColor: "#fff",
+            padding: { top: 10, bottom: 10, left: 14, right: 14 },
+            cornerRadius: 10,
+            displayColors: false,
+            titleFont: { size: 11, weight: "500" },
+            bodyFont: { size: 13, weight: "600" },
+            callbacks: {
+              title: (items) => labels[items[0].dataIndex],
+              label: (ctx) =>
+                `${isQty ? "" : "฿"}${format.format(timeline ? ctx.parsed.y : ctx.parsed.x)}${isQty ? " " + shown[ctx.dataIndex].unit : ""}`,
+            },
+          },
+        },
+        scales: timeline
+          ? {
+              x: {
+                grid: { display: false },
+                border: { display: false },
+                ticks: {
+                  maxTicksLimit: 6,
+                  maxRotation: 0,
+                  font: { size: 10, weight: "500" },
+                  color: theme.muted,
+                  padding: 6,
+                },
+              },
+              y: {
+                beginAtZero: true,
+                border: { display: false },
+                grid: { color: theme.line, lineWidth: 1 },
+                ticks: {
+                  font: { size: 10, weight: "500" },
+                  color: theme.muted,
+                  padding: 8,
+                },
+              },
+            }
+          : {
+              x: {
+                beginAtZero: true,
+                border: { display: false },
+                grid: { color: theme.line, lineWidth: 1 },
+                ticks: {
+                  maxTicksLimit: 4,
+                  font: { size: 10, weight: "500" },
+                  color: theme.muted,
+                  padding: 4,
+                  callback: (v) =>
+                    Math.abs(v) >= 1000000
+                      ? v / 1000000 + "m"
+                      : Math.abs(v) >= 1000
+                        ? v / 1000 + "k"
+                        : v,
+                },
+              },
+              y: {
+                grid: { display: false },
+                border: { display: false },
+                ticks: {
+                  autoSkip: false,
+                  font: { size: 11, weight: "500" },
+                  color: theme.muted,
+                  padding: 8,
+                  callback: (_, i) =>
+                    labels[i]?.length > 22
+                      ? labels[i].slice(0, 22) + "…"
+                      : labels[i],
+                },
+              },
+            },
+      },
+    });
+    el("analysis-chart").setAttribute("aria-label", d.title);
+    el("analysis-rows").replaceChildren();
+    for (const row of d.rows) {
+      const tr = document.createElement("tr");
+      const valueText = safeNumber(row.value);
+      const unitText = safeText(row.unit ?? "บาท");
+      for (const text of [label({ ...row, unit: "" }), valueText, unitText]) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.append(td);
+      }
+      el("analysis-rows").append(tr);
+    }
+    el("analysis-export").disabled = false;
   }
-  window.loadSalesAnalysis=(start,end,silent=false)=>{period={start,end};load(silent);};
-  window.clearSalesAnalysis=()=>{++version;controller?.abort();period=null;clear();el('analysis-status').textContent='รอข้อมูลช่วงวันที่';};
-  el('analysis-mode').addEventListener('change',load);el('analysis-grain').addEventListener('change',load);
-  el('analysis-export').addEventListener('click',()=>{if(!data)return;const rows=[[data.title],['ช่วงวันที่',data.start,data.end],[data.note],['รหัส','ชื่อ','ยอด / จำนวน','หน่วย'],...data.rows.map(r=>[r.code,r.name,r.value,r.unit||'บาท'])];const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/^[\s]*[=+@\-]/,m=>"'"+m).replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`sales-${data.mode}-${data.start}-${data.end}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+  async function load(silent = false) {
+    silent = silent === true;
+    if (!period) return;
+    const id = ++version;
+    controller?.abort();
+    controller = new AbortController();
+    const active = controller;
+    if (!silent) clear();
+    const mode = el("analysis-mode").value,
+      grain = el("analysis-grain").value;
+    el("analysis-grain").hidden = mode !== "net";
+    el("analysis-status").classList.remove("error");
+    if (!silent) el("analysis-status").textContent = "กำลังโหลดข้อมูลกราฟ…";
+    const timer = setTimeout(() => active.abort(), 20000);
+    try {
+      const response = await fetch(
+        "/api/analytics?" + new URLSearchParams({ ...period, mode, grain }),
+        { cache: "no-store", signal: active.signal },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      if (id !== version) return;
+      data = result;
+      draw(result);
+    } catch (e) {
+      if (id !== version) return;
+      if (!silent) clear();
+      el("analysis-status").textContent =
+        e.name === "AbortError"
+          ? "การโหลดใช้เวลานานเกินไป กรุณาลองใหม่"
+          : e.message;
+      el("analysis-status").classList.add("error");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  window.loadSalesAnalysis = (start, end, silent = false) => {
+    period = { start, end };
+    load(silent);
+  };
+  window.clearSalesAnalysis = () => {
+    ++version;
+    controller?.abort();
+    period = null;
+    clear();
+    el("analysis-status").textContent = "รอข้อมูลช่วงวันที่";
+  };
+  el("analysis-mode").addEventListener("change", load);
+  el("analysis-grain").addEventListener("change", load);
+  el("analysis-export").addEventListener("click", () => {
+    if (!data) return;
+    const rows = [
+      [data.title],
+      ["ช่วงวันที่", data.start, data.end],
+      [data.note],
+      ["รหัส", "ชื่อ", "ยอด / จำนวน", "หน่วย"],
+      ...data.rows.map((r) => [r.code, r.name, r.value, r.unit || "บาท"]),
+    ];
+    const csv =
+      "\ufeff" +
+      rows
+        .map((row) =>
+          row
+            .map(
+              (v) =>
+                '"' +
+                String(v ?? "")
+                  .replace(/^[\s]*[=+@\-]/, (m) => "'" + m)
+                  .replaceAll('"', '""') +
+                '"',
+            )
+            .join(","),
+        )
+        .join("\r\n");
+    const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      ),
+      a = document.createElement("a");
+    a.href = url;
+    a.download = `sales-${data.mode}-${data.start}-${data.end}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
 })();
