@@ -45,7 +45,7 @@ installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);
 installExecutive(app, pool);
-installCustomerInsights(app, pool);
+installCustomerInsights(app, pool, accessStore);
 installProductPerformance(app, pool);
 installSalesTrend(app, pool);
 app.get('/api/dashboard', async (req, res) => {

@@ -38,6 +38,26 @@ body.customer-dialog-open{overflow:hidden}
 .summary-chart-label b{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .summary-legend-dot{width:8px;height:8px;border-radius:50%}
 .summary-chart-legend{display:grid;gap:10px;min-width:0}
+.net-region-chart-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.summary-net-composition .net-composition-overview{width:fit-content;max-width:100%;margin-inline:auto;grid-template-columns:150px minmax(0,190px)}
+@media(max-width:480px){.summary-net-composition .net-composition-overview{grid-template-columns:130px minmax(0,170px)}}
+.net-region-chart-header .net-region-button{margin-left:auto;padding:8px 10px;font-size:12px;min-height:36px;color:inherit;background:#ffffff12;border:1px solid #ffffff55;border-radius:8px}
+.net-region-chart-header .net-region-button:hover{background:#ffffff25}
+.net-region-dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;padding:22px;border:1px solid #ffffff30;border-radius:16px;background:#241413;color:#fff;box-shadow:0 24px 80px #0008}
+.net-region-dialog::backdrop{background:#0009;backdrop-filter:blur(3px)}
+.net-region-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.net-region-dialog-header h2{margin:0;color:#fff;font-size:18px}
+.net-region-dialog-header button{background:#ffffff12;color:#fff;border-color:#ffffff30}
+.net-region-dialog .summary-chart-label{grid-template-columns:8px minmax(0,1fr) auto;color:#fff;padding:10px 0;border-bottom:1px solid #ffffff18}
+.net-region-dialog .summary-chart-label b{grid-column:3;color:#fff}
+.net-region-note{font-size:12px;line-height:1.7;color:#d7c5c3;margin:20px 0 0}
+.net-retention-ring .net-retention-center{pointer-events:none}
+.net-retention-ring .net-region-arc{pointer-events:visiblePainted;cursor:pointer;transition:stroke-width .15s}
+.net-retention-ring .net-region-arc:hover,.net-retention-ring .net-region-arc:focus{stroke-width:11;outline:none}
+.net-retention-ring .net-region-tooltip{position:absolute;inset:22%;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:50%;background:#40100d;color:#fff;text-align:center;pointer-events:none;line-height:1.3;padding:3px}
+.net-region-tooltip span{font-size:10px;overflow-wrap:anywhere}
+.net-region-tooltip b{font-size:20px;font-variant-numeric:tabular-nums}
+.net-region-tooltip small{font-size:9px}
 .summary-donut-layout{display:grid;grid-template-columns:180px minmax(0,1fr);align-items:center;gap:14px;min-height:168px}
 .summary-donut{position:relative;width:180px;max-width:100%;margin:auto;container-type:inline-size}
 .summary-donut svg{display:block;width:100%;height:auto}

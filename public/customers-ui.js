@@ -327,24 +327,81 @@ function renderSummaryCharts() {
         const retained = net / positive * 100;
         const deducted = deduction / positive * 100;
         const ring = node('div', '', 'net-retention-ring');
-        const graphic = summarySvg('svg', { viewBox: '0 0 160 160', 'aria-hidden': 'true' });
+        const graphic = summarySvg('svg', { viewBox: '0 0 160 160', role: 'group', 'aria-label': 'สัดส่วนยอดบวกแยกตามเขตขาย' });
+        const tooltip = node('div', '', 'net-region-tooltip');
+        tooltip.setAttribute('role', 'status');
+        tooltip.hidden = true;
         graphic.append(summarySvg('circle', { cx: 80, cy: 80, r: 68, fill: 'none', stroke: '#a45b5b', 'stroke-width': 7 }));
-        graphic.append(summarySvg('circle', { cx: 80, cy: 80, r: 68, fill: 'none', stroke: '#edcb89', 'stroke-width': 7,
-          pathLength: 100, 'stroke-dasharray': `${retained} ${100 - retained}`, transform: 'rotate(-90 80 80)' }));
+        const regionTotals = new Map();
+        for (const customer of filtered) {
+          const region = customer.region || 'ไม่ระบุเขตขาย';
+          regionTotals.set(region, (regionTotals.get(region) || 0) + Math.max(0, customer.net));
+        }
+        const regionColors = ['#edcb89','#78c6ea','#bca4ee','#8bd1ae','#f59d80','#dba5c9','#b8bdc7'];
+        const regionLegend = node('div', '', 'summary-chart-legend');
+        let regionOffset = 0;
+        [...regionTotals].filter(([,amount])=>amount>0).sort(([a],[b])=>a.localeCompare(b,'th')).forEach(([region,amount],index)=>{
+          const share = amount / positive * 100, arcShare = share * retained / 100;
+          const color = regionColors[index % regionColors.length];
+          const arc = summarySvg('circle', {cx:80,cy:80,r:68,fill:'none',stroke:color,'stroke-width':7,pathLength:100,
+            'stroke-dasharray':`${arcShare} ${100-arcShare}`,'stroke-dashoffset':-regionOffset,transform:'rotate(-90 80 80)',
+            class:'net-region-arc',tabindex:0,role:'img','aria-label':`${region} ${number.format(share)}% ของยอดสุทธิบวก`});
+          const showRegion = () => {
+            tooltip.replaceChildren(node('span', region), node('b', number.format(share) + '%'), node('small', 'ของยอดสุทธิบวก'));
+            tooltip.hidden = false;
+          };
+          const hideRegion = () => { tooltip.hidden = true; };
+          arc.addEventListener('pointerenter', showRegion);
+          arc.addEventListener('pointerleave', hideRegion);
+          arc.addEventListener('focus', showRegion);
+          arc.addEventListener('blur', hideRegion);
+          arc.addEventListener('click', showRegion);
+          arc.addEventListener('keydown', event => { if (event.key === 'Escape') hideRegion(); });
+          arc.append(summarySvg('title',{},`${region}: ${money(amount)} (${number.format(share)}% ของยอดสุทธิบวก)`));
+          graphic.append(arc);regionOffset+=arcShare;
+          const row=node('div','','summary-chart-label'),dot=node('i','','summary-legend-dot');
+          dot.style.background=color;dot.setAttribute('aria-hidden','true');
+          row.append(dot,node('span',region),node('b',number.format(share)+'%'));regionLegend.append(row);
+        });
         const center = node('div', '', 'net-retention-center');
         center.append(node('b', number.format(retained) + '%'), node('span', 'ยอดสุทธิคงเหลือ'));
-        ring.append(graphic, center);
+        ring.append(graphic, center, tooltip);
         const detail = node('div', '', 'net-retention-detail');
         detail.append(node('span', 'สัดส่วนจากยอดบวก', 'net-retention-eyebrow'),
           node('b', 'หักออก ' + number.format(deducted) + '%'),
           node('span', money(deduction), 'net-retention-amount'),
           node('span', 'จากยอดสุทธิติดลบของลูกค้า', 'net-retention-description'));
         overview.append(ring, detail);
+        const regionButton = node('button', 'ดูสัดส่วนแต่ละภาค', 'net-region-button');
+        regionButton.type = 'button';
+        regionButton.setAttribute('aria-haspopup', 'dialog');
+        const regionDialog = node('dialog', '', 'net-region-dialog');
+        regionDialog.setAttribute('aria-labelledby', 'net-region-dialog-title');
+        const dialogHeader = node('div', '', 'net-region-dialog-header');
+        const dialogTitle = node('h2', 'สัดส่วนแต่ละภาค');
+        dialogTitle.id = 'net-region-dialog-title';
+        const closeButton = node('button', 'ปิด');
+        closeButton.type = 'button';
+        dialogHeader.append(dialogTitle, closeButton);
+        regionDialog.append(dialogHeader, regionLegend,
+          node('p','สัดส่วนยอดสุทธิบวกของลูกค้าในแต่ละเขตขาย ก่อนหักยอดติดลบรวม','net-region-note'));
+        regionButton.addEventListener('click', () => regionDialog.showModal());
+        closeButton.addEventListener('click', () => regionDialog.close());
+        regionDialog.addEventListener('click', event => {
+          if (event.target !== regionDialog) return;
+          const bounds = regionDialog.getBoundingClientRect();
+          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) regionDialog.close();
+        });
+        regionDialog.addEventListener('close', () => regionButton.focus());
+        const chartHeader = node('div', '', 'net-region-chart-header');
+        chartHeader.append(chart.firstElementChild, regionButton);
+        chart.prepend(chartHeader);
+        layout.append(regionDialog);
       } else {
         overview.classList.add('net-composition-empty');
         overview.append(node('span', positive > 0 ? 'ยอดหักมากกว่ายอดบวก' : deduction > 0 ? 'มีเฉพาะยอดหักในช่วงนี้' : 'ไม่มียอดซื้อสุทธิในช่วงนี้', 'net-composition-note'));
       }
-      layout.append(overview);
+      layout.prepend(overview);
     } else {
       const total = values.reduce((sum, [, value]) => sum + value, 0);
       const ring = node('div', '', 'summary-donut');

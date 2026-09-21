@@ -23,7 +23,7 @@ function customerQueryError(error) {
   return 'ดึงข้อมูลลูกค้าจาก SML ไม่สำเร็จ กรุณาลองใหม่';
 }
 
-export function installCustomerInsights(app, pool) {
+export function installCustomerInsights(app, pool, accessStore) {
   app.get('/api/customer-insights/non-buyers', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const { start, end } = req.query;
@@ -50,6 +50,18 @@ export function installCustomerInsights(app, pool) {
       try {
         const { rows } = await pool.query(detail ? productsSql : customersSql, detail ? [start, end, code] : [start, end]);
         const data = rows[0].insights;
+        if (!detail && accessStore) {
+          const territories = accessStore.all('SELECT name,mapping_json FROM sales_territories WHERE is_active=1').map(t=>({...t,mapping:JSON.parse(t.mapping_json)}));
+          for (const customer of data.customers) {
+            const names = new Set();
+            for (const team of customer.teams || ['']) {
+              const matches = territories.filter(t=>t.mapping.teams.includes(team)||t.mapping.customerCodes.includes(customer.code));
+              names.add(matches.length===1?matches[0].name:matches.length?'หลายเขตขาย / ซ้อนทับ':'ไม่ระบุเขตขาย');
+            }
+            customer.region = names.size===1?[...names][0]:'หลายเขตขาย / ซ้อนทับ';
+            delete customer.teams;
+          }
+        }
         if (detail && !data.customer) {
           return res.status(404).json({ error: 'ไม่พบรายการของลูกค้านี้ในช่วงวันที่เลือก' });
         }
