@@ -1,8 +1,33 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตารางสินค้า · Excel</title><link rel="stylesheet" href="sheet.css"><script src="sheet.js" defer></script></head>
-<body><header><div class="brand-icon" aria-hidden="true">X</div><div><p class="eyebrow">PRODUCT WORKBOOK</p><h1>รายการสินค้า</h1><p>ข้อมูลจากไฟล์ WooCommerce · พร้อมนำไปใช้งานใน Excel</p></div><a id="download" class="download" href="download.xlsx">↓ ดาวน์โหลด Excel</a></header>
-<main><section class="toolbar"><div><strong>สินค้า</strong><span id="count">กำลังโหลด…</span></div><p>ดาวน์โหลดครบทุกแถวและทุกคอลัมน์ ตามลำดับในตาราง</p></section>
-<div class="formula"><span id="cell-name">A1</span><span class="fx">fx</span><textarea id="cell-value" readonly aria-label="ข้อมูลเต็มของเซลล์ที่เลือก" placeholder="คลิกเซลล์เพื่ออ่านข้อมูลเต็ม"></textarea></div>
-<div class="sheet-scroll" tabindex="0" role="region" aria-label="ตารางสินค้า เลื่อนซ้ายขวาเพื่อดูทุกคอลัมน์"><table id="sheet"><colgroup id="columns"></colgroup><thead id="head"></thead><tbody id="rows"></tbody></table></div>
-<footer><span class="sheet-tab">สินค้า</span><span id="page-info"></span><div class="pager"><button id="prev" disabled>← ก่อนหน้า</button><button id="next" disabled>ถัดไป →</button></div></footer>
-<p id="status" role="status">ข้อมูลเป็นข้อความตามไฟล์ต้นฉบับ เพื่อรักษารหัสสินค้าและเลขศูนย์นำหน้า · แสดงหน้าละ 100 รายการ</p></main></body></html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>รายการสินค้า · Excel</title>
+  <link rel="stylesheet" href="sheet.css">
+  <style>.download-menu{position:relative;margin-left:auto}.download-menu summary{list-style:none}.download-menu summary::-webkit-details-marker{display:none}.download-menu[open] summary{background:#185c37}.download-options{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:285px;padding:6px;background:#fff;border:1px solid #dfe8e2;border-radius:8px;box-shadow:0 8px 18px #24332d24}.download-options a{display:block;padding:9px 11px;border-radius:5px;color:#24332d;text-decoration:none;font-size:13px}.download-options a:hover{background:#f3f8f5}.download-options small{display:block;color:#687c70;margin-top:2px}@media(max-width:650px){.download-menu{margin-left:0;width:100%}.download-menu .download{width:100%;text-align:center}.download-options{width:100%}}</style>
+  <style>.missing-products{margin:0 0 16px;background:#fff;border:1px solid #dfe8e2;border-top:0}.missing-products summary{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;color:#185c37;font-weight:bold}.missing-count{padding:1px 8px;border-radius:999px;background:#e5f2e9;font-size:12px}.missing-content{padding:0 20px 18px}.missing-meta{display:flex;align-items:center;gap:12px;margin:0 0 10px;color:#687c70;font-size:12px}.missing-meta button{margin-left:auto}.missing-scroll{overflow:auto;max-height:360px;border:1px solid #dfe8e2}.missing-table{width:100%;min-width:760px}.missing-table th{position:sticky;top:0;background:#e7eee9;color:#24332d;height:38px}.missing-table td{height:38px;white-space:normal}.missing-empty{padding:24px;text-align:center;color:#687c70}@media(max-width:650px){.missing-products summary,.missing-content{padding-left:12px;padding-right:12px}.missing-meta{align-items:flex-start;flex-wrap:wrap}.missing-meta button{margin-left:0}}</style>
+  <style>.add-product{white-space:nowrap}.product-editor{width:min(960px,calc(100vw - 28px));max-height:90vh;padding:0;border:0;border-radius:10px;box-shadow:0 18px 50px #24332d55}.product-editor::backdrop{background:#17231e99}.editor-header,.editor-actions{display:flex;align-items:center;gap:12px;padding:16px 20px;background:#fff}.editor-header{position:sticky;top:0;z-index:2;border-bottom:1px solid #dfe8e2}.editor-header h2{margin:0;font-size:20px}.editor-header p{margin:0;color:#687c70;font-size:12px}.editor-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:18px 20px;background:#f6f8f7}.editor-field{display:grid;gap:4px}.editor-field span{font-size:12px;color:#53705e}.editor-field input,.editor-field textarea{width:100%;padding:9px 10px;border:1px solid #ccd9d0;border-radius:6px;background:#fff;font:13px/1.5 Tahoma}.editor-field textarea{min-height:74px;resize:vertical}.editor-field input:read-only{background:#eef2ef;color:#687c70}.editor-actions{position:sticky;bottom:0;justify-content:flex-end;border-top:1px solid #dfe8e2}.editor-message{margin-right:auto;font-size:12px;color:#b42318}.primary{background:#217346;color:#fff;border-color:#217346}@media(max-width:650px){.editor-fields{grid-template-columns:1fr}.editor-header{align-items:flex-start;flex-direction:column}}</style>
+  <script src="sheet.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand-icon" aria-hidden="true">X</div>
+    <div><p class="eyebrow">PRODUCT WORKBOOK</p><h1>รายการสินค้า</h1><p>ข้อมูลจากไฟล์ WooCommerce พร้อมลิงก์รูปภาพ</p></div>
+    <details class="download-menu"><summary class="download">↓ ดาวน์โหลดไฟล์</summary><div class="download-options"><a href="download.xlsx">Excel (.xlsx)<small>สำหรับเปิด ตรวจสอบ หรือแก้ไขข้อมูล</small></a><a href="download.csv">WooCommerce CSV (.csv)<small>UTF-8 สำหรับนำเข้าสินค้าใน WordPress</small></a></div></details>
+  </header>
+  <main>
+    <section class="toolbar">
+      <div><strong>สินค้า</strong><span id="count">กำลังโหลด…</span></div>
+      <label class="search"><span class="sr-only">ค้นหารายการสินค้า</span><input id="search" type="search" placeholder="ค้นหารหัส ชื่อ หรือข้อมูลสินค้า" autocomplete="off"><button id="clear-search" type="button" aria-label="ล้างคำค้น">×</button></label>
+      <p>ดาวน์โหลดได้ครบทุกแถวและทุกคอลัมน์ตามลำดับในตาราง</p>
+    </section>
+    <details id="missing-products" class="missing-products"><summary>สินค้าใหม่จาก SML ที่ยังไม่มีใน Excel <span id="missing-count" class="missing-count">กำลังตรวจสอบ…</span></summary><div class="missing-content"><div class="missing-meta"><span id="missing-period">ตั้งแต่ 1 ม.ค. 2568 ถึงปัจจุบัน</span><span>ไม่รวมรหัสฝากขายที่ขึ้นต้นด้วย ฝ</span><button id="refresh-missing" type="button">ตรวจสอบอีกครั้ง</button></div><div class="missing-scroll"><table class="missing-table"><thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วย</th><th>กลุ่มสินค้า</th><th>วันที่เพิ่มใน SML</th><th>เพิ่มข้อมูล</th></tr></thead><tbody id="missing-rows"><tr><td colspan="6" class="missing-empty">กำลังตรวจสอบข้อมูล…</td></tr></tbody></table></div></div></details>
+    <dialog id="product-editor" class="product-editor"><form id="product-form" method="dialog"><div class="editor-header"><div><h2>เพิ่มสินค้าลง Excel</h2><p id="editor-product-name"></p></div></div><div id="editor-fields" class="editor-fields"></div><div class="editor-actions"><span id="editor-message" class="editor-message" role="status"></span><button id="cancel-product" type="button">ยกเลิก</button><button id="save-product" class="primary" type="submit">บันทึกลง Excel</button></div></form></dialog>
+    <div class="formula"><span id="cell-name">A1</span><span class="fx">fx</span><textarea id="cell-value" readonly aria-label="ข้อมูลเต็มของเซลล์ที่เลือก" placeholder="คลิกเซลล์เพื่ออ่านข้อมูลเต็ม"></textarea></div>
+    <div class="sheet-scroll" tabindex="0" role="region" aria-label="ตารางสินค้า เลื่อนซ้ายขวาเพื่อดูทุกคอลัมน์"><table id="sheet"><colgroup id="columns"></colgroup><thead id="head"></thead><tbody id="rows"></tbody></table></div>
+    <footer><span class="sheet-tab">สินค้า</span><span id="page-info"></span><div class="pager"><button id="prev" disabled>← ก่อนหน้า</button><button id="next" disabled>ถัดไป →</button></div></footer>
+    <p id="status" role="status">ข้อมูลเป็นข้อความตามไฟล์ต้นฉบับ เพื่อรักษารหัสสินค้าและเลขศูนย์นำหน้า · แสดงหน้าละ 100 รายการ</p>
+  </main>
+</body>
+</html>

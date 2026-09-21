@@ -1,6 +1,6 @@
 # ตารางสินค้าแยกจาก Dashboard
 
-รันจากโฟลเดอร์หลักด้วย `node product-sheet/server.js` แล้วเปิด http://localhost:3002
+รันจากโฟลเดอร์หลักด้วย `node --env-file=.env product-sheet/server.js` แล้วเปิด http://localhost:3002
 
 - ใช้สำเนา CSV ใน `data/products.csv` ไม่เปลี่ยนไฟล์ต้นฉบับ
 - ตารางแสดงหน้าละ 100 รายการ คลิกเซลล์เพื่ออ่านค่าเต็ม
