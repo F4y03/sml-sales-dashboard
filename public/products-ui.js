@@ -20,7 +20,7 @@ exportStockLabel.querySelector('select').addEventListener('change', () => {
 });
 let current=null,applied={q:'',group:'',activity:'all',stock:'all',sort:'code',direction:'asc'},version=0,exporting=false;
 const sortableHeaders=[];
-for(const [index,sort] of [[4,'price'],[6,'stock']]){
+for(const [index,sort] of [[5,'stock'],[6,'price']]){
   const header=document.querySelectorAll('.product-panel thead th')[index];
   const button=document.createElement('button'),icon=document.createElement('span');
   button.type='button';button.className='product-sort';button.dataset.sort=sort;
@@ -52,7 +52,7 @@ async function load(page=0,filters=applied,silent=false){
     const selectedGroup=$('product-group').value;$('product-group').replaceChildren(new Option('ทุกกลุ่มสินค้า',''));for(const g of data.groups)$('product-group').add(new Option(`${g.code} · ${g.name} (${count(g.count)})`,g.code));$('product-group').value=selectedGroup;
     for(const p of data.rows){
       const tr=document.createElement('tr');
-      const values=[p.code,p.name_1,p.group_main_name||p.group_main,p.unit_standard,priceLabel(p.catalog_sale_price),p.activity_2568_2569,stockLabel(p.balance_qty),stockStatus(p.balance_qty)];
+      const values=[p.code,p.name_1,p.group_main_name||p.group_main,p.unit_standard,p.activity_2568_2569,stockLabel(p.balance_qty),priceLabel(p.catalog_sale_price),stockStatus(p.balance_qty)];
       for(const [index,v] of values.entries()){
         const td=document.createElement('td');
         const text=textCell(v);
