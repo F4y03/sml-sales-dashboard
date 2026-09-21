@@ -1,23 +1,109 @@
-@media(min-width:1200px){.overview-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.growth-card{width:100%;text-align:left;font:inherit;cursor:pointer;color:var(--ink);background:var(--surface)}
-.growth-card .metric[data-direction=up]{color:var(--positive,#168044)}
-.growth-card .metric[data-direction=down]{color:var(--negative,#c52c35)}
-.growth-card .kpi-foot{line-height:1.7;flex-wrap:wrap}
-.growth-card:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
-.growth-details{padding:24px;line-height:1.8;color:var(--ink)}
-.growth-details article{padding:16px;margin-bottom:12px;background:var(--surface-raised);border:1px solid var(--line);border-radius:10px}
-.growth-details p{margin:6px 0}
-.growth-comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
-.growth-comparison-grid article{margin:0;padding:18px;min-width:0}
-#growth-dialog .growth-comparison-value{display:block;font-size:26px;line-height:1.4;margin:14px 0;font-weight:700;overflow-wrap:anywhere}
-#growth-dialog [data-direction=up]{color:var(--positive,#168044)}
-#growth-dialog [data-direction=down]{color:var(--negative,#c52c35)}
-#growth-dialog .growth-comparison-label,#growth-dialog .growth-period{font-size:12px;color:var(--muted)}
-.growth-details h3{font-size:14px;margin:20px 0 10px}
-.growth-details>p{font-size:13px;color:var(--muted)}
-.growth-comparison-dates{font-size:12px;line-height:1.7;color:var(--ink)}
-.growth-caution{padding:16px;border:1px solid var(--warning,#a87920);background:color-mix(in srgb,var(--warning,#a87920) 10%,var(--surface));border-radius:12px;font-size:12px}
-.growth-caution h3{margin:0 0 8px}
-@media(max-width:640px){.growth-comparison-grid{grid-template-columns:1fr}.growth-details{padding:16px}}
-.overview-status:not(.error){display:none}
-.overview-status.error{padding:12px 24px}
+@media (min-width: 1200px) {
+  .overview-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.growth-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--surface);
+}
+.growth-card .metric[data-direction="up"] {
+  color: var(--positive, #168044);
+}
+.growth-card .metric[data-direction="down"] {
+  color: var(--negative, #c52c35);
+}
+.growth-card .kpi-foot {
+  line-height: 1.7;
+  flex-wrap: wrap;
+}
+.growth-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.growth-details {
+  padding: 24px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+.growth-details article {
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.growth-details p {
+  margin: 6px 0;
+}
+.growth-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.growth-comparison-grid article {
+  margin: 0;
+  padding: 18px;
+  min-width: 0;
+}
+#growth-dialog .growth-comparison-value {
+  display: block;
+  font-size: 26px;
+  line-height: 1.4;
+  margin: 14px 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+#growth-dialog [data-direction="up"] {
+  color: var(--positive, #168044);
+}
+#growth-dialog [data-direction="down"] {
+  color: var(--negative, #c52c35);
+}
+#growth-dialog .growth-comparison-label,
+#growth-dialog .growth-period {
+  font-size: 12px;
+  color: var(--muted);
+}
+.growth-details h3 {
+  font-size: 14px;
+  margin: 20px 0 10px;
+}
+.growth-details > p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.growth-comparison-dates {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.growth-caution {
+  padding: 16px;
+  border: 1px solid var(--warning, #a87920);
+  background: color-mix(in srgb, var(--warning, #a87920) 10%, var(--surface));
+  border-radius: 12px;
+  font-size: 12px;
+}
+.growth-caution h3 {
+  margin: 0 0 8px;
+}
+@media (max-width: 640px) {
+  .growth-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  .growth-details {
+    padding: 16px;
+  }
+}
+.overview-status:not(.error) {
+  display: none;
+}
+.overview-status.error {
+  padding: 12px 24px;
+}

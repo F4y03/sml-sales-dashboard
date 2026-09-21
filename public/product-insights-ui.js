@@ -1,407 +1,1028 @@
 (() => {
-  const byId = id => document.getElementById(id);
-  const tooltip = document.createElement('div');
-  tooltip.id = 'product-chart-tooltip'; tooltip.className = 'product-chart-tooltip';
-  tooltip.setAttribute('role', 'tooltip'); tooltip.hidden = true; document.body.append(tooltip);
-  function hideChartTooltip() { tooltip.hidden = true; }
-  document.addEventListener('scroll', hideChartTooltip, true);
-  window.addEventListener('resize', hideChartTooltip);
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') hideChartTooltip(); });
+  const byId = (id) => document.getElementById(id);
+  const tooltip = document.createElement("div");
+  tooltip.id = "product-chart-tooltip";
+  tooltip.className = "product-chart-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.hidden = true;
+  document.body.append(tooltip);
+  function hideChartTooltip() {
+    tooltip.hidden = true;
+  }
+  document.addEventListener("scroll", hideChartTooltip, true);
+  window.addEventListener("resize", hideChartTooltip);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideChartTooltip();
+  });
   function showChartTooltip(button, item, periods, watch, selected) {
-    tooltip.replaceChildren(node('strong', item.name, 'chart-tip-name'), node('span', skuLabel(item.code), 'chart-tip-code'));
+    tooltip.replaceChildren(
+      node("strong", item.name, "chart-tip-name"),
+      node("span", skuLabel(item.code), "chart-tip-code"),
+    );
     for (const [key, title, period, amount] of [
-      ['previous', 'ช่วงก่อน', periods.previous, item.previousNet],
-      ['current', 'ช่วงนี้', periods.current, item.net],
+      ["previous", "ช่วงก่อน", periods.previous, item.previousNet],
+      ["current", "ช่วงนี้", periods.current, item.net],
     ]) {
-      if (!watch && key === 'previous') continue;
-      const section = node('div', '', `chart-tip-period${selected === key ? ' is-highlighted' : ''}`);
-      section.append(node('span', title, `chart-tip-label ${key}`), node('span', period, 'chart-tip-date'), node('b', money(amount), 'chart-tip-value'));
+      if (!watch && key === "previous") continue;
+      const section = node(
+        "div",
+        "",
+        `chart-tip-period${selected === key ? " is-highlighted" : ""}`,
+      );
+      section.append(
+        node("span", title, `chart-tip-label ${key}`),
+        node("span", period, "chart-tip-date"),
+        node("b", money(amount), "chart-tip-value"),
+      );
       tooltip.append(section);
     }
-    tooltip.append(node('span', 'ยอดขายสุทธิ · คลิกเพื่อดูรายละเอียดสินค้า', 'chart-tip-footer'));
+    tooltip.append(
+      node(
+        "span",
+        "ยอดขายสุทธิ · คลิกเพื่อดูรายละเอียดสินค้า",
+        "chart-tip-footer",
+      ),
+    );
     tooltip.hidden = false;
-    const bounds = button.getBoundingClientRect(), width = tooltip.offsetWidth, height = tooltip.offsetHeight;
+    const bounds = button.getBoundingClientRect(),
+      width = tooltip.offsetWidth,
+      height = tooltip.offsetHeight;
     const right = bounds.right + 12;
-    const left = right + width <= innerWidth - 12 ? right : bounds.left - width - 12 >= 12 ? bounds.left - width - 12 : Math.max(12, innerWidth - width - 12);
+    const left =
+      right + width <= innerWidth - 12
+        ? right
+        : bounds.left - width - 12 >= 12
+          ? bounds.left - width - 12
+          : Math.max(12, innerWidth - width - 12);
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${Math.max(12, Math.min(bounds.top, innerHeight - height - 12))}px`;
   }
-  const num = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 });
-  const baht = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const dayFormat = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-  const money = value => `฿${baht.format(value)}`;
-  const date = value => value ? dayFormat.format(new Date(`${value}T12:00:00`)) : 'ไม่มีบิลขายในช่วงนี้';
+  const num = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 });
+  const baht = new Intl.NumberFormat("th-TH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const dayFormat = new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const money = (value) => `฿${baht.format(value)}`;
+  const date = (value) =>
+    value
+      ? dayFormat.format(new Date(`${value}T12:00:00`))
+      : "ไม่มีบิลขายในช่วงนี้";
   const pageSize = 10;
-  const skuLabel = code => `SKU-${code}`;
-  const searchText = item => `${item.code}\n${skuLabel(item.code)}\n${item.name}`.toLocaleLowerCase('th-TH');
-  let active = false, data = null, scope = [], visible = [], page = 0, mode = 'all';
-  let controller, requestId = 0, reloadTimer, buyerController, buyerRequest = 0, buyerData, buyerPage = 0, selectedSku, opener, outsideDown = false;
+  const skuLabel = (code) => `SKU-${code}`;
+  const searchText = (item) =>
+    `${item.code}\n${skuLabel(item.code)}\n${item.name}`.toLocaleLowerCase(
+      "th-TH",
+    );
+  let active = false,
+    data = null,
+    scope = [],
+    visible = [],
+    page = 0,
+    mode = "all";
+  let controller,
+    requestId = 0,
+    reloadTimer,
+    buyerController,
+    buyerRequest = 0,
+    buyerData,
+    buyerPage = 0,
+    selectedSku,
+    opener,
+    outsideDown = false;
 
-  function node(tag, text = '', className = '') {
+  function node(tag, text = "", className = "") {
     const element = document.createElement(tag);
     element.textContent = text;
     if (className) element.className = className;
     return element;
   }
-  const descending = (a, b) => b.net - a.net || a.code.localeCompare(b.code, 'th');
-  const declining = item => item.previousNet > 0 && item.net < item.previousNet;
-  const unsold = item => item.registered && item.invoiceCount === 0;
-  const change = item => item.previousNet > 0 ? (item.net - item.previousNet) / item.previousNet * 100 : null;
+  const descending = (a, b) =>
+    b.net - a.net || a.code.localeCompare(b.code, "th");
+  const declining = (item) =>
+    item.previousNet > 0 && item.net < item.previousNet;
+  const unsold = (item) => item.registered && item.invoiceCount === 0;
+  const change = (item) =>
+    item.previousNet > 0
+      ? ((item.net - item.previousNet) / item.previousNet) * 100
+      : null;
   function changeLabel(item) {
     const percent = change(item);
-    return percent === null ? 'ไม่มีฐานบวกให้เทียบ' : `${percent > 0 ? '+' : ''}${num.format(percent)}%`;
+    return percent === null
+      ? "ไม่มีฐานบวกให้เทียบ"
+      : `${percent > 0 ? "+" : ""}${num.format(percent)}%`;
   }
   function quantitiesCell(quantities) {
-    const cell = node('td', '', 'numeric quantity-lines');
-    if (!quantities.length) cell.textContent = '—';
-    quantities.forEach(quantity => cell.append(node('span', `${num.format(quantity.net)} ${quantity.unit}`)));
+    const cell = node("td", "", "numeric quantity-lines");
+    if (!quantities.length) cell.textContent = "—";
+    quantities.forEach((quantity) =>
+      cell.append(node("span", `${num.format(quantity.net)} ${quantity.unit}`)),
+    );
     return cell;
   }
   function empty(body, count, text) {
-    const row = node('tr'), cell = node('td', text, 'empty-state empty-cell');
-    cell.colSpan = count; row.append(cell); body.append(row);
+    const row = node("tr"),
+      cell = node("td", text, "empty-state empty-cell");
+    cell.colSpan = count;
+    row.append(cell);
+    body.append(row);
   }
   function pager(prefix, index, count) {
-    byId(`${prefix}-page-info`).textContent = count ? `${num.format(index * pageSize + 1)}–${num.format(Math.min((index + 1) * pageSize, count))} จาก ${num.format(count)} รายการ` : '0 รายการ';
+    byId(`${prefix}-page-info`).textContent = count
+      ? `${num.format(index * pageSize + 1)}–${num.format(Math.min((index + 1) * pageSize, count))} จาก ${num.format(count)} รายการ`
+      : "0 รายการ";
     byId(`${prefix}-prev`).disabled = index === 0;
     byId(`${prefix}-next`).disabled = (index + 1) * pageSize >= count;
   }
   function status(text, error = false) {
-    byId('performance-status').textContent = text;
-    byId('performance-status').classList.toggle('error', error);
+    byId("performance-status").textContent = text;
+    byId("performance-status").classList.toggle("error", error);
   }
   async function getJSON(url, signal) {
-    const response = await fetch(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
-    if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('ไม่พบข้อมูล API สินค้า กรุณารีสตาร์ตเซิร์ฟเวอร์ Dashboard แล้วลองใหม่');
+    const response = await fetch(url, {
+      signal,
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.headers.get("content-type")?.includes("application/json"))
+      throw new Error(
+        "ไม่พบข้อมูล API สินค้า กรุณารีสตาร์ตเซิร์ฟเวอร์ Dashboard แล้วลองใหม่",
+      );
     let result;
-    try { result = await response.json(); }
-    catch (error) {
-      if (error.name !== 'SyntaxError') throw error;
-      throw new Error('ข้อมูลสินค้าจากเซิร์ฟเวอร์ไม่สมบูรณ์ กรุณาลองใหม่');
+    try {
+      result = await response.json();
+    } catch (error) {
+      if (error.name !== "SyntaxError") throw error;
+      throw new Error("ข้อมูลสินค้าจากเซิร์ฟเวอร์ไม่สมบูรณ์ กรุณาลองใหม่");
     }
-    if (!response.ok) throw new Error(result.error || 'โหลดข้อมูลสินค้าไม่สำเร็จ กรุณาลองใหม่');
+    if (!response.ok)
+      throw new Error(result.error || "โหลดข้อมูลสินค้าไม่สำเร็จ กรุณาลองใหม่");
     return result;
   }
 
   function reset() {
-    controller?.abort(); requestId++;
+    controller?.abort();
+    requestId++;
     clearTimeout(reloadTimer);
-    data = null; scope = []; visible = [];
-    byId('performance-dashboard').hidden = true;
-    if (byId('sku-detail').open) closeSku();
+    data = null;
+    scope = [];
+    visible = [];
+    byId("performance-dashboard").hidden = true;
+    if (byId("sku-detail").open) closeSku();
   }
   async function load(detail) {
     if (!detail.silent) reset();
     if (!active) return;
-    if (!detail.valid) { status('กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน', true); byId('refresh').disabled = false; return; }
+    if (!detail.valid) {
+      status("กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน", true);
+      byId("refresh").disabled = false;
+      return;
+    }
     const currentRequest = ++requestId;
-    const currentController = new AbortController(); controller = currentController;
-    byId('refresh').disabled = true;
-    status('กำลังวิเคราะห์ยอดขายสินค้าและเปรียบเทียบช่วงก่อนหน้าจาก SML…');
+    const currentController = new AbortController();
+    controller = currentController;
+    byId("refresh").disabled = true;
+    status("กำลังวิเคราะห์ยอดขายสินค้าและเปรียบเทียบช่วงก่อนหน้าจาก SML…");
     try {
-      const result = await getJSON(`/api/customer-insights/catalog?${new URLSearchParams({ start: detail.start, end: detail.end })}`, currentController.signal);
+      const result = await getJSON(
+        `/api/customer-insights/catalog?${new URLSearchParams({ start: detail.start, end: detail.end })}`,
+        currentController.signal,
+      );
       if (currentRequest !== requestId || !active) return;
       data = result;
       data.products = result.products
-        .filter(item => !String(item.code ?? '').replace(/^[\s\u200B-\u200D\uFEFF]+/u, '').startsWith('ฝ'))
-        .map(item => ({ ...item, net: Number(item.net), previousNet: Number(item.previousNet), invoiceCount: Number(item.invoiceCount), buyerCount: Number(item.buyerCount) }));
-      const category = byId('performance-category'), previousCategory = category.value;
-      const groups = new Map(data.products.map(item => [item.categoryCode, item.category]));
-      category.replaceChildren(new Option('ทุกหมวดหมู่', '*'));
-      [...groups].sort((a, b) => a[1].localeCompare(b[1], 'th')).forEach(([code, name]) => category.append(new Option(name, code)));
-      category.value = groups.has(previousCategory) ? previousCategory : '*';
-      byId('performance-dashboard').hidden = false;
-      byId('performance-period').textContent = `${date(data.start)} – ${date(data.end)} · เทียบ ${date(data.previous.start)} – ${date(data.previous.end)} (${num.format(data.previous.days)} วันเท่ากัน)`;
-      byId('performance-updated').textContent = `อัปเดต ${new Date(data.updatedAt).toLocaleString('th-TH')}`;
+        .filter(
+          (item) =>
+            !String(item.code ?? "")
+              .replace(/^[\s\u200B-\u200D\uFEFF]+/u, "")
+              .startsWith("ฝ"),
+        )
+        .map((item) => ({
+          ...item,
+          net: Number(item.net),
+          previousNet: Number(item.previousNet),
+          invoiceCount: Number(item.invoiceCount),
+          buyerCount: Number(item.buyerCount),
+        }));
+      const category = byId("performance-category"),
+        previousCategory = category.value;
+      const groups = new Map(
+        data.products.map((item) => [item.categoryCode, item.category]),
+      );
+      category.replaceChildren(new Option("ทุกหมวดหมู่", "*"));
+      [...groups]
+        .sort((a, b) => a[1].localeCompare(b[1], "th"))
+        .forEach(([code, name]) => category.append(new Option(name, code)));
+      category.value = groups.has(previousCategory) ? previousCategory : "*";
+      byId("performance-dashboard").hidden = false;
+      byId("performance-period").textContent =
+        `${date(data.start)} – ${date(data.end)} · เทียบ ${date(data.previous.start)} – ${date(data.previous.end)} (${num.format(data.previous.days)} วันเท่ากัน)`;
+      byId("performance-updated").textContent =
+        `อัปเดต ${new Date(data.updatedAt).toLocaleString("th-TH")}`;
       renderScope(detail.silent);
     } catch (error) {
-      if (currentController.signal.aborted || currentRequest !== requestId) return;
-      status(error.message === 'Failed to fetch' ? 'เชื่อมต่อ SML ไม่สำเร็จ กรุณากดอัปเดตข้อมูลเพื่อลองใหม่' : error.message, true);
-    } finally { if (currentRequest === requestId && active) byId('refresh').disabled = false; }
+      if (currentController.signal.aborted || currentRequest !== requestId)
+        return;
+      status(
+        error.message === "Failed to fetch"
+          ? "เชื่อมต่อ SML ไม่สำเร็จ กรุณากดอัปเดตข้อมูลเพื่อลองใหม่"
+          : error.message,
+        true,
+      );
+    } finally {
+      if (currentRequest === requestId && active)
+        byId("refresh").disabled = false;
+    }
   }
 
   function renderScope(preservePage = false) {
     if (!data) return;
-    const search = byId('performance-search').value.trim().toLocaleLowerCase('th-TH'), category = byId('performance-category').value;
-    scope = data.products.filter(item => (category === '*' || item.categoryCode === category)
-      && searchText(item).includes(search));
-    const total = scope.reduce((sum, item) => sum + item.net, 0), previous = scope.reduce((sum, item) => sum + item.previousNet, 0);
-    byId('performance-net').textContent = money(total);
-    byId('performance-net-change').textContent = `${changeLabel({ net: total, previousNet: previous })} · เทียบช่วงก่อนหน้า`;
-    byId('performance-sold').textContent = num.format(scope.filter(item => item.invoiceCount > 0).length);
-    byId('performance-unsold').textContent = num.format(scope.filter(unsold).length);
-    byId('performance-declining').textContent = num.format(scope.filter(declining).length);
+    const search = byId("performance-search")
+        .value.trim()
+        .toLocaleLowerCase("th-TH"),
+      category = byId("performance-category").value;
+    scope = data.products.filter(
+      (item) =>
+        (category === "*" || item.categoryCode === category) &&
+        searchText(item).includes(search),
+    );
+    const total = scope.reduce((sum, item) => sum + item.net, 0),
+      previous = scope.reduce((sum, item) => sum + item.previousNet, 0);
+    byId("performance-net").textContent = money(total);
+    byId("performance-net-change").textContent =
+      `${changeLabel({ net: total, previousNet: previous })} · เทียบช่วงก่อนหน้า`;
+    byId("performance-sold").textContent = num.format(
+      scope.filter((item) => item.invoiceCount > 0).length,
+    );
+    byId("performance-unsold").textContent = num.format(
+      scope.filter(unsold).length,
+    );
+    byId("performance-declining").textContent = num.format(
+      scope.filter(declining).length,
+    );
     renderSummaryCharts(total, previous);
-    renderLeaders('performance-best', scope.filter(item => item.net > 0 && item.invoiceCount > 0).sort(descending).slice(0, 5), false);
-    renderLeaders('performance-watch', scope.filter(declining).sort((a, b) => (b.previousNet - b.net) - (a.previousNet - a.net) || a.code.localeCompare(b.code)).slice(0, 5), true);
-    status(scope.length ? `พบ ${num.format(scope.length)} รหัสสินค้า · คลิกสินค้าเพื่อดูจำนวนขายและลูกค้าที่ซื้อ` : 'ไม่พบสินค้าตามคำค้นหาและหมวดหมู่ที่เลือก');
-    if (preservePage !== true) page = 0; renderTable();
+    renderLeaders(
+      "performance-best",
+      scope
+        .filter((item) => item.net > 0 && item.invoiceCount > 0)
+        .sort(descending)
+        .slice(0, 5),
+      false,
+    );
+    renderLeaders(
+      "performance-watch",
+      scope
+        .filter(declining)
+        .sort(
+          (a, b) =>
+            b.previousNet - b.net - (a.previousNet - a.net) ||
+            a.code.localeCompare(b.code),
+        )
+        .slice(0, 5),
+      true,
+    );
+    status(
+      scope.length
+        ? `พบ ${num.format(scope.length)} รหัสสินค้า · คลิกสินค้าเพื่อดูจำนวนขายและลูกค้าที่ซื้อ`
+        : "ไม่พบสินค้าตามคำค้นหาและหมวดหมู่ที่เลือก",
+    );
+    if (preservePage !== true) page = 0;
+    renderTable();
   }
   function renderSummaryCharts(total, previous) {
-    const svgNode = (tag, attrs = {}, text = '') => {
-      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+    const svgNode = (tag, attrs = {}, text = "") => {
+      const element = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        tag,
+      );
+      for (const [key, value] of Object.entries(attrs))
+        element.setAttribute(key, value);
       element.textContent = text;
       return element;
     };
-    const registered = scope.filter(item => item.registered).length;
-    const comparable = scope.filter(item => item.previousNet > 0).length;
+    const registered = scope.filter((item) => item.registered).length;
+    const comparable = scope.filter((item) => item.previousNet > 0).length;
     const cards = [
-      ['net', total, previous, 'ยอดสุทธิเทียบช่วงก่อนหน้า', '#e8b0a9'],
-      ['sold', scope.filter(item => item.invoiceCount > 0).length, scope.length, 'จากสินค้าทั้งหมดตามตัวกรอง', '#c93436'],
-      ['unsold', scope.filter(unsold).length, registered, 'จากสินค้าในทะเบียนตามตัวกรอง', '#b88935'],
-      ['declining', scope.filter(declining).length, comparable, 'จากสินค้าที่ช่วงก่อนมียอดสุทธิเป็นบวก', '#bb7261'],
+      ["net", total, previous, "ยอดสุทธิเทียบช่วงก่อนหน้า", "#e8b0a9"],
+      [
+        "sold",
+        scope.filter((item) => item.invoiceCount > 0).length,
+        scope.length,
+        "จากสินค้าทั้งหมดตามตัวกรอง",
+        "#c93436",
+      ],
+      [
+        "unsold",
+        scope.filter(unsold).length,
+        registered,
+        "จากสินค้าในทะเบียนตามตัวกรอง",
+        "#b88935",
+      ],
+      [
+        "declining",
+        scope.filter(declining).length,
+        comparable,
+        "จากสินค้าที่ช่วงก่อนมียอดสุทธิเป็นบวก",
+        "#bb7261",
+      ],
     ];
     for (const [key, value, base, caption, color] of cards) {
-      const card = byId(`performance-${key}`).closest('.summary-card');
-      let chart = card.querySelector('.performance-summary-chart');
+      const card = byId(`performance-${key}`).closest(".summary-card");
+      let chart = card.querySelector(".performance-summary-chart");
       if (!chart) {
-        chart = node('span', '', 'summary-breakdown performance-summary-chart');
+        chart = node("span", "", "summary-breakdown performance-summary-chart");
         card.append(chart);
       }
-      chart.replaceChildren(node('span', caption, 'summary-chart-caption'));
+      chart.replaceChildren(node("span", caption, "summary-chart-caption"));
       if (!scope.length) {
-        chart.append(node('span', 'ไม่มีข้อมูลตามตัวกรอง', 'summary-chart-empty'));
+        chart.append(
+          node("span", "ไม่มีข้อมูลตามตัวกรอง", "summary-chart-empty"),
+        );
         continue;
       }
-      if (key === 'net') {
-        const svg = svgNode('svg', { viewBox: '0 0 280 140', 'aria-hidden': 'true', class: 'performance-comparison' });
-        const min = Math.min(0, value, base), max = Math.max(0, value, base);
-        const y = n => 116 - (n - min) / (max - min || 1) * 98;
-        svg.append(svgNode('line', { x1: 15, x2: 265, y1: y(0), y2: y(0), stroke: '#b88580' }));
+      if (key === "net") {
+        const svg = svgNode("svg", {
+          viewBox: "0 0 280 140",
+          "aria-hidden": "true",
+          class: "performance-comparison",
+        });
+        const min = Math.min(0, value, base),
+          max = Math.max(0, value, base);
+        const y = (n) => 116 - ((n - min) / (max - min || 1)) * 98;
+        svg.append(
+          svgNode("line", {
+            x1: 15,
+            x2: 265,
+            y1: y(0),
+            y2: y(0),
+            stroke: "#b88580",
+          }),
+        );
         [base, value].forEach((amount, index) => {
           const x = 50 + index * 120;
-          svg.append(svgNode('rect', { x, y: Math.min(y(0), y(amount)), width: 60,
-            height: Math.max(1, Math.abs(y(amount) - y(0))), rx: 3, fill: amount < 0 ? '#ef9d9d' : index ? color : '#e8b0a9' }));
-          svg.append(svgNode('text', { x: x + 30, y: 137, 'text-anchor': 'middle', fill: '#f5dcd7', 'font-size': 14 }, index ? 'ช่วงที่เลือก' : 'ช่วงก่อนหน้า'));
+          svg.append(
+            svgNode("rect", {
+              x,
+              y: Math.min(y(0), y(amount)),
+              width: 60,
+              height: Math.max(1, Math.abs(y(amount) - y(0))),
+              rx: 3,
+              fill: amount < 0 ? "#ef9d9d" : index ? color : "#e8b0a9",
+            }),
+          );
+          svg.append(
+            svgNode(
+              "text",
+              {
+                x: x + 30,
+                y: 137,
+                "text-anchor": "middle",
+                fill: "#f5dcd7",
+                "font-size": 14,
+              },
+              index ? "ช่วงที่เลือก" : "ช่วงก่อนหน้า",
+            ),
+          );
         });
         chart.append(svg);
-        const legend = node('span', '', 'performance-comparison-legend');
-        for (const [label, amount] of [['ช่วงก่อนหน้า', base], ['ช่วงที่เลือก', value]]) {
-          const row = node('span', '', 'performance-comparison-value');
-          row.append(node('span', label), node('b', money(amount)));
+        const legend = node("span", "", "performance-comparison-legend");
+        for (const [label, amount] of [
+          ["ช่วงก่อนหน้า", base],
+          ["ช่วงที่เลือก", value],
+        ]) {
+          const row = node("span", "", "performance-comparison-value");
+          row.append(node("span", label), node("b", money(amount)));
           legend.append(row);
         }
         chart.append(legend);
       } else {
-        const ring = node('span', '', 'summary-donut');
-        const svg = svgNode('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' });
-        svg.append(svgNode('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: '#f4ebe7', 'stroke-width': 16 }));
-        const percent = base ? value / base * 100 : 0;
-        if (value) svg.append(svgNode('circle', { cx: 70, cy: 70, r: 54, fill: 'none', stroke: color,
-          'stroke-width': 16, pathLength: 100, 'stroke-dasharray': `${percent} ${100 - percent}`, transform: 'rotate(-90 70 70)' }));
-        const center = node('span', '', 'summary-donut-center');
-        center.append(node('b', base ? `${num.format(percent)}%` : '—'), node('span', 'ของกลุ่มอ้างอิง'));
+        const ring = node("span", "", "summary-donut");
+        const svg = svgNode("svg", {
+          viewBox: "0 0 140 140",
+          "aria-hidden": "true",
+        });
+        svg.append(
+          svgNode("circle", {
+            cx: 70,
+            cy: 70,
+            r: 54,
+            fill: "none",
+            stroke: "#f4ebe7",
+            "stroke-width": 16,
+          }),
+        );
+        const percent = base ? (value / base) * 100 : 0;
+        if (value)
+          svg.append(
+            svgNode("circle", {
+              cx: 70,
+              cy: 70,
+              r: 54,
+              fill: "none",
+              stroke: color,
+              "stroke-width": 16,
+              pathLength: 100,
+              "stroke-dasharray": `${percent} ${100 - percent}`,
+              transform: "rotate(-90 70 70)",
+            }),
+          );
+        const center = node("span", "", "summary-donut-center");
+        center.append(
+          node("b", base ? `${num.format(percent)}%` : "—"),
+          node("span", "ของกลุ่มอ้างอิง"),
+        );
         ring.append(svg, center);
-        chart.append(ring, node('span', base ? `${num.format(value)} จาก ${num.format(base)} รหัสสินค้า` : 'ไม่มีสินค้าในกลุ่มอ้างอิง', 'performance-chart-note'));
+        chart.append(
+          ring,
+          node(
+            "span",
+            base
+              ? `${num.format(value)} จาก ${num.format(base)} รหัสสินค้า`
+              : "ไม่มีสินค้าในกลุ่มอ้างอิง",
+            "performance-chart-note",
+          ),
+        );
       }
     }
   }
   function renderLeaders(id, products, watch) {
     hideChartTooltip();
-    const container = byId(id); container.replaceChildren();
-    const minimum = watch ? Math.min(0, ...products.map(item => item.net)) : 0;
-    const maximum = Math.max(0, ...products.flatMap(item => watch ? [item.previousNet, item.net] : [item.net]));
+    const container = byId(id);
+    container.replaceChildren();
+    const minimum = watch
+      ? Math.min(0, ...products.map((item) => item.net))
+      : 0;
+    const maximum = Math.max(
+      0,
+      ...products.flatMap((item) =>
+        watch ? [item.previousNet, item.net] : [item.net],
+      ),
+    );
     const range = maximum - minimum || 1;
-    const zero = -minimum / range * 100;
-    container.classList.toggle('leader-chart-paired', watch);
-    if (products.length) container.append(node('p', watch ? 'ยอดสุทธิช่วงก่อน เทียบช่วงนี้ · บาท' : 'ยอดขายสุทธิ · บาท', 'leader-chart-caption'));
+    const zero = (-minimum / range) * 100;
+    container.classList.toggle("leader-chart-paired", watch);
+    if (products.length)
+      container.append(
+        node(
+          "p",
+          watch ? "ยอดสุทธิช่วงก่อน เทียบช่วงนี้ · บาท" : "ยอดขายสุทธิ · บาท",
+          "leader-chart-caption",
+        ),
+      );
     products.forEach((item, index) => {
-      const button = node('button', '', 'performance-leader'), label = node('span', '', 'leader-label');
+      const button = node("button", "", "performance-leader"),
+        label = node("span", "", "leader-label");
       const currentPeriod = `${date(data.start)} – ${date(data.end)}`;
       const previousPeriod = `${date(data.previous.start)} – ${date(data.previous.end)}`;
-      button.type = 'button';
-      button.setAttribute('aria-label', `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` + (watch ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}` : '') + '\nกดเพื่อดูรายละเอียดสินค้า');
-      const showTip = selected => showChartTooltip(button, item, { current: currentPeriod, previous: previousPeriod }, watch, selected);
-      button.addEventListener('pointerenter', event => { if (event.pointerType !== 'touch') showTip(); });
-      button.addEventListener('pointermove', event => { if (event.pointerType !== 'touch') showTip(event.target.closest('.leader-chart-series')?.dataset.period); });
-      button.addEventListener('pointerleave', hideChartTooltip);
-      button.addEventListener('focus', () => { if (!byId('sku-detail').open) showTip(); });
-      button.addEventListener('blur', hideChartTooltip);
-      button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
-      label.append(node('strong', item.name), node('small', skuLabel(item.code)));
-      const value = node('span', watch ? `−${money(item.previousNet - item.net)}` : money(item.net), `leader-value${watch ? ' performance-negative' : ''}`);
-      value.append(node('small', watch ? `ลดลง ${changeLabel(item).replace(/^−|-/, '')}` : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`));
-      button.append(node('span', String(index + 1).padStart(2, '0')), label, value);
-      const plot = node('span', '', 'leader-chart-plot');
-      const entries = watch ? [['ช่วงก่อน', item.previousNet, 'is-previous'], ['ช่วงนี้', item.net, 'is-current']] : [['', item.net, '']];
+      button.type = "button";
+      button.setAttribute(
+        "aria-label",
+        `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` +
+          (watch
+            ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}`
+            : "") +
+          "\nกดเพื่อดูรายละเอียดสินค้า",
+      );
+      const showTip = (selected) =>
+        showChartTooltip(
+          button,
+          item,
+          { current: currentPeriod, previous: previousPeriod },
+          watch,
+          selected,
+        );
+      button.addEventListener("pointerenter", (event) => {
+        if (event.pointerType !== "touch") showTip();
+      });
+      button.addEventListener("pointermove", (event) => {
+        if (event.pointerType !== "touch")
+          showTip(event.target.closest(".leader-chart-series")?.dataset.period);
+      });
+      button.addEventListener("pointerleave", hideChartTooltip);
+      button.addEventListener("focus", () => {
+        if (!byId("sku-detail").open) showTip();
+      });
+      button.addEventListener("blur", hideChartTooltip);
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-controls", "sku-detail");
+      label.append(
+        node("strong", item.name),
+        node("small", skuLabel(item.code)),
+      );
+      const value = node(
+        "span",
+        watch ? `−${money(item.previousNet - item.net)}` : money(item.net),
+        `leader-value${watch ? " performance-negative" : ""}`,
+      );
+      value.append(
+        node(
+          "small",
+          watch
+            ? `ลดลง ${changeLabel(item).replace(/^−|-/, "")}`
+            : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`,
+        ),
+      );
+      button.append(
+        node("span", String(index + 1).padStart(2, "0")),
+        label,
+        value,
+      );
+      const plot = node("span", "", "leader-chart-plot");
+      const entries = watch
+        ? [
+            ["ช่วงก่อน", item.previousNet, "is-previous"],
+            ["ช่วงนี้", item.net, "is-current"],
+          ]
+        : [["", item.net, ""]];
       for (const [periodLabel, amount, className] of entries) {
-        const row = node('span', '', 'leader-chart-series');
-        row.dataset.period = className === 'is-previous' ? 'previous' : 'current';
-        row.addEventListener('pointerenter', event => { if (event.pointerType !== 'touch') showTip(className === 'is-previous' ? 'previous' : 'current'); });
-        row.addEventListener('pointerleave', () => showTip());
-        if (watch) row.append(node('span', periodLabel, 'leader-series-label'));
-        const track = node('span', '', 'leader-chart-track');
-        track.setAttribute('aria-hidden', 'true');
-        track.style.setProperty('--zero', `${zero}%`);
-        const bar = node('span', '', `leader-chart-fill ${className}${amount < 0 ? ' is-negative' : ''}`);
-        bar.style.left = `${(Math.min(0, amount) - minimum) / range * 100}%`;
-        bar.style.width = `${Math.abs(amount) / range * 100}%`;
-        track.append(bar); row.append(track);
-        if (watch) row.append(node('span', money(amount), 'leader-series-amount'));
+        const row = node("span", "", "leader-chart-series");
+        row.dataset.period =
+          className === "is-previous" ? "previous" : "current";
+        row.addEventListener("pointerenter", (event) => {
+          if (event.pointerType !== "touch")
+            showTip(className === "is-previous" ? "previous" : "current");
+        });
+        row.addEventListener("pointerleave", () => showTip());
+        if (watch) row.append(node("span", periodLabel, "leader-series-label"));
+        const track = node("span", "", "leader-chart-track");
+        track.setAttribute("aria-hidden", "true");
+        track.style.setProperty("--zero", `${zero}%`);
+        const bar = node(
+          "span",
+          "",
+          `leader-chart-fill ${className}${amount < 0 ? " is-negative" : ""}`,
+        );
+        bar.style.left = `${((Math.min(0, amount) - minimum) / range) * 100}%`;
+        bar.style.width = `${(Math.abs(amount) / range) * 100}%`;
+        track.append(bar);
+        row.append(track);
+        if (watch)
+          row.append(node("span", money(amount), "leader-series-amount"));
         plot.append(row);
       }
       button.append(plot);
-      button.addEventListener('click', () => { hideChartTooltip(); openSku(item, button); }); container.append(button);
+      button.addEventListener("click", () => {
+        hideChartTooltip();
+        openSku(item, button);
+      });
+      container.append(button);
     });
     if (products.length) {
-      const axis = node('div', '', 'leader-chart-axis');
-      axis.setAttribute('aria-hidden', 'true');
-      axis.append(node('span', money(minimum)), node('span', money((minimum + maximum) / 2)), node('span', money(maximum)));
+      const axis = node("div", "", "leader-chart-axis");
+      axis.setAttribute("aria-hidden", "true");
+      axis.append(
+        node("span", money(minimum)),
+        node("span", money((minimum + maximum) / 2)),
+        node("span", money(maximum)),
+      );
       container.append(axis);
-      container.append(node('p', 'ความยาวแท่งเทียบกันภายในกราฟนี้ · แต่ละกราฟใช้สเกลต่างกัน', 'leader-chart-scale-note'));
+      container.append(
+        node(
+          "p",
+          "ความยาวแท่งเทียบกันภายในกราฟนี้ · แต่ละกราฟใช้สเกลต่างกัน",
+          "leader-chart-scale-note",
+        ),
+      );
     }
-    if (!products.length) container.append(node('p', watch ? 'ไม่พบสินค้าที่มียอดลดลงจากฐานบวกในช่วงเปรียบเทียบ' : 'ยังไม่มีสินค้าที่มียอดขายสุทธิเป็นบวกตามตัวกรอง', 'empty-state'));
+    if (!products.length)
+      container.append(
+        node(
+          "p",
+          watch
+            ? "ไม่พบสินค้าที่มียอดลดลงจากฐานบวกในช่วงเปรียบเทียบ"
+            : "ยังไม่มีสินค้าที่มียอดขายสุทธิเป็นบวกตามตัวกรอง",
+          "empty-state",
+        ),
+      );
   }
 
   function renderTable() {
     const modes = {
-      all: ['สินค้าทั้งหมด', 'เรียงยอดสุทธิสูงไปต่ำ รวมสินค้าจากทะเบียนและสินค้าที่มีรายการในสองช่วงเวลา', () => scope.slice().sort(descending)],
-      sold: ['สินค้าที่มีบิลขาย', 'มีเอกสารขายอย่างน้อย 1 บิลในช่วงที่เลือก รวมรายการที่ยอดสุทธิไม่บวก', () => scope.filter(item => item.invoiceCount > 0).sort(descending)],
-      best: ['สินค้าขายดี 10 อันดับ', '10 อันดับยอดสุทธิสูงสุด เฉพาะสินค้าที่มีบิลขายและยอดสุทธิเป็นบวก', () => scope.filter(item => item.invoiceCount > 0 && item.net > 0).sort(descending).slice(0, 10)],
-      slow: ['สินค้าขายน้อย 10 อันดับ', '10 อันดับยอดสุทธิต่ำสุดที่ยังเป็นบวกและมีบิลขาย เป็นการเปรียบเทียบในกลุ่มที่ค้นหา ไม่ใช่เกณฑ์ยอดขายเป้าหมาย', () => scope.filter(item => item.invoiceCount > 0 && item.net > 0).sort((a, b) => a.net - b.net || a.code.localeCompare(b.code)).slice(0, 10)],
-      declining: ['สินค้าที่มียอดลดลง', 'ยอดสุทธิน้อยกว่าช่วงก่อนหน้าที่มีฐานมากกว่า 0 เรียงตามยอดเงินที่ลดลงมากที่สุด', () => scope.filter(declining).sort((a, b) => (b.previousNet - b.net) - (a.previousNet - a.net) || a.code.localeCompare(b.code))],
-      unsold: ['สินค้าที่ยังไม่มีบิลขาย', 'สินค้าในทะเบียนที่ไม่มีเอกสารขายในช่วงที่เลือก อาจมีรับคืน/เพิ่มหนี้ เรียงคงเหลือในทะเบียนจากมากไปน้อย', () => scope.filter(unsold).sort((a, b) => (b.stock ?? -Infinity) - (a.stock ?? -Infinity) || a.code.localeCompare(b.code))],
-      nonpositive: ['สินค้ามีบิลขาย แต่ยอดสุทธิไม่บวก', 'มีเอกสารขาย แต่ยอดขาย + เพิ่มหนี้ − รับคืน ไม่เกิน 0 บาท ควรตรวจรายการศูนย์บาทหรือรับคืน', () => scope.filter(item => item.invoiceCount > 0 && item.net <= 0).sort((a, b) => a.net - b.net || a.code.localeCompare(b.code))]
+      all: [
+        "สินค้าทั้งหมด",
+        "เรียงยอดสุทธิสูงไปต่ำ รวมสินค้าจากทะเบียนและสินค้าที่มีรายการในสองช่วงเวลา",
+        () => scope.slice().sort(descending),
+      ],
+      sold: [
+        "สินค้าที่มีบิลขาย",
+        "มีเอกสารขายอย่างน้อย 1 บิลในช่วงที่เลือก รวมรายการที่ยอดสุทธิไม่บวก",
+        () => scope.filter((item) => item.invoiceCount > 0).sort(descending),
+      ],
+      best: [
+        "สินค้าขายดี 10 อันดับ",
+        "10 อันดับยอดสุทธิสูงสุด เฉพาะสินค้าที่มีบิลขายและยอดสุทธิเป็นบวก",
+        () =>
+          scope
+            .filter((item) => item.invoiceCount > 0 && item.net > 0)
+            .sort(descending)
+            .slice(0, 10),
+      ],
+      slow: [
+        "สินค้าขายน้อย 10 อันดับ",
+        "10 อันดับยอดสุทธิต่ำสุดที่ยังเป็นบวกและมีบิลขาย เป็นการเปรียบเทียบในกลุ่มที่ค้นหา ไม่ใช่เกณฑ์ยอดขายเป้าหมาย",
+        () =>
+          scope
+            .filter((item) => item.invoiceCount > 0 && item.net > 0)
+            .sort((a, b) => a.net - b.net || a.code.localeCompare(b.code))
+            .slice(0, 10),
+      ],
+      declining: [
+        "สินค้าที่มียอดลดลง",
+        "ยอดสุทธิน้อยกว่าช่วงก่อนหน้าที่มีฐานมากกว่า 0 เรียงตามยอดเงินที่ลดลงมากที่สุด",
+        () =>
+          scope
+            .filter(declining)
+            .sort(
+              (a, b) =>
+                b.previousNet - b.net - (a.previousNet - a.net) ||
+                a.code.localeCompare(b.code),
+            ),
+      ],
+      unsold: [
+        "สินค้าที่ยังไม่มีบิลขาย",
+        "สินค้าในทะเบียนที่ไม่มีเอกสารขายในช่วงที่เลือก อาจมีรับคืน/เพิ่มหนี้ เรียงคงเหลือในทะเบียนจากมากไปน้อย",
+        () =>
+          scope
+            .filter(unsold)
+            .sort(
+              (a, b) =>
+                (b.stock ?? -Infinity) - (a.stock ?? -Infinity) ||
+                a.code.localeCompare(b.code),
+            ),
+      ],
+      nonpositive: [
+        "สินค้ามีบิลขาย แต่ยอดสุทธิไม่บวก",
+        "มีเอกสารขาย แต่ยอดขาย + เพิ่มหนี้ − รับคืน ไม่เกิน 0 บาท ควรตรวจรายการศูนย์บาทหรือรับคืน",
+        () =>
+          scope
+            .filter((item) => item.invoiceCount > 0 && item.net <= 0)
+            .sort((a, b) => a.net - b.net || a.code.localeCompare(b.code)),
+      ],
     };
-    const [title, explanation, filter] = modes[mode]; visible = filter();
-    byId('performance-table-title').textContent = title;
-    byId('performance-explanation').textContent = `${explanation} · ${num.format(visible.length)} รหัสสินค้า`;
-    document.querySelectorAll('[data-performance-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.performanceFilter === mode)));
-    const body = byId('performance-rows'); body.replaceChildren();
-    visible.slice(page * pageSize, (page + 1) * pageSize).forEach(item => {
-      const row = node('tr'), name = node('td'), button = node('button', item.name, 'performance-product-button');
-      button.type = 'button'; button.dataset.sku = item.code;
-      button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-controls', 'sku-detail');
-      button.addEventListener('click', () => openSku(item, button));
-      name.append(button, node('small', `${skuLabel(item.code)} · ${item.category}`));
-      const statusText = item.invoiceCount === 0 ? (item.registered ? 'ไม่มีบิลขาย' : 'ไม่มีบิลขาย / ไม่พบในทะเบียน') : item.net <= 0 ? 'สุทธิไม่บวก' : declining(item) ? 'ยอดลดลง' : 'มีบิลขาย';
-      name.append(node('span', statusText, `product-status ${item.invoiceCount === 0 || item.net <= 0 || declining(item) ? 'watch' : 'good'}`));
-      const bills = node('td', `${num.format(item.invoiceCount)} บิล`, 'numeric'); bills.append(node('small', `${num.format(item.buyerCount)} ลูกค้า`));
-      const trend = node('td', changeLabel(item), `numeric ${declining(item) ? 'performance-negative' : item.previousNet > 0 && item.net > item.previousNet ? 'performance-positive' : ''}`);
-      trend.append(node('small', `ก่อนหน้า ${money(item.previousNet)}`));
-      const stock = node('td', item.stock == null ? 'ไม่มีข้อมูล' : `${num.format(item.stock)} ${item.stockUnit}`, 'numeric');
-      row.append(name, quantitiesCell(item.quantities), node('td', money(item.net), `numeric${item.net < 0 ? ' performance-negative' : ''}`), bills, trend, stock, node('td', date(item.lastSold)));
+    const [title, explanation, filter] = modes[mode];
+    visible = filter();
+    byId("performance-table-title").textContent = title;
+    byId("performance-explanation").textContent =
+      `${explanation} · ${num.format(visible.length)} รหัสสินค้า`;
+    document
+      .querySelectorAll("[data-performance-filter]")
+      .forEach((button) =>
+        button.setAttribute(
+          "aria-pressed",
+          String(button.dataset.performanceFilter === mode),
+        ),
+      );
+    const body = byId("performance-rows");
+    body.replaceChildren();
+    visible.slice(page * pageSize, (page + 1) * pageSize).forEach((item) => {
+      const row = node("tr"),
+        name = node("td"),
+        button = node("button", item.name, "performance-product-button");
+      button.type = "button";
+      button.dataset.sku = item.code;
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-controls", "sku-detail");
+      button.addEventListener("click", () => openSku(item, button));
+      name.append(
+        button,
+        node("small", `${skuLabel(item.code)} · ${item.category}`),
+      );
+      const statusText =
+        item.invoiceCount === 0
+          ? item.registered
+            ? "ไม่มีบิลขาย"
+            : "ไม่มีบิลขาย / ไม่พบในทะเบียน"
+          : item.net <= 0
+            ? "สุทธิไม่บวก"
+            : declining(item)
+              ? "ยอดลดลง"
+              : "มีบิลขาย";
+      name.append(
+        node(
+          "span",
+          statusText,
+          `product-status ${item.invoiceCount === 0 || item.net <= 0 || declining(item) ? "watch" : "good"}`,
+        ),
+      );
+      const bills = node(
+        "td",
+        `${num.format(item.invoiceCount)} บิล`,
+        "numeric",
+      );
+      bills.append(node("small", `${num.format(item.buyerCount)} ลูกค้า`));
+      const trend = node(
+        "td",
+        changeLabel(item),
+        `numeric ${declining(item) ? "performance-negative" : item.previousNet > 0 && item.net > item.previousNet ? "performance-positive" : ""}`,
+      );
+      trend.append(node("small", `ก่อนหน้า ${money(item.previousNet)}`));
+      const stock = node(
+        "td",
+        item.stock == null
+          ? "ไม่มีข้อมูล"
+          : `${num.format(item.stock)} ${item.stockUnit}`,
+        "numeric",
+      );
+      row.append(
+        name,
+        quantitiesCell(item.quantities),
+        node(
+          "td",
+          money(item.net),
+          `numeric${item.net < 0 ? " performance-negative" : ""}`,
+        ),
+        bills,
+        trend,
+        stock,
+        node("td", date(item.lastSold)),
+      );
       body.append(row);
     });
-    if (!visible.length) empty(body, 7, 'ไม่พบสินค้าในกลุ่มนี้ ลองเปลี่ยนคำค้นหา หมวดหมู่ หรือกลุ่มสินค้า');
-    pager('performance', page, visible.length);
+    if (!visible.length)
+      empty(
+        body,
+        7,
+        "ไม่พบสินค้าในกลุ่มนี้ ลองเปลี่ยนคำค้นหา หมวดหมู่ หรือกลุ่มสินค้า",
+      );
+    pager("performance", page, visible.length);
   }
 
   function closeSku() {
-    if (byId('sku-detail').open) byId('sku-detail').close();
-    buyerController?.abort(); buyerRequest++; buyerController = null; buyerData = null;
-    byId('sku-content').hidden = true; byId('sku-detail').setAttribute('aria-busy', 'false');
-    document.body.classList.remove('product-dialog-open'); outsideDown = false;
-    if (opener?.isConnected) opener.focus({ preventScroll: true }); opener = null;
+    if (byId("sku-detail").open) byId("sku-detail").close();
+    buyerController?.abort();
+    buyerRequest++;
+    buyerController = null;
+    buyerData = null;
+    byId("sku-content").hidden = true;
+    byId("sku-detail").setAttribute("aria-busy", "false");
+    document.body.classList.remove("product-dialog-open");
+    outsideDown = false;
+    if (opener?.isConnected) opener.focus({ preventScroll: true });
+    opener = null;
   }
   async function openSku(item, trigger) {
     if (!data || !active) return;
-    buyerController?.abort(); const currentController = new AbortController(); buyerController = currentController;
-    const currentRequest = ++buyerRequest; selectedSku = item; opener = trigger; buyerPage = 0; buyerData = null;
-    const dialog = byId('sku-detail');
-    byId('sku-title').textContent = item.name;
-    byId('sku-subtitle').textContent = `${skuLabel(item.code)} · ${item.category} · ${date(data.start)} – ${date(data.end)}`;
-    byId('sku-status').textContent = 'กำลังโหลดจำนวนขายและลูกค้าที่มีรายการ…'; byId('sku-status').hidden = false;
-    byId('sku-content').hidden = true; byId('sku-retry').hidden = true;
-    dialog.setAttribute('aria-busy', 'true');
+    buyerController?.abort();
+    const currentController = new AbortController();
+    buyerController = currentController;
+    const currentRequest = ++buyerRequest;
+    selectedSku = item;
+    opener = trigger;
+    buyerPage = 0;
+    buyerData = null;
+    const dialog = byId("sku-detail");
+    byId("sku-title").textContent = item.name;
+    byId("sku-subtitle").textContent =
+      `${skuLabel(item.code)} · ${item.category} · ${date(data.start)} – ${date(data.end)}`;
+    byId("sku-status").textContent = "กำลังโหลดจำนวนขายและลูกค้าที่มีรายการ…";
+    byId("sku-status").hidden = false;
+    byId("sku-content").hidden = true;
+    byId("sku-retry").hidden = true;
+    dialog.setAttribute("aria-busy", "true");
     if (!dialog.open) dialog.showModal();
-    document.body.classList.add('product-dialog-open'); dialog.scrollTop = 0;
+    document.body.classList.add("product-dialog-open");
+    dialog.scrollTop = 0;
     try {
-      const result = await getJSON(`/api/customer-insights/product-buyers?${new URLSearchParams({ start: data.start, end: data.end, code: item.code })}`, currentController.signal);
+      const result = await getJSON(
+        `/api/customer-insights/product-buyers?${new URLSearchParams({ start: data.start, end: data.end, code: item.code })}`,
+        currentController.signal,
+      );
       if (currentRequest !== buyerRequest) return;
-      buyerData = result; const product = result.product;
+      buyerData = result;
+      const product = result.product;
       const selectedPeriod = `${date(result.start)} – ${date(result.end)}`;
-      byId('sku-previous-period').textContent = `${date(result.previous.start)} – ${date(result.previous.end)}`;
-      byId('sku-current-period').textContent = selectedPeriod;
-      byId('sku-previous-net').textContent = money(product.previousNet);
-      byId('sku-current-net').textContent = money(product.net);
+      byId("sku-previous-period").textContent =
+        `${date(result.previous.start)} – ${date(result.previous.end)}`;
+      byId("sku-current-period").textContent = selectedPeriod;
+      byId("sku-previous-net").textContent = money(product.previousNet);
+      byId("sku-current-net").textContent = money(product.net);
       const difference = Number(product.net) - Number(product.previousNet);
-      byId('sku-period-difference').textContent = difference === 0 ? 'ยอดขายสุทธิเท่ากับช่วงก่อน' : `ยอดขายสุทธิ${difference < 0 ? 'ลดลง' : 'เพิ่มขึ้น'} ${money(Math.abs(difference))} จากช่วงก่อน${Number(product.previousNet) > 0 ? ` (${num.format(Math.abs(difference) / Number(product.previousNet) * 100)}%)` : ' · ไม่มีฐานบวกสำหรับคำนวณเปอร์เซ็นต์'}`;
-      byId('sku-period-explanation').textContent = `เปรียบเทียบกับช่วงก่อนหน้าที่มีจำนวนวันเท่ากัน โดยไม่ทับช่วงนี้ · ยอดขายและตารางลูกค้าด้านล่างใช้เฉพาะช่วงนี้: ${selectedPeriod} · ยอดสุทธิ = ขาย + เพิ่มหนี้ − รับคืน/ลดหนี้`;
-      const stock = product.stock == null || product.stock === '' ? null : Number(product.stock);
-      byId('sku-stock').textContent = stock !== null && Number.isFinite(stock) ? `${num.format(stock)} ${product.stockUnit || 'ไม่ระบุหน่วย'}` : 'ไม่มีข้อมูลคงเหลือ';
-      byId('sku-stock-updated').textContent = `ดึงข้อมูล ${new Date(result.updatedAt).toLocaleString('th-TH')}`;
-      byId('sku-net').textContent = money(product.net); byId('sku-change').textContent = `${changeLabel(product)} · เทียบ ${date(result.previous.start)} – ${date(result.previous.end)}`;
-      byId('sku-sales').textContent = money(product.sales); byId('sku-added').textContent = `เพิ่มหนี้ ${money(product.added)}`;
-      byId('sku-returns').textContent = money(product.returns); byId('sku-buyers-count').textContent = `${num.format(product.buyerCount)} ราย`;
-      byId('sku-bills').textContent = `${num.format(product.invoiceCount)} บิลขาย`;
-      const quantities = byId('sku-quantities'); quantities.replaceChildren();
-      product.quantities.forEach(quantity => {
-        const row = node('tr'); row.append(node('td', quantity.unit));
-        for (const key of ['sold', 'added', 'returned', 'net']) row.append(node('td', num.format(quantity[key]), 'numeric'));
+      byId("sku-period-difference").textContent =
+        difference === 0
+          ? "ยอดขายสุทธิเท่ากับช่วงก่อน"
+          : `ยอดขายสุทธิ${difference < 0 ? "ลดลง" : "เพิ่มขึ้น"} ${money(Math.abs(difference))} จากช่วงก่อน${Number(product.previousNet) > 0 ? ` (${num.format((Math.abs(difference) / Number(product.previousNet)) * 100)}%)` : " · ไม่มีฐานบวกสำหรับคำนวณเปอร์เซ็นต์"}`;
+      byId("sku-period-explanation").textContent =
+        `เปรียบเทียบกับช่วงก่อนหน้าที่มีจำนวนวันเท่ากัน โดยไม่ทับช่วงนี้ · ยอดขายและตารางลูกค้าด้านล่างใช้เฉพาะช่วงนี้: ${selectedPeriod} · ยอดสุทธิ = ขาย + เพิ่มหนี้ − รับคืน/ลดหนี้`;
+      const stock =
+        product.stock == null || product.stock === ""
+          ? null
+          : Number(product.stock);
+      byId("sku-stock").textContent =
+        stock !== null && Number.isFinite(stock)
+          ? `${num.format(stock)} ${product.stockUnit || "ไม่ระบุหน่วย"}`
+          : "ไม่มีข้อมูลคงเหลือ";
+      byId("sku-stock-updated").textContent =
+        `ดึงข้อมูล ${new Date(result.updatedAt).toLocaleString("th-TH")}`;
+      byId("sku-net").textContent = money(product.net);
+      byId("sku-change").textContent =
+        `${changeLabel(product)} · เทียบ ${date(result.previous.start)} – ${date(result.previous.end)}`;
+      byId("sku-sales").textContent = money(product.sales);
+      byId("sku-added").textContent = `เพิ่มหนี้ ${money(product.added)}`;
+      byId("sku-returns").textContent = money(product.returns);
+      byId("sku-buyers-count").textContent =
+        `${num.format(product.buyerCount)} ราย`;
+      byId("sku-bills").textContent =
+        `${num.format(product.invoiceCount)} บิลขาย`;
+      const quantities = byId("sku-quantities");
+      quantities.replaceChildren();
+      product.quantities.forEach((quantity) => {
+        const row = node("tr");
+        row.append(node("td", quantity.unit));
+        for (const key of ["sold", "added", "returned", "net"])
+          row.append(node("td", num.format(quantity[key]), "numeric"));
         quantities.append(row);
       });
-      if (!product.quantities.length) empty(quantities, 5, 'ไม่มีรายการขาย เพิ่มหนี้ หรือรับคืนของสินค้านี้ในช่วงที่เลือก');
-      renderBuyers(); byId('sku-status').hidden = true; byId('sku-content').hidden = false;
+      if (!product.quantities.length)
+        empty(
+          quantities,
+          5,
+          "ไม่มีรายการขาย เพิ่มหนี้ หรือรับคืนของสินค้านี้ในช่วงที่เลือก",
+        );
+      renderBuyers();
+      byId("sku-status").hidden = true;
+      byId("sku-content").hidden = false;
     } catch (error) {
-      if (currentController.signal.aborted || currentRequest !== buyerRequest) return;
-      byId('sku-status').textContent = error.message === 'Failed to fetch' ? 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่' : error.message;
-      byId('sku-retry').hidden = false;
-    } finally { if (currentRequest === buyerRequest) { dialog.setAttribute('aria-busy', 'false'); buyerController = null; } }
+      if (currentController.signal.aborted || currentRequest !== buyerRequest)
+        return;
+      byId("sku-status").textContent =
+        error.message === "Failed to fetch"
+          ? "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่"
+          : error.message;
+      byId("sku-retry").hidden = false;
+    } finally {
+      if (currentRequest === buyerRequest) {
+        dialog.setAttribute("aria-busy", "false");
+        buyerController = null;
+      }
+    }
   }
   function renderBuyers() {
-    const body = byId('sku-buyers'); body.replaceChildren();
-    buyerData.buyers.slice(buyerPage * pageSize, (buyerPage + 1) * pageSize).forEach(buyer => {
-      const row = node('tr'), name = node('td', buyer.name); name.append(node('small', buyer.code || 'ไม่ระบุรหัสลูกค้า'));
-      row.append(name, quantitiesCell(buyer.quantities), node('td', num.format(buyer.invoiceCount), 'numeric'), node('td', money(buyer.net), 'numeric'), node('td', date(buyer.lastSold)));
-      body.append(row);
-    });
-    if (!buyerData.buyers.length) empty(body, 5, 'ยังไม่มีลูกค้าที่มีรายการสินค้านี้ในช่วงวันที่เลือก');
-    pager('sku', buyerPage, buyerData.buyers.length);
+    const body = byId("sku-buyers");
+    body.replaceChildren();
+    buyerData.buyers
+      .slice(buyerPage * pageSize, (buyerPage + 1) * pageSize)
+      .forEach((buyer) => {
+        const row = node("tr"),
+          name = node("td", buyer.name);
+        name.append(node("small", buyer.code || "ไม่ระบุรหัสลูกค้า"));
+        row.append(
+          name,
+          quantitiesCell(buyer.quantities),
+          node("td", num.format(buyer.invoiceCount), "numeric"),
+          node("td", money(buyer.net), "numeric"),
+          node("td", date(buyer.lastSold)),
+        );
+        body.append(row);
+      });
+    if (!buyerData.buyers.length)
+      empty(body, 5, "ยังไม่มีลูกค้าที่มีรายการสินค้านี้ในช่วงวันที่เลือก");
+    pager("sku", buyerPage, buyerData.buyers.length);
   }
 
-  document.addEventListener('insights-view-change', event => {
-    active = event.detail.view === 'products'; reset(); byId('product-view').hidden = !active;
+  document.addEventListener("insights-view-change", (event) => {
+    active = event.detail.view === "products";
+    reset();
+    byId("product-view").hidden = !active;
     if (active) load(event.detail);
   });
-  document.addEventListener('insights-product-refresh', event => { if (active) load(event.detail); });
-  document.addEventListener('insights-period-change', event => {
+  document.addEventListener("insights-product-refresh", (event) => {
+    if (active) load(event.detail);
+  });
+  document.addEventListener("insights-period-change", (event) => {
     if (!active) return;
-    reset(); byId('refresh').disabled = false;
-    status(event.detail.valid ? 'กำลังอัปเดตการวิเคราะห์สินค้าตามช่วงวันที่…' : 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน', !event.detail.valid);
-    if (event.detail.valid) reloadTimer = setTimeout(() => load(event.detail), 250);
+    reset();
+    byId("refresh").disabled = false;
+    status(
+      event.detail.valid
+        ? "กำลังอัปเดตการวิเคราะห์สินค้าตามช่วงวันที่…"
+        : "กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน",
+      !event.detail.valid,
+    );
+    if (event.detail.valid)
+      reloadTimer = setTimeout(() => load(event.detail), 250);
   });
   function searchSku(trigger) {
-    const query = byId('performance-search').value.trim().toLocaleLowerCase('th-TH');
-    const message = byId('performance-search-message');
-    if (!query) { message.textContent = 'กรุณาพิมพ์ SKU หรือชื่อสินค้า'; byId('performance-search').focus(); return; }
-    if (!data) { message.textContent = 'ข้อมูลสินค้ายังไม่พร้อม กรุณารอโหลดข้อมูลหรือกดอัปเดตข้อมูล'; return; }
-    const matches = data.products.filter(item => searchText(item).includes(query));
-    const exact = matches.find(item => item.code.toLocaleLowerCase('th-TH') === query)
-      || matches.find(item => skuLabel(item.code).toLocaleLowerCase('th-TH') === query);
+    const query = byId("performance-search")
+      .value.trim()
+      .toLocaleLowerCase("th-TH");
+    const message = byId("performance-search-message");
+    if (!query) {
+      message.textContent = "กรุณาพิมพ์ SKU หรือชื่อสินค้า";
+      byId("performance-search").focus();
+      return;
+    }
+    if (!data) {
+      message.textContent =
+        "ข้อมูลสินค้ายังไม่พร้อม กรุณารอโหลดข้อมูลหรือกดอัปเดตข้อมูล";
+      return;
+    }
+    const matches = data.products.filter((item) =>
+      searchText(item).includes(query),
+    );
+    const exact =
+      matches.find((item) => item.code.toLocaleLowerCase("th-TH") === query) ||
+      matches.find(
+        (item) => skuLabel(item.code).toLocaleLowerCase("th-TH") === query,
+      );
     if (exact || matches.length === 1) {
-      message.textContent = '';
+      message.textContent = "";
       openSku(exact || matches[0], trigger);
       return;
     }
-    byId('performance-category').value = '*'; mode = 'all'; renderScope();
-    message.textContent = matches.length ? `พบ ${num.format(matches.length)} สินค้า กรุณาเลือกสินค้าในตารางด้านล่าง หรือระบุ SKU ให้ครบ` : 'ไม่พบสินค้า กรุณาตรวจสอบ SKU หรือชื่อสินค้า';
-    if (matches.length) byId('performance-table-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    byId("performance-category").value = "*";
+    mode = "all";
+    renderScope();
+    message.textContent = matches.length
+      ? `พบ ${num.format(matches.length)} สินค้า กรุณาเลือกสินค้าในตารางด้านล่าง หรือระบุ SKU ให้ครบ`
+      : "ไม่พบสินค้า กรุณาตรวจสอบ SKU หรือชื่อสินค้า";
+    if (matches.length)
+      byId("performance-table-title").scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
   }
-  byId('performance-search-button').addEventListener('click', event => searchSku(event.currentTarget));
-  byId('performance-search').addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); searchSku(event.currentTarget); }
+  byId("performance-search-button").addEventListener("click", (event) =>
+    searchSku(event.currentTarget),
+  );
+  byId("performance-search").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      searchSku(event.currentTarget);
+    }
   });
-  byId('performance-search').addEventListener('input', () => { byId('performance-search-message').textContent = ''; renderScope(); });
-  byId('performance-category').addEventListener('change', renderScope);
-  document.querySelectorAll('[data-performance-filter]').forEach(button => button.addEventListener('click', () => { mode = button.dataset.performanceFilter; page = 0; if (data) renderTable(); }));
-  for (const [direction, delta] of [['prev', -1], ['next', 1]]) {
-    byId(`performance-${direction}`).addEventListener('click', () => { page += delta; renderTable(); });
-    byId(`sku-${direction}`).addEventListener('click', () => { buyerPage += delta; renderBuyers(); });
+  byId("performance-search").addEventListener("input", () => {
+    byId("performance-search-message").textContent = "";
+    renderScope();
+  });
+  byId("performance-category").addEventListener("change", renderScope);
+  document.querySelectorAll("[data-performance-filter]").forEach((button) =>
+    button.addEventListener("click", () => {
+      mode = button.dataset.performanceFilter;
+      page = 0;
+      if (data) renderTable();
+    }),
+  );
+  for (const [direction, delta] of [
+    ["prev", -1],
+    ["next", 1],
+  ]) {
+    byId(`performance-${direction}`).addEventListener("click", () => {
+      page += delta;
+      renderTable();
+    });
+    byId(`sku-${direction}`).addEventListener("click", () => {
+      buyerPage += delta;
+      renderBuyers();
+    });
   }
-  byId('sku-retry').addEventListener('click', () => openSku(selectedSku, opener));
-  byId('sku-close').addEventListener('click', closeSku);
-  byId('sku-detail').addEventListener('cancel', event => { event.preventDefault(); closeSku(); });
-  byId('sku-detail').addEventListener('close', () => { if (!byId('sku-detail').open && document.body.classList.contains('product-dialog-open')) closeSku(); });
-  function outside(event) { const bounds = byId('sku-detail').getBoundingClientRect(); return event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom; }
-  byId('sku-detail').addEventListener('pointerdown', event => { outsideDown = outside(event); });
-  byId('sku-detail').addEventListener('click', event => { if (outsideDown && outside(event)) closeSku(); outsideDown = false; });
-  byId('sku-detail').addEventListener('keydown', event => {
-    if (event.key !== 'Tab') return;
-    const controls = [...byId('sku-detail').querySelectorAll('button:not(:disabled), [tabindex]:not([tabindex="-1"])')].filter(control => control.getClientRects().length);
-    if ((event.shiftKey && document.activeElement === controls[0]) || (!event.shiftKey && document.activeElement === controls.at(-1))) {
-      event.preventDefault(); (event.shiftKey ? controls.at(-1) : controls[0])?.focus();
+  byId("sku-retry").addEventListener("click", () =>
+    openSku(selectedSku, opener),
+  );
+  byId("sku-close").addEventListener("click", closeSku);
+  byId("sku-detail").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSku();
+  });
+  byId("sku-detail").addEventListener("close", () => {
+    if (
+      !byId("sku-detail").open &&
+      document.body.classList.contains("product-dialog-open")
+    )
+      closeSku();
+  });
+  function outside(event) {
+    const bounds = byId("sku-detail").getBoundingClientRect();
+    return (
+      event.clientX < bounds.left ||
+      event.clientX > bounds.right ||
+      event.clientY < bounds.top ||
+      event.clientY > bounds.bottom
+    );
+  }
+  byId("sku-detail").addEventListener("pointerdown", (event) => {
+    outsideDown = outside(event);
+  });
+  byId("sku-detail").addEventListener("click", (event) => {
+    if (outsideDown && outside(event)) closeSku();
+    outsideDown = false;
+  });
+  byId("sku-detail").addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const controls = [
+      ...byId("sku-detail").querySelectorAll(
+        'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter((control) => control.getClientRects().length);
+    if (
+      (event.shiftKey && document.activeElement === controls[0]) ||
+      (!event.shiftKey && document.activeElement === controls.at(-1))
+    ) {
+      event.preventDefault();
+      (event.shiftKey ? controls.at(-1) : controls[0])?.focus();
     }
   });
 })();
