@@ -24,8 +24,14 @@ function selected(form,name){return [...form.querySelectorAll(`input[name="${nam
 async function refreshCatalog(){catalog=await api('catalog');}
 
 async function usersView(){
-  const list=card('ผู้ใช้งาน'),{users}=await api('users');list.append(button('+ เพิ่มผู้ใช้',()=>editUser()));
-  table(list,['ชื่อ / Username','Role','สถานะ','การจัดการ'],users.map(u=>{const actions=node('div',undefined,'actions');actions.append(button('แก้ไข',()=>editUser(u),'action-edit'));if(u.id!==me.id)actions.append(button('ลบ',async()=>{if(!confirm(`ยืนยันการลบผู้ใช้ ${u.username} หรือไม่? การลบไม่สามารถย้อนกลับได้`))return;try{await api('users/'+u.id,'DELETE');message('ลบผู้ใช้แล้ว');await show('users');}catch(e){message(e.message,true);}},'action-delete'));return [u.full_name+' / '+u.username,u.role,u.is_active?'เปิดใช้งาน':'ปิดใช้งาน',actions];}));
+  const list=card('ผู้ใช้งาน'),{users}=await api('users'),toolbar=node('div',undefined,'users-toolbar'),summary=node('p',`${users.length} บัญชี · เปิดใช้งาน ${users.filter(u=>u.is_active).length} บัญชี`,'users-summary');
+  toolbar.append(summary,button('+ เพิ่มผู้ใช้',()=>editUser(),'primary'));
+  list.append(toolbar);
+  table(list,['ผู้ใช้งาน','สิทธิ์','สถานะ','การจัดการ'],users.map(u=>{
+    const person=node('div',undefined,'user-identity'),name=node('strong',u.full_name||u.username),username=node('span','@'+u.username),role=node('span',u.role.replaceAll('_',' '),'role-chip'),state=node('span',u.is_active?'เปิดใช้งาน':'ปิดใช้งาน',u.is_active?'user-status active':'user-status inactive'),actions=node('div',undefined,'user-row-actions');
+    person.append(name,username);actions.append(button('แก้ไข',()=>editUser(u),'action-edit'));if(u.id!==me.id)actions.append(button('ลบ',async()=>{if(!confirm(`ยืนยันการลบผู้ใช้ ${u.username} หรือไม่? การลบไม่สามารถย้อนกลับได้`))return;try{await api('users/'+u.id,'DELETE');message('ลบผู้ใช้แล้ว');await show('users');}catch(e){message(e.message,true);}},'action-delete'));return [person,role,state,actions];
+  }));
+  list.querySelector('.table-scroll')?.classList.add('users-table');
 }
 function editUser(user){
   content.querySelector('#user-editor')?.remove();const panel=card(user?'แก้ไขผู้ใช้':'เพิ่มผู้ใช้');panel.id='user-editor';if(user)panel.classList.add('editing-user');const form=node('form'),grid=node('div',undefined,'admin-grid');form.append(grid);panel.append(form);
@@ -54,8 +60,10 @@ function editUser(user){
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function territoriesView(){
-  const list=card('เขตการขาย');list.append(node('p','Mapping เริ่มต้นใช้รหัสทีมและกลุ่มสินค้าฝากชุดเดิม รหัสที่ไม่กำหนดจะไม่เปิดให้ Sales เห็น','muted'),button('+ เพิ่มเขต',()=>editTerritory()));
-  table(list,['Code','ชื่อ','สถานะ','การจัดการ'],catalog.territories.map(t=>[t.code,t.name,t.is_active?'เปิด':'ปิด',button('แก้ไข',()=>editTerritory(t),'action-edit')]));
+  const list=card('เขตการขาย'),intro=node('p','Mapping เริ่มต้นใช้รหัสทีมและกลุ่มสินค้าฝากชุดเดิม รหัสที่ไม่กำหนดจะไม่เปิดให้ Sales เห็น','muted'),toolbar=node('div',undefined,'territories-toolbar'),summary=node('p',`${catalog.territories.length} เขต · เปิดใช้งาน ${catalog.territories.filter(t=>t.is_active).length} เขต`,'territories-summary');
+  toolbar.append(summary,button('+ เพิ่มเขต',()=>editTerritory(),'primary'));list.append(intro,toolbar);
+  table(list,['Territory code','ชื่อเขต','สถานะ','การจัดการ'],catalog.territories.map(t=>{const code=node('code',t.code,'territory-code'),state=node('span',t.is_active?'เปิดใช้งาน':'ปิดใช้งาน',t.is_active?'territory-status active':'territory-status inactive');return [code,t.name,state,button('แก้ไขเขต',()=>editTerritory(t),'territory-edit-button')];}));
+  list.querySelector('.table-scroll')?.classList.add('territories-table');
 }
 function editTerritory(territory){
   content.querySelector('#territory-editor')?.remove();const panel=card(territory?'แก้ไขเขต':'เพิ่มเขต');panel.id='territory-editor';
@@ -73,20 +81,31 @@ function editTerritory(territory){
 }
 async function rolesView(){
   if(me.role!=='super_admin'){card('Roles').append(node('p','การแก้ Role ต้องใช้ Super Admin'));return;}
-  const list=card('Roles');table(list,['Code','ชื่อ','ขอบเขต','การจัดการ'],catalog.roles.map(r=>[r.code,r.name,r.scope==='territory'?'เฉพาะเขต':'ทุกเขต',r.code==='super_admin'?'ทุกสิทธิ์':button('แก้สิทธิ์',()=>editRole(r))]));
-  const panel=card('เพิ่ม Role'),form=node('form'),grid=node('div',undefined,'admin-grid');panel.append(form);form.append(grid);field(grid,'Code','code').required=true;field(grid,'ชื่อ','name').required=true;select(grid,'ขอบเขตข้อมูล','scope',[{code:'territory',name:'เฉพาะเขตที่ได้รับมอบหมาย'},{code:'all',name:'ทุกเขต'}],'territory');
+  const list=card('Roles'),summary=node('p',`${catalog.roles.length} ระดับสิทธิ์ที่กำหนดไว้`,'roles-summary');list.append(summary);
+  table(list,['Code','ชื่อ Role','ขอบเขตข้อมูล','การจัดการ'],catalog.roles.map(r=>{const code=node('code',r.code,'role-code'),scope=node('span',r.scope==='territory'?'เฉพาะเขตที่ได้รับมอบหมาย':'เข้าถึงทุกเขต',r.scope==='territory'?'scope-chip territory':'scope-chip all'),action=r.code==='super_admin'?node('span','สิทธิ์ครบทุกส่วน','role-locked'):button('จัดการสิทธิ์',()=>editRole(r),'role-permission-button');return [code,r.name,scope,action];}));
+  list.querySelector('.table-scroll')?.classList.add('roles-table');
+  const panel=card('เพิ่ม Role'),form=node('form'),intro=node('p','สร้างระดับสิทธิ์ใหม่ แล้วกำหนดสิทธิ์การใช้งานในขั้นตอนถัดไป','muted'),grid=node('div',undefined,'admin-grid role-form-grid');panel.append(form);form.append(intro,grid);field(grid,'Code','code').required=true;field(grid,'ชื่อ Role','name').required=true;const scope=select(grid,'ขอบเขตข้อมูล','scope',[{code:'territory',name:'เฉพาะเขตที่ได้รับมอบหมาย'},{code:'all',name:'เข้าถึงทุกเขต'}],'territory');scope.parentElement.classList.add('role-scope-field');
   submit(form,'เพิ่ม Role',async data=>{await api('roles','POST',Object.fromEntries(data));await refreshCatalog();await show('roles');});
 }
 function editRole(role){content.querySelector('#role-editor')?.remove();const panel=card('สิทธิ์ของ '+role.name);panel.id='role-editor';const form=node('form');panel.append(form);field(form,'ชื่อ Role','name',role.name).required=true;const checks=node('div',undefined,'checks');form.append(checks);for(const p of catalog.permissions.filter(p=>p.code!=='environment_settings'))check(checks,p.name,'permissions',p.code,role.permissions.includes(p.code));submit(form,'บันทึกและให้ผู้ใช้ Role นี้เข้าสู่ระบบใหม่',async data=>{await api('roles/'+role.id,'PUT',{name:data.get('name'),permissions:selected(form,'permissions')});await refreshCatalog();await show('roles');});panel.scrollIntoView({behavior:'smooth'});}
+function permissionArea(code){return ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'].includes(code)?'จัดการระบบ':'พื้นที่ทำงาน';}
 async function permissionsView(){
-  const list=card('Permissions');table(list,['Code','ชื่อ'],catalog.permissions.map(p=>[p.code,p.name]));if(me.role!=='super_admin')return;
+  const list=card('Permissions'),summary=node('p',`${catalog.permissions.length} สิทธิ์สำหรับกำหนดการเข้าถึงของผู้ใช้งาน`,'permissions-summary');list.append(summary);
+  table(list,['Permission code','คำอธิบาย','กลุ่ม'],catalog.permissions.map(p=>{const code=node('code',p.code,'permission-code'),area=permissionArea(p.code);return [code,p.name,node('span',area,area==='จัดการระบบ'?'permission-area admin':'permission-area workspace')];}));list.querySelector('.table-scroll')?.classList.add('permissions-table');if(me.role!=='super_admin')return;
   const panel=card('เพิ่ม Permission'),form=node('form');panel.append(form);field(form,'Code','code').required=true;field(form,'ชื่อ','name').required=true;form.append(node('p','หลังเพิ่ม Permission ผู้พัฒนาต้องผูกกับ Route/API ของโมดูลใหม่ด้วย requirePermission','muted'));submit(form,'เพิ่ม Permission',async data=>{await api('permissions','POST',Object.fromEntries(data));await refreshCatalog();await show('permissions');});
 }
 async function settingsView(environment=false){
   const values=await api(environment?'environment':'settings'),panel=card(environment?'Environment Settings':'System Settings'),form=node('form');panel.append(form);
   const keys=environment?['PGHOST','PGPORT','PGDATABASE','API_URL','DASHBOARD_NAME']:['dashboard_name','support_message'];
-  if(environment)form.append(node('p','แก้ได้เฉพาะรายการที่อนุญาต ไม่มีรหัสผ่านหรือ Secret แสดงในหน้านี้ การเปลี่ยน Environment ต้องเริ่มเซิร์ฟเวอร์ใหม่','muted'));
-  for(const key of keys)field(form,key,key,values[key]||'');
+  if(environment){
+    panel.classList.add('environment-card');
+    const notice=node('aside',undefined,'environment-notice');notice.append(node('strong','การตั้งค่าระดับระบบ'),node('p','แก้ได้เฉพาะรายการที่อนุญาต ไม่มีรหัสผ่านหรือ Secret แสดงในหน้านี้ ทุกการเปลี่ยนแปลงต้องเริ่มเซิร์ฟเวอร์ใหม่จึงจะมีผล'));
+    const connection=node('section',undefined,'environment-group'),connectionTitle=node('div',undefined,'environment-group-title'),connectionGrid=node('div',undefined,'admin-grid environment-grid');connectionTitle.append(node('h3','การเชื่อมต่อข้อมูล'),node('p','ใช้สำหรับเชื่อมต่อฐานข้อมูลและบริการภายใน'));connection.append(connectionTitle,connectionGrid);
+    for(const key of ['PGHOST','PGPORT','PGDATABASE'])field(connectionGrid,key,key,values[key]||'');
+    const display=node('section',undefined,'environment-group'),displayTitle=node('div',undefined,'environment-group-title'),displayGrid=node('div',undefined,'admin-grid environment-grid');displayTitle.append(node('h3','การแสดงผลระบบ'),node('p','กำหนดปลายทางบริการและชื่อที่แสดงใน dashboard'));display.append(displayTitle,displayGrid);
+    for(const key of ['API_URL','DASHBOARD_NAME'])field(displayGrid,key,key,values[key]||'');
+    form.append(notice,connection,display);
+  }else for(const key of keys)field(form,key,key,values[key]||'');
   submit(form,'บันทึก',async data=>{const body=Object.fromEntries([...data].filter(([,v])=>v.trim()));const result=await api(environment?'environment':'settings','PUT',body);if(result.restartRequired)panel.append(node('p','บันทึกแล้ว กรุณาเริ่มเซิร์ฟเวอร์ใหม่เพื่อใช้ Environment ที่แก้ไข','muted'));});
 }
 const activityTimeFormat=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Bangkok',calendar:'gregory',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
@@ -98,12 +117,49 @@ function activityTime(value){
   const parts=Object.fromEntries(activityTimeFormat.formatToParts(date).map(p=>[p.type,p.value]));
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
+function activityStamp(value){
+  const text=activityTime(value),[date,time]=text.split(' '),stamp=node('div',undefined,'activity-stamp');
+  stamp.append(node('strong',time||text));if(time)stamp.append(node('span',date));return stamp;
+}
+function activityBadge(action){
+  const labels={login:'เข้าสู่ระบบ',logout:'ออกจากระบบ','login.failed':'เข้าสู่ระบบไม่สำเร็จ','user.create':'เพิ่มผู้ใช้','user.update':'แก้ไขผู้ใช้','user.delete':'ลบผู้ใช้','user.role':'เปลี่ยน Role','user.permissions':'กำหนดสิทธิ์ผู้ใช้','user.territories':'กำหนดเขตผู้ใช้','user.password_reset':'เปลี่ยนรหัสผ่าน','territory.create':'เพิ่มเขตขาย','territory.update':'แก้ไขเขตขาย','territory.switch':'เปลี่ยนเขตขาย','role.create':'เพิ่ม Role','role.permissions':'กำหนดสิทธิ์ Role','permission.create':'เพิ่ม Permission','settings.update':'แก้ไขการตั้งค่าระบบ','environment.update':'แก้ไข Environment','sessions.revoke':'ออกจากระบบทุกอุปกรณ์'},kind=action==='login'?'login':action==='logout'?'logout':action==='login.failed'?'failed':'change';
+  return node('span',labels[action]||action,'activity-badge '+kind);
+}
+function activityDetail(log){
+  const details=log.details&&typeof log.details==='object'?log.details:{},detail=node('div',undefined,'activity-detail'),user=id=>log.targetUser?.full_name||log.targetUser?.username||`บัญชีผู้ใช้ ID ${id}`,territory=id=>catalog.territories.find(t=>Number(t.id)===Number(id))?.name||`เขต ID ${id}`,permission=code=>catalog.permissions.find(p=>p.code===code)?.name||code,add=(main,sub)=>{detail.append(node('strong',main));if(sub)detail.append(node('span',sub));return detail;};
+  if(['login','logout'].includes(log.action))return add(log.action==='login'?'เข้าสู่ระบบสำเร็จ':'ออกจากระบบเรียบร้อย');
+  if(log.action==='login.failed')return add('เข้าสู่ระบบไม่สำเร็จ','ตรวจสอบชื่อผู้ใช้หรือรหัสผ่านอีกครั้ง');
+  if(log.action==='user.create')return add(`เพิ่ม ${user(details.userId)}`,details.is_active?'เปิดใช้งานบัญชี':'สร้างเป็นบัญชีที่ปิดใช้งาน');
+  if(log.action==='user.update')return add(`ปรับข้อมูล ${user(details.userId)}`,details.is_active?'เปิดใช้งานบัญชี':'ปิดใช้งานบัญชี');
+  if(log.action==='user.delete')return add(`ลบ ${user(details.userId)}`);
+  if(log.action==='user.role')return add(`เปลี่ยน Role ของ ${user(details.userId)}`,details.role||'ไม่ระบุ Role');
+  if(log.action==='user.permissions'){const items=Array.isArray(details.permissions)?details.permissions.map(permission):[];return add(`กำหนดสิทธิ์ให้ ${user(details.userId)}`,items.length?items.join(' · '):'ไม่ได้กำหนดสิทธิ์เพิ่มเติม');}
+  if(log.action==='user.territories'){const items=Array.isArray(details.territoryIds)?details.territoryIds.map(territory):[];return add(`กำหนดเขตให้ ${user(details.userId)}`,items.length?items.join(' · '):'ไม่ได้กำหนดเขตขาย');}
+  if(log.action==='user.password_reset')return add(`เปลี่ยนรหัสผ่านของ ${user(details.userId)}`);
+  if(['territory.create','territory.update'].includes(log.action)){const mapping=details.mapping||{},parts=[['ทีมขาย',mapping.teams],['รหัสลูกค้า',mapping.customerCodes],['กลุ่มสินค้าฝาก',mapping.consignmentPrefixes]].map(([label,items])=>`${label} ${Array.isArray(items)?items.length:0} รายการ`);return add(`${log.action==='territory.create'?'เพิ่ม':'อัปเดต'}เขต ${details.code||''}`.trim(),parts.join(' · '));}
+  if(log.action==='territory.switch')return add('เปลี่ยนเขตที่ใช้งาน',territory(details.territoryId));
+  if(log.action==='role.create')return add(`เพิ่ม Role ${details.code||''}`.trim());
+  if(log.action==='role.permissions'){const items=Array.isArray(details.permissions)?details.permissions.map(permission):[];return add(`กำหนดสิทธิ์ให้ Role ${details.role||''}`.trim(),items.length?items.join(' · '):'ไม่มีสิทธิ์ที่กำหนด');}
+  if(log.action==='permission.create')return add(`เพิ่ม Permission ${details.code||''}`.trim());
+  if(['settings.update','environment.update'].includes(log.action)){const keys=Array.isArray(details.keys)?details.keys:[];return add(log.action==='settings.update'?'อัปเดตการตั้งค่าระบบ':'อัปเดต Environment',keys.length?`รายการที่เปลี่ยน: ${keys.join(' · ')}`:'มีการบันทึกการตั้งค่า');}
+  if(log.action==='sessions.revoke')return add(`บังคับออกจากระบบทุกอุปกรณ์ของ ${user(details.userId)}`);
+  return add('มีการเปลี่ยนแปลงข้อมูลในระบบ');
+}
 async function activityView(){
   const before=auditCursors[auditPage],{logs}=await api('activity'+(before?'?before='+before:'')),panel=card('Activity Log'),pageLogs=logs.slice(0,10),hasNext=logs.length>10;
-  table(panel,['เวลาไทย (UTC+7)','ผู้ใช้','กิจกรรม','รายละเอียด'],pageLogs.map(l=>[activityTime(l.created_at),l.username||'ไม่ระบุตัวตน',l.action,JSON.stringify(l.details)]));
+  table(panel,['เวลาไทย (UTC+7)','ผู้ใช้','กิจกรรม','รายละเอียด'],pageLogs.map(l=>[activityStamp(l.created_at),l.username||'ไม่ระบุตัวตน',activityBadge(l.action),activityDetail(l)]));
+  panel.querySelector('.table-scroll')?.classList.add('activity-log-table');
+  panel.querySelector('.table-scroll')?.classList.add('activity-log-table');
   const pager=node('div',undefined,'admin-pagination'),previous=button('← ก่อนหน้า',()=>{if(auditPage>0){auditPage--;show('activity');}}),pageLabel=node('span',`หน้า ${auditPage+1}`),next=button('ถัดไป →',()=>{if(!hasNext||!pageLogs.length)return;auditCursors[auditPage+1]=pageLogs.at(-1).id;auditPage++;show('activity');});previous.disabled=auditPage===0;next.disabled=!hasNext;pager.append(previous,pageLabel,next);panel.append(pager);
 }
-async function securityView(){const data=await api('security'),panel=card('Security');panel.append(node('p','Password: bcrypt · Cookie: HttpOnly · SML: Read-only · ไม่มี Localhost bypass','muted'));table(panel,['ผู้ใช้','Sessions','จัดการ'],data.sessions.map(s=>[s.username,s.sessions,button('ออกจากระบบทุกอุปกรณ์',async()=>{try{await api('security/revoke/'+s.id,'POST',{});await show('security');}catch(e){message(e.message,true);}})]));}
+async function securityView(){
+  const data=await api('security'),panel=card('Security'),sessions=data.sessions.reduce((n,s)=>n+Number(s.sessions||0),0),online=data.sessions.filter(s=>Number(s.sessions)>0).length,summary=node('div',undefined,'security-summary'),stat=(label,value,detail)=>{const box=node('div',undefined,'security-stat');box.append(node('span',label),node('strong',String(value)),node('small',detail));summary.append(box);};
+  panel.classList.add('security-card');
+  const notice=node('aside',undefined,'security-notice');notice.append(node('strong','การป้องกันระบบทำงานอยู่'),node('p','รหัสผ่านจัดเก็บด้วย bcrypt · Cookie เป็น HttpOnly · SML เป็นแบบอ่านอย่างเดียว · ไม่มี Localhost bypass'));
+  stat('Session ที่ใช้งาน',sessions,'รายการ');stat('ผู้ใช้ที่ออนไลน์',online,'บัญชี');stat('การเชื่อมต่อ SML','Read-only','ป้องกันการแก้ไขข้อมูล');panel.append(notice,summary,node('h3','Session ของผู้ใช้งาน','security-list-title'));
+  table(panel,['ผู้ใช้','Session ที่ใช้งาน','สถานะ','การจัดการ'],data.sessions.map(s=>{const count=Number(s.sessions||0),state=node('span',count?'ออนไลน์':'ไม่มี session',count?'session-online':'session-offline'),revoke=button('ออกจากระบบทุกอุปกรณ์',async()=>{try{await api('security/revoke/'+s.id,'POST',{});await show('security');}catch(e){message(e.message,true);}},count?'security-revoke-button active':'security-revoke-button');return [s.username,count.toLocaleString('th-TH'),state,revoke];}));
+  panel.querySelector('.table-scroll')?.classList.add('security-table');
+}
 async function overviewView(){
   const p=card('ภาพรวมระบบ');p.append(node('p','สถานะผู้ใช้งาน สิทธิ์ และเขตการขายของระบบ','muted'));const grid=node('div',undefined,'admin-overview-grid');p.append(grid);
   const metric=(label,value,unit,description)=>{const box=node('div',undefined,'admin-metric');box.append(node('span',label),node('strong',value),node('small',unit),node('p',description,'admin-metric-description'));grid.append(box);};
@@ -115,7 +171,7 @@ async function overviewView(){
     if(has('roles_manage'))metric('Role',catalog.roles.length,'รายการ','ระดับสิทธิ์ที่กำหนดไว้ในระบบ');
     if(has('territories_manage'))metric('เขตที่เปิดใช้งาน',catalog.territories.filter(t=>t.is_active).length,'เขต','เขตที่พร้อมมอบหมายให้ผู้ใช้งาน');
     if(security){const sessions=security.sessions.reduce((n,s)=>n+Number(s.sessions||0),0);metric('Session ที่ใช้งาน',sessions,'รายการ','การเข้าสู่ระบบที่ยังไม่หมดอายุ');const online=card('ผู้ใช้งานที่กำลังใช้งาน');online.append(node('p','ผู้ใช้ที่มี Session กำลังใช้งานอยู่ในขณะนี้','muted'));const onlineRows=security.sessions.filter(s=>Number(s.sessions)>0);if(onlineRows.length)table(online,['ผู้ใช้','จำนวน Session','สถานะ'],onlineRows.map(s=>[s.username,Number(s.sessions).toLocaleString('th-TH'),node('span','ออนไลน์','session-online')]));else online.append(node('p','ขณะนี้ยังไม่มีผู้ใช้งานออนไลน์','muted'));}
-    if(activity){const recent=card('กิจกรรมล่าสุด');recent.append(node('p','รายการการเข้าสู่ระบบและการเปลี่ยนแปลงในระบบล่าสุด','muted'));if(activity.logs.length)table(recent,['เวลา','ผู้ใช้','กิจกรรม'],activity.logs.slice(0,5).map(l=>[activityTime(l.created_at),l.username||'ไม่ระบุตัวตน',l.action]));else recent.append(node('p','ยังไม่มีกิจกรรม','muted'));}
+    if(activity){const recent=card('กิจกรรมล่าสุด');recent.classList.add('recent-activity-card');recent.append(node('p','รายการการเข้าสู่ระบบและการเปลี่ยนแปลงในระบบล่าสุด','muted'));if(activity.logs.length){const tableLabel=node('p',`${activity.logs.length} รายการล่าสุด`,'activity-list-summary');recent.append(tableLabel);table(recent,['เวลา','ผู้ใช้','กิจกรรม'],activity.logs.slice(0,5).map(l=>[activityStamp(l.created_at),l.username||'ไม่ระบุตัวตน',activityBadge(l.action)]));recent.querySelector('.table-scroll')?.classList.add('recent-activity-table');}else recent.append(node('p','ยังไม่มีกิจกรรม','muted'));}
   }catch(error){p.append(node('p',error.message,'admin-status'));}
 }
 const views={overview:overviewView,users:usersView,territories:territoriesView,roles:rolesView,permissions:permissionsView,settings:()=>settingsView(),environment:()=>settingsView(true),activity:activityView,security:securityView};
