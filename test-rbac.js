@@ -13,7 +13,7 @@ import { scopeQuery,accessContext,createScopedPool } from './src/services/territ
 
 async function fixture(t){
   mkdirSync('test-results',{recursive:true});const dir=mkdtempSync(resolve('test-results/access-'));const envPath=resolve(dir,'.env');writeFileSync(envPath,'PGHOST=localhost\nPGPORT=5432\nSESSION_SECRET=fixture-only-do-not-return\n');
-  const env={AUTH_USERNAME:'root',AUTH_PASSWORD_HASH:await hashPassword('fixture-password-123'),AUTH_COOKIE_SECURE:'false'};
+  const env={AUTH_USERNAME:'root',AUTH_PASSWORD_HASH:await hashPassword('fixture-password-123'),AUTH_COOKIE_SECURE:'false',AUTH_REQUIRE_2FA:'false'};
   const store=createAccessStore(':memory:',env),app=express();app.use(express.json());const auth=installAuth(app,env,store);installAccess(app);installAdminRoutes(app,store,auth.audit,envPath);
   for(const path of ['/api/dashboard','/api/products','/api/products/export','/api/customer-insights','/api/customer-insights/catalog','/api/consignment','/api/reports','/api/new-module'])app.get(path,(req,res)=>res.json({ok:true,territory:accessContext.getStore()?.territory?.id??null}));
   for(const path of ['/','/products.html','/index.html','/customers.html','/executive.html','/system-admin.html','/select-territory.html','/login.html','/unregistered.html'])app.get(path,(req,res)=>res.send('page'));
@@ -25,22 +25,23 @@ async function fixture(t){
   const create=(username,role,territoryIds=[],additionalPermissions=[])=>users.save(root,null,{username,full_name:username,role,is_active:true,password:'fixture-password-123',territoryIds,additionalPermissions},'test');
   return {store,request,login,create,users,root,envPath};
 }
-test('short passwords work for creation, login and reset; empty is rejected or preserves an edited password',async t=>{
+test('policy-compliant passwords work for creation, login and reset; weak/empty are rejected; empty preserves an edited password',async t=>{
   const f=await fixture(t),root=await f.login('root');
-  const body={username:'short-password-user',full_name:'Test',role:'admin',is_active:true,password:'x',additionalPermissions:[],territoryIds:[]};
+  const body={username:'short-password-user',full_name:'Test',role:'admin',is_active:true,password:'blue-sky42',additionalPermissions:[],territoryIds:[]};
   assert.equal((await f.request('/api/admin/users',root.cookie,'POST',{...body,password:''})).status,400);
   const created=await f.request('/api/admin/users',root.cookie,'POST',body);assert.equal(created.status,201);const user=await created.json();
   const login=password=>f.request('/api/auth/login','','POST',{username:body.username,password});
-  assert.equal((await login('x')).status,200);
+  assert.equal((await login('blue-sky42')).status,200);
+  for(const weak of ['short1','password123','abcdefgh','12345678','aaaaaaa1','x'])assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:weak,currentPassword:'blue-sky42'})).status,400);
   assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:''})).status,200);
-  assert.equal((await login('x')).status,200);
-  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'y',currentPassword:'wrong'})).status,400);
-  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'y',currentPassword:'x'})).status,200);
-  assert.equal((await login('y')).status,200);assert.equal((await login('x')).status,401);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก',currentPassword:'wrong'})).status,400);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก',currentPassword:'y'})).status,200);
-  assert.equal((await login('ก')).status,200);assert.equal((await login('y')).status,401);
-  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'ก'.repeat(25),currentPassword:'ก'})).status,400);
+  assert.equal((await login('blue-sky42')).status,200);
+  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'green-tea77',currentPassword:'wrong'})).status,400);
+  assert.equal((await f.request('/api/admin/users/'+user.id,root.cookie,'PUT',{...body,password:'green-tea77',currentPassword:'blue-sky42'})).status,200);
+  assert.equal((await login('green-tea77')).status,200);assert.equal((await login('blue-sky42')).status,401);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'กข-tea88',currentPassword:'wrong'})).status,400);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'กข-tea88',currentPassword:'green-tea77'})).status,200);
+  assert.equal((await login('กข-tea88')).status,200);assert.equal((await login('green-tea77')).status,401);
+  assert.equal((await f.request('/api/admin/users/'+user.id+'/password',root.cookie,'POST',{password:'กข-tea88'.repeat(25)+'1',currentPassword:'กข-tea88'})).status,400);
 });
 
 test('all four roles enforce pages/APIs; unknown routes and encoded URLs fail closed',async t=>{

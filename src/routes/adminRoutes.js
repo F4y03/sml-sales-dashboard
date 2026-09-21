@@ -3,9 +3,10 @@ import { sameSite } from '../../auth.js';
 import { createUserService,bad,positiveId,text } from '../services/userService.js';
 import { createSettingsService } from '../services/settingsService.js';
 import { validateMapping } from '../services/territoryService.js';
+import { createTwoFactorService } from '../services/twoFactorService.js';
 import { canAdmin } from '../services/permissionService.js';
 import { ADMIN_PERMISSIONS } from '../config/access.js';
-export function installAdminRoutes(app,store,audit,envPath) {
+export function installAdminRoutes(app,store,audit,envPath,twofa=createTwoFactorService(store,audit)) {
   const users=createUserService(store,audit),settings=createSettingsService(store,audit,envPath);
   const handle=fn=>async(req,res)=>{try{await fn(req,res);}catch(e){res.status(e.status||500).json({error:e.status?e.message:'ดำเนินการไม่สำเร็จ กรุณาลองใหม่'});}};
   app.use('/api/admin',(req,res,next)=>{if(!canAdmin(req.auth)||req.auth.scope==='territory')return res.status(403).json({error:'ไม่มีสิทธิ์จัดการระบบ'});if(!['GET','HEAD'].includes(req.method))return sameSite(req,res,next);next();});
@@ -47,7 +48,9 @@ export function installAdminRoutes(app,store,audit,envPath) {
   app.get('/api/admin/environment',requireSuperAdmin,handle((req,res)=>res.json(settings.environment())));
   app.put('/api/admin/environment',requireSuperAdmin,handle((req,res)=>res.json(settings.saveEnvironment(req.auth,req.body,req.socket.remoteAddress))));
   app.get('/api/admin/activity',requirePermission('activity_logs'),handle((req,res)=>res.json({logs:audit.list(req.query.before?positiveId(req.query.before):Number.MAX_SAFE_INTEGER)})));
-  app.get('/api/admin/security',requireSuperAdmin,handle((req,res)=>res.json({sessions:store.all('SELECT u.id,u.username,COUNT(s.token_hash) AS sessions FROM users u LEFT JOIN sessions s ON s.user_id=u.id AND s.expires>? GROUP BY u.id',Date.now()),passwordAlgorithm:'bcrypt (legacy scrypt upgrades at login)',cookieHttpOnly:true,localBypass:false,smlReadOnly:true})));
-  app.post('/api/admin/security/revoke/:id',requireSuperAdmin,handle((req,res)=>{const id=positiveId(req.params.id);store.transaction(()=>{store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(req.auth,'sessions.revoke','security',{userId:id},null,req.socket.remoteAddress);});res.json({ok:true});}));
+  app.get('/api/admin/security',requireSuperAdmin,handle((req,res)=>res.json({sessions:store.all('SELECT u.id,u.username,COUNT(s.token_hash) AS sessions FROM users u LEFT JOIN sessions s ON s.user_id=u.id AND s.expires>? GROUP BY u.id',Date.now()),passwordAlgorithm:'bcrypt (legacy scrypt/plain-text upgrade at login)',cookieHttpOnly:true,localBypass:false,smlReadOnly:true})));
+  app.post('/api/admin/security/revoke/:id',requireSuperAdmin,handle((req,res)=>{const id=positiveId(req.params.id);store.transaction(()=>{store.run('DELETE FROM sessions WHERE user_id=?',id);const n=twofa.revokeTrusted(id);audit.record(req.auth,'sessions.revoke','security',{userId:id},null,req.socket.remoteAddress);if(n)audit.record(req.auth,'trusted_device.revoke','auth',{userId:id,count:n,reason:'admin_revoke'},null,req.socket.remoteAddress);});res.json({ok:true});}));
+  // Lost phone AND recovery codes: clears 2FA, recovery codes and trusted devices; the user enrols a new authenticator at the next password login.
+  app.post('/api/admin/users/:id/2fa/reset',requireSuperAdmin,handle((req,res)=>{const id=positiveId(req.params.id);if(!store.get('SELECT 1 FROM users WHERE id=?',id))throw bad('ไม่พบผู้ใช้',404);store.transaction(()=>{twofa.reset(id);store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(req.auth,'2fa.reset','security',{userId:id},null,req.socket.remoteAddress);});res.json({ok:true});}));
   app.use('/api/admin',(req,res)=>res.status(404).json({error:'ไม่พบ Admin API'}));
 }

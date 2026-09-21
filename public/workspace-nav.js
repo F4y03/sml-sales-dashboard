@@ -114,7 +114,11 @@ passwordDialog.className = "workspace-password-dialog";
 passwordDialog.setAttribute("aria-labelledby", "workspace-password-title");
 passwordDialog.innerHTML = `<form method="dialog" class="workspace-password-form"><div class="workspace-password-heading"><div><small>บัญชีของฉัน</small><h2 id="workspace-password-title">เปลี่ยนรหัสผ่าน</h2></div><button type="button" class="workspace-password-close" aria-label="ปิด">×</button></div><label>รหัสผ่านเดิม<input name="currentPassword" type="password" autocomplete="current-password" required></label><label>รหัสผ่านใหม่<input name="newPassword" type="password" autocomplete="new-password" required></label><label>ยืนยันรหัสผ่านใหม่<input name="confirmPassword" type="password" autocomplete="new-password" required></label><label class="workspace-password-show"><input name="showPassword" type="checkbox"> แสดงรหัสผ่าน</label><p class="workspace-password-status" role="alert" aria-live="assertive"></p><div class="workspace-password-actions"><button type="button" class="workspace-password-cancel">ยกเลิก</button><button type="submit" class="workspace-password-submit">บันทึกรหัสผ่าน</button></div></form>`;
 document.body.append(passwordDialog);
-workspace.querySelector(".workspace-bottom").append(changePassword, logout);
+const logoutAll = document.createElement("button");
+logoutAll.type = "button";
+logoutAll.textContent = "ออกจากระบบทุกอุปกรณ์";
+logoutAll.className = "workspace-password-button";
+workspace.querySelector(".workspace-bottom").append(changePassword, logoutAll, logout);
 const passwordForm = passwordDialog.querySelector("form"),
   passwordStatus = passwordDialog.querySelector(".workspace-password-status"),
   passwordSubmit = passwordDialog.querySelector(".workspace-password-submit");
@@ -181,6 +185,21 @@ logout.addEventListener("click", async () => {
   } catch {
     logout.textContent = "ลองออกจากระบบอีกครั้ง";
     logout.disabled = false;
+  }
+});
+logoutAll.addEventListener("click", async () => {
+  if (!confirm("ออกจากระบบทุกอุปกรณ์และยกเลิกอุปกรณ์ที่เชื่อถือทั้งหมด?")) return;
+  logoutAll.disabled = true;
+  try {
+    const response = await nativeFetch("/api/auth/logout-all", {
+      method: "POST",
+      headers: { "X-PRPlus-Request": "1" },
+    });
+    if (!response.ok) throw new Error("Logout failed");
+    location.replace("/login.html");
+  } catch {
+    logoutAll.textContent = "ลองอีกครั้ง";
+    logoutAll.disabled = false;
   }
 });
 window.prplusUser = fetch("/api/auth/me").then((response) =>

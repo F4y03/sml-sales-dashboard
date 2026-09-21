@@ -9,22 +9,22 @@ import { installAdminRoutes } from './src/routes/adminRoutes.js';
 import { createUserService } from './src/services/userService.js';
 import { loadUser } from './src/services/permissionService.js';
 mkdirSync('test-results',{recursive:true});
-const store=createAccessStore(':memory:',{AUTH_USERNAME:'ui-admin',AUTH_PASSWORD_HASH:await hashPassword('ui-fixture-password')});
-const app=express();app.use(express.json());const auth=installAuth(app,{AUTH_COOKIE_SECURE:'false'},store);installAccess(app);installAdminRoutes(app,store,auth.audit,'test-results/ui-env');
+const store=createAccessStore(':memory:',{AUTH_USERNAME:'ui-admin',AUTH_PASSWORD_HASH:await hashPassword('ui-fixture-password1')});
+const app=express();app.use(express.json());const auth=installAuth(app,{AUTH_COOKIE_SECURE:'false',AUTH_REQUIRE_2FA:'false'},store);installAccess(app);installAdminRoutes(app,store,auth.audit,'test-results/ui-env');
 app.get('/api/connection-status',(req,res)=>res.json({connected:true}));
 app.get('/api/products',(req,res)=>res.json({rows:[],fields:[],groups:[],total:0,matching:0,activeCount:0,inactiveCount:0,page:0,pageSize:50}));
 app.get('/api/customer-insights',(req,res)=>res.json({customers:[]}));app.get('/api/customer-insights/non-buyers',(req,res)=>res.json({customers:[]}));app.get('/api/customer-insights/catalog',(req,res)=>res.json({products:[]}));
 app.get('/api/executive',(req,res)=>res.json({net:0,sales:0,returns:0,previousNet:0,yearNet:0,count:0,salesInvoiceCount:0,products:[],branches:[],declines:[],staff:[],bills:[],unusual:[]}));
 app.use(express.static('public'));
-const users=createUserService(store,auth.audit);await users.save(loadUser(store,1),null,{username:'ui-sales',full_name:'Sales ทดสอบ',role:'sales',is_active:true,password:'ui-fixture-password',territoryIds:[1,2],additionalPermissions:[]});
+const users=createUserService(store,auth.audit);await users.save(loadUser(store,1),null,{username:'ui-sales',full_name:'Sales ทดสอบ',role:'sales',is_active:true,password:'ui-fixture-password1',territoryIds:[1,2],additionalPermissions:[]});
 const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;let browser;
 try {
   browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
   const page=await browser.newPage({viewport:{width:1440,height:1000},timezoneId:'America/Los_Angeles'});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**/*',r=>r.abort());
-  async function login(username){await page.goto(base+'/login.html');await page.locator('#username').fill(username);await page.locator('#password').fill('ui-fixture-password');await page.locator('#submit').click();await page.waitForURL(url=>!url.pathname.includes('login'));}
+  async function login(username){await page.goto(base+'/login.html');await page.locator('#username').fill(username);await page.locator('#password').fill('ui-fixture-password1');await page.locator('#submit').click();await page.waitForURL(url=>!url.pathname.includes('login'));}
   await login('ui-admin');await page.goto(base+'/system-admin.html');await page.waitForLoadState('networkidle');await page.getByRole('button',{name:'Users',exact:true}).click();await page.getByRole('button',{name:'+ เพิ่มผู้ใช้'}).click();
-  await page.locator('[name=full_name]').fill('ผู้ใช้ทดสอบ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('x');await page.locator('[name=role]').selectOption('sales');await page.getByLabel('ภาคกลาง',{exact:true}).check();await page.getByRole('button',{name:'บันทึกผู้ใช้',exact:true}).click();await page.getByRole('cell',{name:'ผู้ใช้ทดสอบ / ui-new',exact:true}).waitFor();
-  await page.getByRole('button',{name:'+ เพิ่มผู้ใช้'}).click();await page.locator('[name=full_name]').fill('ชื่อซ้ำ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('x');await page.locator('#user-editor button[type=submit]').click();
+  await page.locator('[name=full_name]').fill('ผู้ใช้ทดสอบ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('blue-sky-42');await page.locator('[name=role]').selectOption('sales');await page.getByLabel('ภาคกลาง',{exact:true}).check();await page.getByRole('button',{name:'บันทึกผู้ใช้',exact:true}).click();await page.getByRole('cell',{name:'ผู้ใช้ทดสอบ / ui-new',exact:true}).waitFor();
+  await page.getByRole('button',{name:'+ เพิ่มผู้ใช้'}).click();await page.locator('[name=full_name]').fill('ชื่อซ้ำ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('blue-sky-42');await page.locator('#user-editor button[type=submit]').click();
   await page.locator('.admin-form-status[data-error=true]').filter({hasText:'Username นี้ถูกใช้แล้ว'}).waitFor();assert.equal(await page.locator('[name=username]').getAttribute('aria-invalid'),'true');
   await page.screenshot({path:'test-results/access-users-desktop.png',fullPage:true});
   await page.route('**/api/admin/activity',route=>route.fulfill({json:{logs:['2026-09-17 02:35:43','2026-12-31 17:00:00','2026-09-17T02:35:44Z','invalid'].map((created_at,i)=>({id:i+1,created_at,username:'ui-admin',action:'login',details:{}}))}}));

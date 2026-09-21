@@ -344,3 +344,18 @@ a:focus-visible {
     font-size: 10px;
   }
 }
+
+/* Two-factor step */
+.twofa-intro { font-size: 13px; line-height: 1.6; margin: 0 0 16px; }
+.twofa-setup { text-align: center; margin: 0 0 18px; }
+.twofa-setup img { background: #fff; border: 1px solid #e1dfdd; border-radius: 10px; padding: 6px; }
+.twofa-setup p { font-size: 12px; line-height: 1.6; margin: 8px 0 0; }
+.twofa-setup code { display: block; font-size: 13px; letter-spacing: 1px; word-break: break-all; user-select: all; }
+#otp { letter-spacing: 3px; text-align: center; font-size: 18px; }
+.twofa-trust { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font-weight: 400; cursor: pointer; }
+.twofa-trust input { width: 18px; height: 18px; margin: 0; padding: 0; accent-color: #c93436; }
+#twofa-error { font-size: 12px; color: #b3262a; min-height: 20px; margin: 12px 0; }
+.twofa-back { display: block; margin: 12px auto 0; border: 0; background: transparent; color: #8b817e; font: inherit; font-size: 12px; cursor: pointer; }
+#recovery-panel h3 { margin: 0 0 8px; font-size: 16px; }
+#recovery-codes { background: #fdfdfc; border: 1px solid #e1dfdd; border-radius: 10px; padding: 14px; font-size: 14px; line-height: 1.8; user-select: all; overflow-x: auto; }
+[hidden] { display: none !important; }

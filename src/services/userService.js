@@ -35,7 +35,7 @@ export function createUserService(store,audit) {
       const stored=store.get('SELECT password_hash FROM users WHERE id=?',id);
       if(typeof body.currentPassword!=='string'||!await verifyPassword(body.currentPassword,stored?.password_hash))throw bad('รหัสผ่านเดิมไม่ถูกต้อง');
     }
-    const hash=body.password?await makePassword(body.password):null;if(!target&&!hash)throw bad('กรุณาระบุรหัสผ่าน');
+    const hash=body.password?await makePassword(body.password,{username}):null;if(!target&&!hash)throw bad('กรุณาระบุรหัสผ่าน');
     return store.transaction(()=>{
       const currentActor=loadUser(store,actor.id);
       if(!currentActor?.is_active||currentActor.auth_version!==actor.auth_version)throw bad('สิทธิ์มีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่',401);
@@ -59,8 +59,8 @@ export function createUserService(store,audit) {
         audit.record(actor,'user.permissions','users',{userId:id,permissions},null,ip);
         audit.record(actor,'user.territories','users',{userId:id,territoryIds:role.scope==='territory'?ids:[]},null,ip);
       }
-      if(hash)audit.record(actor,'user.password_reset','users',{userId:id},null,ip);
+      if(hash){audit.record(actor,'user.password_reset','users',{userId:id},null,ip);{const n=store.run('DELETE FROM trusted_devices WHERE user_id=?',id).changes;store.run('DELETE FROM login_challenges WHERE user_id=?',id);if(n)audit.record(actor,'trusted_device.revoke','auth',{userId:id,count:n,reason:'password_reset'},null,ip);}}
       return get(id);
     });
-  },async resetPassword(actor,id,password,currentPassword,ip){const target=get(id);guard(actor,target,{});const stored=store.get('SELECT password_hash FROM users WHERE id=?',id);if(typeof currentPassword!=='string'||!await verifyPassword(currentPassword,stored?.password_hash))throw bad('รหัสผ่านเดิมไม่ถูกต้อง');const hash=await makePassword(password);store.transaction(()=>{const current=loadUser(store,actor.id);if(!current?.is_active||current.auth_version!==actor.auth_version)throw bad('กรุณาเข้าสู่ระบบใหม่',401);guard(current,get(id),{});store.run('UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,id);store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(actor,'user.password_reset','users',{userId:id},null,ip);});}};
+  },async resetPassword(actor,id,password,currentPassword,ip){const target=get(id);guard(actor,target,{});const stored=store.get('SELECT password_hash FROM users WHERE id=?',id);if(typeof currentPassword!=='string'||!await verifyPassword(currentPassword,stored?.password_hash))throw bad('รหัสผ่านเดิมไม่ถูกต้อง');const hash=await makePassword(password,{username:target.username});store.transaction(()=>{const current=loadUser(store,actor.id);if(!current?.is_active||current.auth_version!==actor.auth_version)throw bad('กรุณาเข้าสู่ระบบใหม่',401);guard(current,get(id),{});store.run('UPDATE users SET password_hash=?,auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',hash,id);store.run('DELETE FROM sessions WHERE user_id=?',id);audit.record(actor,'user.password_reset','users',{userId:id},null,ip);{const n=store.run('DELETE FROM trusted_devices WHERE user_id=?',id).changes;store.run('DELETE FROM login_challenges WHERE user_id=?',id);if(n)audit.record(actor,'trusted_device.revoke','auth',{userId:id,count:n,reason:'password_reset'},null,ip);}});}};
 }

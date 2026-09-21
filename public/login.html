@@ -88,7 +88,28 @@
               <span>เข้าสู่ระบบ</span><span aria-hidden="true">→</span>
             </button>
           </form>
-          <p class="help">หากลืมรหัสผ่าน โปรดติดต่อผู้ดูแลระบบของคุณ</p>
+          <form id="twofa-form" hidden>
+            <p id="twofa-intro" class="twofa-intro"></p>
+            <div id="twofa-setup" class="twofa-setup" hidden>
+              <img id="twofa-qr" alt="QR Code สำหรับตั้งค่า Authenticator" width="168" height="168" />
+              <p>สแกนด้วย Google Authenticator หรือ Microsoft Authenticator<br />หรือกรอกรหัสนี้เอง: <code id="twofa-secret"></code></p>
+            </div>
+            <label for="otp">รหัส 6 หลักจากแอป</label>
+            <input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="32" required />
+            <label class="twofa-trust"><input id="twofa-trust" type="checkbox" /> เชื่อถืออุปกรณ์นี้ 30 วัน</label>
+            <p id="twofa-error" role="alert" aria-live="polite"></p>
+            <button class="submit" id="twofa-submit" type="submit"><span>ยืนยัน</span><span aria-hidden="true">→</span></button>
+            <p id="twofa-hint" class="help">โทรศัพท์หาย? กรอก Recovery Code แทนรหัส 6 หลักได้ (ใช้ได้ครั้งละ 1 รหัส)</p>
+            <button class="twofa-back" id="twofa-back" type="button">← กลับไปกรอกรหัสผ่าน</button>
+          </form>
+          <section id="recovery-panel" hidden aria-labelledby="recovery-title">
+            <h3 id="recovery-title">Recovery Codes</h3>
+            <p class="help">เก็บไว้ในที่ปลอดภัย รหัสเหล่านี้แสดงครั้งเดียว ใช้ได้รหัสละ 1 ครั้งเมื่อไม่มีโทรศัพท์</p>
+            <pre id="recovery-codes"></pre>
+            <button class="twofa-back" id="recovery-copy" type="button">คัดลอกทั้งหมด</button>
+            <button class="submit" id="recovery-done" type="button"><span>บันทึกแล้ว ไปต่อ</span><span aria-hidden="true">→</span></button>
+          </section>
+          <p class="help" id="login-help">หากลืมรหัสผ่าน โปรดติดต่อผู้ดูแลระบบของคุณ<br /><small>หากกรอกผิดหลายครั้ง บัญชีอาจถูกล็อกชั่วคราว 15 นาที</small></p>
           <div class="access-note">
             <span aria-hidden="true">▣</span
             ><span

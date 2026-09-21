@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "test:access": "node --test test-auth.js test-rbac.js"
+    "test:access": "node --test test-auth.js test-rbac.js test-security.js test-2fa.js"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -15,7 +15,8 @@
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "fast-xml-parser": "^5.11.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"

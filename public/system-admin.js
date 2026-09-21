@@ -789,13 +789,24 @@ function activityBadge(action) {
       "settings.update": "แก้ไขการตั้งค่าระบบ",
       "environment.update": "แก้ไข Environment",
       "sessions.revoke": "ออกจากระบบทุกอุปกรณ์",
+      "user.password_change": "เปลี่ยนรหัสผ่าน",
+      "account.locked": "ล็อกบัญชีชั่วคราว",
+      "2fa.enrolled": "เปิดใช้ 2FA",
+      "2fa.verified": "ยืนยัน 2FA",
+      "2fa.failed": "ยืนยัน 2FA ไม่สำเร็จ",
+      "2fa.recovery_used": "ใช้ Recovery Code",
+      "2fa.recovery_regenerated": "สร้าง Recovery Code ใหม่",
+      "2fa.reset": "รีเซ็ต 2FA",
+      "trusted_device.add": "เชื่อถืออุปกรณ์",
+      "trusted_device.revoke": "ยกเลิกอุปกรณ์ที่เชื่อถือ",
+      "auth.logout_all": "ออกจากระบบทุกอุปกรณ์",
     },
     kind =
       action === "login"
         ? "login"
         : action === "logout"
           ? "logout"
-          : action === "login.failed"
+          : ["login.failed", "account.locked", "2fa.failed"].includes(action)
             ? "failed"
             : "change";
   return node("span", labels[action] || action, "activity-badge " + kind);
@@ -823,7 +834,36 @@ function activityDetail(log) {
       log.action === "login" ? "เข้าสู่ระบบสำเร็จ" : "ออกจากระบบเรียบร้อย",
     );
   if (log.action === "login.failed")
-    return add("เข้าสู่ระบบไม่สำเร็จ", "ตรวจสอบชื่อผู้ใช้หรือรหัสผ่านอีกครั้ง");
+    return add(
+      "เข้าสู่ระบบไม่สำเร็จ",
+      {
+        bad_password: "รหัสผ่านไม่ถูกต้อง",
+        unknown_user: "ไม่พบชื่อผู้ใช้",
+        locked: "บัญชีถูกล็อกอยู่",
+        inactive: "บัญชีถูกปิดใช้งาน",
+      }[details.reason] || "ตรวจสอบชื่อผู้ใช้หรือรหัสผ่านอีกครั้ง",
+    );
+  if (log.action === "account.locked")
+    return add(
+      `ล็อกบัญชี ${user(details.userId)}`,
+      `กรอกผิดเกินกำหนด ล็อก ${details.minutes || 15} นาที`,
+    );
+  if (log.action.startsWith("2fa.") || log.action.startsWith("trusted_device."))
+    return add(
+      {
+        "2fa.enrolled": "เปิดใช้ 2FA",
+        "2fa.verified": "ยืนยัน 2FA สำเร็จ",
+        "2fa.failed": "ยืนยัน 2FA ไม่สำเร็จ",
+        "2fa.recovery_used": "เข้าสู่ระบบด้วย Recovery Code",
+        "2fa.recovery_regenerated": "สร้าง Recovery Code ชุดใหม่",
+        "2fa.reset": "รีเซ็ต 2FA",
+        "trusted_device.add": "เชื่อถืออุปกรณ์ 30 วัน",
+        "trusted_device.revoke": "ยกเลิกอุปกรณ์ที่เชื่อถือ",
+      }[log.action],
+      user(details.userId),
+    );
+  if (log.action === "auth.logout_all")
+    return add(`ออกจากระบบทุกอุปกรณ์ของ ${user(details.userId)}`);
   if (log.action === "user.create")
     return add(
       `เพิ่ม ${user(details.userId)}`,

@@ -31,7 +31,7 @@ app.use(express.json({ limit: '32kb' }));
 const accessStore = createAccessStore(fileURLToPath(new URL('./data/access.sqlite', import.meta.url)), process.env);
 const auth = installAuth(app, process.env, accessStore);
 installAccess(app);
-installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)));
+installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)), auth.twofa);
 app.get('/api/connection-status', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   try {

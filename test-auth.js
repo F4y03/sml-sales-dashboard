@@ -6,7 +6,7 @@ import { installAuth, hashPassword } from './auth.js';
 async function fixture(t, overrides = {}) {
   const app = express();
   app.use(express.json());
-  installAuth(app, { AUTH_USERNAME: 'admin', AUTH_PASSWORD_HASH: await hashPassword('test-password-123'), ...overrides });
+  installAuth(app, { AUTH_USERNAME: 'admin', AUTH_PASSWORD_HASH: await hashPassword('test-password-123'), AUTH_REQUIRE_2FA: 'false', ...overrides });
   app.get('/executive.html', (req, res) => res.send('protected'));
   app.get('/api/dashboard', (req, res) => res.json({ ok: true, totalSales: 1, totalInvoices: 1, itemSales: 1, products: [], warehouses: [], daily: [], updatedAt: new Date().toISOString() }));
   const server = app.listen(0, '127.0.0.1');

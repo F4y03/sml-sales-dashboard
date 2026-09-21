@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { installAuth, hashPassword } from './auth.js';
 const app = express();
 app.use(express.json());
-installAuth(app, { AUTH_USERNAME: 'ui-admin', AUTH_PASSWORD_HASH: await hashPassword('ui-test-password'), AUTH_COOKIE_SECURE: 'false' });
+installAuth(app, { AUTH_USERNAME: 'ui-admin', AUTH_PASSWORD_HASH: await hashPassword('ui-test-password'), AUTH_COOKIE_SECURE: 'false', AUTH_REQUIRE_2FA: 'false' });
 app.use(express.static('public'));
 const server = app.listen(0, '127.0.0.1');
 await new Promise(resolve => server.once('listening', resolve));

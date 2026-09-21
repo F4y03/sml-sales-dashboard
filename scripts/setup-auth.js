@@ -33,7 +33,7 @@ try {
   if (!/^[a-zA-Z0-9_.@-]{3,100}$/.test(username))
     throw new Error("Use 3–100 letters, numbers, _, ., @ or - for username.");
   if (password !== confirm) throw new Error("Passwords must match.");
-  const hash = await makePassword(password);
+  const hash = await makePassword(password, { username });
   const store = createAccessStore(
     fileURLToPath(new URL("../data/access.sqlite", import.meta.url)),
   );
@@ -63,6 +63,16 @@ try {
           ).lastInsertRowid,
         );
       store.run("DELETE FROM sessions WHERE user_id=?", id);
+      // A recovery run also ends every trusted device and any pending login challenge, and clears the lockout.
+      store.run("DELETE FROM trusted_devices WHERE user_id=?", id);
+      store.run("DELETE FROM login_challenges WHERE user_id=?", id);
+      store.run("DELETE FROM login_lockouts WHERE user_id=?", id);
+      // --reset-2fa: lost phone AND recovery codes. The account enrols a new authenticator at its next login.
+      if (process.argv.includes("--reset-2fa")) {
+        store.run("DELETE FROM user_totp WHERE user_id=?", id);
+        store.run("DELETE FROM recovery_codes WHERE user_id=?", id);
+        createAuditService(store).record({ id }, "2fa.reset", "security", { userId: id, source: "local-cli" });
+      }
       createAuditService(store).record(
         { id },
         "super_admin.recovery",
