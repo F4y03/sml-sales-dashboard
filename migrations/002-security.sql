@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS trusted_devices (token_hash TEXT PRIMARY KEY, user_id
 CREATE INDEX IF NOT EXISTS trusted_devices_user ON trusted_devices(user_id);
 -- Short-lived state between "password accepted" and "OTP accepted". kind: verify (already enrolled) or setup (pending_secret_enc set).
 CREATE TABLE IF NOT EXISTS login_challenges (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('verify','setup')), pending_secret_enc TEXT, expires INTEGER NOT NULL);
+-- Only sessions completed through OTP/recovery or a trusted device have this proof.
+CREATE TABLE IF NOT EXISTS session_two_factor (token_hash TEXT PRIMARY KEY REFERENCES sessions(token_hash) ON DELETE CASCADE);

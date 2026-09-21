@@ -44,6 +44,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     try{store.transaction(()=>{
       if(pre)extra=pre()||{};
       store.run('DELETE FROM sessions WHERE token_hash=?',digest(tokenOf(req)));store.run('INSERT INTO sessions VALUES(?,?,?,?,?)',digest(token),user.id,user.auth_version,territoryId,now+ttl);
+      if(twofa.required(user))store.run('INSERT INTO session_two_factor(token_hash) VALUES(?)',digest(token));
       audit.record(user,'login','auth',details,territoryId,ip);
       if(trust){deviceToken=twofa.addTrusted(user.id);audit.record(user,'trusted_device.add','auth',{userId:user.id,days:30},territoryId,ip);}
       lockout.clear(user.id);
@@ -105,7 +106,8 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     const key=digest(tokenOf(req)),session=store.get('SELECT * FROM sessions WHERE token_hash=? AND expires>?',key,Date.now());
     const user=session&&loadUser(store,session.user_id);
     // Localhost bypass is removed: neither Host headers nor local requests confer privileges.
-    if(user?.is_active&&user.auth_version===session.auth_version){
+    const secondFactorComplete=user&&(!twofa.required(user)||!!store.get('SELECT 1 FROM session_two_factor WHERE token_hash=?',key));
+    if(user?.is_active&&user.auth_version===session.auth_version&&secondFactorComplete){
       const allowed=territories.list(user.id);let territory=user.scope==='territory'?allowed.find(t=>t.id===session.territory_id):null;
       if(!territory&&user.scope==='territory'&&allowed.length===1)territory=allowed[0];
       const territoryId=territory?.id??null;

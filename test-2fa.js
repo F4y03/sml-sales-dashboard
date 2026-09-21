@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, logActions } from './test-security-helpers.js';
 import { totpAt } from './src/services/totpService.js';
+import { createHash } from 'node:crypto';
 
 const PW = 'blue-sky-42';
 const cookiesOf = r => Object.fromEntries(r.headers.getSetCookie().map(c => [c.split('=')[0], c.split(';')[0].split('=').slice(1).join('=')]));
@@ -22,6 +23,19 @@ const verifyLogin = async (f, secret, { trust = false } = {}) => {
 };
 
 // ---- Phase 4: Super Admin TOTP ----
+test('legacy Super Admin sessions cannot bypass 2FA even after enrollment', async t => {
+  const f = await fixture(t, SA);
+  const user = f.store.get("SELECT id,auth_version FROM users WHERE username='root'");
+  const token = 'legacy-session';
+  const hash = createHash('sha256').update(token).digest('hex');
+  f.store.run('INSERT INTO sessions VALUES(?,?,?,?,?)', hash, user.id, user.auth_version, null, Date.now() + 60000);
+  const cookie = 'prplus_session=' + token;
+  assert.equal((await f.request('/api/auth/me', { cookie })).status, 401);
+  assert.equal((await f.request('/executive.html', { cookie })).status, 302);
+  const { done } = await enroll(f);
+  assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(done)) })).status, 200);
+  assert.equal((await f.request('/api/auth/me', { cookie })).status, 401);
+});
 test('other roles keep the original single-step login (no 2FA)', async t => {
   const f = await fixture(t, SA);
   for (const u of ['sales1', 'exec']) {
