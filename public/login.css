@@ -83,15 +83,39 @@ body {
   display: grid;
   place-items: center;
   padding: 26px;
+  position: relative;
+  overflow: hidden;
   font-family: "Inter", "Noto Sans Thai", system-ui, sans-serif;
-  background:
-    radial-gradient(58% 52% at 20% 10%, #ff3b3020, transparent 70%),
-    radial-gradient(52% 48% at 86% 90%, #ff3b3016, transparent 70%),
-    var(--canvas, #08090c);
+  background: #050505;
 }
 
+/* Silk-wave canvas: fixed full-bleed, sits behind the card */
+#lg-silk {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #050505;
+}
+/* Vignette pulls focus back to the centred card */
+.login-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 38%,
+    #05050599 78%,
+    #050505 100%
+  );
+}
 .login-shell .lg-card {
   position: relative;
+  z-index: 2;
   width: min(1040px, 100%);
   min-height: min(660px, calc(100dvh - 52px));
   display: grid;
@@ -557,7 +581,23 @@ body {
 }
 
 /* pill action button */
+@keyframes lgBtnShine {
+  0%,
+  32% {
+    /* fully clear of the button's left edge, so the sweep starts invisible */
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  50%,
+  100% {
+    /* the streak is 30% of the button's own width, so it needs > ~334% to
+       fully clear the right edge — 220% used to leave it visibly parked
+       mid-button for the second half of every cycle */
+    transform: translateX(430%) skewX(-20deg);
+  }
+}
 .login-shell .lg-card .lg-side .lg-btn {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -582,11 +622,32 @@ body {
     box-shadow 0.18s ease,
     filter 0.18s ease;
 }
+/* metallic shine sweep, on a ~4s loop */
+.login-shell .lg-card .lg-side .lg-btn::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: 0;
+  width: 30%;
+  height: 180%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    #ffffff5c 45%,
+    #ffffffa8 50%,
+    #ffffff5c 55%,
+    transparent
+  );
+  transform: translateX(-140%) skewX(-20deg);
+  animation: lgBtnShine 4s ease-in-out infinite;
+  pointer-events: none;
+}
 .login-shell .lg-card .lg-side .lg-btn:hover:not(:disabled) {
   filter: brightness(1.08);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow:
-    0 22px 40px -14px #e0101aa8,
+    0 26px 46px -14px #e0101ac2,
+    0 0 34px -6px #ff3b3090,
     inset 0 1px 0 #ffffff38;
 }
 .login-shell .lg-card .lg-side .lg-btn:active:not(:disabled) {
@@ -596,6 +657,10 @@ body {
   opacity: 0.62;
   cursor: wait;
   transform: none;
+}
+.login-shell .lg-card .lg-side .lg-btn:disabled::before {
+  animation-play-state: paused;
+  opacity: 0;
 }
 .login-shell .lg-card .lg-side .lg-arrow {
   transition: transform 0.2s ease;

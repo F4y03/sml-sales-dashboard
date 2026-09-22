@@ -100,7 +100,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     }});
   });
   app.post('/api/auth/logout',sameSite,(req,res)=>{const key=digest(tokenOf(req));const s=store.get('SELECT user_id FROM sessions WHERE token_hash=?',key);store.transaction(()=>{store.run('DELETE FROM sessions WHERE token_hash=?',key);if(s)audit.record({id:s.user_id},'logout','auth',{},null,req.socket.remoteAddress);});res.clearCookie(cookieName,options);res.json({ok:true});});
-  const publicPaths=new Set(['/login','/login.html','/login.css','/login.js','/theme-modes.css','/theme-mode.js','/assets/pr-plus-logo-red.png']);
+  const publicPaths=new Set(['/login','/login.html','/login.css','/login.js','/login-silk.js','/theme-modes.css','/theme-mode.js','/assets/pr-plus-logo-red.png']);
   app.use((req,res,next)=>{
     if(publicPaths.has(req.path)&&['GET','HEAD'].includes(req.method))return next();
     const key=digest(tokenOf(req)),session=store.get('SELECT * FROM sessions WHERE token_hash=? AND expires>?',key,Date.now());
