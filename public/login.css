@@ -897,3 +897,161 @@ html[data-theme="light"] .login-shell .lg-card .lg-logo img {
     transition: none !important;
   }
 }
+
+/* ---------- Login card exit (before the loading screen takes over) ---------- */
+.login-shell .lg-card.lg-card-exit {
+  /* lgCardIn's fill-mode: both pins opacity/transform at their end-keyframe
+     values forever, which silently wins over any cascaded opacity/transform
+     here — cancel it explicitly or the exit fade never visibly runs. */
+  animation: none;
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+/* ---------- Dedicated loading screen ---------- */
+@keyframes lgEq {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes lgDots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75%,
+  100% {
+    content: "...";
+  }
+}
+.lg-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  /* transparent: the #lg-silk canvas already runs fixed full-viewport behind
+     everything, so the same red silk-wave animation shows through here too
+     instead of a flat black screen. */
+  background: transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
+}
+.lg-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* light scrim so the equalizer/text stay readable over brighter parts of the waves */
+  background: radial-gradient(ellipse at center, #05050566 0%, #050505b3 62%, #050505 100%);
+}
+.lg-loading.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0s;
+}
+.lg-loading.is-leaving {
+  opacity: 0;
+}
+.lg-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: min(320px, 80vw);
+}
+.lg-eq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+}
+.lg-eq i {
+  width: 6px;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ff6a5a, #e51d20 55%, #7a0d10);
+  box-shadow: 0 0 14px -2px #e51d2090;
+  transform-origin: center;
+  animation: lgEq 1.1s ease-in-out infinite;
+}
+.lg-eq i:nth-child(1) {
+  animation-delay: -0.9s;
+}
+.lg-eq i:nth-child(2) {
+  animation-delay: -0.6s;
+}
+.lg-eq i:nth-child(3) {
+  animation-delay: -1.1s;
+}
+.lg-eq i:nth-child(4) {
+  animation-delay: -0.3s;
+}
+.lg-eq i:nth-child(5) {
+  animation-delay: -0.75s;
+}
+.lg-loading-label {
+  margin: 0;
+  font-family: "Inter", "Noto Sans Thai", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  color: #d8d5d4;
+}
+.lg-loading-dots::after {
+  content: "";
+  animation: lgDots 1.4s steps(1) infinite;
+}
+.lg-loading-track {
+  width: 100%;
+  height: 3px;
+  border-radius: 99px;
+  background: #1c1c1f;
+  overflow: hidden;
+}
+.lg-loading-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #ff6a5a, #e51d20);
+  box-shadow: 0 0 12px 1px #e51d20b0;
+}
+.lg-loading-pct {
+  margin: 0;
+  font-family: "Inter", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #8c8a89;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-eq i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+  .lg-loading-dots::after {
+    animation: none;
+    content: "...";
+  }
+}

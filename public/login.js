@@ -13,7 +13,7 @@ const twofaForm = document.querySelector("#twofa-form");
 const recoveryPanel = document.querySelector("#recovery-panel");
 const card = document.querySelector("#lg-card");
 let challenge = "";
-function proceed(data) {
+function navigateTo(data) {
   const next = new URLSearchParams(location.search).get("next");
   const target = new URL(
     data.redirect || next || "/executive.html",
@@ -26,6 +26,38 @@ function proceed(data) {
       ? target.href
       : "/executive.html",
   );
+}
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const loadingScreen = document.querySelector("#lg-loading");
+const loadingBar = document.querySelector("#lg-loading-bar");
+const loadingPct = document.querySelector("#lg-loading-pct");
+// Runs the "PREPARING WORKSPACE..." transition before the real navigation.
+// Purely cosmetic: the login already succeeded, this just paces the handoff
+// to the dashboard so it doesn't feel like an abrupt jump-cut.
+function proceed(data) {
+  if (reduceMotion) return navigateTo(data);
+  card.classList.add("lg-card-exit");
+  loadingScreen.hidden = false;
+  requestAnimationFrame(() => loadingScreen.classList.add("is-visible"));
+  const duration = 2600;
+  const start = performance.now();
+  function tick(now) {
+    const elapsed = now - start;
+    const progress = Math.min(1, elapsed / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const percent = Math.round(eased * 100);
+    loadingBar.style.width = percent + "%";
+    loadingPct.textContent = percent + "%";
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+      return;
+    }
+    setTimeout(() => {
+      loadingScreen.classList.add("is-leaving");
+      setTimeout(() => navigateTo(data), 420);
+    }, 260);
+  }
+  requestAnimationFrame(tick);
 }
 function showTwoFactor(step) {
   challenge = step.challenge;
