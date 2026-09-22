@@ -404,14 +404,24 @@ function render() {
     action.setAttribute("aria-label", `ตรวจสอบ ${alert.title}`);
     row.append(icon, content, metric);
     action.type = "button";
-    action.addEventListener("click", () =>
+    const open = () =>
       openDetail(
         alert.product ? "stock" : alert.bill ? "bill" : alert.detail,
         alert.bill,
         alert.product,
-      ),
-    );
+      );
     row.append(action);
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `ตรวจสอบ ${alert.title}`);
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => {
+      if (event.target !== row) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
     element("alerts").append(row);
   });
   if (!alerts.length)

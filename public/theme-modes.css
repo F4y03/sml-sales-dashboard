@@ -689,6 +689,46 @@ html[data-theme] #detail-close {
   color: var(--ink);
   border-color: var(--line);
 }
+html[data-theme] #close {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-color: var(--brand-border);
+}
+html[data-theme] #close:hover {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+html[data-theme] :is(.detail-stat, .bill-next-steps li) {
+  background: var(--surface-raised);
+  border-color: var(--line);
+}
+html[data-theme] .detail-stat strong {
+  color: var(--ink);
+}
+html[data-theme] :is(.detail-stat small, .bill-next-steps li p) {
+  color: var(--muted);
+}
+html[data-theme] .detail-insight {
+  background: var(--surface-raised);
+  border-color: var(--line);
+}
+html[data-theme] .detail-insight p {
+  color: var(--ink);
+}
+html[data-theme] .bill-next-steps li::before {
+  background: var(--brand);
+}
+html[data-theme] .help-caution {
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
+}
+html[data-theme] :is(.help-caution h3, .help-caution p) {
+  color: var(--warning);
+}
+html[data-theme] :is(.detail-period, .detail-comparisons) {
+  color: var(--muted);
+}
 html[data-theme]
   :is(
     .dialog-heading p,

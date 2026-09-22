@@ -225,21 +225,41 @@
         top: 0;
         z-index: 1;
         background: var(--surface);
-        padding: 24px 28px;
+        padding: 22px 26px;
         margin: 0;
         border-bottom: 1px solid var(--line);
         flex-wrap: nowrap;
       }
       #detail-title {
-        font-size: 22px;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
         line-height: 1.5;
       }
       #detail #close {
         flex-shrink: 0;
-        border-radius: 10px;
-        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        min-height: 0;
+        padding: 0;
+        border-radius: 999px;
         background: var(--surface-raised);
-        font-size: 12px;
+        border-color: var(--line);
+        color: var(--muted);
+        font-size: 0;
+      }
+      #detail #close::before {
+        content: "×";
+        font-size: 20px;
+        line-height: 1;
+      }
+      #detail #close:hover {
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+        color: var(--brand);
       }
       #detail-body {
         padding: 22px 28px 28px;
