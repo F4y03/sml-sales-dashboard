@@ -458,3 +458,91 @@ body.workspace-layout {
     margin-left: 0;
   }
 }
+
+/* Compact the sidebar on short viewports (typical laptop windows) so the
+   whole menu — brand, theme switch, links, connection status, profile and
+   account buttons — fits without an inner scrollbar. Only spacing/sizing
+   changes; nothing is hidden or removed. Taller screens keep the original,
+   more spacious layout untouched. */
+@media (max-height: 900px) {
+  .workspace-sidebar {
+    padding: 18px 14px 14px;
+    gap: 0;
+  }
+  .workspace-brand {
+    gap: 9px;
+    font-size: 16px;
+  }
+  .workspace-brand img {
+    width: 60px;
+    height: 36px;
+  }
+  .workspace-brand small {
+    font-size: 14px;
+  }
+  .workspace-sidebar .workspace-links {
+    gap: 3px;
+    margin-top: 10px;
+  }
+  .workspace-label {
+    margin: 0 10px 6px;
+    font-size: 11px;
+  }
+  .workspace-links a {
+    min-height: 38px;
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+  .workspace-links a > span {
+    font-size: 16px;
+  }
+  .workspace-links a > .workspace-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+  .workspace-link-copy strong {
+    font-size: 14px;
+  }
+  .workspace-sidebar .workspace-link-copy small {
+    font-size: 11px;
+  }
+  .workspace-bottom {
+    padding-top: 16px;
+  }
+  .workspace-source {
+    padding: 10px;
+  }
+  .workspace-connection [role="status"] {
+    font-size: 11px;
+  }
+  .workspace-connection small {
+    font-size: 10px;
+  }
+  .workspace-profile {
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .workspace-profile > span {
+    width: 30px;
+    height: 30px;
+  }
+  .workspace-password-button {
+    margin-top: 8px;
+    padding: 8px;
+    font-size: 13px;
+  }
+  body.workspace-layout .workspace-sidebar .theme-switch {
+    margin-top: 10px;
+  }
+  body.workspace-layout .workspace-sidebar .theme-switch button {
+    min-height: 30px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  body.workspace-layout .workspace-sidebar .workspace-logout {
+    margin-top: 8px;
+    padding: 8px;
+    font-size: 13px;
+  }
+}
