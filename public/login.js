@@ -11,6 +11,7 @@ toggle.addEventListener("click", () => {
 });
 const twofaForm = document.querySelector("#twofa-form");
 const recoveryPanel = document.querySelector("#recovery-panel");
+const card = document.querySelector("#lg-card");
 let challenge = "";
 function proceed(data) {
   const next = new URLSearchParams(location.search).get("next");
@@ -29,6 +30,7 @@ function proceed(data) {
 function showTwoFactor(step) {
   challenge = step.challenge;
   const setup = step.mode === "setup";
+  card.dataset.step = setup ? "setup" : "verify";
   form.hidden = true;
   twofaForm.hidden = false;
   document.querySelector("#login-help").hidden = true;
@@ -45,6 +47,7 @@ function showTwoFactor(step) {
 }
 document.querySelector("#twofa-back").addEventListener("click", () => {
   challenge = "";
+  card.dataset.step = "login";
   twofaForm.reset();
   twofaForm.hidden = true;
   document.querySelector("#twofa-error").textContent = "";
@@ -81,8 +84,10 @@ twofaForm.addEventListener("submit", async (event) => {
       throw new Error(data.error || "ยืนยันไม่สำเร็จ กรุณาลองใหม่");
     }
     if (data.recoveryCodes) {
+      card.dataset.step = "recovery";
       twofaForm.hidden = true;
       recoveryPanel.hidden = false;
+      document.querySelector("#twofa-setup").hidden = true;
       document.querySelector("#recovery-codes").textContent =
         data.recoveryCodes.join("\n");
       document.querySelector("#recovery-done").onclick = () => proceed(data);
