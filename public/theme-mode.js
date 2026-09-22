@@ -56,7 +56,9 @@
       control.append(button);
     }
     const sidebar = document.querySelector(".workspace-sidebar");
+    const topbar = document.querySelector(".lg-topbar");
     if (sidebar) sidebar.querySelector(".workspace-links").before(control);
+    else if (topbar) topbar.prepend(control);
     else document.querySelector(".form-panel")?.prepend(control);
   });
 })();

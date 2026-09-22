@@ -425,25 +425,32 @@ body {
   padding: 30px 46px 24px 118px;
 }
 
-.login-shell .lg-card .lg-side .theme-switch {
-  order: -1;
-  align-self: flex-end;
-  width: 168px;
-  margin: 0 0 16px;
-  flex-shrink: 0;
-}
 .login-shell .lg-card .lg-side-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
 }
 .login-shell .lg-card .lg-logo img {
   display: block;
   width: 116px;
   height: auto;
-  filter: brightness(0) invert(1);
-  opacity: 0.92;
+  /* login.js swaps this to a client-recolored PNG in dark mode (transparent
+     background, caption turned white, the logo's own red left untouched)
+     instead of a flat invert filter that also dulled the red. */
+}
+.login-shell .lg-card .lg-topbar {
+  position: absolute;
+  top: 24px;
+  right: 36px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.login-shell .lg-card .lg-topbar .theme-switch {
+  width: 168px;
+  flex-shrink: 0;
 }
 .login-shell .lg-card .lg-badge {
   padding: 6px 11px;
@@ -861,6 +868,13 @@ html[data-theme="light"] .login-shell .lg-card .lg-logo img {
   }
   .login-shell .lg-card .lg-poster .lg-lede {
     max-width: none;
+  }
+  .login-shell .lg-card .lg-topbar {
+    top: 18px;
+    right: 18px;
+  }
+  .login-shell .lg-card .lg-topbar .theme-switch {
+    width: 140px;
   }
 }
 

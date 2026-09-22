@@ -1,3 +1,64 @@
+// The brand PNG is baked as a red mark + black caption on an opaque white
+// background — fine on the light card, illegible on the dark one. Instead of
+// a flat invert filter (which also dulled the red), recolor it once on a
+// canvas: drop the white background to transparent and flip only the
+// near-black/grayscale caption pixels to white, leaving the logo's own red
+// untouched. theme-mode.js runs before this (non-deferred script, loaded
+// earlier in <head>), so data-theme is already set by the time this runs.
+(() => {
+  const brandImg = document.querySelector(".lg-logo img");
+  if (!brandImg) return;
+  const brandLogoSrc = { light: brandImg.src, dark: null };
+  function recolorForDark(sourceSrc) {
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0);
+        let frame;
+        try {
+          frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        } catch {
+          resolve(null);
+          return;
+        }
+        const data = frame.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i],
+            g = data[i + 1],
+            b = data[i + 2];
+          const max = Math.max(r, g, b),
+            min = Math.min(r, g, b);
+          if (max - min >= 18) continue; // colored (the logo's red) — leave as-is
+          if (max > 235) data[i + 3] = 0; // white background -> transparent
+          else if (max < 140) {
+            data[i] = data[i + 1] = data[i + 2] = 255; // black caption -> white
+          }
+        }
+        ctx.putImageData(frame, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      image.onerror = () => resolve(null);
+      image.src = sourceSrc;
+    });
+  }
+  async function applyBrandLogoTheme() {
+    const dark = document.documentElement.dataset.theme !== "light";
+    if (!dark) {
+      brandImg.src = brandLogoSrc.light;
+      return;
+    }
+    if (!brandLogoSrc.dark)
+      brandLogoSrc.dark = await recolorForDark(brandLogoSrc.light);
+    brandImg.src = brandLogoSrc.dark || brandLogoSrc.light;
+  }
+  applyBrandLogoTheme();
+  window.addEventListener("dashboard-theme-change", applyBrandLogoTheme);
+})();
+
 const form = document.querySelector("#login-form");
 const password = document.querySelector("#password");
 const toggle = document.querySelector("#toggle-password");

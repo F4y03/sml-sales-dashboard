@@ -411,11 +411,14 @@ html[data-theme] .workspace-links a[aria-current="page"] {
     inset 3px 0 #ff3b30,
     0 4px 20px #e1060015;
 }
-html[data-theme="dark"] :is(.workspace-brand img, .brand-panel .brand img) {
+html[data-theme="dark"] .brand-panel .brand img {
   background: #fff;
   border-radius: 6px;
   padding: 4px;
 }
+/* .workspace-brand img needs no white card in dark mode: workspace-nav.js
+   swaps its src for a client-recolored PNG (transparent background, caption
+   text turned white, the logo's own red left untouched) instead. */
 html[data-theme] .workspace-logout {
   background: var(--surface-raised);
   color: var(--brand);

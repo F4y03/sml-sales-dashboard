@@ -8,10 +8,11 @@ export function loadUser(store,id) {
 }
 export function landingPage(user) {
   if (user.scope==='territory' && !user.territoryId) return '/select-territory.html';
-  if (hasPermission(user,'dashboard')) return '/executive.html';
+  if (user.role==='super_admin') return '/system-admin.html';
+  if (hasPermission(user,'dashboard')) return '/index.html';
   if (hasPermission(user,'customer_analysis') || hasPermission(user,'product_analysis')) return '/customers.html';
-  if (hasPermission(user,'price_stock') || hasPermission(user,'product_info')) return '/products.html';
   if (hasPermission(user,'consignment')) return '/consignment.html';
+  if (hasPermission(user,'price_stock') || hasPermission(user,'product_info')) return '/products.html';
   if (hasPermission(user,'reports') && user.scope!=='territory') return '/reports.html';
   return canAdmin(user) ? '/system-admin.html' : '/access-denied.html';
 }

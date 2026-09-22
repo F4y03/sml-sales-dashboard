@@ -39,6 +39,66 @@ document.body.prepend(workspace);
 workspace.querySelectorAll("nav a").forEach((link) => {
   link.hidden = true;
 });
+
+// The brand PNG is baked as red mark + black caption on an opaque white
+// background — fine on a white page, illegible on the dark sidebar. Rather
+// than a flat filter (which would also dull the red), recolor it once on a
+// canvas: drop the white background to transparent and flip only the
+// near-black/grayscale caption pixels to white, leaving the logo's own red
+// untouched. Cached per theme so toggling light/dark doesn't redo the work.
+const brandImg = workspace.querySelector(".workspace-brand img");
+const brandLogoSrc = { light: brandImg.src, dark: null };
+function recolorForDark(sourceSrc) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0);
+      let frame;
+      try {
+        frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      } catch {
+        resolve(null); // e.g. served cross-origin without CORS; keep the original
+        return;
+      }
+      const data = frame.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i],
+          g = data[i + 1],
+          b = data[i + 2];
+        const max = Math.max(r, g, b),
+          min = Math.min(r, g, b);
+        if (max - min >= 18) continue; // colored (the logo's red) — leave as-is
+        if (max > 235) data[i + 3] = 0; // white background -> transparent
+        else if (max < 140) {
+          data[i] = data[i + 1] = data[i + 2] = 255; // black caption -> white
+        }
+      }
+      ctx.putImageData(frame, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    image.onerror = () => resolve(null);
+    image.src = sourceSrc;
+  });
+}
+async function applyBrandLogoTheme() {
+  const dark = document.documentElement.dataset.theme !== "light";
+  if (!dark) {
+    brandImg.src = brandLogoSrc.light;
+    return;
+  }
+  if (!brandLogoSrc.dark)
+    brandLogoSrc.dark = await recolorForDark(brandLogoSrc.light);
+  brandImg.src = brandLogoSrc.dark || brandLogoSrc.light;
+}
+// workspace-nav.js runs before theme-mode.js sets html[data-theme] (script
+// order), so the first check has to wait for that to land.
+document.addEventListener("DOMContentLoaded", applyBrandLogoTheme);
+window.addEventListener("dashboard-theme-change", applyBrandLogoTheme);
+
 const toggle = workspace.querySelector(".workspace-toggle");
 function collapseWorkspace() {
   toggle.setAttribute("aria-expanded", "false");
