@@ -23,6 +23,10 @@ export function installAccess(app) {
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
     if(path==='/api/products/export'&&req.auth.role!=='super_admin')return forbidden();
+    // สินค้าขายดีเป็นสิทธิ์แยก Super Admin มอบให้เป็นรายบุคคล ซ่อนปุ่มอย่างเดียวไม่พอ ต้องกันที่ API ด้วย
+    const wantsBestSellers=path==='/api/products/best-seller'
+      ||((path==='/api/products'||path==='/api/products/export')&&typeof req.query.best==='string'&&req.query.best!==''&&req.query.best!=='off');
+    if(wantsBestSellers&&!hasPermission(req.auth,'best_sellers'))return forbidden();
     const module=MODULES.find(m=>m.pages.includes(path)||m.apis.some(p=>path===p||path.startsWith(p+'/')));
     if(!module){
       // Static assets contain no data. All unknown data/page routes fail closed.

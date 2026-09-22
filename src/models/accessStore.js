@@ -30,6 +30,12 @@ export function createAccessStore(path = ':memory:', env = {}) {
       store.run('UPDATE sales_territories SET name=? WHERE code=?','ภาคตะวันออกเฉียงเหนือ','NORTHEAST');
       store.run('INSERT INTO system_settings VALUES(?,?)','northeast_name_v2','true');
     }
+    // best_sellers is a new permission; INSERT OR IGNORE above only wires permissions for roles created
+    // just now, so an existing super_admin row from before this change needs it granted explicitly once.
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','best_sellers_super_admin_v1')) {
+      store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='super_admin' AND p.code='best_sellers' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
+      store.run('INSERT INTO system_settings VALUES(?,?)','best_sellers_super_admin_v1','true');
+    }
     // Import the existing account once; never overwrite managed users on restart.
     if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {
       store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT ?,?,?,id FROM roles WHERE code='super_admin'",env.AUTH_USERNAME,env.AUTH_PASSWORD_HASH,env.AUTH_USERNAME);

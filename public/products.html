@@ -91,6 +91,12 @@
             >กลุ่มสินค้า<select id="product-group">
               <option value="">ทุกกลุ่มสินค้า</option>
             </select></label
+          ><label id="product-best-field" hidden
+            >สินค้าขายดี<select id="product-best">
+              <option value="off">ไม่จัดอันดับ</option>
+              <option value="all">ทั้งหมด</option>
+              <option value="3m">ช่วง 3 เดือนก่อน</option>
+            </select></label
           ><label
             >การเคลื่อนไหว<select id="product-activity">
               <option value="all">ทั้งหมด</option>
@@ -121,6 +127,7 @@
           <table>
             <thead>
               <tr>
+                <th class="rank-cell">อันดับ</th>
                 <th>รหัสสินค้า</th>
                 <th>ชื่อสินค้า</th>
                 <th>กลุ่มสินค้า</th>
@@ -164,6 +171,7 @@
             ราคา ต้นทุน และคงเหลืออ้างอิงทะเบียนปัจจุบัน ·
             ไม่ใช่ยอดย้อนหลังหรือยอดพร้อมขายหลังหักจอง
           </p>
+          <section id="detail-bestseller" class="detail-bestseller"></section>
           <div id="detail-fields" hidden></div>
         </div>
       </dialog>

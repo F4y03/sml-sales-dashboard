@@ -668,3 +668,69 @@ html[data-theme] .product-detail-field dd {
 .product-panel th[aria-sort="descending"] .product-sort-icon {
   color: #ef312b;
 }
+
+/* คอลัมน์อันดับสินค้าขายดี แสดงเฉพาะเมื่อเปิดตัวกรองจัดอันดับ */
+.product-panel table:not(.ranked) .rank-cell {
+  display: none;
+}
+.product-panel table.ranked .rank-cell {
+  width: 62px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* กล่องอันดับสินค้าขายดีในรายละเอียดสินค้า */
+.detail-bestseller:empty {
+  display: none;
+}
+.detail-bestseller {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #e3e8ee);
+}
+.detail-bestseller-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--ink, #1d2430);
+}
+.detail-bestseller-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.detail-bestseller-grid .product-detail-metric strong {
+  font-size: 18px;
+}
+.detail-bestseller-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #647084);
+}
+.detail-bestseller-state.error {
+  color: var(--negative, #c22b38);
+}
+.detail-bestseller-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted, #7c8798);
+}
+@media (max-width: 900px) {
+  .detail-bestseller-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .detail-bestseller-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ตัวกรองที่ผู้ใช้ไม่มีสิทธิ์ ต้องซ่อนจริงแม้ label จะถูกจัด layout เป็น flex/grid */
+#product-filters label[hidden] {
+  display: none !important;
+}
