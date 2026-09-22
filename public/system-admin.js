@@ -65,6 +65,20 @@ function select(parent, label, name, items, value) {
   parent.append(l);
   return s;
 }
+// Switch-style row: title + hint on the left, toggle on the right. Returns the underlying checkbox.
+function toggle(parent, title, hint, name, checked) {
+  const l = node("label", undefined, "toggle-card"),
+    i = node("input"),
+    text = node("span", undefined, "toggle-text");
+  i.type = "checkbox";
+  i.name = name;
+  i.checked = checked;
+  i.setAttribute("role", "switch");
+  text.append(node("strong", title), node("small", hint));
+  l.append(text, i, node("span", undefined, "toggle-track"));
+  parent.append(l);
+  return i;
+}
 function check(parent, label, name, value, checked) {
   const l = node("label", undefined, "check"),
     i = node("input");
@@ -206,6 +220,27 @@ async function usersView() {
         actions = node("div", undefined, "user-row-actions");
       person.append(name, username);
       actions.append(button("แก้ไข", () => editUser(u), "action-edit"));
+      if (u.role === "super_admin" && u.id !== me.id)
+        actions.append(
+          button(
+            "รีเซ็ต 2FA",
+            async () => {
+              if (
+                !confirm(
+                  `รีเซ็ต 2FA ของ ${u.username}? Secret เดิม, Recovery Code, อุปกรณ์ที่เชื่อถือ และ session ทั้งหมดจะใช้ไม่ได้ทันที ผู้ใช้ต้องสแกน QR ใหม่ตอนเข้าสู่ระบบครั้งถัดไป`,
+                )
+              )
+                return;
+              try {
+                await api(`users/${u.id}/2fa/reset`, "POST", {});
+                message(`รีเซ็ต 2FA ของ ${u.username} แล้ว`);
+              } catch (e) {
+                message(e.message, true);
+              }
+            },
+            "action-edit",
+          ),
+        );
       if (u.id !== me.id)
         actions.append(
           button(
@@ -254,13 +289,24 @@ function editUser(user) {
     user?.role || "admin",
   );
   if (me.role !== "super_admin" && user) role.disabled = true;
-  const active = check(
-    grid,
-    "เปิดใช้งานบัญชี",
-    "is_active",
-    "1",
-    user?.is_active ?? true,
-  );
+  const toggles = node("div", undefined, "admin-toggles"),
+    active = toggle(
+      toggles,
+      "เปิดใช้งานบัญชี",
+      "ปิดแล้วผู้ใช้จะเข้าสู่ระบบไม่ได้",
+      "is_active",
+      user?.is_active ?? true,
+    ),
+    twoFactor = toggle(
+      toggles,
+      "บังคับใช้ 2FA",
+      "ต้องกรอกรหัส 6 หลักจากแอป Authenticator ทุกครั้งที่เข้าสู่ระบบ",
+      "two_factor",
+      user?.twoFactorRequired ?? false,
+    ),
+    twoFactorHint = twoFactor.parentElement.querySelector("small");
+  grid.append(toggles);
+  twoFactor.disabled = me.role !== "super_admin";
   const currentPass = user
     ? field(
         grid,
@@ -364,6 +410,14 @@ function editUser(user) {
   const update = () => {
     const r = catalog.roles.find((r) => r.code === role.value);
     territory.hidden = r?.scope !== "territory";
+    const always = role.value === "super_admin";
+    if (always) twoFactor.checked = true;
+    twoFactor.disabled = always || me.role !== "super_admin";
+    twoFactorHint.textContent = always
+      ? "Super Admin ต้องใช้ 2FA เสมอ ปิดไม่ได้"
+      : me.role !== "super_admin"
+        ? "เฉพาะ Super Admin เท่านั้นที่กำหนดได้"
+        : "ต้องกรอกรหัส 6 หลักจากแอป Authenticator ทุกครั้งที่เข้าสู่ระบบ";
     defaults.textContent =
       "สิทธิ์ตาม Role: " +
       (r?.permissions
@@ -378,6 +432,8 @@ function editUser(user) {
       full_name: data.get("full_name"),
       role: role.value,
       is_active: active.checked,
+      twoFactorRequired:
+        me.role === "super_admin" ? twoFactor.checked : undefined,
       currentPassword: data.get("currentPassword") || undefined,
       password: data.get("password") || undefined,
       additionalPermissions:
@@ -797,6 +853,7 @@ function activityBadge(action) {
       "2fa.recovery_used": "ใช้ Recovery Code",
       "2fa.recovery_regenerated": "สร้าง Recovery Code ใหม่",
       "2fa.reset": "รีเซ็ต 2FA",
+      "2fa.policy": "กำหนดการใช้ 2FA",
       "trusted_device.add": "เชื่อถืออุปกรณ์",
       "trusted_device.revoke": "ยกเลิกอุปกรณ์ที่เชื่อถือ",
       "auth.logout_all": "ออกจากระบบทุกอุปกรณ์",
@@ -857,7 +914,7 @@ function activityDetail(log) {
         "2fa.recovery_used": "เข้าสู่ระบบด้วย Recovery Code",
         "2fa.recovery_regenerated": "สร้าง Recovery Code ชุดใหม่",
         "2fa.reset": "รีเซ็ต 2FA",
-        "trusted_device.add": "เชื่อถืออุปกรณ์ 30 วัน",
+        "trusted_device.add": "เชื่อถืออุปกรณ์",
         "trusted_device.revoke": "ยกเลิกอุปกรณ์ที่เชื่อถือ",
       }[log.action],
       user(details.userId),
@@ -1025,7 +1082,7 @@ async function securityView() {
           count ? "session-online" : "session-offline",
         ),
         revoke = button(
-          "ออกจากระบบทุกอุปกรณ์",
+          "ออกจากระบบทุกอุปกรณ์ / เพิกถอนอุปกรณ์ที่เชื่อถือ",
           async () => {
             try {
               await api("security/revoke/" + s.id, "POST", {});

@@ -5,9 +5,10 @@ export const bad=(message,status=400)=>Object.assign(new Error(message),{status}
 export const positiveId=value=>{const n=Number(value);if(!Number.isSafeInteger(n)||n<=0)throw bad('รหัสไม่ถูกต้อง');return n;};
 export const text=(value,label,max=100)=>{if(typeof value!=='string'||!value.trim()||value.trim().length>max||/[\x00-\x1f]/.test(value))throw bad(label+' ไม่ถูกต้อง');return value.trim();};
 export function createUserService(store,audit) {
-  const get=id=>{const u=loadUser(store,id);if(!u)throw bad('ไม่พบผู้ใช้',404);return {...u,territoryIds:store.all('SELECT territory_id FROM user_territories WHERE user_id=?',id).map(t=>t.territory_id)};};
+  const get=id=>{const u=loadUser(store,id);if(!u)throw bad('ไม่พบผู้ใช้',404);return {...u,territoryIds:store.all('SELECT territory_id FROM user_territories WHERE user_id=?',id).map(t=>t.territory_id),twoFactorRequired:u.role==='super_admin'||!!store.get('SELECT 1 FROM user_two_factor_policy WHERE user_id=? AND required=1',id)};};
   function guard(actor,target,body) {
     if(actor.role==='super_admin')return;
+    if(typeof body.twoFactorRequired==='boolean'&&body.twoFactorRequired!==!!target?.twoFactorRequired)throw bad('ต้องให้ Super Admin กำหนดการใช้ 2FA',403);
     if(target?.role==='super_admin'||target?.id===actor.id)throw bad('ต้องให้ Super Admin จัดการบัญชีนี้',403);
     if(target?.permissions.some(p=>!actor.permissions.includes(p)))throw bad('ไม่สามารถจัดการบัญชีที่มีสิทธิ์สูงกว่าตนเอง',403);
     if(body.role && body.role!=='admin'&&body.role!=='sales'&&body.role!=='executive')throw bad('ต้องให้ Super Admin กำหนด Role นี้',403);
@@ -51,6 +52,12 @@ export function createUserService(store,audit) {
         for(const p of new Set(permissions))store.run('INSERT INTO user_permissions SELECT ?,id FROM permissions WHERE code=?',id,p);
         store.run('DELETE FROM user_territories WHERE user_id=?',id);
         if(role.scope==='territory')for(const t of ids)store.run('INSERT INTO user_territories VALUES(?,?)',id,t);
+      }
+      if(actor.role==='super_admin'&&typeof body.twoFactorRequired==='boolean'&&role.code!=='super_admin'){
+        const was=!!store.get('SELECT 1 FROM user_two_factor_policy WHERE user_id=? AND required=1',id);
+        if(body.twoFactorRequired)store.run('INSERT OR REPLACE INTO user_two_factor_policy(user_id,required) VALUES(?,1)',id);
+        else{store.run('DELETE FROM user_two_factor_policy WHERE user_id=?',id);for(const t of ['user_totp','recovery_codes','trusted_devices','login_challenges'])store.run(`DELETE FROM ${t} WHERE user_id=?`,id);}
+        if(was!==body.twoFactorRequired)audit.record(actor,'2fa.policy','security',{userId:id,required:body.twoFactorRequired},null,ip);
       }
       store.run('DELETE FROM sessions WHERE user_id=?',id);
       audit.record(actor,target?'user.update':'user.create','users',{userId:id,is_active:body.is_active},null,ip);

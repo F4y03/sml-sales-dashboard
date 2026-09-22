@@ -12,3 +12,5 @@ CREATE INDEX IF NOT EXISTS trusted_devices_user ON trusted_devices(user_id);
 CREATE TABLE IF NOT EXISTS login_challenges (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('verify','setup')), pending_secret_enc TEXT, expires INTEGER NOT NULL);
 -- Only sessions completed through OTP/recovery or a trusted device have this proof.
 CREATE TABLE IF NOT EXISTS session_two_factor (token_hash TEXT PRIMARY KEY REFERENCES sessions(token_hash) ON DELETE CASCADE);
+-- Per-account 2FA switch set by a Super Admin. Super Admin accounts are always required regardless of this table.
+CREATE TABLE IF NOT EXISTS user_two_factor_policy (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, required INTEGER NOT NULL DEFAULT 1);

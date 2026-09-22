@@ -34,7 +34,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     if(++attempt.count>10){res.set('Retry-After',String(Math.ceil((attempt.until-now)/1000)));res.status(429).json({error:'ลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอ 15 นาที'});return true;}
     return false;
   };
-  // Creates the session once every required step has passed. `pre` runs inside the same transaction (2FA bookkeeping); `trust` adds a 30-day trusted device.
+  // Creates the session once every required step has passed. `pre` runs inside the same transaction (2FA bookkeeping); `trust` adds a 15-day trusted device.
   function finish(req,res,user,{details={},pre,trust=false}={}) {
     const ip=ipOf(req),now=Date.now(),current=store.get('SELECT is_active,auth_version FROM users WHERE id=?',user.id);
     if(!current?.is_active||current.auth_version!==user.auth_version)return res.status(401).json({error:'สิทธิ์มีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่'});
@@ -46,7 +46,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
       store.run('DELETE FROM sessions WHERE token_hash=?',digest(tokenOf(req)));store.run('INSERT INTO sessions VALUES(?,?,?,?,?)',digest(token),user.id,user.auth_version,territoryId,now+ttl);
       if(twofa.required(user))store.run('INSERT INTO session_two_factor(token_hash) VALUES(?)',digest(token));
       audit.record(user,'login','auth',details,territoryId,ip);
-      if(trust){deviceToken=twofa.addTrusted(user.id);audit.record(user,'trusted_device.add','auth',{userId:user.id,days:30},territoryId,ip);}
+      if(trust){deviceToken=twofa.addTrusted(user.id);audit.record(user,'trusted_device.add','auth',{userId:user.id,days:15},territoryId,ip);}
       lockout.clear(user.id);
     });}catch(e){if(e.code==='2FA_REUSED')return res.status(401).json({error:'รหัสยืนยันไม่ถูกต้อง'});throw e;}
     attempts.delete(ip);res.cookie(cookieName,token,{...options,maxAge:ttl});

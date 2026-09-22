@@ -91,13 +91,13 @@ test('trusted device: httpOnly/sameSite/secure cookie, only the hash is stored, 
   const f = await fixture(t, { ...SA, env: { AUTH_COOKIE_SECURE: 'true' } });
   const { done } = await enroll(f, { trust: true });
   const raw = done.headers.getSetCookie().find(c => c.startsWith('__Host-prplus_trusted='));
-  for (const flag of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/', 'Max-Age=2592000']) assert.ok(raw.includes(flag), flag);
+  for (const flag of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/', 'Max-Age=1296000']) assert.ok(raw.includes(flag), flag);
   const token = raw.split(';')[0].split('=')[1], td = '__Host-prplus_trusted=';
   assert.match(token, /^[a-f0-9]{64}$/);
   const rows = f.store.all('SELECT * FROM trusted_devices');
   assert.equal(rows.length, 1); assert.notEqual(rows[0].token_hash, token); assert.equal(rows[0].token_hash.length, 64);
   assert.ok(!JSON.stringify(f.store.all('SELECT * FROM activity_logs')).includes(token));
-  assert.ok(Math.abs(rows[0].expires - rows[0].created_at - 30 * 86400000) < 1000);
+  assert.ok(Math.abs(rows[0].expires - rows[0].created_at - 15 * 86400000) < 1000);
   const trusted = await (await f.login('root', PW, td + token)).json();
   assert.equal(trusted.twoFactor, undefined); assert.ok(trusted.redirect);
   assert.equal((await (await f.login('root', PW, td + 'a'.repeat(64))).json()).twoFactor.mode, 'verify');
@@ -224,6 +224,9 @@ test('admin reset/revoke paths cancel trusted devices; Super Admin can reset ano
   trust(); assert.equal((await call(`/api/admin/users/${other.id}/2fa/reset`, cookie, {})).status, 200);
   assert.equal(count(), 0); assert.equal(store.get('SELECT COUNT(*) n FROM user_totp WHERE user_id=?', other.id).n, 0); assert.equal(store.get('SELECT COUNT(*) n FROM recovery_codes WHERE user_id=?', other.id).n, 0);
   assert.equal((await call('/api/admin/users/9999/2fa/reset', cookie, {})).status, 404);
+  // A Super Admin cannot reset their own 2FA; another Super Admin must do it.
+  assert.equal((await call('/api/admin/users/1/2fa/reset', cookie, {})).status, 403);
+  assert.equal(store.get('SELECT COUNT(*) n FROM user_totp WHERE user_id=1').n, 1);
   const logs = JSON.stringify(store.all('SELECT action,details FROM activity_logs'));
   assert.ok(logs.includes('2fa.reset') && logs.includes('trusted_device.revoke'));
   for (const p of ['orange-fox-31', 'purple-owl-52', 'silver-elm-63']) assert.ok(!logs.includes(p));
@@ -231,4 +234,60 @@ test('admin reset/revoke paths cancel trusted devices; Super Admin can reset ano
   await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'admin', is_active: true, password: 'bronze-ash-74', additionalPermissions: ['users_manage'], territoryIds: [] }, 'test');
   const login = await call('/api/auth/login', '', { username: 'rep', password: 'bronze-ash-74' });
   assert.equal((await call(`/api/admin/users/${other.id}/2fa/reset`, jar({ prplus_session: cookiesOf(login).prplus_session }), {})).status, 403);
+});
+
+// ---- Regression: password alone / stale trust never reaches protected data ----
+test('trusted-device row without an enrolled authenticator still forces setup', async t => {
+  const f = await fixture(t, SA);
+  const user = f.store.get("SELECT id FROM users WHERE username='root'");
+  const token = 'b'.repeat(64);
+  f.store.run('INSERT INTO trusted_devices VALUES(?,?,?,?)', createHash('sha256').update(token).digest('hex'), user.id, Date.now(), Date.now() + 1e6);
+  const body = await (await f.login('root', PW, 'prplus_trusted=' + token)).json();
+  assert.equal(body.twoFactor.mode, 'setup');
+});
+test('password-only login and a raw challenge token cannot call protected APIs directly', async t => {
+  const f = await fixture(t, SA);
+  const { secret } = await enroll(f);
+  f.store.run('UPDATE user_totp SET last_step=0');
+  const res = await f.login('root', PW), body = await res.json();
+  assert.equal(body.twoFactor.mode, 'verify');
+  assert.ok(!cookiesOf(res)['prplus_session'] && !cookiesOf(res)['__Host-prplus_session']);
+  for (const cookie of ['', 'prplus_session=' + body.twoFactor.challenge]) {
+    for (const path of ['/api/auth/me', '/api/auth/security', '/api/dashboard?start=2026-01-01&end=2026-01-31', '/api/admin/users']) {
+      const r = await f.request(path, { cookie });
+      assert.ok([401, 403].includes(r.status), `${path} -> ${r.status}`);
+    }
+  }
+  // Completing the challenge with the right OTP is what unlocks the session.
+  const ok = await twofa(f, body.twoFactor.challenge, totpAt(secret));
+  assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(ok)) })).status, 200);
+});
+
+// ---- Per-account 2FA switch ----
+test('Super Admin can require 2FA per account; turning it off wipes the authenticator; others cannot set it', async t => {
+  const f = await fixture(t, SA);
+  const { createUserService } = await import('./src/services/userService.js');
+  const { loadUser } = await import('./src/services/permissionService.js');
+  const users = createUserService(f.store, f.auth.audit), root = loadUser(f.store, 1);
+  const rep = await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, password: 'bronze-ash-74', additionalPermissions: [], territoryIds: [], twoFactorRequired: true }, 'test');
+  assert.equal(rep.twoFactorRequired, true);
+  const first = (await (await f.login('rep', 'bronze-ash-74')).json()).twoFactor;
+  assert.equal(first.mode, 'setup');
+  const done = await twofa(f, first.challenge, totpAt(first.secret));
+  assert.equal(done.status, 200);
+  assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(done)) })).status, 200);
+  assert.equal(f.store.get('SELECT COUNT(*) n FROM user_totp WHERE user_id=?', rep.id).n, 1);
+  const save = extra => users.save(root, rep.id, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, additionalPermissions: [], territoryIds: [], ...extra }, 'test');
+  const off = await save({ twoFactorRequired: false });
+  assert.equal(off.twoFactorRequired, false);
+  for (const tb of ['user_totp', 'recovery_codes', 'trusted_devices', 'user_two_factor_policy']) assert.equal(f.store.get(`SELECT COUNT(*) n FROM ${tb} WHERE user_id=?`, rep.id).n, 0);
+  const plain = await f.login('rep', 'bronze-ash-74'); assert.equal((await plain.json()).twoFactor, undefined);
+  assert.equal((await save({})).twoFactorRequired, false, 'omitting the field keeps the current policy');
+  // Super Admin stays required and cannot be switched off.
+  const sa = await users.save(root, 1, { username: 'root', full_name: 'Root', role: 'super_admin', is_active: true, additionalPermissions: [], territoryIds: [], twoFactorRequired: false }, 'test');
+  assert.equal(sa.twoFactorRequired, true);
+  assert.ok(f.store.all('SELECT action FROM activity_logs').some(a => a.action === '2fa.policy'));
+  // A non-Super-Admin manager cannot change it.
+  const mgr = await users.save(loadUser(f.store, 1), null, { username: 'mgr', full_name: 'Mgr', role: 'admin', is_active: true, password: 'green-oak-85', additionalPermissions: ['users_manage'], territoryIds: [] }, 'test');
+  await assert.rejects(users.save(loadUser(f.store, mgr.id), rep.id, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, twoFactorRequired: true }, 'test'), { status: 403 });
 });

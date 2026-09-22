@@ -1426,3 +1426,85 @@
     transition: none !important;
   }
 }
+
+/* Account switches (active / 2FA) in the user editor */
+.admin-toggles {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.admin-shell label.toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  position: relative;
+  padding: 11px 14px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-raised, #1c1c20) 60%, transparent);
+  color: var(--ink, #f4f4f5);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+.admin-shell label.toggle-card:hover {
+  border-color: color-mix(in srgb, var(--brand, #ff3b30) 45%, var(--line, #303035));
+}
+.toggle-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.toggle-text strong {
+  font-size: 14px;
+}
+.toggle-text small {
+  color: var(--muted, #b0b1b8);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.admin-shell .toggle-card input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.toggle-track {
+  flex: none;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--line, #303035);
+  transition: background 0.18s ease;
+}
+.toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #0005;
+  transition: transform 0.18s ease;
+}
+.toggle-card input:checked ~ .toggle-track {
+  background: var(--brand, #ff3b30);
+}
+.toggle-card input:checked ~ .toggle-track::after {
+  transform: translateX(18px);
+}
+.toggle-card input:focus-visible ~ .toggle-track {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, #ff3b30) 30%, transparent);
+}
+.admin-shell label.toggle-card:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
