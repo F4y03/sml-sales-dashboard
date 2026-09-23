@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { createAccessStore } from './src/models/accessStore.js';
 import { createAuditService } from './src/services/auditService.js';
 import { loadUser, landingPage } from './src/services/permissionService.js';
-import { createTwoFactorService, TRUST_MS } from './src/services/twoFactorService.js';
+import { createTwoFactorService } from './src/services/twoFactorService.js';
 import { createLockoutService } from './src/services/lockoutService.js';
 import { createTerritoryService } from './src/services/territoryService.js';
 import { makePassword,verifyPassword,hashOnly,isModernHash } from './src/services/passwordService.js';
@@ -40,17 +40,17 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     if(!current?.is_active||current.auth_version!==user.auth_version)return res.status(401).json({error:'สิทธิ์มีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่'});
     const allowed=territories.list(user.id),territoryId=user.scope==='territory'&&allowed.length===1?allowed[0].id:null;
     if(store.get('SELECT COUNT(*) n FROM sessions').n>=10000)return res.status(503).json({error:'ระบบไม่ว่าง กรุณาลองใหม่'});
-    const token=randomBytes(32).toString('hex');let extra={},deviceToken=null;
+    const token=randomBytes(32).toString('hex');let extra={},deviceToken=null,deviceMs=null;
     try{store.transaction(()=>{
       if(pre)extra=pre()||{};
       store.run('DELETE FROM sessions WHERE token_hash=?',digest(tokenOf(req)));store.run('INSERT INTO sessions VALUES(?,?,?,?,?)',digest(token),user.id,user.auth_version,territoryId,now+ttl);
       if(twofa.required(user))store.run('INSERT INTO session_two_factor(token_hash) VALUES(?)',digest(token));
       audit.record(user,'login','auth',details,territoryId,ip);
-      if(trust){deviceToken=twofa.addTrusted(user.id);audit.record(user,'trusted_device.add','auth',{userId:user.id,days:15},territoryId,ip);}
+      if(trust){const trusted=twofa.addTrusted(user.id,user.role);deviceToken=trusted.token;deviceMs=trusted.ms;audit.record(user,'trusted_device.add','auth',{userId:user.id,days:trusted.days},territoryId,ip);}
       lockout.clear(user.id);
     });}catch(e){if(e.code==='2FA_REUSED')return res.status(401).json({error:'รหัสยืนยันไม่ถูกต้อง'});throw e;}
     attempts.delete(ip);res.cookie(cookieName,token,{...options,maxAge:ttl});
-    if(deviceToken)res.cookie(trustedName,deviceToken,{...options,sameSite:'strict',maxAge:TRUST_MS});
+    if(deviceToken)res.cookie(trustedName,deviceToken,{...options,sameSite:'strict',maxAge:deviceMs});
     return res.json({ok:true,redirect:landingPage({...user,territoryId}),role:user.role,...extra});
   }
   app.post('/api/auth/login',sameSite,async(req,res)=>{

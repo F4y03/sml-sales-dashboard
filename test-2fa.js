@@ -91,13 +91,13 @@ test('trusted device: httpOnly/sameSite/secure cookie, only the hash is stored, 
   const f = await fixture(t, { ...SA, env: { AUTH_COOKIE_SECURE: 'true' } });
   const { done } = await enroll(f, { trust: true });
   const raw = done.headers.getSetCookie().find(c => c.startsWith('__Host-prplus_trusted='));
-  for (const flag of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/', 'Max-Age=1296000']) assert.ok(raw.includes(flag), flag);
+  for (const flag of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/', 'Max-Age=2592000']) assert.ok(raw.includes(flag), flag);
   const token = raw.split(';')[0].split('=')[1], td = '__Host-prplus_trusted=';
   assert.match(token, /^[a-f0-9]{64}$/);
   const rows = f.store.all('SELECT * FROM trusted_devices');
   assert.equal(rows.length, 1); assert.notEqual(rows[0].token_hash, token); assert.equal(rows[0].token_hash.length, 64);
   assert.ok(!JSON.stringify(f.store.all('SELECT * FROM activity_logs')).includes(token));
-  assert.ok(Math.abs(rows[0].expires - rows[0].created_at - 15 * 86400000) < 1000);
+  assert.ok(Math.abs(rows[0].expires - rows[0].created_at - 30 * 86400000) < 1000);
   const trusted = await (await f.login('root', PW, td + token)).json();
   assert.equal(trusted.twoFactor, undefined); assert.ok(trusted.redirect);
   assert.equal((await (await f.login('root', PW, td + 'a'.repeat(64))).json()).twoFactor.mode, 'verify');

@@ -220,7 +220,7 @@ async function usersView() {
         actions = node("div", undefined, "user-row-actions");
       person.append(name, username);
       actions.append(button("แก้ไข", () => editUser(u), "action-edit"));
-      if (u.role === "super_admin" && u.id !== me.id)
+      if (u.twoFactorRequired && u.id !== me.id)
         actions.append(
           button(
             "รีเซ็ต 2FA",

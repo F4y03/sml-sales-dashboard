@@ -1,6 +1,10 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { newSecret, verifyTotp, otpauthUri, qrDataUrl, createSecretVault, base32 } from './totpService.js';
-export const CHALLENGE_MS=10*60*1000,TRUST_MS=15*24*60*60*1000,RECOVERY_COUNT=10;
+const DAY_MS=24*60*60*1000;
+export const CHALLENGE_MS=10*60*1000,RECOVERY_COUNT=10;
+// Super Admin / ผู้บริหาร (executive) get 30 days; Admin and Sales get 7 days.
+export const trustDaysFor=role=>role==='super_admin'||role==='executive'?30:7;
+export const trustMsFor=role=>trustDaysFor(role)*DAY_MS;
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const normalizeRecovery=code=>String(code).replace(/[\s-]/g,'').toUpperCase();
 const formatRecovery=raw=>raw.match(/.{4}/g).join('-');
@@ -21,9 +25,10 @@ export function createTwoFactorService(store,audit,env=process.env) {
         store.run('DELETE FROM login_challenges WHERE user_id=? OR expires<=?',user.id,Date.now());
         store.run('INSERT INTO login_challenges VALUES(?,?,?,?,?)',digest(token),user.id,enrolled?'verify':'setup',secret&&vault.seal(secret),Date.now()+CHALLENGE_MS);
       });
-      if(enrolled)return {mode:'verify',challenge:token};
+      const trustDays=trustDaysFor(user.role);
+      if(enrolled)return {mode:'verify',challenge:token,trustDays};
       const uri=otpauthUri(secret,user.username);
-      return {mode:'setup',challenge:token,secret,otpauth:uri,qr:qrDataUrl(uri)};
+      return {mode:'setup',challenge:token,secret,otpauth:uri,qr:qrDataUrl(uri),trustDays};
     },
     challenge:token=>typeof token==='string'&&/^[a-f0-9]{64}$/.test(token)?store.get('SELECT * FROM login_challenges WHERE token_hash=? AND expires>?',digest(token),Date.now()):null,
     dropChallenge:token=>store.run('DELETE FROM login_challenges WHERE token_hash=?',digest(token)),
@@ -58,11 +63,11 @@ export function createTwoFactorService(store,audit,env=process.env) {
     },
     recoveryRemaining:userId=>store.get('SELECT COUNT(*) n FROM recovery_codes WHERE user_id=? AND used_at IS NULL',userId).n,
     // ---- trusted devices: opaque random token in an httpOnly cookie, SHA-256 in the database ----
-    addTrusted(userId) {
-      const token=randomBytes(32).toString('hex'),now=Date.now();
+    addTrusted(userId,role) {
+      const token=randomBytes(32).toString('hex'),now=Date.now(),ms=trustMsFor(role);
       store.run('DELETE FROM trusted_devices WHERE expires<=?',now);
-      store.run('INSERT INTO trusted_devices VALUES(?,?,?,?)',digest(token),userId,now,now+TRUST_MS);
-      return token;
+      store.run('INSERT INTO trusted_devices VALUES(?,?,?,?)',digest(token),userId,now,now+ms);
+      return {token,ms,days:trustDaysFor(role)};
     },
     // A trusted device only skips the OTP for an account that has an authenticator enrolled; an un-enrolled account must always go through setup.
     isTrusted:(userId,token)=>!!token&&/^[a-f0-9]{64}$/.test(token)&&isEnrolled(userId)&&!!store.get('SELECT 1 FROM trusted_devices WHERE token_hash=? AND user_id=? AND expires>?',digest(token),userId,Date.now()),

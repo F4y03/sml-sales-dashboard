@@ -326,11 +326,9 @@ window.prplusUser
     };
     if (
       user.scope === "territory" &&
-      ![
-        "/select-territory.html",
-        "/products.html",
-        "/consignment.html",
-      ].includes(location.pathname)
+      !["/select-territory.html", "/products.html"].includes(
+        location.pathname,
+      )
     ) {
       const bar = document.createElement("div");
       bar.className = "territory-bar";
@@ -359,12 +357,15 @@ window.prplusUser
         Boolean(selectedTerritory),
       );
       if (sourceBadge) bar.append(sourceBadge);
-      // Customer Insights keeps the territory switcher beside its page heading.
+      // Customer Insights and Consignment keep the territory switcher beside their page heading.
       // Other workspace pages retain the full-width selector below the sidebar.
-      const territoryHost =
-        location.pathname === "/customers.html"
-          ? document.querySelector("main > .page-heading")
-          : null;
+      const headingSelector = {
+        "/customers.html": "main > .page-heading",
+        "/consignment.html": "main > .consignment-heading",
+      }[location.pathname];
+      const territoryHost = headingSelector
+        ? document.querySelector(headingSelector)
+        : null;
       if (territoryHost) territoryHost.append(bar);
       else document.body.insertBefore(bar, workspace.nextSibling);
       select.onchange = async () => {
@@ -381,7 +382,8 @@ window.prplusUser
           });
           const data = await r.json();
           if (!r.ok) throw new Error(data.error);
-          location.replace(data.redirect);
+          // Stay on the current page after switching territory instead of jumping to the role's landing page.
+          location.reload();
         } catch (e) {
           select.value = user.territoryId || "";
           select.disabled = false;

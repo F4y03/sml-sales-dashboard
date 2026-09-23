@@ -477,24 +477,85 @@ html[data-theme] .consignment-help-button {
 .consignment-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-rows: auto auto;
   align-items: start;
-  gap: 24px;
+  gap: 6px 24px;
+}
+.consignment-heading > div:first-child {
+  grid-column: 1;
+  grid-row: 1 / span 2;
 }
 .consignment-heading #source {
-  margin: 8px 0 0;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
   text-align: right;
   font-size: 12px;
   line-height: 1.9;
   overflow-wrap: anywhere;
 }
+.consignment-heading > .source-badge {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+}
+.consignment-heading > .territory-bar {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow: none;
+  background: var(--surface-raised, #f8f9fb);
+}
+.consignment-heading > .territory-bar label {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.consignment-heading > .territory-bar select {
+  min-width: 138px;
+}
+.consignment-heading > .territory-bar .source-badge {
+  padding: 7px 9px;
+  font-size: 13px;
+  white-space: nowrap;
+}
 @media (max-width: 700px) {
   .consignment-heading {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
     gap: 4px;
   }
+  .consignment-heading > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
   .consignment-heading #source {
+    grid-column: 1;
+    grid-row: 2;
     text-align: left;
     margin: 0;
+  }
+  .consignment-heading > .source-badge {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+  .consignment-heading > .territory-bar {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: stretch;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .consignment-heading > .territory-bar .source-badge {
+    align-self: flex-start;
+    margin-left: 0;
   }
 }
 .consignment-sort {
