@@ -6,6 +6,33 @@
     preference = localStorage.getItem(key);
   } catch {}
   root.dataset.theme = preference === "light" ? "light" : "dark";
+  // Match the sidebar's red mark and white caption on a transparent background.
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon) {
+    const logo = new Image();
+    logo.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = logo.naturalWidth;
+        canvas.height = logo.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(logo, 0, 0);
+        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < frame.data.length; i += 4) {
+          const max = Math.max(frame.data[i], frame.data[i + 1], frame.data[i + 2]);
+          const min = Math.min(frame.data[i], frame.data[i + 1], frame.data[i + 2]);
+          if (max - min >= 18) continue; // Preserve the existing red mark.
+          frame.data[i + 3] *= (255 - max) / 255;
+          frame.data[i] = frame.data[i + 1] = frame.data[i + 2] = 255;
+        }
+        ctx.putImageData(frame, 0, 0);
+        favicon.href = canvas.toDataURL("image/png");
+      } catch {
+        // Retain the original icon if canvas rendering is unavailable.
+      }
+    };
+    logo.src = favicon.href;
+  }
   const palette = () => {
     const style = getComputedStyle(root);
     return Object.fromEntries(
