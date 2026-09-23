@@ -43,8 +43,8 @@ test('two themes work on every page, login assets are public, choice persists an
         const surface = page.locator('.card:not(.featured),.panel,.form-panel').first();
         await expect(surface).toHaveCSS('background-color', mode === 'dark' ? 'rgb(20, 20, 22)' : 'rgb(255, 255, 255)');
         if(file === 'index') {
-          await expect.poll(() => page.evaluate(() => window.Chart.getChart('daily-chart')?.options.scales.y.ticks.color)).toBe(mode === 'dark' ? '#b0b1b8' : '#656973');
-          assert.deepEqual(await page.evaluate(() => window.Chart.getChart('daily-chart').data.datasets[0].data), [100]);
+          await expect.poll(() => page.evaluate(() => { const t = document.querySelector('#daily-chart .tg-tick'); return t && getComputedStyle(t).fill; })).toBe(mode === 'dark' ? 'rgb(196, 196, 196)' : 'rgb(101, 105, 115)');
+          assert.deepEqual(await page.evaluate(() => window.salesTrend.debug().daily.values), [100]);
         }
         await expect.poll(() => page.evaluate(findContrastIssues), { message: `${file}: ${mode} text contrast` }).toEqual([]);
       }

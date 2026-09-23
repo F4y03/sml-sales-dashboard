@@ -33,7 +33,7 @@ test('clear restores the initial month and reloads both charts after a single-da
     const clearBounds = await page.locator('#clear-day').boundingBox();
     const applyBounds = await page.locator('#apply').boundingBox();
     assert.ok(clearBounds.x < applyBounds.x && Math.abs(clearBounds.y - applyBounds.y) < 2, 'clear sits beside apply');
-    await expect.poll(() => page.evaluate(() => window.Chart.getChart('daily-chart')?.data?.labels.length)).toBe(2);
+    await expect.poll(() => page.evaluate(() => window.salesTrend.debug().daily?.days.length)).toBe(2);
     for (let index = 0; index < 6; index++) {
       await page.locator('#product-rows tr').first().locator('td').nth(index).click();
       await expect(page.locator('#product-invoices')).toBeVisible();
@@ -61,7 +61,7 @@ test('clear restores the initial month and reloads both charts after a single-da
     await page.setViewportSize({ width: 1280, height: 720 });
     for (const quickDay of ['day-today', 'day-yesterday']) {
       await page.locator(`#${quickDay}`).click();
-      await expect.poll(() => page.evaluate(() => window.Chart.getChart('daily-chart')?.data?.labels.length)).toBe(1);
+      await expect.poll(() => page.evaluate(() => window.salesTrend.debug().daily?.days.length)).toBe(1);
       await expect(page.locator('#total-sales')).toHaveText('฿100');
       await expect(page.locator('#item-sales')).toHaveText('฿90');
       await page.locator('#clear-day').click();
@@ -70,7 +70,7 @@ test('clear restores the initial month and reloads both charts after a single-da
       await expect(page.locator('#end')).toHaveValue('2026-09-10');
       await expect(page.locator('#day-today')).toHaveAttribute('aria-pressed', 'false');
       await expect(page.locator('#day-yesterday')).toHaveAttribute('aria-pressed', 'false');
-      await expect.poll(() => page.evaluate(() => window.Chart.getChart('daily-chart')?.data?.labels.length)).toBe(2);
+      await expect.poll(() => page.evaluate(() => window.salesTrend.debug().daily?.days.length)).toBe(2);
       await expect(page.locator('#donut-legend .donut-amount').first()).toHaveText('฿200');
       await expect(page.locator('#item-sales')).toHaveText('฿180');
       assert.deepEqual(requests.filter(r => r.path === '/api/dashboard').at(-1), { path: '/api/dashboard', start: '2026-09-01', end: '2026-09-10' });

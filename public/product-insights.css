@@ -503,7 +503,31 @@ body.product-dialog-open {
 .performance-comparison {
   display: block;
   width: 100%;
-  height: 140px;
+  height: 150px;
+  overflow: visible;
+}
+.performance-comparison .comparison-baseline {
+  stroke: #ffffff;
+  stroke-opacity: 0.35;
+}
+.performance-comparison .comparison-bar {
+  fill: #f3c3be;
+}
+.performance-comparison .comparison-bar.selected {
+  fill: #ffffff;
+}
+.performance-comparison .comparison-bar.negative {
+  fill: #ffb0ae;
+}
+.performance-comparison .comparison-amount {
+  fill: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.performance-comparison .comparison-label {
+  fill: #f5dcd7;
+  font-size: 13px;
 }
 .performance-comparison-legend {
   display: grid;

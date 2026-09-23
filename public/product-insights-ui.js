@@ -223,6 +223,7 @@
         `${date(data.start)} – ${date(data.end)} · เทียบ ${date(data.previous.start)} – ${date(data.previous.end)} (${num.format(data.previous.days)} วันเท่ากัน)`;
       byId("performance-updated").textContent =
         `อัปเดต ${new Date(data.updatedAt).toLocaleString("th-TH")}`;
+      animateCharts = !detail.silent;
       renderScope(detail.silent);
     } catch (error) {
       if (currentController.signal.aborted || currentRequest !== requestId)
@@ -293,6 +294,34 @@
     if (preservePage !== true) page = 0;
     renderTable();
   }
+  // Summary charts animate only right after data loads, not on every search keystroke.
+  let animateCharts = false,
+    stopGrow = null;
+  const shortMoney = (n) => {
+    const a = Math.abs(n),
+      text =
+        a >= 1e6
+          ? (a / 1e6).toFixed(2) + "M"
+          : a >= 1e3
+            ? (a / 1e3).toFixed(1) + "K"
+            : num.format(Math.round(a));
+    return (n < 0 ? "−฿" : "฿") + text;
+  };
+  function growBars(draw, animate) {
+    stopGrow?.();
+    stopGrow = null;
+    if (!animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return draw(1);
+    const began = performance.now();
+    let raf;
+    const frame = (now) => {
+      const t = Math.min(1, (now - began) / 900);
+      draw(1 - Math.pow(1 - t, 3));
+      if (t < 1) raf = requestAnimationFrame(frame);
+    };
+    draw(0);
+    raf = requestAnimationFrame(frame);
+    stopGrow = () => cancelAnimationFrame(raf);
+  }
   function renderSummaryCharts(total, previous) {
     const svgNode = (tag, attrs = {}, text = "") => {
       const element = document.createElementNS(
@@ -306,31 +335,39 @@
     };
     const registered = scope.filter((item) => item.registered).length;
     const comparable = scope.filter((item) => item.previousNet > 0).length;
+    const animate = animateCharts;
+    animateCharts = false;
     const cards = [
-      ["net", total, previous, "ยอดสุทธิเทียบช่วงก่อนหน้า", "#e8b0a9"],
+      ["net", total, previous, "ยอดสุทธิเทียบช่วงก่อนหน้า"],
       [
         "sold",
         scope.filter((item) => item.invoiceCount > 0).length,
         scope.length,
         "จากสินค้าทั้งหมดตามตัวกรอง",
-        "#c93436",
+        "#d90a0a",
+        "มีบิลขาย",
+        "ยังไม่มีบิลขาย",
       ],
       [
         "unsold",
         scope.filter(unsold).length,
         registered,
         "จากสินค้าในทะเบียนตามตัวกรอง",
-        "#b88935",
+        "#d90a0a",
+        "ยังไม่มีบิลขาย",
+        "มีบิลขายแล้ว",
       ],
       [
         "declining",
         scope.filter(declining).length,
         comparable,
         "จากสินค้าที่ช่วงก่อนมียอดสุทธิเป็นบวก",
-        "#bb7261",
+        "#d90a0a",
+        "ยอดขายลดลง",
+        "ยอดขายไม่ลดลง",
       ],
     ];
-    for (const [key, value, base, caption, color] of cards) {
+    for (const [key, value, base, caption, color, label, rest] of cards) {
       const card = byId(`performance-${key}`).closest(".summary-card");
       let chart = card.querySelector(".performance-summary-chart");
       if (!chart) {
@@ -346,48 +383,54 @@
       }
       if (key === "net") {
         const svg = svgNode("svg", {
-          viewBox: "0 0 280 140",
+          viewBox: "0 0 280 150",
           "aria-hidden": "true",
           class: "performance-comparison",
         });
         const min = Math.min(0, value, base),
           max = Math.max(0, value, base);
-        const y = (n) => 116 - ((n - min) / (max - min || 1)) * 98;
+        const y = (n) => 124 - ((n - min) / (max - min || 1)) * 96;
         svg.append(
           svgNode("line", {
             x1: 15,
             x2: 265,
             y1: y(0),
             y2: y(0),
-            stroke: "#b88580",
+            class: "comparison-baseline",
           }),
         );
-        [base, value].forEach((amount, index) => {
-          const x = 50 + index * 120;
-          svg.append(
-            svgNode("rect", {
+        const bars = [base, value].map((amount, index) => {
+          const x = 50 + index * 120,
+            rect = svgNode("rect", {
               x,
-              y: Math.min(y(0), y(amount)),
               width: 60,
-              height: Math.max(1, Math.abs(y(amount) - y(0))),
-              rx: 3,
-              fill: amount < 0 ? "#ef9d9d" : index ? color : "#e8b0a9",
+              rx: 4,
+              class: `comparison-bar${index ? " selected" : ""}${amount < 0 ? " negative" : ""}`,
             }),
-          );
+            label = svgNode("text", { x: x + 30, "text-anchor": "middle", class: "comparison-amount" }, shortMoney(amount));
           svg.append(
+            rect,
+            label,
             svgNode(
               "text",
-              {
-                x: x + 30,
-                y: 137,
-                "text-anchor": "middle",
-                fill: "#f5dcd7",
-                "font-size": 14,
-              },
+              { x: x + 30, y: 146, "text-anchor": "middle", class: "comparison-label" },
               index ? "ช่วงที่เลือก" : "ช่วงก่อนหน้า",
             ),
           );
+          return { amount, rect, label };
         });
+        // Bars grow out of the zero line; value labels ride on the bar ends.
+        growBars((p) => {
+          for (const { amount, rect, label } of bars) {
+            const end = y(amount * p),
+              top = Math.min(y(0), end),
+              height = Math.max(1, Math.abs(end - y(0)));
+            rect.setAttribute("y", top);
+            rect.setAttribute("height", height);
+            label.setAttribute("y", amount < 0 ? top + height + 13 : top - 6);
+            label.style.opacity = p;
+          }
+        }, animate);
         chart.append(svg);
         const legend = node("span", "", "performance-comparison-legend");
         for (const [label, amount] of [
@@ -400,42 +443,27 @@
         }
         chart.append(legend);
       } else {
-        const ring = node("span", "", "summary-donut");
-        const svg = svgNode("svg", {
-          viewBox: "0 0 140 140",
-          "aria-hidden": "true",
+        const percent = base ? (value / base) * 100 : 0,
+          count = (n) => `${num.format(n)} รหัส`;
+        const { ring } = summaryRing({
+          className: "summary-donut",
+          centerClass: "summary-donut-center",
+          box: 140,
+          r: 52,
+          focusable: false,
+          segments: base
+            ? [
+                { share: percent, color, value: count(value), label, sub: `${num.format(percent)}%` },
+                { share: 100 - percent, color: "#9a9ca5", value: count(base - value), label: rest, sub: `${num.format(100 - percent)}%` },
+              ]
+            : [],
+          center: {
+            value: percent,
+            text: (v) => (base ? `${num.format(v)}%` : "—"),
+            label: "ของกลุ่มอ้างอิง",
+          },
+          animate: animate && base > 0,
         });
-        svg.append(
-          svgNode("circle", {
-            cx: 70,
-            cy: 70,
-            r: 54,
-            fill: "none",
-            stroke: "#f4ebe7",
-            "stroke-width": 16,
-          }),
-        );
-        const percent = base ? (value / base) * 100 : 0;
-        if (value)
-          svg.append(
-            svgNode("circle", {
-              cx: 70,
-              cy: 70,
-              r: 54,
-              fill: "none",
-              stroke: color,
-              "stroke-width": 16,
-              pathLength: 100,
-              "stroke-dasharray": `${percent} ${100 - percent}`,
-              transform: "rotate(-90 70 70)",
-            }),
-          );
-        const center = node("span", "", "summary-donut-center");
-        center.append(
-          node("b", base ? `${num.format(percent)}%` : "—"),
-          node("span", "ของกลุ่มอ้างอิง"),
-        );
-        ring.append(svg, center);
         chart.append(
           ring,
           node(

@@ -18,6 +18,36 @@ export function installSalesTrend(app, pool) {
       res.status(503).json({ error: 'โหลดปีที่มีข้อมูลไม่สำเร็จ' });
     }
   });
+  // Daily document totals (report 4007 definition, before returns) for any range up to 62 days.
+  // Same filters as the dashboard's daily series; used for the "same days last month" comparison.
+  app.get('/api/sales-trend/daily', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { start, end } = req.query;
+    const date = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v;
+    if (!date(start) || !date(end) || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 62) {
+      return res.status(400).json({ error: 'ช่วงวันที่ไม่ถูกต้อง' });
+    }
+    try {
+      const { rows } = await pool.query(`
+        WITH headers AS (
+          SELECT doc_date::date AS day, total_amount
+          FROM ic_trans
+          WHERE doc_date >= $1::date AND doc_date < $2::date + INTERVAL '1 day'
+            AND trans_flag = 44 AND last_status = 0
+            AND to_timestamp(doc_date::date || ' ' || doc_time, 'YYYY/MM/DD HH24:MI')::timestamp
+                BETWEEN $1::date::timestamp AND $2::date + TIME '23:59'
+        )
+        SELECT to_char(s.day, 'YYYY-MM-DD') AS day, COALESCE(SUM(h.total_amount), 0)::float8 AS sales
+        FROM generate_series($1::date, $2::date, INTERVAL '1 day') s(day)
+        LEFT JOIN headers h ON h.day = s.day::date
+        GROUP BY s.day ORDER BY s.day
+      `, [start, end]);
+      res.json({ start, end, daily: rows });
+    } catch (error) {
+      console.error('Daily sales query failed:', error.code);
+      res.status(503).json({ error: 'โหลดยอดขายรายวันไม่สำเร็จ กรุณาลองใหม่' });
+    }
+  });
   app.get('/api/sales-trend', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (typeof req.query.year !== 'string' || !/^\d{4}$/.test(req.query.year) || Number(req.query.year) < 1900 || Number(req.query.year) > 2100) {

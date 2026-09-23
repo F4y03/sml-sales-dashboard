@@ -283,43 +283,6 @@ function render(data, silent = false) {
       },
     },
   });
-  const ctx = $("daily-chart").getContext("2d"),
-    gradient = ctx.createLinearGradient(0, 0, 0, 280);
-  gradient.addColorStop(0, "rgba(225, 6, 0, 0.18)");
-  gradient.addColorStop(0.6, "rgba(225, 6, 0, 0.06)");
-  gradient.addColorStop(1, "rgba(225, 6, 0, 0)");
-  charts.push(
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: data.daily.map((d) =>
-          new Date(d.day + "T00:00:00").toLocaleDateString("th-TH", {
-            day: "numeric",
-            month: "short",
-          }),
-        ),
-        datasets: [
-          {
-            data: data.daily.map((d) => Number(d.sales)),
-            borderColor: theme.brand,
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0,
-            borderWidth: 2.5,
-            pointRadius: data.daily.length === 1 ? 5 : 0,
-            pointHoverRadius: 6,
-            pointBackgroundColor: "#fff",
-            pointBorderColor: theme.brand,
-            pointBorderWidth: 2.5,
-            pointHoverBackgroundColor: theme.brand,
-            pointHoverBorderColor: "#fff",
-            pointHoverBorderWidth: 3,
-          },
-        ],
-      },
-      options: options(),
-    }),
-  );
   const warehouseColors = [
     "#813437",
     "#bb7261",
@@ -412,6 +375,7 @@ async function load(silent = false) {
       invoicePage = 0;
     }
     render(data, silent);
+    window.salesTrend?.setDaily({ daily: data.daily, start, end }, silent);
     current = data;
     current.period = { start, end };
     $("export").disabled = false;
@@ -442,6 +406,7 @@ async function load(silent = false) {
     $("display-period").textContent = "ยังไม่มีข้อมูลล่าสุด";
     charts.forEach((chart) => chart.destroy());
     charts = [];
+    window.salesTrend?.clearDaily("โหลดข้อมูลไม่สำเร็จ");
     ["total-sales", "item-sales", "total-invoices"].forEach((key) => {
       $(key).textContent = "—";
       delete $(key).dataset.amount;

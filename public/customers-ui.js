@@ -492,14 +492,16 @@ function summarySvg(tag, attributes = {}, text = "") {
 // hovering/focusing a segment thickens it, fades the rest and shows its details in the centre.
 let animateSummary = false;
 const RING_GAP = 0.9;
-function summaryRing({ className, centerClass, box, r, ariaLabel, segments, center, animate }) {
-  const ring = node("div", "", `${className} summary-ring`),
+// focusable: false when the ring sits inside another control (e.g. a card button), so slices don't nest focus targets.
+function summaryRing({ className, centerClass, box, r, ariaLabel, segments, center, animate, focusable = true }) {
+  const ring = node(focusable ? "div" : "span", "", `${className} summary-ring`),
     mid = box / 2,
-    svg = summarySvg("svg", {
-      viewBox: `0 0 ${box} ${box}`,
-      role: "group",
-      "aria-label": ariaLabel,
-    }),
+    svg = summarySvg(
+      "svg",
+      focusable
+        ? { viewBox: `0 0 ${box} ${box}`, role: "group", "aria-label": ariaLabel }
+        : { viewBox: `0 0 ${box} ${box}`, "aria-hidden": "true" },
+    ),
     arcs = [];
   svg.append(summarySvg("circle", { cx: mid, cy: mid, r, class: "ring-track" }));
   let start = 0;
@@ -515,11 +517,9 @@ function summaryRing({ className, centerClass, box, r, ariaLabel, segments, cent
         "stroke-dashoffset": -start,
         transform: `rotate(-90 ${mid} ${mid})`,
         class: "ring-arc",
-        tabindex: 0,
-        role: "img",
-        "aria-label": segment.aria,
+        ...(focusable ? { tabindex: 0, role: "img", "aria-label": segment.aria } : {}),
       });
-    arc.append(summarySvg("title", {}, segment.aria));
+    if (focusable) arc.append(summarySvg("title", {}, segment.aria));
     arcs.push({ arc, start, length: share > RING_GAP * 2 ? share - RING_GAP : share });
     start += share;
     svg.append(arc);
@@ -531,7 +531,7 @@ function summaryRing({ className, centerClass, box, r, ariaLabel, segments, cent
     ])
       arc.addEventListener(type, () => activate(active ? index : null));
   });
-  const middle = node("div", "", centerClass),
+  const middle = node(focusable ? "div" : "span", "", centerClass),
     value = node("b"),
     label = node("span"),
     sub = node("small");

@@ -293,8 +293,9 @@
     if (outside && isOutside(event)) close();
     outside = false;
   });
+  // key: a topic name above, or a topic object built by another script (e.g. the sales trend KPIs).
   function show(key, button) {
-    const topic = topics[key];
+    const topic = typeof key === "string" ? topics[key] : key;
     opener = button;
     dialog.replaceChildren();
     const header = make("header", "", "insight-help-header");
@@ -314,8 +315,9 @@
     intro.id = "insight-help-intro";
     body.append(intro);
     const current =
-      topic.snapshot &&
-      document.querySelector(topic.snapshot)?.textContent.trim();
+      topic.current ||
+      (topic.snapshot &&
+        document.querySelector(topic.snapshot)?.textContent.trim());
     if (current && current !== "—") {
       const value = make("div", "", "insight-help-value");
       value.append(
@@ -356,6 +358,15 @@
         }
         body.append(comparison);
       }
+    }
+    if (topic.rows?.length) {
+      const breakdown = make("div", "", "insight-help-breakdown");
+      for (const [label, value] of topic.rows) {
+        const row = make("div");
+        row.append(make("span", label), make("b", value));
+        breakdown.append(row);
+      }
+      body.append(breakdown);
     }
     if (topic.breakdown) {
       const rows = document.querySelectorAll(topic.breakdown);
@@ -441,4 +452,5 @@
   document
     .querySelectorAll(".performance-highlights .pill")
     .forEach((target, index) => wire(target, ["best", "watch"][index], true));
+  window.insightHelp = { show };
 })();
