@@ -322,7 +322,8 @@
                 <option value="net">6. ยอดขายสุทธิรายวัน / เดือน</option>
                 <option value="quantity">
                   7. จำนวนขายตามกลุ่มสินค้า
-                </option></select
+                </option>
+                <option value="subgroup">8. ยอดขายตามกลุ่มสินค้าย่อย</option></select
               ><select id="analysis-grain" aria-label="สรุปยอดสุทธิ" hidden>
                 <option value="day">รายวัน</option>
                 <option value="month">รายเดือน</option>
@@ -337,6 +338,22 @@
                   aria-label="กราฟวิเคราะห์ยอดขาย"
                 ></canvas>
               </div>
+            </div>
+            <div id="analysis-donut" class="donut" hidden>
+              <div class="donut-figure">
+                <svg
+                  id="donut-svg"
+                  viewBox="0 0 220 220"
+                  role="img"
+                  aria-label="แผนภูมิโดนัท"
+                ></svg>
+                <div class="donut-center" aria-hidden="true">
+                  <span id="donut-label"></span>
+                  <strong id="donut-value"></strong>
+                  <small id="donut-sub"></small>
+                </div>
+              </div>
+              <ul id="donut-legend" class="donut-legend"></ul>
             </div>
             <p id="analysis-note" class="analysis-note"></p>
             <div class="analysis-footer">

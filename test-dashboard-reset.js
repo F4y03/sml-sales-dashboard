@@ -71,7 +71,7 @@ test('clear restores the initial month and reloads both charts after a single-da
       await expect(page.locator('#day-today')).toHaveAttribute('aria-pressed', 'false');
       await expect(page.locator('#day-yesterday')).toHaveAttribute('aria-pressed', 'false');
       await expect.poll(() => page.evaluate(() => window.Chart.getChart('daily-chart')?.data?.labels.length)).toBe(2);
-      await expect.poll(() => page.evaluate(() => window.Chart.getChart('analysis-chart')?.data?.datasets[0].data[0])).toBe(200);
+      await expect(page.locator('#donut-legend .donut-amount').first()).toHaveText('฿200');
       await expect(page.locator('#item-sales')).toHaveText('฿180');
       assert.deepEqual(requests.filter(r => r.path === '/api/dashboard').at(-1), { path: '/api/dashboard', start: '2026-09-01', end: '2026-09-10' });
     }
