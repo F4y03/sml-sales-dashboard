@@ -8,15 +8,12 @@ export const trustMsFor=role=>trustDaysFor(role)*DAY_MS;
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const normalizeRecovery=code=>String(code).replace(/[\s-]/g,'').toUpperCase();
 const formatRecovery=raw=>raw.match(/.{4}/g).join('-');
-// 2FA is mandatory for Super Admin; a Super Admin can also require it per account (user_two_factor_policy). AUTH_REQUIRE_2FA=false is a development/test escape hatch, never for production.
+// 2FA is mandatory for every account. AUTH_REQUIRE_2FA=false is a development/test escape hatch, never for production.
 export function createTwoFactorService(store,audit,env=process.env) {
   const vault=createSecretVault(env,store.path),enforced=env.AUTH_REQUIRE_2FA!=='false';
   const isEnrolled=id=>!!store.get('SELECT 1 FROM user_totp WHERE user_id=?',id);
-  const policyOn=id=>!!store.get('SELECT 1 FROM user_two_factor_policy WHERE user_id=? AND required=1',id);
   const service={
-    // Super Admin is always required; any other account only when a Super Admin switched it on.
-    required:user=>enforced&&(user.role==='super_admin'||policyOn(user.id)),
-    policyOn,
+    required:()=>enforced,
     isEnrolled,
     // ---- challenge: password accepted, second step pending ----
     startChallenge(user) {

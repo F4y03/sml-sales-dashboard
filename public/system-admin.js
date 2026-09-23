@@ -296,17 +296,8 @@ function editUser(user) {
       "ปิดแล้วผู้ใช้จะเข้าสู่ระบบไม่ได้",
       "is_active",
       user?.is_active ?? true,
-    ),
-    twoFactor = toggle(
-      toggles,
-      "บังคับใช้ 2FA",
-      "ต้องกรอกรหัส 6 หลักจากแอป Authenticator ทุกครั้งที่เข้าสู่ระบบ",
-      "two_factor",
-      user?.twoFactorRequired ?? false,
-    ),
-    twoFactorHint = twoFactor.parentElement.querySelector("small");
+    );
   grid.append(toggles);
-  twoFactor.disabled = me.role !== "super_admin";
   const currentPass = user
     ? field(
         grid,
@@ -410,14 +401,6 @@ function editUser(user) {
   const update = () => {
     const r = catalog.roles.find((r) => r.code === role.value);
     territory.hidden = r?.scope !== "territory";
-    const always = role.value === "super_admin";
-    if (always) twoFactor.checked = true;
-    twoFactor.disabled = always || me.role !== "super_admin";
-    twoFactorHint.textContent = always
-      ? "Super Admin ต้องใช้ 2FA เสมอ ปิดไม่ได้"
-      : me.role !== "super_admin"
-        ? "เฉพาะ Super Admin เท่านั้นที่กำหนดได้"
-        : "ต้องกรอกรหัส 6 หลักจากแอป Authenticator ทุกครั้งที่เข้าสู่ระบบ";
     defaults.textContent =
       "สิทธิ์ตาม Role: " +
       (r?.permissions
@@ -432,8 +415,6 @@ function editUser(user) {
       full_name: data.get("full_name"),
       role: role.value,
       is_active: active.checked,
-      twoFactorRequired:
-        me.role === "super_admin" ? twoFactor.checked : undefined,
       currentPassword: data.get("currentPassword") || undefined,
       password: data.get("password") || undefined,
       additionalPermissions:

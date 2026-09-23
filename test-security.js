@@ -45,7 +45,7 @@ test('password policy: 8+ chars, letter + digit, specials allowed, guessable rej
 
 // ---- Phase 3: lockout + generic errors ----
 test('5 wrong passwords lock the account for 15 minutes; correct password is refused while locked; same generic error everywhere', async t => {
-  const f = await fixture(t, { users: [['admin', 'admin', 'blue-sky-42'], ['off', 'admin', 'blue-sky-42']] });
+  const f = await fixture(t, { users: [['admin', 'admin', 'blue-sky-42'], ['off', 'admin', 'blue-sky-42']], env: { AUTH_REQUIRE_2FA: 'false' } });
   f.store.run('UPDATE users SET is_active=0 WHERE username=?', 'off');
   const generic = { error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
   for (const [u, p] of [['nobody', 'x1y2z3w4'], ['admin', 'wrong-pass-1'], ['off', 'blue-sky-42']]) {
@@ -66,7 +66,7 @@ test('5 wrong passwords lock the account for 15 minutes; correct password is ref
   assert.equal(logActions(f.store).filter(a => a === 'account.locked').length, 1);
 });
 test('successful login resets the failure counter', async t => {
-  const f = await fixture(t);
+  const f = await fixture(t, { env: { AUTH_REQUIRE_2FA: 'false' } });
   for (let i = 0; i < 4; i++) await f.login('admin', 'wrong-pass-1');
   assert.equal((await f.login('admin', 'blue-sky-42')).status, 200);
   for (let i = 0; i < 4; i++) assert.equal((await f.login('admin', 'wrong-pass-1')).status, 401);

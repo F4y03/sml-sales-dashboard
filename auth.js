@@ -72,7 +72,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     const latest=store.get('SELECT is_active,auth_version FROM users WHERE id=?',row.id);
     if(!latest?.is_active||latest.auth_version!==fresh.auth_version)return res.status(401).json({error:'สิทธิ์มีการเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่'});
     const user=loadUser(store,row.id);
-    // Super Admin: password -> trusted device? -> OTP -> session. Every other role keeps the original single-step flow.
+    // Every account: password -> trusted device? -> OTP -> session.
     if(twofa.required(user)){
       if(twofa.isTrusted(user.id,cookieOf(req,trustedName)))return finish(req,res,user,{details:{method:'trusted_device'}});
       return res.json({ok:true,twoFactor:twofa.startChallenge(user)});

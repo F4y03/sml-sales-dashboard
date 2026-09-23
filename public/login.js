@@ -130,7 +130,7 @@ function showTwoFactor(step) {
   document.querySelector("#twofa-setup").hidden = !setup;
   document.querySelector("#twofa-hint").hidden = setup;
   document.querySelector("#twofa-intro").textContent = setup
-    ? "บัญชี Super Admin ต้องเปิดใช้การยืนยันตัวตน 2 ขั้นตอน ตั้งค่าแอป Authenticator แล้วกรอกรหัส 6 หลักเพื่อยืนยัน"
+    ? "ทุกบัญชีต้องเปิดใช้การยืนยันตัวตน 2 ขั้นตอน ตั้งค่าแอป Authenticator แล้วกรอกรหัส 6 หลักเพื่อยืนยัน"
     : "กรอกรหัส 6 หลักจากแอป Authenticator เพื่อเข้าสู่ระบบ";
   if (setup) {
     document.querySelector("#twofa-qr").src = step.qr;
@@ -184,7 +184,10 @@ twofaForm.addEventListener("submit", async (event) => {
       document.querySelector("#twofa-setup").hidden = true;
       document.querySelector("#recovery-codes").textContent =
         data.recoveryCodes.join("\n");
-      document.querySelector("#recovery-done").onclick = () => proceed(data);
+      document.querySelector("#recovery-done").onclick = () => {
+        downloadRecoveryCodes(data.recoveryCodes);
+        proceed(data);
+      };
       return;
     }
     proceed(data);
@@ -198,6 +201,31 @@ twofaForm.addEventListener("submit", async (event) => {
     button.disabled = false;
   }
 });
+function downloadRecoveryCodes(codes) {
+  const blob = new Blob(
+    [
+      "PRO PLUS Recovery Codes\n" +
+        "เก็บไว้ในที่ปลอดภัย ใช้ได้รหัสละ 1 ครั้งเมื่อไม่มีโทรศัพท์\n\n" +
+        codes.join("\n") +
+        "\n\n" +
+        "วิธีใช้:\n" +
+        "1. เข้าหน้า Login กรอก Username และรหัสผ่านตามปกติ\n" +
+        "2. เมื่อถึงหน้า \"ยืนยันตัวตน\" ให้กดที่ช่องกรอกรหัส 6 หลัก\n" +
+        "3. พิมพ์รหัสจากไฟล์นี้ 1 ชุด (รูปแบบ XXXX-XXXX-XXXX) แทนรหัส 6 หลักจากแอป Authenticator แล้วกดยืนยัน\n" +
+        "4. รหัสที่ใช้แล้วจะหมดอายุทันที ใช้ซ้ำไม่ได้ ให้ใช้รหัสถัดไปในครั้งหน้า\n" +
+        "5. ถ้ารหัสในไฟล์นี้ใช้หมดหรือทำหาย ให้ติดต่อ Super Admin เพื่อรีเซ็ต 2FA ใหม่\n",
+    ],
+    { type: "text/plain" },
+  );
+  const url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = "prplus-recovery-codes.txt";
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 document
   .querySelector("#recovery-copy")
   .addEventListener("click", async (event) => {

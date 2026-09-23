@@ -36,11 +36,12 @@ test('legacy Super Admin sessions cannot bypass 2FA even after enrollment', asyn
   assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(done)) })).status, 200);
   assert.equal((await f.request('/api/auth/me', { cookie })).status, 401);
 });
-test('other roles keep the original single-step login (no 2FA)', async t => {
+test('every role needs 2FA: password alone never creates a session', async t => {
   const f = await fixture(t, SA);
-  for (const u of ['sales1', 'exec']) {
+  for (const [u, days] of [['sales1', 7], ['exec', 30]]) {
     const r = await f.login(u, PW), b = await r.json();
-    assert.equal(r.status, 200); assert.equal(b.twoFactor, undefined); assert.ok(b.redirect); assert.ok(cookiesOf(r)['prplus_session']);
+    assert.equal(r.status, 200); assert.equal(b.twoFactor.mode, 'setup'); assert.equal(b.twoFactor.trustDays, days);
+    assert.equal(b.redirect, undefined); assert.equal(cookiesOf(r)['prplus_session'], undefined);
   }
 });
 test('Super Admin: password alone never creates a session; first login enrols TOTP and returns one-time recovery codes', async t => {
@@ -232,7 +233,8 @@ test('admin reset/revoke paths cancel trusted devices; Super Admin can reset ano
   for (const p of ['orange-fox-31', 'purple-owl-52', 'silver-elm-63']) assert.ok(!logs.includes(p));
   // A non-Super-Admin (even with users_manage) cannot use the reset endpoint.
   await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'admin', is_active: true, password: 'bronze-ash-74', additionalPermissions: ['users_manage'], territoryIds: [] }, 'test');
-  const login = await call('/api/auth/login', '', { username: 'rep', password: 'bronze-ash-74' });
+  const repStep = (await (await call('/api/auth/login', '', { username: 'rep', password: 'bronze-ash-74' })).json()).twoFactor;
+  const login = await call('/api/auth/2fa', '', { challenge: repStep.challenge, code: totpAt(repStep.secret) });
   assert.equal((await call(`/api/admin/users/${other.id}/2fa/reset`, jar({ prplus_session: cookiesOf(login).prplus_session }), {})).status, 403);
 });
 
@@ -263,13 +265,13 @@ test('password-only login and a raw challenge token cannot call protected APIs d
   assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(ok)) })).status, 200);
 });
 
-// ---- Per-account 2FA switch ----
-test('Super Admin can require 2FA per account; turning it off wipes the authenticator; others cannot set it', async t => {
+// ---- 2FA for every account ----
+test('2FA cannot be switched off per account; a Sales user enrols and gets a session only after the OTP', async t => {
   const f = await fixture(t, SA);
   const { createUserService } = await import('./src/services/userService.js');
   const { loadUser } = await import('./src/services/permissionService.js');
   const users = createUserService(f.store, f.auth.audit), root = loadUser(f.store, 1);
-  const rep = await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, password: 'bronze-ash-74', additionalPermissions: [], territoryIds: [], twoFactorRequired: true }, 'test');
+  const rep = await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, password: 'bronze-ash-74', additionalPermissions: [], territoryIds: [], twoFactorRequired: false }, 'test');
   assert.equal(rep.twoFactorRequired, true);
   const first = (await (await f.login('rep', 'bronze-ash-74')).json()).twoFactor;
   assert.equal(first.mode, 'setup');
@@ -277,17 +279,6 @@ test('Super Admin can require 2FA per account; turning it off wipes the authenti
   assert.equal(done.status, 200);
   assert.equal((await f.request('/api/auth/me', { cookie: jar(cookiesOf(done)) })).status, 200);
   assert.equal(f.store.get('SELECT COUNT(*) n FROM user_totp WHERE user_id=?', rep.id).n, 1);
-  const save = extra => users.save(root, rep.id, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, additionalPermissions: [], territoryIds: [], ...extra }, 'test');
-  const off = await save({ twoFactorRequired: false });
-  assert.equal(off.twoFactorRequired, false);
-  for (const tb of ['user_totp', 'recovery_codes', 'trusted_devices', 'user_two_factor_policy']) assert.equal(f.store.get(`SELECT COUNT(*) n FROM ${tb} WHERE user_id=?`, rep.id).n, 0);
-  const plain = await f.login('rep', 'bronze-ash-74'); assert.equal((await plain.json()).twoFactor, undefined);
-  assert.equal((await save({})).twoFactorRequired, false, 'omitting the field keeps the current policy');
-  // Super Admin stays required and cannot be switched off.
-  const sa = await users.save(root, 1, { username: 'root', full_name: 'Root', role: 'super_admin', is_active: true, additionalPermissions: [], territoryIds: [], twoFactorRequired: false }, 'test');
-  assert.equal(sa.twoFactorRequired, true);
-  assert.ok(f.store.all('SELECT action FROM activity_logs').some(a => a.action === '2fa.policy'));
-  // A non-Super-Admin manager cannot change it.
-  const mgr = await users.save(loadUser(f.store, 1), null, { username: 'mgr', full_name: 'Mgr', role: 'admin', is_active: true, password: 'green-oak-85', additionalPermissions: ['users_manage'], territoryIds: [] }, 'test');
-  await assert.rejects(users.save(loadUser(f.store, mgr.id), rep.id, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, twoFactorRequired: true }, 'test'), { status: 403 });
+  f.store.run('UPDATE user_totp SET last_step=0');
+  assert.equal((await (await f.login('rep', 'bronze-ash-74')).json()).twoFactor.mode, 'verify');
 });
