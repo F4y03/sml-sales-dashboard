@@ -25,9 +25,10 @@ test('monthly endpoint validates years and chart switches between daily and mont
   let browser;
   try {
     for (const year of ['', 'abc', '2025 OR 1=1', '1899', '2101', '2025.5']) assert.equal((await fetch(`${base}/api/sales-trend?year=${encodeURIComponent(year)}`)).status, 400);
-    // Daily endpoint: strict dates, start <= end, at most 62 days; values are bound as parameters.
-    for (const [start, end] of [['', '2026-09-01'], ['2026-09-10', '2026-09-01'], ['2026-02-30', '2026-03-01'], ["2026-09-01' OR 1=1", '2026-09-02'], ['2026-01-01', '2026-06-01']])
+    // Daily endpoint: strict dates, start <= end, at most 366 inclusive days; values are bound as parameters.
+    for (const [start, end] of [['', '2026-09-01'], ['2026-09-10', '2026-09-01'], ['2026-02-30', '2026-03-01'], ['2026-13-01', '2026-13-02'], ["2026-09-01' OR 1=1", '2026-09-02'], ['2025-01-01', '2026-06-01'], ['2024-01-01', '2025-01-01']])
       assert.equal((await fetch(`${base}/api/sales-trend/daily?${new URLSearchParams({ start, end })}`)).status, 400);
+    assert.equal((await fetch(`${base}/api/sales-trend/daily?start=2024-01-01&end=2024-12-31`)).status, 200);
     const daily = await (await fetch(`${base}/api/sales-trend/daily?start=2026-08-01&end=2026-08-23`)).json();
     assert.deepEqual(dailyCalls.at(-1), ['2026-08-01', '2026-08-23']);
     assert.deepEqual(daily.daily.map(d => d.sales), [40, 60]);

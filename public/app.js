@@ -6,33 +6,9 @@ const iso = (date) =>
 let charts = [],
   current = null,
   requestId = 0;
-function syncControls() {
-  const single = $("period").value === "day";
-  $("single-field").hidden = !single;
-  $("range-fields").hidden = single;
-  const today = iso(new Date()),
-    yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  $("day-today").setAttribute(
-    "aria-pressed",
-    String(single && $("start").value === today),
-  );
-  $("day-yesterday").setAttribute(
-    "aria-pressed",
-    String(single && $("start").value === iso(yesterday)),
-  );
-}
 $("year").textContent = new Date().getFullYear();
-function setPeriod() {
-  if ($("period").value === "day") return;
-  if ($("period").value === "custom") return;
-  const end = new Date(),
-    start = new Date();
-  if ($("period").value === "month") start.setDate(1);
-  else start.setDate(end.getDate() - Number($("period").value) + 1);
-  $("start").value = iso(start);
-  $("end").value = iso(end);
-}
+// Re-evaluates the active quick range (e.g. "today" after midnight); a custom range stays as typed.
+const setPeriod = () => window.overviewTop?.refreshPresetDates();
 function cell(row, text, className = "") {
   const td = document.createElement("td");
   td.textContent = text;
@@ -212,9 +188,6 @@ function openInvoices() {
   loadInvoices(0);
 }
 function render(data, silent = false) {
-  $("total-sales").textContent = money(data.totalSales);
-  $("total-invoices").textContent = number.format(data.totalInvoices);
-  $("item-sales").textContent = money(data.itemSales);
   $("total-sales").dataset.amount = String(data.totalSales);
   $("item-sales").dataset.amount = String(data.itemSales);
   if (!silent) productPage = 0;
@@ -326,7 +299,6 @@ function render(data, silent = false) {
     );
 }
 async function load(silent = false) {
-  syncControls();
   const id = ++requestId,
     start = $("start").value,
     end = $("end").value;
@@ -334,8 +306,8 @@ async function load(silent = false) {
   if (!silent) {
     current = null;
     $("export").disabled = true;
+    window.overviewTop?.clear();
   }
-  if (!silent) window.resetOverviewGrowth?.();
   if (!silent) $("product-invoices").close();
   $("status").classList.remove("error");
   if (
@@ -346,13 +318,16 @@ async function load(silent = false) {
   ) {
     $("status").textContent = "กรุณาเลือกช่วงวันที่ให้ถูกต้อง ไม่เกิน 366 วัน";
     $("status").classList.add("error");
+    $("apply").disabled = false;
+    window.overviewTop?.setLoading(false);
     return;
   }
   $("apply").disabled = true;
   $("status").textContent = "กำลังอัปเดตข้อมูลจาก SML…";
-  window.loadOverviewGrowth?.(start, end);
+  if (!silent) $("display-period").textContent = "กำลังโหลดข้อมูล…";
   $("connection-badge").textContent = "SML · กำลังอัปเดต";
-  $("connection-badge").className = "live-badge";
+  $("connection-badge").dataset.state = "loading";
+  window.overviewTop?.setLoading(true);
   try {
     let data;
     {
@@ -375,29 +350,20 @@ async function load(silent = false) {
       invoicePage = 0;
     }
     render(data, silent);
+    window.overviewTop?.show(data, start, end, silent);
     window.salesTrend?.setDaily({ daily: data.daily, start, end }, silent);
     current = data;
     current.period = { start, end };
     $("export").disabled = false;
     window.loadSalesAnalysis?.(start, end, silent);
-    const dateLabel = (value) =>
-      new Date(value + "T00:00:00").toLocaleDateString("th-TH", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-    $("display-period").textContent =
-      start === end
-        ? dateLabel(start)
-        : `${dateLabel(start)} – ${dateLabel(end)}`;
-    $("connection-badge").textContent = "● เชื่อมต่อ SML แล้ว";
-    $("connection-badge").className = "live-badge connected";
-    $("status").textContent =
-      `อัปเดต ${new Date(data.updatedAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · รีเฟรชอัตโนมัติทุก 60 วินาที`;
+    $("connection-badge").textContent = "เชื่อมต่อ SML แล้ว";
+    $("connection-badge").dataset.state = "connected";
+    // The update time now sits in the range line; the status line only carries messages.
+    $("status").textContent = "";
   } catch (error) {
     if (id !== requestId) return;
     $("connection-badge").textContent = "เชื่อมต่อไม่สำเร็จ";
-    $("connection-badge").className = "live-badge failed";
+    $("connection-badge").dataset.state = "failed";
     if (silent) {
       $("status").textContent = error.message;
       $("status").classList.add("error");
@@ -407,10 +373,7 @@ async function load(silent = false) {
     charts.forEach((chart) => chart.destroy());
     charts = [];
     window.salesTrend?.clearDaily("โหลดข้อมูลไม่สำเร็จ");
-    ["total-sales", "item-sales", "total-invoices"].forEach((key) => {
-      $(key).textContent = "—";
-      delete $(key).dataset.amount;
-    });
+    window.overviewTop?.clear();
     $("product-rows").replaceChildren();
     $("invoice-rows").replaceChildren();
     $("invoice-page-info").textContent = "";
@@ -423,6 +386,7 @@ async function load(silent = false) {
   } finally {
     if (id === requestId) {
       $("apply").disabled = false;
+      window.overviewTop?.setLoading(false);
     }
   }
 }
@@ -443,12 +407,6 @@ $("product-next").addEventListener("click", () => {
   }
 });
 $("invoice-card").addEventListener("click", openInvoices);
-$("invoice-card").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    openInvoices();
-  }
-});
 $("close-invoices").addEventListener("click", () =>
   $("invoice-dialog").close(),
 );
@@ -462,22 +420,6 @@ $("invoice-prev").addEventListener("click", () =>
 );
 $("invoice-next").addEventListener("click", () =>
   loadInvoices(invoicePage + 1),
-);
-$("period").addEventListener("change", () => {
-  if ($("period").value === "day") {
-    oneDay($("dashboard-day").value || iso(new Date()));
-    return;
-  }
-  setPeriod();
-  syncControls();
-  if ($("period").value !== "custom") load();
-});
-["start", "end"].forEach((id) =>
-  $(id).addEventListener("change", () => {
-    $("period").value = "custom";
-    syncControls();
-    $("status").textContent = "ช่วงวันที่เปลี่ยนแล้ว กดแสดงข้อมูลเพื่ออัปเดต";
-  }),
 );
 $("export").addEventListener("click", () => {
   if (!current) return;
@@ -523,38 +465,6 @@ $("export").addEventListener("click", () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
-// Reset a browser-restored selection so the dashboard always starts with real SML data.
-function oneDay(value) {
-  if (!value) return;
-  $("period").value = "day";
-  $("start").value = value;
-  $("end").value = value;
-  $("dashboard-day").value = value;
-  load();
-}
-function clearDay() {
-  $("period").value = "month";
-  $("dashboard-day").value = iso(new Date());
-  setPeriod();
-  load();
-}
-$("dashboard-day").value = iso(new Date());
-$("dashboard-day").addEventListener("change", () =>
-  oneDay($("dashboard-day").value),
-);
-$("day-today").addEventListener("click", () => {
-  const value = iso(new Date());
-  if ($("period").value === "day" && $("start").value === value) clearDay();
-  else oneDay(value);
-});
-$("day-yesterday").addEventListener("click", () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const value = iso(d);
-  if ($("period").value === "day" && $("start").value === value) clearDay();
-  else oneDay(value);
-});
-$("clear-day").addEventListener("click", clearDay);
 $("source").value = "live";
 setPeriod();
 load();

@@ -264,8 +264,8 @@ async function loadSpark() {
     last = end < today ? end : today,
     request = ++sparkRequest;
   svg.replaceChildren();
-  if (last < start || (Date.parse(last) - Date.parse(start)) / 86400000 > 62) {
-    svg.setAttribute("aria-label", "กราฟยอดขายสะสมแสดงได้เมื่อช่วงไม่เกิน 62 วัน");
+  if (last < start || (Date.parse(last) - Date.parse(start)) / 86400000 > 365) {
+    svg.setAttribute("aria-label", "กราฟยอดขายสะสมแสดงได้เมื่อช่วงไม่เกิน 366 วัน");
     return;
   }
   try {

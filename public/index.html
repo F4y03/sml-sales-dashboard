@@ -14,7 +14,8 @@
     <script src="sales-trend-card.js" defer></script>
     <link rel="stylesheet" href="sales-trend-card.css" />
     <link rel="stylesheet" href="overview-growth.css" />
-    <script src="overview-growth.js" defer></script>
+    <link rel="stylesheet" href="overview-top.css" />
+    <script src="overview-top.js" defer></script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="analytics.css" />
     <script src="analytics-ui.js" defer></script>
@@ -30,125 +31,114 @@
   <body>
     <div class="main-shell">
       <main id="overview">
-        <div class="dashboard-heading">
-          <div>
-            <div class="eyebrow">SALES OVERVIEW</div>
-            <h1>ภาพรวมยอดขาย<span class="heading-dot">.</span></h1>
-            <p class="subtitle">ติดตามยอดขายและสินค้าของคุณจาก SML</p>
-          </div>
-          <div class="heading-actions">
-            <button id="export" class="button secondary" type="button">
-              <span aria-hidden="true">↓</span> ดาวน์โหลด CSV</button
-            ><a class="button primary" href="reports.html"
-              >ดูรายงานทั้งหมด <span aria-hidden="true">↗</span></a
-            >
-          </div>
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">SALES OVERVIEW</p>
+              <h1>ภาพรวมยอดขาย<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">
+                ติดตามยอดขายและสินค้าของคุณจาก SML
+                <span id="connection-badge" class="ov-live" role="status"
+                  >SML · กำลังเชื่อมต่อ</span
+                >
+              </p>
+            </div>
+            <div class="ov-actions">
+              <button id="export" class="ov-btn ov-btn-ghost" type="button">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0 0 3.2-3.2M8 10 4.8 6.8M3 13h10" /></svg>
+                ดาวน์โหลด CSV
+              </button>
+              <a class="ov-btn ov-btn-primary" href="reports.html">
+                ดูรายงานทั้งหมด
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 11 11 5m0 0H6m5 0v5" /></svg>
+              </a>
+            </div>
+          </header>
+          <section class="ov-filters" aria-label="เลือกช่วงข้อมูล">
+            <form id="filters" class="ov-filter-row">
+              <div class="ov-presets" role="group" aria-label="เลือกช่วงวันที่อย่างรวดเร็ว">
+                <button type="button" id="day-today" data-preset="today" aria-pressed="false">วันนี้</button
+                ><button type="button" id="day-yesterday" data-preset="yesterday" aria-pressed="false">เมื่อวาน</button
+                ><button type="button" data-preset="7d" aria-pressed="false">7 วัน</button
+                ><button type="button" data-preset="month" aria-pressed="true">เดือนนี้</button
+                ><button type="button" data-preset="prev-month" aria-pressed="false">เดือนก่อน</button
+                ><button type="button" data-preset="year" aria-pressed="false">ปีนี้</button>
+              </div>
+              <div class="ov-dates">
+                <label><span>จากวันที่</span><input type="date" id="start" required /></label>
+                <span class="ov-dates-arrow" aria-hidden="true">→</span>
+                <label><span>ถึงวันที่</span><input type="date" id="end" required /></label>
+              </div>
+              <div class="ov-filter-actions">
+                <button type="button" id="clear-day" class="ov-text-btn">ล้าง</button>
+                <button type="submit" id="apply" class="ov-btn ov-btn-primary">แสดงข้อมูล</button>
+              </div>
+            </form>
+            <div class="ov-range-line">
+              <span class="ov-range-label">ช่วงข้อมูลที่แสดง</span>
+              <strong id="display-period">กำลังโหลดข้อมูล…</strong>
+              <span class="ov-chip" id="range-days" hidden></span>
+              <span class="ov-chip" id="range-updated" hidden></span>
+            </div>
+            <div id="status" class="ov-status" role="status" aria-live="polite"></div>
+          </section>
+          <input type="hidden" id="source" value="live" />
+          <section class="ov-kpis overview-kpis" aria-label="สรุปยอดขาย">
+            <article class="ov-card ov-featured" style="--i: 0">
+              <div class="ov-head">
+                <span class="ov-name">ยอดขายตามเอกสาร</span>
+                <span id="document-sales-help" class="ov-icon" data-tip="ยอดเงินรวมระดับหัวเอกสารขาย ตามวันที่เอกสาร ยังไม่หักรับคืน">ⓘ</span>
+              </div>
+              <button type="button" class="ov-value" id="total-sales" data-copy aria-label="ยอดขายตามเอกสาร กดเพื่อคัดลอก">—</button>
+              <span class="ov-badge" id="doc-mom" hidden></span>
+              <div class="ov-foot">
+                <span>รายงาน 4007 · ยังไม่หักรับคืน</span>
+                <button type="button" class="ov-link" id="doc-link">ดูเอกสาร →</button>
+              </div>
+            </article>
+            <article class="ov-card" style="--i: 1">
+              <div class="ov-head">
+                <span class="ov-name">ยอดขายตามรายการสินค้า</span>
+                <span id="item-sales-help" class="ov-icon" data-tip="ยอดเงินรวมระดับบรรทัดสินค้า ยังไม่หักรับคืน เทียบกับยอดตามเอกสาร">ⓘ</span>
+              </div>
+              <button type="button" class="ov-value" id="item-sales" data-copy aria-label="ยอดขายตามรายการสินค้า กดเพื่อคัดลอก">—</button>
+              <span class="ov-badge" id="item-diff" hidden></span>
+              <span class="ov-line" id="item-diff-pct"></span>
+              <div class="ov-foot">
+                <span>รายงาน 4014 · ยังไม่หักรับคืน</span>
+                <button type="button" class="ov-link" id="item-link">ดูรายการ →</button>
+              </div>
+            </article>
+            <article class="ov-card" style="--i: 2">
+              <div class="ov-head">
+                <span class="ov-name">จำนวนบิลทั้งหมด</span>
+                <button type="button" class="ov-icon" id="bills-help" data-tip="จำนวนเอกสารขายในช่วงที่เลือก · วันทำการ = จันทร์–เสาร์" aria-label="คำอธิบายจำนวนบิล" aria-haspopup="dialog">ⓘ</button>
+              </div>
+              <button type="button" class="ov-value" id="total-invoices" data-copy aria-label="จำนวนบิล กดเพื่อคัดลอก">—</button>
+              <span class="ov-line" id="bills-avg"></span>
+              <span class="ov-line" id="bills-per-day"></span>
+              <div class="ov-foot">
+                <span>เอกสารขาย</span>
+                <button type="button" class="ov-link" id="invoice-card" aria-haspopup="dialog" aria-controls="invoice-dialog">ดูรายการบิล →</button>
+              </div>
+            </article>
+            <article class="ov-card" style="--i: 3">
+              <div class="ov-head">
+                <span class="ov-name">การเติบโต</span>
+                <button type="button" class="ov-icon" id="growth-help" data-tip="ยอดตามเอกสารเทียบวันที่เดียวกันของเดือนก่อน (MoM) และปีก่อน (YoY)" aria-label="คำอธิบายการเติบโต" aria-haspopup="dialog">ⓘ</button>
+              </div>
+              <button type="button" class="ov-value" id="overview-mom" data-copy aria-label="การเติบโตเทียบเดือนก่อน กดเพื่อคัดลอก">—</button>
+              <svg class="ov-spark" id="overview-spark" viewBox="0 0 240 40" preserveAspectRatio="none" role="img" aria-label="ยอดขายสะสมในช่วงที่เลือก"></svg>
+              <span class="ov-line" id="overview-growth-mom"></span>
+              <span class="ov-line" id="overview-yoy"></span>
+              <div class="ov-foot">
+                <span>รายงาน 4007</span>
+                <button type="button" class="ov-link" id="growth-link" aria-haspopup="dialog" aria-controls="growth-dialog">ดูช่วงเปรียบเทียบ →</button>
+              </div>
+            </article>
+          </section>
+          <div class="ov-toast" id="copy-toast" role="status" aria-live="polite" hidden></div>
         </div>
-        <section class="dashboard-controls card" aria-label="เลือกช่วงข้อมูล">
-          <div class="control-heading">
-            <div>
-              <span class="control-caption">ช่วงข้อมูลที่แสดง</span>
-              <h2 id="display-period">กำลังโหลดข้อมูล…</h2>
-            </div>
-            <span id="connection-badge" class="live-badge"
-              >SML · กำลังเชื่อมต่อ</span
-            >
-          </div>
-          <form id="filters" class="dashboard-filter">
-            <div class="quick-periods" aria-label="เลือกวันอย่างรวดเร็ว">
-              <button id="day-today" type="button" aria-pressed="false">
-                วันนี้</button
-              ><button id="day-yesterday" type="button" aria-pressed="false">
-                เมื่อวาน
-              </button>
-            </div>
-            <label class="period-field"
-              ><span class="sr-only">ช่วงเวลา</span
-              ><select id="period" aria-label="เลือกช่วงเวลา">
-                <option value="month">เดือนนี้</option>
-                <option value="7">7 วันล่าสุด</option>
-                <option value="30">30 วันล่าสุด</option>
-                <option value="day">เลือก 1 วัน</option>
-                <option value="custom">กำหนดช่วงเอง</option>
-              </select></label
-            >
-            <div id="range-fields" class="filter-dates">
-              <label
-                ><span>จากวันที่</span
-                ><input type="date" id="start" required /></label
-              ><span class="date-divider" aria-hidden="true">→</span
-              ><label
-                ><span>ถึงวันที่</span><input type="date" id="end" required
-              /></label>
-            </div>
-            <label id="single-field" class="single-date" hidden
-              ><span>วันที่ต้องการดู</span
-              ><input
-                id="dashboard-day"
-                type="date"
-                aria-label="ดูยอดขาย 1 วัน"
-            /></label>
-            <div class="dashboard-filter-actions">
-              <button class="button secondary" id="clear-day" type="button">
-                ล้าง</button
-              ><button class="button primary" id="apply" type="submit">
-                แสดงข้อมูล
-              </button>
-            </div>
-          </form>
-          <div
-            id="status"
-            class="status overview-status"
-            role="status"
-            aria-live="polite"
-          ></div>
-        </section>
-        <input type="hidden" id="source" value="live" />
-        <section
-          class="grid grid-cols-1 md:grid-cols-3 gap-5 overview-kpis"
-          aria-label="สรุปยอดขาย"
-        >
-          <article class="card kpi">
-            <div class="kpi-top">
-              <span>ยอดขายตามเอกสาร</span
-              ><span id="document-sales-help" class="metric-icon mint">ⓘ</span>
-            </div>
-            <div class="metric" id="total-sales">—</div>
-            <div class="kpi-foot">
-              <span class="mini-dot"></span> รายงาน 4007 · ยังไม่หักรับคืน
-              <span class="ml-auto">บาท</span>
-            </div>
-          </article>
-          <article class="card kpi">
-            <div class="kpi-top">
-              <span>ยอดขายตามรายการสินค้า</span
-              ><span id="item-sales-help" class="metric-icon amber">ⓘ</span>
-            </div>
-            <div class="metric" id="item-sales">—</div>
-            <div class="kpi-foot">
-              <span class="mini-dot amber-dot"></span> รายงาน 4014 ·
-              ยังไม่หักรับคืน <span class="ml-auto">บาท</span>
-            </div>
-          </article>
-          <article
-            class="card kpi clickable-kpi"
-            id="invoice-card"
-            role="button"
-            tabindex="0"
-            aria-haspopup="dialog"
-            aria-controls="invoice-dialog"
-          >
-            <div class="kpi-top">
-              <span>จำนวนบิลทั้งหมด</span
-              ><span class="metric-icon blue">▤</span>
-            </div>
-            <div class="metric" id="total-invoices">—</div>
-            <div class="kpi-foot">
-              <span class="mini-dot blue-dot"></span> กดเพื่อดูรายการบิล
-              <span class="ml-auto">บิล</span>
-            </div>
-          </article>
-        </section>
         <dialog
           id="growth-dialog"
           class="invoice-dialog"

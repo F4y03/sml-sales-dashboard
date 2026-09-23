@@ -1,0 +1,749 @@
+/* Overview top: header, filter bar and KPI cards. Scoped to #overview-top so the theme's global
+   button / heading rules don't leak in. Dark values follow the spec; light mode uses theme tokens. */
+#overview-top {
+  --ov-red: #ff3b30;
+  --ov-red-deep: #c4130c;
+  --ov-up: #4ade80;
+  --ov-down: #ff6b6b;
+  --ov-warn: #f5b945;
+  --ov-card: var(--surface, #1f1f1f);
+  --ov-line: var(--line, #333);
+  --ov-ink: var(--ink, #fff);
+  --ov-muted: var(--muted, #a8a8a8);
+  position: relative;
+  /* The corner glow extends past the edge; clip sideways only (tooltips still drop down). */
+  overflow-x: clip;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="light"] #overview-top {
+  --ov-up: #15803d;
+  --ov-down: #c22b38;
+  --ov-warn: #a86400;
+}
+/* Faint red light in the top-right corner of the page */
+#overview-top::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  right: -80px;
+  z-index: -1;
+  width: 520px;
+  height: 420px;
+  background: radial-gradient(closest-side, rgba(255, 59, 48, 0.14), transparent);
+  pointer-events: none;
+}
+html[data-theme="light"] #overview-top::before {
+  background: radial-gradient(closest-side, rgba(255, 59, 48, 0.07), transparent);
+}
+
+/* ---------- 1. Header ---------- */
+#overview-top .ov-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+#overview-top .ov-eyebrow {
+  margin: 0 0 8px;
+  color: var(--ov-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+#overview-top h1 {
+  margin: 0;
+  color: var(--ov-ink);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+#overview-top .ov-dot {
+  color: var(--ov-red);
+}
+#overview-top .ov-subtitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 0;
+  color: var(--ov-muted);
+  font-size: 14px;
+}
+#overview-top .ov-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--ov-muted) 35%, transparent);
+  border-radius: 999px;
+  color: var(--ov-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+#overview-top .ov-live::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+#overview-top .ov-live[data-state="connected"] {
+  border-color: color-mix(in srgb, var(--ov-up) 45%, transparent);
+  background: color-mix(in srgb, var(--ov-up) 10%, transparent);
+  color: var(--ov-up);
+}
+#overview-top .ov-live[data-state="connected"]::before {
+  animation: ov-pulse 1.8s ease-in-out infinite;
+}
+#overview-top .ov-live[data-state="failed"] {
+  border-color: color-mix(in srgb, var(--ov-down) 45%, transparent);
+  color: var(--ov-down);
+}
+#overview-top .ov-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+#overview-top .ov-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    translate 0.2s ease;
+}
+#overview-top .ov-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#overview-top .ov-btn-ghost {
+  border-color: var(--ov-line);
+  background: transparent;
+  color: var(--ov-ink);
+}
+#overview-top .ov-btn-ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ov-ink) 35%, var(--ov-line));
+  background: color-mix(in srgb, var(--ov-ink) 5%, transparent);
+}
+#overview-top .ov-btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--ov-red), var(--ov-red-deep));
+  box-shadow: 0 8px 20px rgba(255, 59, 48, 0.28);
+  color: #fff;
+}
+#overview-top .ov-btn-primary:hover:not(:disabled) {
+  translate: 0 -1px;
+  box-shadow: 0 12px 26px rgba(255, 59, 48, 0.36);
+  color: #fff;
+}
+#overview-top .ov-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+#overview-top :is(button, a):focus-visible {
+  outline: 2px solid var(--ov-red);
+  outline-offset: 3px;
+}
+
+/* ---------- 2. Filter bar ---------- */
+#overview-top .ov-filters {
+  margin: 0 0 18px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--ov-line);
+  border-radius: 16px;
+  background: var(--ov-card);
+}
+#overview-top .ov-filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#overview-top .ov-presets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 3px;
+  border: 1px solid var(--ov-line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--ov-ink) 3%, transparent);
+}
+#overview-top .ov-presets button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ov-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+#overview-top .ov-presets button:hover:not([aria-pressed="true"]) {
+  background: color-mix(in srgb, var(--ov-ink) 6%, transparent);
+  color: var(--ov-ink);
+}
+#overview-top .ov-presets button[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--ov-red), var(--ov-red-deep));
+  color: #fff;
+}
+#overview-top .ov-dates {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--ov-line);
+  border-radius: 11px;
+}
+#overview-top .ov-dates label {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: var(--ov-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+#overview-top .ov-dates input {
+  min-width: 0;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ov-ink);
+  font: inherit;
+  font-size: 14px;
+  color-scheme: inherit;
+}
+#overview-top .ov-dates-arrow {
+  padding-bottom: 4px;
+  color: var(--ov-muted);
+}
+#overview-top .ov-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+#overview-top .ov-text-btn {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--ov-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#overview-top .ov-text-btn:hover {
+  background: none;
+  color: var(--ov-ink);
+}
+#overview-top .ov-range-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ov-line);
+  font-size: 13px;
+}
+#overview-top .ov-range-label {
+  color: var(--ov-muted);
+}
+#overview-top #display-period {
+  color: var(--ov-ink);
+  font-weight: 700;
+}
+#overview-top .ov-chip {
+  padding: 2px 9px;
+  border: 1px solid var(--ov-line);
+  border-radius: 999px;
+  color: var(--ov-muted);
+  font-size: 11.5px;
+}
+#overview-top .ov-status {
+  min-height: 0;
+  margin: 6px 0 0;
+  color: var(--ov-muted);
+  font-size: 12px;
+}
+#overview-top .ov-status:empty {
+  display: none;
+}
+#overview-top .ov-status.error {
+  color: var(--ov-down);
+}
+
+/* ---------- 3. KPI cards ---------- */
+#overview-top .ov-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  transition: opacity 0.25s ease;
+}
+#overview-top .ov-kpis.is-loading {
+  opacity: 0.55;
+}
+#overview-top .ov-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 16px 12px;
+  overflow: hidden;
+  border: 1px solid var(--ov-line);
+  border-radius: 14px;
+  background: var(--ov-card);
+  color: var(--ov-ink);
+  transition:
+    translate 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+/* Pointer glow */
+#overview-top .ov-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--ov-ink) 7%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+#overview-top .ov-card:hover {
+  translate: 0 -2px;
+  border-color: color-mix(in srgb, var(--ov-ink) 22%, var(--ov-line));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+}
+#overview-top .ov-card:hover::before {
+  opacity: 1;
+}
+/* Entrance: animates `transform`, hover uses `translate`, so the two never override each other. */
+#overview-top.ov-intro .ov-card {
+  animation: ov-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+#overview-top .ov-card.ov-featured {
+  border-color: #8a1a14;
+  background:
+    radial-gradient(130% 100% at 100% 100%, rgba(255, 59, 48, 0.4), transparent 55%),
+    linear-gradient(145deg, #3a0d0b, #7a0f0b);
+  color: #fff;
+}
+#overview-top .ov-card.ov-featured::before {
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 170, 150, 0.22), transparent 70%);
+}
+/* Light sweep across the red card every 6 s */
+#overview-top .ov-card.ov-featured::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  z-index: -1;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  transform: skewX(-18deg) translateX(-120%);
+  animation: ov-shine 6s ease-in-out infinite;
+  pointer-events: none;
+}
+#overview-top .ov-card.ov-featured:hover {
+  border-color: #b3261e;
+}
+#overview-top .ov-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+#overview-top .ov-name {
+  color: var(--ov-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+#overview-top .ov-featured .ov-name {
+  color: #f6cfcb;
+}
+#overview-top .ov-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--ov-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ov-ink) 4%, transparent);
+  color: var(--ov-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+#overview-top .ov-featured .ov-icon {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6cfcb;
+}
+#overview-top .ov-icon:hover {
+  background: color-mix(in srgb, var(--ov-ink) 10%, transparent);
+  color: var(--ov-ink);
+}
+#overview-top .ov-icon[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 6;
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 10px;
+  border: 1px solid var(--ov-line);
+  border-radius: 9px;
+  background: var(--surface-raised, #262626);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  color: var(--ov-ink);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 -4px;
+  transition:
+    opacity 0.15s ease,
+    translate 0.15s ease,
+    visibility 0.15s;
+  pointer-events: none;
+}
+#overview-top .ov-icon[data-tip]:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+}
+/* The tooltip must escape the card's overflow: raise the hovered card. */
+#overview-top .ov-card:has(.ov-icon:is(:hover, :focus-visible)) {
+  z-index: 5;
+  overflow: visible;
+}
+#overview-top .ov-value {
+  display: block;
+  align-self: flex-start;
+  max-width: 100%;
+  margin: 2px 0 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: copy;
+}
+#overview-top .ov-value:hover {
+  background: none;
+}
+#overview-top .ov-value .ov-dec {
+  font-size: 0.62em;
+  font-weight: 700;
+  opacity: 0.55;
+}
+#overview-top .ov-value .ov-unit {
+  color: var(--ov-muted);
+  font-size: 0.55em;
+  font-weight: 700;
+}
+#overview-top .ov-value.is-bump {
+  animation: ov-bump 0.45s ease;
+}
+#overview-top .ov-value.up,
+#overview-top .ov-line.up {
+  color: var(--ov-up);
+}
+#overview-top .ov-value.down,
+#overview-top .ov-line.down {
+  color: var(--ov-down);
+}
+#overview-top .ov-badge {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+#overview-top .ov-badge.up {
+  background: color-mix(in srgb, var(--ov-up) 16%, transparent);
+  color: var(--ov-up);
+}
+#overview-top .ov-badge.down {
+  background: color-mix(in srgb, var(--ov-down) 16%, transparent);
+  color: var(--ov-down);
+}
+#overview-top .ov-badge.warn {
+  background: color-mix(in srgb, var(--ov-warn) 16%, transparent);
+  color: var(--ov-warn);
+}
+#overview-top .ov-badge.neutral {
+  background: color-mix(in srgb, var(--ov-muted) 14%, transparent);
+  color: var(--ov-muted);
+}
+/* On the red card the badge sits on a light chip so green / pink stay readable. */
+#overview-top .ov-featured .ov-badge {
+  background: rgba(255, 255, 255, 0.14);
+}
+#overview-top .ov-featured .ov-badge.up {
+  color: #a7f3c0;
+}
+#overview-top .ov-featured .ov-badge.down {
+  color: #ffc2bd;
+}
+#overview-top .ov-line {
+  color: var(--ov-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+#overview-top .ov-spark {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin: 2px 0;
+  color: var(--ov-muted);
+}
+#overview-top .ov-spark.up {
+  color: var(--ov-up);
+}
+#overview-top .ov-spark.down {
+  color: var(--ov-down);
+}
+#overview-top .ov-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+#overview-top .ov-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--ov-line);
+  color: var(--ov-muted);
+  font-size: 11.5px;
+}
+#overview-top .ov-featured .ov-foot {
+  border-top-color: rgba(255, 255, 255, 0.18);
+  color: #f6cfcb;
+}
+#overview-top .ov-foot > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#overview-top .ov-link {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ov-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#overview-top .ov-link:hover {
+  background: none;
+  color: var(--ov-red);
+}
+#overview-top .ov-featured .ov-link,
+#overview-top .ov-featured .ov-link:hover {
+  color: #fff;
+}
+/* Copy confirmation */
+#overview-top .ov-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 50;
+  padding: 10px 16px;
+  border: 1px solid var(--ov-line);
+  border-radius: 12px;
+  background: var(--surface-raised, #262626);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  color: var(--ov-ink);
+  font-size: 13px;
+  font-weight: 600;
+  translate: -50% 0;
+}
+#overview-top .ov-toast.is-shown {
+  animation: ov-toast 1.8s ease both;
+}
+
+/* The theme styles `button` globally; repeat the key resets with higher specificity for dark / light. */
+html[data-theme] #overview-top :is(.ov-value, .ov-link, .ov-text-btn):hover:not(:disabled) {
+  background: none;
+  border-color: transparent;
+}
+html[data-theme] #overview-top .ov-presets button:not([aria-pressed="true"]) {
+  border-color: transparent;
+}
+html[data-theme] #overview-top .ov-presets button[aria-pressed="true"],
+html[data-theme] #overview-top .ov-btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--ov-red), var(--ov-red-deep));
+  color: #fff;
+}
+html[data-theme] #overview-top .ov-btn-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ov-ink) 5%, transparent);
+}
+
+@keyframes ov-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes ov-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+@keyframes ov-shine {
+  0%,
+  70% {
+    transform: skewX(-18deg) translateX(-120%);
+  }
+  100% {
+    transform: skewX(-18deg) translateX(420%);
+  }
+}
+@keyframes ov-bump {
+  40% {
+    transform: scale(1.05);
+  }
+}
+@keyframes ov-toast {
+  0% {
+    opacity: 0;
+    translate: -50% 10px;
+  }
+  12%,
+  85% {
+    opacity: 1;
+    translate: -50% 0;
+  }
+  100% {
+    opacity: 0;
+    translate: -50% 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  #overview-top .ov-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  #overview-top .ov-header {
+    align-items: flex-start;
+  }
+  #overview-top h1 {
+    font-size: 26px;
+  }
+  #overview-top .ov-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #overview-top .ov-presets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #overview-top .ov-dates {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  #overview-top .ov-dates input {
+    width: 100%;
+  }
+  #overview-top .ov-filter-actions {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  #overview-top .ov-filter-actions .ov-btn {
+    flex: 1;
+  }
+}
+@media (max-width: 600px) {
+  #overview-top .ov-kpis {
+    grid-template-columns: 1fr;
+  }
+  #overview-top .ov-actions {
+    width: 100%;
+  }
+  #overview-top .ov-actions .ov-btn {
+    flex: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #overview-top *,
+  #overview-top *::before,
+  #overview-top *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  #overview-top .ov-card:hover,
+  #overview-top .ov-btn-primary:hover:not(:disabled) {
+    translate: none;
+  }
+}

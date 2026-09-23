@@ -18,13 +18,13 @@ export function installSalesTrend(app, pool) {
       res.status(503).json({ error: 'โหลดปีที่มีข้อมูลไม่สำเร็จ' });
     }
   });
-  // Daily document totals (report 4007 definition, before returns) for any range up to 62 days.
+  // Daily document totals (report 4007 definition, before returns) for ranges up to 366 days (same limit as /api/dashboard).
   // Same filters as the dashboard's daily series; used for the "same days last month" comparison.
   app.get('/api/sales-trend/daily', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const { start, end } = req.query;
-    const date = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v;
-    if (!date(start) || !date(end) || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 62) {
+    const date = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v + 'T00:00:00Z')) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v;
+    if (!date(start) || !date(end) || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 365) {
       return res.status(400).json({ error: 'ช่วงวันที่ไม่ถูกต้อง' });
     }
     try {
