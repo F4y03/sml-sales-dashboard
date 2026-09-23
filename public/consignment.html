@@ -79,25 +79,31 @@
           เบิกออกสะสมเทียบกับคงเหลือล่าสุด · ตามคำค้นหาและตัวกรองทุกหน้าตาราง
         </p>
         <p id="regional-note" class="note"></p>
-        <div class="regional-plot">
-          <canvas
+        <div class="regional-plot" id="regional-plot" tabindex="0">
+          <svg
             id="regional-chart"
             role="img"
             aria-label="กราฟเปรียบเทียบเบิกออกและคงเหลือแยกตามภาค"
-          ></canvas>
+          ></svg>
+          <div class="regional-tip" id="regional-tip" role="status" hidden></div>
+        </div>
+        <div class="regional-legend" aria-hidden="true">
+          <span class="out"><i></i>เบิกออกสะสม</span
+          ><span class="balance"><i></i>คงเหลือล่าสุด</span>
         </div>
         <details>
           <summary>ดูตัวเลขแยกตามภาค</summary>
           <div class="table-scroll">
-            <table>
+            <table class="regional-table">
               <thead>
                 <tr>
-                  <th>ภูมิภาค</th>
+                  <th>ภาค</th>
                   <th>เบิกออกสะสม</th>
                   <th>คงเหลือล่าสุด</th>
                 </tr>
               </thead>
               <tbody id="regional-values"></tbody>
+              <tfoot id="regional-total"></tfoot>
             </table>
           </div>
         </details>

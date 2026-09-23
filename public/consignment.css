@@ -463,16 +463,168 @@ html[data-theme] .consignment-help-button {
   border-radius: 10px;
   padding: 16px;
 }
-.regional-plot {
-  height: 320px;
-  position: relative;
-  margin: 18px 0;
-  min-width: 0;
+/* Regional paired bars (SVG). Dark values follow the requested palette; light mode uses theme tokens. */
+.regional-plot,
+.regional-legend {
+  --rg-grid: #313131;
+  --rg-axis: #c4c4c4;
+  --rg-out-label: #ff8a82;
+  --rg-balance-label: #7fcfd6;
 }
-@media (max-width: 700px) {
-  .regional-plot {
-    height: 350px;
-  }
+html[data-theme="light"] :is(.regional-plot, .regional-legend) {
+  --rg-grid: var(--line, #e0e2e6);
+  --rg-axis: var(--muted, #656973);
+  --rg-out-label: #c42a20;
+  --rg-balance-label: #1f7f88;
+}
+.regional-plot {
+  position: relative;
+  min-width: 0;
+  margin: 18px 0 6px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  touch-action: pan-y;
+}
+.regional-plot:focus-visible {
+  outline: 2px solid var(--brand, #ff3b30);
+  outline-offset: 4px;
+}
+.regional-plot svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+.regional-plot .rg-grid line {
+  stroke: var(--rg-grid);
+  stroke-width: 1;
+}
+.regional-plot .rg-grid line.zero {
+  stroke: var(--muted, #a8a8a8);
+}
+.regional-plot .rg-tick {
+  fill: var(--rg-axis);
+  font-size: 13px;
+  font-weight: 700;
+}
+.regional-plot .rg-name {
+  fill: var(--ink, #fff);
+  font-size: 13px;
+  font-weight: 600;
+}
+.regional-plot .rg-value {
+  font-size: 12px;
+  font-weight: 700;
+}
+.regional-plot .rg-value.out {
+  fill: var(--rg-out-label);
+}
+.regional-plot .rg-value.balance {
+  fill: var(--rg-balance-label);
+}
+.regional-plot .rg-row-hl {
+  fill: var(--ink, #fff);
+  opacity: 0.05;
+  pointer-events: none;
+}
+.regional-plot .rg-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.regional-plot .rg-empty {
+  fill: var(--muted, #a8a8a8);
+  font-size: 13px;
+}
+.regional-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: grid;
+  gap: 5px;
+  min-width: 190px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #3a3a3a);
+  border-radius: 10px;
+  background: var(--surface-raised, #262626);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.regional-tip .rg-tip-title {
+  color: var(--ink, #fff);
+  font-size: 13px;
+}
+.regional-tip .rg-tip-row {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted, #a8a8a8);
+  font-size: 12px;
+}
+.regional-tip .rg-tip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.regional-tip .rg-tip-row.out i {
+  background: #ef3b2f;
+}
+.regional-tip .rg-tip-row.balance i {
+  background: #2fa3ad;
+}
+.regional-tip .rg-tip-row.ratio i {
+  background: transparent;
+}
+.regional-tip .rg-tip-row b {
+  color: var(--ink, #fff);
+  font-variant-numeric: tabular-nums;
+}
+.regional-tip .rg-tip-unit {
+  color: var(--muted, #a8a8a8);
+  font-size: 10.5px;
+}
+.regional-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  margin: 0 0 12px;
+  color: var(--muted, #a8a8a8);
+  font-size: 12px;
+}
+.regional-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.regional-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.regional-legend .out i {
+  background: #ef3b2f;
+}
+.regional-legend .balance i {
+  background: #2fa3ad;
+}
+html[data-theme] .regional-table tfoot :is(th, td),
+.regional-table tfoot :is(th, td) {
+  position: static;
+  border-top: 1px solid var(--line, #3a3a3a);
+  background: transparent;
+  color: var(--ink, #fff);
+  font-weight: 700;
+}
+html[data-theme] .regional-table tfoot :is(th, td):first-child {
+  text-align: left;
+}
+html[data-theme] .regional-table tfoot :is(th, td):not(:first-child) {
+  text-align: right;
+}
+.regional-table :is(td, th):not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .consignment-heading {
   display: grid;
