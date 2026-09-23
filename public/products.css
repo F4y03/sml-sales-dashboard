@@ -56,12 +56,22 @@
   flex-wrap: wrap;
   padding: 22px;
 }
-.product-search {
-  flex: 1;
+#product-filters .product-search {
+  flex: 1 1 220px;
   min-width: 220px;
 }
 #product-filters button {
   min-height: 43px;
+}
+#product-group,
+#product-subgroup {
+  max-width: 240px;
+}
+@media (max-width: 700px) {
+  #product-group,
+  #product-subgroup {
+    max-width: 100%;
+  }
 }
 .product-summary {
   display: flex;
@@ -139,6 +149,10 @@
   }
   #product-filters label {
     width: 100%;
+    min-width: 0;
+  }
+  #product-filters .product-search {
+    flex-basis: auto;
     min-width: 0;
   }
   #product-filters button {

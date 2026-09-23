@@ -51,6 +51,7 @@ let current = null,
   applied = {
     q: "",
     group: "",
+    subgroup: "",
     activity: "all",
     stock: "all",
     best: "off",
@@ -169,6 +170,13 @@ async function load(page = 0, filters = applied, silent = false) {
         new Option(`${g.code} · ${g.name} (${count(g.count)})`, g.code),
       );
     $("product-group").value = selectedGroup;
+    const subgroup = $("product-subgroup");
+    const hasSubgroups = Array.isArray(data.subgroups);
+    subgroup.replaceChildren(new Option(!hasSubgroups ? "กรุณารีสตาร์ต backend" : data.subgroups.length ? "ทุกกลุ่มสินค้าย่อย" : "ไม่มีกลุ่มย่อยในกลุ่มนี้", ""));
+    for (const g of data.subgroups || [])
+      subgroup.add(new Option(`${g.code} · ${g.name} (${count(g.count)})`, g.code));
+    subgroup.value = filters.subgroup || "";
+    subgroup.disabled = !data.subgroups?.length;
     const ranking = (data.best ?? "off") !== "off";
     document
       .querySelector(".product-panel table")
@@ -242,11 +250,14 @@ async function load(page = 0, filters = applied, silent = false) {
       `แสดงคอลัมน์หลักในตาราง · ดาวน์โหลดได้ครบ ${data.fields.length} คอลัมน์` +
       (ranking
         ? ` · เรียงตามยอดขายสุทธิ${data.best === "3m" ? " 3 เดือนก่อน" : "ทั้งหมด"} อันดับ 1 ก่อน`
-        : "");
+        : "") +
+      (!hasSubgroups ? " · backend ยังไม่รองรับกลุ่มย่อย กรุณารีสตาร์ตเซิร์ฟเวอร์แล้วโหลดหน้าใหม่" : "");
     $("download-products").disabled = exporting;
     exportLabel();
   } catch (e) {
     if (id !== version) return;
+    if ($("product-subgroup").disabled)
+      $("product-subgroup").replaceChildren(new Option("โหลดกลุ่มย่อยไม่สำเร็จ กดค้นหาเพื่อลองใหม่", ""));
     $("product-filtered-count").textContent =
       silent && current
         ? `ข้อมูลเดิม ${count(current.matching)} รายการ`
@@ -438,6 +449,7 @@ function applyProductFilters() {
   const filters = {
     q: $("product-search").value.trim(),
     group: $("product-group").value,
+    subgroup: $("product-subgroup").value,
     activity: $("product-activity").value,
     stock: $("product-stock").value,
     best: $("product-best").value,
@@ -447,7 +459,7 @@ function applyProductFilters() {
   const exportStock = $("export-stock");
   if (exportStock) exportStock.value = filters.stock;
   $("export-scope").value =
-    filters.q || filters.group || filters.best !== "off"
+    filters.q || filters.group || filters.subgroup || filters.best !== "off"
       ? "filtered"
       : filters.activity;
   load(0, filters);
@@ -459,6 +471,7 @@ $("product-filters").onsubmit = (e) => {
 $("clear-products").onclick = () => {
   $("product-search").value = "";
   $("product-group").value = "";
+  resetSubgroups();
   $("product-activity").value = "all";
   $("product-stock").value = "all";
   $("product-best").value = "off";
@@ -479,6 +492,7 @@ $("export-scope").onchange = () => {
   }
   $("product-search").value = "";
   $("product-group").value = "";
+  resetSubgroups();
   $("product-activity").value = scope;
   applyProductFilters();
 };
@@ -534,7 +548,15 @@ setInterval(() => {
     load(current?.page || 0, applied, true);
 }, 60000);
 
-$("product-group").onchange = applyProductFilters;
+function resetSubgroups() {
+  $("product-subgroup").replaceChildren(new Option("กำลังโหลดกลุ่มย่อย…", ""));
+  $("product-subgroup").disabled = true;
+}
+$("product-group").onchange = () => {
+  resetSubgroups();
+  applyProductFilters();
+};
+$("product-subgroup").onchange = applyProductFilters;
 $("product-activity").onchange = applyProductFilters;
 // เปิดจัดอันดับ = เรียงยอดขายสุทธิมากไปน้อย, ปิดแล้วกลับไปเรียงรหัสสินค้า
 $("product-best").onchange = () => {

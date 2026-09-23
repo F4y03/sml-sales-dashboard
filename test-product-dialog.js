@@ -17,7 +17,7 @@ test('product dialog: backdrop closes, content and drag do not, focus returns', 
       groups: [], page: 0, pageSize: 50, matching: 1, total: 1, updatedAt: new Date().toISOString()
     } }));
     await page.goto(`http://127.0.0.1:${server.address().port}/products.html`);
-    const opener = page.locator('#product-table button').first();
+    const opener = page.locator('#product-table .product-selectable-row').first();
     const dialog = page.locator('#product-detail');
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 960 });
