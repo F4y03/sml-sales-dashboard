@@ -13,18 +13,35 @@
     <script src="select-territory.js" type="module"></script>
   </head>
   <body>
-    <main class="admin-shell">
-      <p class="muted">SALES WORKSPACE</p>
-      <h1>เลือกเขตที่ต้องการดู</h1>
-      <p class="muted">ข้อมูลจะแสดงเฉพาะเขตที่เลือกและได้รับมอบหมาย</p>
-      <p id="territory-status" class="admin-status" role="status">
-        กำลังโหลดเขตการขาย…
-      </p>
+    <main class="admin-shell territory-page">
+      <header class="admin-hero">
+        <div>
+          <p class="admin-eyebrow">SALES WORKSPACE</p>
+          <h1>เลือกเขตที่ต้องการดู</h1>
+          <p class="admin-intro">
+            ข้อมูลยอดขาย ลูกค้า และสินค้าฝากจะแสดงเฉพาะเขตที่เลือก
+            เปลี่ยนเขตได้ภายหลังจากแถบด้านบนของแต่ละหน้า
+          </p>
+        </div>
+        <div class="admin-hero-mark" aria-hidden="true">
+          <span>PROPLUS</span><small>REGION</small>
+        </div>
+      </header>
+      <div class="territory-toolbar">
+        <p id="territory-status" class="territory-status" role="status">
+          กำลังโหลดเขตการขาย…
+        </p>
+      </div>
       <section
         id="territory-choices"
         class="territory-choices"
         aria-label="เขตที่ได้รับมอบหมาย"
-      ></section>
+        aria-busy="true"
+      >
+        <div class="territory-skeleton" aria-hidden="true"></div>
+        <div class="territory-skeleton" aria-hidden="true"></div>
+        <div class="territory-skeleton" aria-hidden="true"></div>
+      </section>
     </main>
   </body>
 </html>
