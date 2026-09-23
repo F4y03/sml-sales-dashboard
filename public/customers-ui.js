@@ -488,7 +488,115 @@ function summarySvg(tag, attributes = {}, text = "") {
   return element;
 }
 
+// Animated summary ring: segments are shares out of 100 drawn with a small gap;
+// hovering/focusing a segment thickens it, fades the rest and shows its details in the centre.
+let animateSummary = false;
+const RING_GAP = 0.9;
+function summaryRing({ className, centerClass, box, r, ariaLabel, segments, center, animate }) {
+  const ring = node("div", "", `${className} summary-ring`),
+    mid = box / 2,
+    svg = summarySvg("svg", {
+      viewBox: `0 0 ${box} ${box}`,
+      role: "group",
+      "aria-label": ariaLabel,
+    }),
+    arcs = [];
+  svg.append(summarySvg("circle", { cx: mid, cy: mid, r, class: "ring-track" }));
+  let start = 0;
+  segments.forEach((segment, index) => {
+    const share = Math.max(0, segment.share),
+      arc = summarySvg("circle", {
+        cx: mid,
+        cy: mid,
+        r,
+        pathLength: 100,
+        stroke: segment.color,
+        "stroke-dasharray": "0 100",
+        "stroke-dashoffset": -start,
+        transform: `rotate(-90 ${mid} ${mid})`,
+        class: "ring-arc",
+        tabindex: 0,
+        role: "img",
+        "aria-label": segment.aria,
+      });
+    arc.append(summarySvg("title", {}, segment.aria));
+    arcs.push({ arc, start, length: share > RING_GAP * 2 ? share - RING_GAP : share });
+    start += share;
+    svg.append(arc);
+    for (const [type, active] of [
+      ["pointerenter", true],
+      ["pointerleave", false],
+      ["focus", true],
+      ["blur", false],
+    ])
+      arc.addEventListener(type, () => activate(active ? index : null));
+  });
+  const middle = node("div", "", centerClass),
+    value = node("b"),
+    label = node("span"),
+    sub = node("small");
+  middle.append(value, label, sub);
+  ring.append(svg, middle);
+  const showCenter = (v, l, s = "") => {
+    value.textContent = v;
+    label.textContent = l;
+    sub.textContent = s;
+    sub.hidden = !s;
+  };
+  function activate(index) {
+    ring.querySelectorAll(".ring-arc.is-active").forEach((arc) => arc.classList.remove("is-active"));
+    if (index == null || !segments[index]) {
+      delete ring.dataset.active;
+      showCenter(center.text(center.value), center.label);
+    } else {
+      ring.dataset.active = index;
+      arcs[index].arc.classList.add("is-active");
+      const s = segments[index];
+      showCenter(s.value, s.label, s.sub);
+    }
+    ring.dispatchEvent(new CustomEvent("ring-activate", { detail: index }));
+  }
+  const paint = (progress) => {
+    const sweep = progress * 100;
+    for (const { arc, start: from, length } of arcs)
+      arc.setAttribute(
+        "stroke-dasharray",
+        `${Math.max(0, Math.min(length, sweep - from))} 100`,
+      );
+  };
+  const still = !animate || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (still) {
+    paint(1);
+    activate(null);
+  } else {
+    const began = performance.now(),
+      ease = (t) => 1 - Math.pow(1 - t, 3);
+    showCenter(center.text(0), center.label);
+    const frame = (now) => {
+      const t = Math.min(1, (now - began) / 1000),
+        p = ease(t);
+      paint(p);
+      if (ring.dataset.active == null) showCenter(center.text(center.value * p), center.label);
+      if (t < 1 && ring.isConnected !== false) requestAnimationFrame(frame);
+    };
+    paint(0);
+    requestAnimationFrame(frame);
+  }
+  return { ring, activate };
+}
+function linkLegend(legend, activate) {
+  [...legend.children].forEach((row, index) => {
+    row.tabIndex = 0;
+    row.addEventListener("pointerenter", () => activate(index));
+    row.addEventListener("pointerleave", () => activate(null));
+    row.addEventListener("focus", () => activate(index));
+    row.addEventListener("blur", () => activate(null));
+  });
+}
+
 function renderSummaryCharts() {
+  const animate = animateSummary;
+  animateSummary = false;
   const positive = filtered.reduce(
     (sum, item) => sum + Math.max(0, item.net),
     0,
@@ -556,16 +664,12 @@ function renderSummaryCharts() {
     const netSummary = id === "net-summary-chart";
     const colors = netSummary
       ? ["#e8b0a9", "#fff4d6", positive + negative < 0 ? "#fff4d6" : "#dfb45f"]
-      : ["#c93436", "#b88935", "#f4ebe7"];
+      : ["#d90a0a", "#9a9ca5", "#55575f"];
     const layout = node(
       "div",
       "",
       netSummary ? "summary-net-composition" : "summary-donut-layout",
     );
-    const svg = summarySvg("svg", {
-      viewBox: "0 0 140 140",
-      "aria-hidden": "true",
-    });
     if (netSummary) {
       const net = positive + negative;
       const deduction = Math.abs(negative);
@@ -573,25 +677,6 @@ function renderSummaryCharts() {
       if (positive > 0 && net >= 0) {
         const retained = (net / positive) * 100;
         const deducted = (deduction / positive) * 100;
-        const ring = node("div", "", "net-retention-ring");
-        const graphic = summarySvg("svg", {
-          viewBox: "0 0 160 160",
-          role: "group",
-          "aria-label": "สัดส่วนยอดบวกแยกตามเขตขาย",
-        });
-        const tooltip = node("div", "", "net-region-tooltip");
-        tooltip.setAttribute("role", "status");
-        tooltip.hidden = true;
-        graphic.append(
-          summarySvg("circle", {
-            cx: 80,
-            cy: 80,
-            r: 68,
-            fill: "none",
-            stroke: "#a45b5b",
-            "stroke-width": 7,
-          }),
-        );
         const regionTotals = new Map();
         for (const customer of filtered) {
           const region = customer.region || "ไม่ระบุเขตขาย";
@@ -600,68 +685,32 @@ function renderSummaryCharts() {
             (regionTotals.get(region) || 0) + Math.max(0, customer.net),
           );
         }
+        // Light shades so the slices stay visible on the red card.
         const regionColors = [
-          "#edcb89",
-          "#78c6ea",
-          "#bca4ee",
-          "#8bd1ae",
-          "#f59d80",
-          "#dba5c9",
-          "#b8bdc7",
+          "#ffffff",
+          "#f6d3cf",
+          "#eaaaa4",
+          "#dc8680",
+          "#f1c7a0",
+          "#c9716c",
+          "#b98f8c",
         ];
         const regionLegend = node("div", "", "summary-chart-legend");
-        let regionOffset = 0;
+        const segments = [];
         [...regionTotals]
           .filter(([, amount]) => amount > 0)
           .sort(([a], [b]) => a.localeCompare(b, "th"))
           .forEach(([region, amount], index) => {
-            const share = (amount / positive) * 100,
-              arcShare = (share * retained) / 100;
+            const share = (amount / positive) * 100;
             const color = regionColors[index % regionColors.length];
-            const arc = summarySvg("circle", {
-              cx: 80,
-              cy: 80,
-              r: 68,
-              fill: "none",
-              stroke: color,
-              "stroke-width": 7,
-              pathLength: 100,
-              "stroke-dasharray": `${arcShare} ${100 - arcShare}`,
-              "stroke-dashoffset": -regionOffset,
-              transform: "rotate(-90 80 80)",
-              class: "net-region-arc",
-              tabindex: 0,
-              role: "img",
-              "aria-label": `${region} ${number.format(share)}% ของยอดสุทธิบวก`,
+            segments.push({
+              share: (share * retained) / 100,
+              color,
+              value: number.format(share) + "%",
+              label: region,
+              sub: money(amount),
+              aria: `${region}: ${money(amount)} (${number.format(share)}% ของยอดสุทธิบวก)`,
             });
-            const showRegion = () => {
-              tooltip.replaceChildren(
-                node("span", region),
-                node("b", number.format(share) + "%"),
-                node("small", "ของยอดสุทธิบวก"),
-              );
-              tooltip.hidden = false;
-            };
-            const hideRegion = () => {
-              tooltip.hidden = true;
-            };
-            arc.addEventListener("pointerenter", showRegion);
-            arc.addEventListener("pointerleave", hideRegion);
-            arc.addEventListener("focus", showRegion);
-            arc.addEventListener("blur", hideRegion);
-            arc.addEventListener("click", showRegion);
-            arc.addEventListener("keydown", (event) => {
-              if (event.key === "Escape") hideRegion();
-            });
-            arc.append(
-              summarySvg(
-                "title",
-                {},
-                `${region}: ${money(amount)} (${number.format(share)}% ของยอดสุทธิบวก)`,
-              ),
-            );
-            graphic.append(arc);
-            regionOffset += arcShare;
             const row = node("div", "", "summary-chart-label"),
               dot = node("i", "", "summary-legend-dot");
             dot.style.background = color;
@@ -673,12 +722,29 @@ function renderSummaryCharts() {
             );
             regionLegend.append(row);
           });
-        const center = node("div", "", "net-retention-center");
-        center.append(
-          node("b", number.format(retained) + "%"),
-          node("span", "ยอดสุทธิคงเหลือ"),
-        );
-        ring.append(graphic, center, tooltip);
+        if (deducted > 0)
+          segments.push({
+            share: deducted,
+            color: "#2a0605",
+            value: number.format(deducted) + "%",
+            label: "หักออก (ยอดติดลบ)",
+            sub: money(deduction),
+            aria: `หักออกจากยอดติดลบ ${money(deduction)} (${number.format(deducted)}% ของยอดสุทธิบวก)`,
+          });
+        const { ring } = summaryRing({
+          className: "net-retention-ring",
+          centerClass: "net-retention-center",
+          box: 160,
+          r: 66,
+          ariaLabel: "สัดส่วนยอดบวกแยกตามเขตขาย",
+          segments,
+          center: {
+            value: retained,
+            text: (v) => number.format(v) + "%",
+            label: "ยอดสุทธิคงเหลือ",
+          },
+          animate,
+        });
         const detail = node("div", "", "net-retention-detail");
         detail.append(
           node("span", "สัดส่วนจากยอดบวก", "net-retention-eyebrow"),
@@ -748,62 +814,36 @@ function renderSummaryCharts() {
         );
       }
       layout.prepend(overview);
-    } else {
+    }
+    let donut = null;
+    if (!netSummary) {
       const total = values.reduce((sum, [, value]) => sum + value, 0);
-      const ring = node("div", "", "summary-donut");
-      svg.append(
-        summarySvg("circle", {
-          cx: 70,
-          cy: 70,
-          r: 54,
-          fill: "none",
-          stroke: "#f4ebe7",
-          "stroke-width": 16,
-        }),
-      );
-      let offset = 0;
-      values.forEach(([label, value, formatted], index) => {
-        if (!value || !total) return;
-        const share = (value / total) * 100;
-        const arc = summarySvg("circle", {
-          cx: 70,
-          cy: 70,
-          r: 54,
-          fill: "none",
-          stroke: colors[index],
-          "stroke-width": 16,
-          pathLength: 100,
-          "stroke-dasharray": `${share} ${100 - share}`,
-          "stroke-dashoffset": -offset,
-          transform: "rotate(-90 70 70)",
-        });
-        arc.append(
-          summarySvg(
-            "title",
-            {},
-            `${label}: ${formatted} (${number.format(share)}%)`,
-          ),
-        );
-        svg.append(arc);
-        offset += share;
-      });
-      const center = node("div", "", "summary-donut-center");
-      center.append(
-        node(
-          "b",
-          total ? `${number.format((values[0][1] / total) * 100)}%` : "—",
-        ),
-        node(
-          "span",
-          total
+      donut = summaryRing({
+        className: "summary-donut",
+        centerClass: "summary-donut-center",
+        box: 140,
+        r: 52,
+        ariaLabel: caption,
+        segments: values.map(([label, value, formatted], index) => ({
+          share: total ? (value / total) * 100 : 0,
+          color: colors[index],
+          value: total ? number.format((value / total) * 100) + "%" : "—",
+          label,
+          sub: formatted,
+          aria: `${label}: ${formatted}${total ? ` (${number.format((value / total) * 100)}%)` : ""}`,
+        })),
+        center: {
+          value: total ? (values[0][1] / total) * 100 : 0,
+          text: (v) => (total ? number.format(v) + "%" : "—"),
+          label: total
             ? id === "count-summary-chart"
               ? "มี 2 บิลขึ้นไป"
               : "บิลจาก Top 5"
             : "ไม่มีบิลขาย",
-        ),
-      );
-      ring.append(svg, center);
-      layout.append(ring);
+        },
+        animate: animate && total > 0,
+      });
+      layout.append(donut.ring);
     }
     const legend = node("div", "", "summary-chart-legend");
     for (const [index, [label, , formatted]] of values.entries()) {
@@ -813,6 +853,14 @@ function renderSummaryCharts() {
       dot.setAttribute("aria-hidden", "true");
       row.append(dot, node("span", label), node("b", formatted));
       legend.append(row);
+    }
+    if (donut) {
+      linkLegend(legend, donut.activate);
+      donut.ring.addEventListener("ring-activate", ({ detail }) =>
+        [...legend.children].forEach((row, index) =>
+          row.classList.toggle("is-active", index === detail),
+        ),
+      );
     }
     layout.append(legend);
     chart.append(layout);
@@ -1111,6 +1159,7 @@ async function loadCustomers(silent = false) {
     if (previous) selectedCode = previous.code;
     detailController = null;
     el("customer-dashboard").hidden = false;
+    animateSummary = !silent;
     applySearch(silent);
     el("updated").textContent =
       `อัปเดตข้อมูล ${new Date(masterUpdatedAt).toLocaleString("th-TH")}`;

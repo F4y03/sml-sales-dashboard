@@ -1067,62 +1067,75 @@ body.customer-dialog-open {
   color: #d7c5c3;
   margin: 20px 0 0;
 }
-.net-retention-ring .net-retention-center {
-  pointer-events: none;
+/* ---- Summary rings (animated, hover to inspect a slice) ---- */
+.summary-ring .ring-track {
+  fill: none;
+  stroke: var(--line, #303035);
+  stroke-width: 16;
+  opacity: 0.35;
 }
-.net-retention-ring .net-region-arc {
-  pointer-events: visiblePainted;
+.summary-ring .ring-arc {
+  fill: none;
+  stroke-width: 16;
   cursor: pointer;
-  transition: stroke-width 0.15s;
-}
-.net-retention-ring .net-region-arc:hover,
-.net-retention-ring .net-region-arc:focus {
-  stroke-width: 11;
   outline: none;
+  transition:
+    stroke-width 0.2s ease,
+    opacity 0.2s ease;
 }
-.net-retention-ring .net-region-tooltip {
-  position: absolute;
-  inset: 22%;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.summary-ring[data-active] .ring-arc {
+  opacity: 0.28;
+}
+.summary-ring .ring-arc.is-active {
+  opacity: 1;
+  stroke-width: 22;
+}
+.net-retention-ring .ring-track {
+  stroke: #ffffff;
+  stroke-width: 12;
+  opacity: 0.12;
+}
+.net-retention-ring .ring-arc {
+  stroke-width: 12;
+}
+.net-retention-ring .ring-arc.is-active {
+  stroke-width: 17;
+}
+.net-retention-ring .net-retention-center {
+  inset: 20%;
   gap: 3px;
-  border-radius: 50%;
-  background: #40100d;
-  color: #fff;
   text-align: center;
   pointer-events: none;
-  line-height: 1.3;
-  padding: 3px;
+}
+.summary-ring :is(.net-retention-center, .summary-donut-center) span {
+  display: -webkit-box;
   overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
-.net-retention-ring:has(.net-region-tooltip:not([hidden])) .net-retention-center {
-  visibility: hidden;
+.summary-ring :is(.net-retention-center, .summary-donut-center) small {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.net-retention-ring .net-region-tooltip span {
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-.net-retention-ring .net-region-tooltip b {
-  font-size: 18px;
-  letter-spacing: -0.5px;
-}
-.net-retention-ring .net-region-tooltip small {
-  font-size: 9px;
+.net-retention-center small {
   color: #f5dcd7;
 }
-.net-region-tooltip span {
-  font-size: 10px;
-  overflow-wrap: anywhere;
+.summary-donut-center small {
+  color: var(--muted, #716b68);
 }
-.net-region-tooltip b {
-  font-size: 20px;
-  font-variant-numeric: tabular-nums;
+.summary-donut-layout .summary-chart-label {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
 }
-.net-region-tooltip small {
-  font-size: 9px;
+.summary-donut-layout:has(.summary-ring[data-active]) .summary-chart-label:not(.is-active) {
+  opacity: 0.45;
+}
+@media (prefers-reduced-motion: reduce) {
+  .summary-ring .ring-arc,
+  .summary-donut-layout .summary-chart-label {
+    transition: none;
+  }
 }
 .summary-donut-layout {
   display: grid;
