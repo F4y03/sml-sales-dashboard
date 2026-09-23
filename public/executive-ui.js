@@ -19,18 +19,86 @@ element("end").value = iso(today);
 element("start").value = iso(
   new Date(today.getFullYear(), today.getMonth(), 1),
 );
-const targetKey = () =>
-  `executive-target:${element("start").value}:${element("end").value}`;
-function restoreTarget() {
-  try {
-    element("target").value = localStorage.getItem(targetKey()) || "";
-  } catch {
-    element("target").value = "";
-  }
-  formatTarget();
+const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const prefersReducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const compactMoney = (value) => {
+  const abs = Math.abs(value);
+  return "฿" + (abs >= 1e6 ? number.format(Math.round(value / 1e4) / 100) + "M" : abs >= 1e3 ? number.format(Math.round(value / 100) / 10) + "K" : number.format(value));
+};
+// Monday–Saturday; Sunday is the closed day.
+function workingDays(from, to) {
+  let count = 0;
+  for (let day = new Date(from + "T00:00:00"), last = new Date(to + "T00:00:00"); day <= last; day.setDate(day.getDate() + 1))
+    if (day.getDay() !== 0) count++;
+  return count;
 }
-function formatTarget() {
-  const input = element("target");
+// Main numbers count up from 0 in 1 s on a fresh load (not on the silent 60 s refresh).
+function countUp(target, to, format, animate) {
+  const token = (target.countToken = (target.countToken || 0) + 1),
+    paint = (value) => target.replaceChildren(...[format(value)].flat());
+  if (!animate || prefersReducedMotion() || !Number.isFinite(to)) return paint(to);
+  const began = performance.now(),
+    tick = (now) => {
+      if (target.countToken !== token) return;
+      const k = Math.min(1, (now - began) / 1000);
+      paint(to * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(tick);
+    };
+  paint(0);
+  requestAnimationFrame(tick);
+}
+// Target period: a calendar month when the range sits inside one month, otherwise the exact range.
+function targetPeriod() {
+  const start = element("start").value,
+    end = element("end").value;
+  if (start.slice(0, 7) === end.slice(0, 7)) {
+    const [year, month] = start.split("-").map(Number);
+    return { key: `month:${start.slice(0, 7)}`, label: `เดือน ${THAI_MONTHS[month - 1]} ${year + 543}`, first: start.slice(0, 8) + "01", last: iso(new Date(year, month, 0)) };
+  }
+  return { key: `range:${start}:${end}`, label: `ช่วง ${start} – ${end}`, first: start, last: end };
+}
+let salesTarget = { key: null, amount: null, loading: false, saving: false, editing: false, error: "" };
+async function putTarget(key, amount) {
+  const response = await fetch("/api/executive/target", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-PRPlus-Request": "1" },
+    body: JSON.stringify({ key, amount }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "บันทึกเป้าไม่สำเร็จ");
+  return data;
+}
+async function loadTarget() {
+  const { key } = targetPeriod();
+  salesTarget = { key, amount: null, loading: true, saving: false, editing: false, error: "" };
+  renderTarget();
+  try {
+    const response = await fetch("/api/executive/target?" + new URLSearchParams({ key }), { cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "โหลดเป้าไม่สำเร็จ");
+    if (salesTarget.key !== key) return;
+    let amount = data.amount;
+    // One-time move of a target the previous version kept only in this browser.
+    const legacyKey = `executive-target:${element("start").value}:${element("end").value}`;
+    let legacy = null;
+    try {
+      legacy = Number(localStorage.getItem(legacyKey));
+    } catch {}
+    if (amount == null && legacy > 0) {
+      amount = (await putTarget(key, legacy).catch(() => ({ amount: null }))).amount;
+      if (amount != null)
+        try {
+          localStorage.removeItem(legacyKey);
+        } catch {}
+    }
+    salesTarget = { ...salesTarget, amount, loading: false };
+  } catch (error) {
+    if (salesTarget.key !== key) return;
+    salesTarget = { ...salesTarget, loading: false, error: error.message };
+  }
+  renderTarget(true);
+}
+function formatTarget(input) {
   const position = input.selectionStart ?? input.value.length;
   const offset = input.value.slice(0, position).replaceAll(",", "").length;
   const raw = input.value.replaceAll(",", "");
@@ -60,25 +128,175 @@ function node(tag, text, className = "") {
   return result;
 }
 function targetValue() {
-  const value = Number(element("target").value.replaceAll(",", ""));
-  return Number.isFinite(value) && value > 0 && element("target").validity.valid
-    ? value
-    : null;
+  return salesTarget.amount > 0 ? salesTarget.amount : null;
 }
-function renderTarget() {
-  if (!current) return;
-  const target = targetValue();
-  element("achievement").textContent = target
-    ? number.format((current.net / target) * 100) + "%"
-    : "ยังไม่ตั้งเป้า";
-  element("progress").value = target
-    ? Math.max(0, Math.min(100, (current.net / target) * 100))
-    : 0;
-  element("remaining").textContent = target
-    ? current.net >= target
-      ? "เกินเป้า " + money(current.net - target)
-      : "เหลืออีก " + money(target - current.net)
-    : "กรอกเป้าของช่วงวันที่ด้านบน";
+function growBar(bar, width, animate) {
+  if (!animate || prefersReducedMotion()) {
+    bar.style.width = width + "%";
+    return;
+  }
+  bar.style.width = "0%";
+  requestAnimationFrame(() => requestAnimationFrame(() => (bar.style.width = width + "%")));
+}
+function targetForm(target, period) {
+  const form = node("form", "", "kpi-target-form"),
+    input = document.createElement("input"),
+    save = node("button", salesTarget.saving ? "กำลังบันทึก…" : "ตั้งเป้า", "kpi-target-save");
+  input.id = "target";
+  input.type = "text";
+  input.inputMode = "decimal";
+  input.placeholder = "เช่น 10,000,000";
+  input.autocomplete = "off";
+  input.setAttribute("aria-label", `เป้ายอดขายสุทธิ${period.label} (บาท)`);
+  input.value = target ? String(target) : "";
+  formatTarget(input);
+  input.addEventListener("input", () => formatTarget(input));
+  save.type = "submit";
+  save.disabled = salesTarget.saving;
+  const row = node("div", "", "kpi-target-row");
+  row.append(input, save);
+  form.append(row);
+  if (target) {
+    const actions = node("div", "", "kpi-target-actions"),
+      cancel = node("button", "ยกเลิก", "kpi-text-button"),
+      remove = node("button", "ลบเป้า", "kpi-text-button danger");
+    cancel.type = remove.type = "button";
+    cancel.addEventListener("click", () => {
+      salesTarget = { ...salesTarget, editing: false, error: "" };
+      renderTarget();
+    });
+    remove.addEventListener("click", () => submitTarget(null));
+    actions.append(cancel, remove);
+    form.append(actions);
+  }
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const raw = input.value.replaceAll(",", "");
+    if (!raw || !input.validity.valid) {
+      input.setCustomValidity(input.validationMessage || "กรอกเป้ามากกว่า 0 บาท");
+      input.reportValidity();
+      return;
+    }
+    submitTarget(Number(raw));
+  });
+  return form;
+}
+async function submitTarget(amount) {
+  const { key } = salesTarget;
+  salesTarget = { ...salesTarget, saving: true, error: "" };
+  renderTarget();
+  try {
+    const saved = await putTarget(key, amount);
+    if (salesTarget.key !== key) return;
+    salesTarget = { ...salesTarget, amount: saved.amount, saving: false, editing: false };
+    renderTarget(true);
+  } catch (error) {
+    if (salesTarget.key !== key) return;
+    salesTarget = { ...salesTarget, saving: false, error: error.message };
+    renderTarget();
+  }
+}
+function renderTarget(animate = false) {
+  const body = element("target-body");
+  body.replaceChildren();
+  body.style.minHeight = salesTarget.editing && salesTarget.lockHeight ? salesTarget.lockHeight + "px" : "";
+  if (!current || salesTarget.loading) {
+    body.append(node("p", "กำลังโหลดเป้า…", "kpi-muted"));
+    return;
+  }
+  const period = targetPeriod(),
+    target = targetValue();
+  if (!target || salesTarget.editing) {
+    if (!target) {
+      const empty = node("strong", "ยังไม่ตั้งเป้า", "kpi-empty");
+      empty.id = "achievement";
+      body.append(empty, node("small", `ตั้งเป้ายอดขายสุทธิของ${period.label}`, "kpi-caption"));
+    } else body.append(node("small", `แก้ไขเป้าของ${period.label}`, "kpi-caption"));
+    body.append(targetForm(target, period));
+  } else {
+    const share = (current.net / target) * 100,
+      reached = current.net >= target,
+      value = node("strong", "", "kpi-value");
+    value.id = "achievement";
+    countUp(value, share, (v) => number.format(Math.round(v * 100) / 100) + "%", animate);
+    const progress = node("div", "", "kpi-progress"),
+      fill = node("span", "");
+    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("aria-label", "ความคืบหน้าเป้ายอดขาย");
+    progress.setAttribute("aria-valuemin", "0");
+    progress.setAttribute("aria-valuemax", "100");
+    progress.setAttribute("aria-valuenow", String(Math.round(Math.max(0, Math.min(100, share)))));
+    progress.append(fill);
+    growBar(fill, Math.max(0, Math.min(100, share)), animate);
+    const today = iso(new Date()),
+      daysLeft = today > period.last ? 0 : workingDays(today < period.first ? period.first : today, period.last),
+      gap = target - current.net,
+      legend = node("div", "", "kpi-split-legend");
+    // Whole baht keeps the line from wrapping (which would make the whole card row taller); exact value on hover.
+    const baht = (value) => "฿" + Math.round(value).toLocaleString("th-TH"),
+      exact = node("span", reached ? `เกินเป้า ${baht(current.net - target)}` : `ขาดอีก ${baht(gap)}`);
+    exact.title = money(Math.abs(gap));
+    if (reached) legend.append(node("span", "ถึงเป้าแล้ว", "up"), exact);
+    else legend.append(exact, node("span", daysLeft ? `~${compactMoney(gap / daysLeft)} / วันทำการ` : "ช่วงนี้สิ้นสุดแล้ว"));
+    const edit = node("button", "แก้ไขเป้า", "kpi-text-button");
+    edit.type = "button";
+    edit.addEventListener("click", () => {
+      // Keep the card as tall as the progress view so the whole card row doesn't change size while editing.
+      salesTarget = { ...salesTarget, editing: true, lockHeight: element("target-body").offsetHeight };
+      renderTarget();
+      element("target")?.focus();
+    });
+    body.append(value, node("small", `ของเป้า ${compactMoney(target)} · ${period.label}`, "kpi-caption"), progress, legend, edit);
+  }
+  if (salesTarget.error) {
+    const message = node("p", salesTarget.error, "kpi-error");
+    message.setAttribute("role", "alert");
+    body.append(message);
+  }
+}
+// Sparkline: cumulative daily sales of the selected range (sales documents before returns).
+let sparkRequest = 0;
+async function loadSpark() {
+  const svg = element("growth-spark"),
+    start = element("start").value,
+    end = element("end").value,
+    today = iso(new Date()),
+    last = end < today ? end : today,
+    request = ++sparkRequest;
+  svg.replaceChildren();
+  if (last < start || (Date.parse(last) - Date.parse(start)) / 86400000 > 62) {
+    svg.setAttribute("aria-label", "กราฟยอดขายสะสมแสดงได้เมื่อช่วงไม่เกิน 62 วัน");
+    return;
+  }
+  try {
+    const response = await fetch("/api/sales-trend/daily?" + new URLSearchParams({ start, end: last }), { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || request !== sparkRequest) return;
+    let running = 0;
+    const points = data.daily.map((day) => (running += Number(day.sales) || 0)),
+      peak = Math.max(...points, 1),
+      x = (i) => (points.length > 1 ? (i / (points.length - 1)) * 240 : 120),
+      y = (v) => 40 - (v / peak) * 36,
+      line = points.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""),
+      ns = "http://www.w3.org/2000/svg",
+      make = (tag, attrs) => {
+        const item = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) item.setAttribute(k, v);
+        svg.append(item);
+        return item;
+      };
+    const defs = make("defs", {}),
+      grad = document.createElementNS(ns, "linearGradient");
+    grad.id = "spark-fill";
+    for (const [k, v] of Object.entries({ x1: 0, y1: 0, x2: 0, y2: 1 })) grad.setAttribute(k, v);
+    grad.innerHTML = '<stop offset="0%" stop-color="currentColor" stop-opacity="0.35"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/>';
+    defs.append(grad);
+    make("path", { d: `${line}L${x(points.length - 1).toFixed(1)},44L${x(0).toFixed(1)},44Z`, fill: "url(#spark-fill)", class: "spark-area" });
+    make("path", { d: line, class: "spark-line", "vector-effect": "non-scaling-stroke" });
+    svg.setAttribute("aria-label", `ยอดขายสะสมรายวัน ก่อนหักคืน ถึง ${last}: ${money(points.at(-1) || 0)}`);
+  } catch {
+    if (request === sparkRequest) svg.setAttribute("aria-label", "โหลดกราฟยอดขายสะสมไม่สำเร็จ");
+  }
 }
 function teamRegion(item) {
   const code = String(item.code || "")
@@ -292,28 +510,49 @@ function openTeamDetail(item, index, team) {
   }
   element("detail").showModal();
 }
-function render() {
-  element("net").textContent = money(current.net);
-  element("net-note").textContent =
-    `ขาย/เพิ่มหนี้ ${money(current.sales)} − คืน ${money(current.returns)}`;
-  element("sales-invoice-count").textContent =
-    current.salesInvoiceCount == null
-      ? "—"
-      : `${number.format(current.salesInvoiceCount)} บิล`;
-  element("average-sale").textContent =
-    current.averageSale == null
-      ? "ยังไม่มีบิลขายสำหรับคำนวณค่าเฉลี่ย"
-      : `ยอดเฉลี่ย ${money(current.averageSale)} / บิล · ก่อนหักคืน`;
-  element("mom").textContent = percent(current.mom);
-  element("mom").className =
-    current.mom == null || current.mom === 0
-      ? ""
-      : current.mom > 0
-        ? "positive"
-        : "negative";
-  element("yoy").textContent =
-    `MoM เทียบเดือนก่อน · YoY ${percent(current.yoy)}`;
-  renderTarget();
+function render(animate = false) {
+  // Card 1: net sales, satang smaller and dimmer; split bar = kept (white) vs returned (pink) out of sales.
+  const moneyParts = (value) => {
+    const [whole, decimals] = Math.abs(value)
+      .toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      .split(".");
+    return [`${value < 0 ? "−" : ""}฿${whole}`, node("span", "." + decimals, "kpi-decimals")];
+  };
+  countUp(element("net"), current.net, moneyParts, animate);
+  const sales = Number(current.sales) || 0,
+    returns = Number(current.returns) || 0,
+    returnShare = sales > 0 ? (returns / sales) * 100 : 0;
+  const [kept, returned] = element("net-split").children;
+  growBar(kept, sales > 0 ? Math.max(0, Math.min(100, 100 - returnShare)) : 0, animate);
+  growBar(returned, sales > 0 ? Math.max(0, Math.min(100, returnShare)) : 0, animate);
+  element("net-sold").textContent = `ขาย ${money(sales)}`;
+  element("net-returned").textContent = `คืน ${money(returns)} (${number.format(Math.round(returnShare * 10) / 10)}%)`;
+  // Card 2: bills, average per bill (before returns) and bills per working day so far.
+  const bills = current.salesInvoiceCount;
+  if (bills == null) element("sales-invoice-count").textContent = "—";
+  else countUp(element("sales-invoice-count"), bills, (v) => [number.format(Math.round(v)), " ", node("small", "บิล", "kpi-unit")], animate);
+  element("average-sale").textContent = current.averageSale == null ? "ยังไม่มีบิลขาย" : money(Math.round(current.averageSale * 100) / 100);
+  const today = iso(new Date()),
+    lastDay = current.end < today ? current.end : today,
+    days = lastDay < current.start ? 0 : workingDays(current.start, lastDay);
+  element("bills-per-day").textContent = bills == null || !days ? "—" : number.format(Math.round((bills / days) * 10) / 10);
+  element("bills-per-day").title = days ? `${number.format(bills ?? 0)} บิล ÷ ${days} วันทำการ (จ.–ส.)` : "";
+  // Card 3: MoM with arrow, cumulative sparkline, YoY line.
+  const signed = (v) => `${v >= 0 ? "↑ +" : "↓ −"}${number.format(Math.round(Math.abs(v) * 100) / 100)}%`,
+    mom = element("mom");
+  mom.classList.remove("up", "down");
+  if (current.mom == null) {
+    mom.textContent = "—";
+    element("mom-caption").textContent = "ไม่มียอดเดือนก่อนให้เทียบ (MoM)";
+  } else {
+    mom.classList.add(current.mom >= 0 ? "up" : "down");
+    countUp(mom, current.mom, signed, animate);
+    element("mom-caption").textContent = "เทียบเดือนก่อน (MoM)";
+  }
+  const yoy = element("yoy");
+  yoy.className = "kpi-yoy" + (current.yoy == null ? "" : current.yoy >= 0 ? " up" : " down");
+  yoy.textContent = current.yoy == null ? "YoY — ไม่มียอดปีก่อนให้เทียบ" : `YoY ${signed(current.yoy)} เทียบปีก่อน`;
+  renderTarget(animate);
   const body = element("products");
   body.replaceChildren();
   current.products.forEach((product, index) => {
@@ -788,8 +1027,10 @@ async function refresh(silent = false) {
     if (!response.ok) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
     if (request !== requestId) return;
     current = data;
-    render();
     element("summary").hidden = false;
+    if (!silent) loadTarget();
+    render(!silent);
+    loadSpark();
     element("status").textContent = data.count
       ? "พร้อมสรุป · คลิกตัวเลขเพื่อดูรายละเอียด"
       : "ไม่พบเอกสารในช่วงที่เลือก ลองเปลี่ยนวันที่";
@@ -817,20 +1058,8 @@ element("filters").addEventListener("submit", (event) => {
     element("summary").hidden = true;
     element("detail").close();
     element("status").textContent = "เปลี่ยนช่วงวันที่แล้ว กดอัปเดตข้อมูล";
-    restoreTarget();
   }),
 );
-element("target").addEventListener("input", () => {
-  formatTarget();
-  try {
-    if (targetValue()) localStorage.setItem(targetKey(), String(targetValue()));
-    else localStorage.removeItem(targetKey());
-  } catch {
-    element("status").textContent =
-      "บันทึกเป้าไม่ได้ เป้านี้ใช้ได้เฉพาะครั้งนี้";
-  }
-  renderTarget();
-});
 ["branches", "staff"].forEach((team) =>
   element(team + "-tab").addEventListener("click", () => {
     activeTeam = team;
@@ -854,5 +1083,4 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && !element("detail").open) refresh();
 });
-restoreTarget();
 refresh();

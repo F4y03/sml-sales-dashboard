@@ -46,7 +46,7 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
   let browser;
   try {
     browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, reducedMotion: 'reduce' });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const fixture = { net: 900, sales: 1000, returns: 100, profit: 100, revenue: 800, mom: -25, yoy: null, count: 2, start: '2026-09-01', end: '2026-09-08', previous: { start: '2026-08-01', end: '2026-08-08' }, year: { start: '2025-09-01', end: '2025-09-08' }, previousNet: 1200, yearNet: 0, updatedAt: new Date().toISOString(), products: [{ code: 'P1', name: '<img src=x onerror=alert(1)>', sales: 900, profit: 20, revenue: 800, stock: 2, unit: 'ชิ้น' }], branches: [{ name: 'สาขาหลัก', sales: 900 }], staff: [{ name: 'พนักงานหนึ่ง', sales: 900 }], declines: [{ name: 'สาขาหลัก', sales: 900, previous: 1200 }], bills: [{ docNo: 'INV1', date: '2026-09-08', flag: 44, total: 1000, lineTotal: 800 }], unusual: [{ docNo: 'INV1', date: '2026-09-08', flag: 44, total: 1000, lineTotal: 800, difference: 200 }] };
     fixture.salesInvoiceCount = 2;
@@ -54,12 +54,26 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
     fixture.averageSale = 500;
     let failed = false, empty = false;
     await page.route('**/api/executive?**', route => route.fulfill({ status: failed ? 503 : 200, json: failed ? { error: 'ฐานข้อมูลไม่พร้อม' } : empty ? { ...fixture, count: 0, net: 0, sales: 0, returns: 0, profit: null, revenue: null, products: [], branches: [], staff: [], declines: [], bills: [], unusual: [] } : fixture }));
+    // Target API stand-in: checks the same-site header and keeps targets like the server does.
+    const savedTargets = new Map(), targetPuts = [];
+    await page.route('**/api/executive/target**', route => {
+      const request = route.request();
+      if (request.method() === 'PUT') {
+        assert.equal(request.headers()['x-prplus-request'], '1');
+        const body = request.postDataJSON(); targetPuts.push(body);
+        if (body.amount == null) savedTargets.delete(body.key); else savedTargets.set(body.key, body.amount);
+        return route.fulfill({ json: { key: body.key, amount: body.amount } });
+      }
+      const key = new URL(request.url()).searchParams.get('key');
+      return route.fulfill({ json: { key, amount: savedTargets.get(key) ?? null } });
+    });
+    await page.route('**/api/sales-trend/daily**', route => route.fulfill({ json: { daily: [{ day: '2026-09-01', sales: 400 }, { day: '2026-09-02', sales: 600 }] } }));
     await page.goto(`http://127.0.0.1:${server.address().port}/executive.html`);
     await page.locator('#summary:visible').waitFor();
-    const controls = await page.locator('#start, #end, #target, #refresh').evaluateAll(inputs => inputs.map(input => ({ top: input.getBoundingClientRect().top, height: input.getBoundingClientRect().height })));
+    const controls = await page.locator('#start, #end, #refresh').evaluateAll(inputs => inputs.map(input => ({ top: input.getBoundingClientRect().top, height: input.getBoundingClientRect().height })));
     assert.ok(controls.every(control => Math.abs(control.top - controls[0].top) < 1));
     assert.ok(controls.every(control => control.height === 44));
-    assert.equal(await page.locator('#net').textContent(), '฿900');
+    assert.equal(await page.locator('#net').textContent(), '฿900.00');
     assert.equal(await page.locator('#staff-tab').getAttribute('aria-pressed'), 'true');
     assert.ok((await page.locator('#leaders').textContent()).includes('พนักงานหนึ่ง'));
     await page.click('#branches-tab');
@@ -109,27 +123,40 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
     assert.ok((await page.locator('.detail-insight').textContent()).includes('ไม่ได้หมายความว่าบิลมีปัญหา'));
     assert.ok((await page.locator('.bill-next-steps').textContent()).includes('คลัง / ทีมส่งมอบ'));
     await page.click('#close');
+    // Target card: validation, saved to the system, progress, edit, reached, survives reload, removal.
+    const targetKey = await page.evaluate(() => targetPeriod().key);
+    await page.waitForFunction(() => document.getElementById('achievement')?.textContent === 'ยังไม่ตั้งเป้า');
     for (const value of ['0', '-1', 'abc', '1.001']) {
       await page.fill('#target', value);
       assert.equal(await page.locator('#target').evaluate(input => input.validity.valid), false);
-      assert.equal(await page.locator('#achievement').textContent(), 'ยังไม่ตั้งเป้า');
     }
+    await page.click('.kpi-target-save');
+    assert.equal(targetPuts.length, 0, 'invalid targets are not saved');
     for (const value of ['0.01', '1000', '1000000']) {
       await page.fill('#target', value);
       assert.equal(await page.locator('#target').evaluate(input => input.validity.valid), true);
     }
-    await page.fill('#target', '1000');
-    assert.equal(await page.locator('#achievement').textContent(), '90%');
-    assert.equal(await page.locator('#target-hint').count(), 0);
-    await page.fill('#target', '1000000.01');
-    assert.equal(await page.locator('#target').evaluate(input => input.validity.valid), true);
     await page.fill('#target', '1500000');
     assert.equal(await page.locator('#target').inputValue(), '1,500,000');
     await page.fill('#target', '1,500,000.25');
     assert.equal(await page.locator('#target').inputValue(), '1,500,000.25');
     assert.equal(await page.locator('#target').evaluate(input => input.validity.valid), true);
+    await page.fill('#target', '1000');
+    await page.click('.kpi-target-save');
+    await page.waitForFunction(() => document.getElementById('achievement')?.textContent === '90%');
+    assert.deepEqual(targetPuts.at(-1), { key: targetKey, amount: 1000 });
+    assert.ok((await page.locator('#target-body').textContent()).includes('ขาดอีก ฿100'));
+    await page.getByRole('button', { name: 'แก้ไขเป้า' }).click();
+    await page.fill('#target', '800');
+    await page.click('.kpi-target-save');
+    await page.waitForFunction(() => document.getElementById('target-body').textContent.includes('ถึงเป้าแล้ว'));
+    await page.getByRole('button', { name: 'แก้ไขเป้า' }).click();
     await page.fill('#target', '1500000');
-    assert.equal(await page.locator('#achievement').textContent(), '0.06%');
+    await page.click('.kpi-target-save');
+    await page.waitForFunction(() => document.getElementById('achievement')?.textContent === '0.06%');
+    await page.reload();
+    await page.locator('#summary:visible').waitFor();
+    await page.waitForFunction(() => document.getElementById('achievement')?.textContent === '0.06%');
     assert.equal(await page.locator('#sales-invoice-count').textContent(), '2 บิล');
     assert.ok((await page.locator('#average-sale').textContent()).includes('฿500'));
     for (const kind of ['net', 'activity', 'growth', 'target']) {
@@ -179,6 +206,10 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
         assert.ok(await page.locator(trigger).evaluate(button => button === document.activeElement));
       }
     }
+    await page.getByRole('button', { name: 'แก้ไขเป้า' }).click();
+    await page.getByRole('button', { name: 'ลบเป้า' }).click();
+    await page.waitForFunction(() => document.getElementById('achievement')?.textContent === 'ยังไม่ตั้งเป้า');
+    assert.deepEqual(targetPuts.at(-1), { key: targetKey, amount: null });
     failed = true; await page.click('#refresh');
     await page.waitForFunction(() => document.getElementById('status').textContent === 'ฐานข้อมูลไม่พร้อม');
     assert.ok(await page.locator('#summary').isHidden());
@@ -195,4 +226,42 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
     await browser?.close();
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('sales target API: strict keys and amounts, same-site writes, per-territory storage, audit trail', async () => {
+  const { installSalesTarget } = await import('./sales-target.js');
+  const { createAccessStore } = await import('./src/models/accessStore.js');
+  const { createAuditService } = await import('./src/services/auditService.js');
+  const store = createAccessStore(':memory:', {});
+  store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT 'exec','x','Exec',id FROM roles WHERE code='executive'");
+  const auth = { id: 1, username: 'exec', role: 'executive', scope: 'all', permissions: ['dashboard'] };
+  let territory = null;
+  const app = express(); app.use(express.json());
+  app.use((req, _res, next) => { req.auth = auth; req.territory = territory; next(); });
+  installSalesTarget(app, store, createAuditService(store));
+  const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/api/executive/target`;
+  const put = (body, headers = { 'X-PRPlus-Request': '1' }) => fetch(base, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const get = async key => (await fetch(`${base}?key=${encodeURIComponent(key)}`)).json();
+  try {
+    for (const key of ['', 'month:2026-13', 'month:2026-9', "month:2026-09' OR 1=1", 'range:2026-09-01', 'other:2026-09']) {
+      assert.equal((await fetch(`${base}?key=${encodeURIComponent(key)}`)).status, 400, key);
+      assert.equal((await put({ key, amount: 100 })).status, 400, key);
+    }
+    for (const amount of [0, -5, 1.001, '100', 1e13, true]) assert.equal((await put({ key: 'month:2026-09', amount })).status, 400, String(amount));
+    assert.equal((await put({ key: 'month:2026-09', amount: 100 }, {})).status, 403, 'writes need the same-site header');
+    assert.equal((await get('month:2026-09')).amount, null);
+    assert.equal((await put({ key: 'month:2026-09', amount: 12500000.5 })).status, 200);
+    assert.equal((await get('month:2026-09')).amount, 12500000.5);
+    assert.equal((await get('month:2026-08')).amount, null, 'targets are per month');
+    territory = { id: 3 };
+    assert.equal((await get('month:2026-09')).amount, null, 'a territory session does not see the company target');
+    assert.equal((await put({ key: 'month:2026-09', amount: 700 })).status, 200);
+    territory = null;
+    assert.equal((await get('month:2026-09')).amount, 12500000.5, 'and does not overwrite it');
+    assert.equal((await put({ key: 'month:2026-09', amount: null })).status, 200);
+    assert.equal((await get('month:2026-09')).amount, null);
+    assert.equal(store.get("SELECT COUNT(*) n FROM activity_logs WHERE action='sales_target.set'").n, 3);
+    assert.equal(store.get("SELECT COUNT(*) n FROM system_settings WHERE key LIKE 'sales_target:%'").n, 1, 'only the territory target remains');
+  } finally { await new Promise(resolve => server.close(resolve)); store.close(); }
 });

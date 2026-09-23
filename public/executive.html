@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Executive Summary · PR PLUS</title>
-    <link rel="stylesheet" href="executive.css?v=20260915-team-customers-5" />
+    <link rel="stylesheet" href="executive.css?v=20260923-kpi-cards" />
     <link rel="stylesheet" href="executive-alerts.css" />
-    <script src="executive-ui.js?v=20260915-team-customers-5" defer></script>
+    <script src="executive-ui.js?v=20260923-kpi-cards" defer></script>
     <style>
       .help-button {
         display: inline-grid;
@@ -41,23 +41,6 @@
       .help-button:focus-visible {
         outline: 2px solid var(--ink);
         outline-offset: 2px;
-      }
-      .metric-wrap {
-        position: relative;
-        min-width: 0;
-        display: flex;
-      }
-      .metric-wrap > .metric {
-        width: 100%;
-        height: 100%;
-      }
-      .metric-wrap > .metric > span:first-child {
-        padding-right: 28px;
-      }
-      .metric-wrap > .help-button {
-        position: absolute;
-        right: 12px;
-        top: 16px;
       }
       #help-dialog {
         width: min(720px, calc(100vw - 32px));
@@ -200,12 +183,6 @@
         }
         .help-formula strong {
           font-size: 13px;
-        }
-      }
-      @media (max-width: 600px) {
-        .metric-wrap > .help-button {
-          right: 6px;
-          top: 11px;
         }
       }
       #detail {
@@ -446,93 +423,111 @@
       <form id="filters">
         <label>ตั้งแต่<input id="start" type="date" required /></label>
         <label>ถึง<input id="end" type="date" required /></label>
-        <label class="target-input"
-          >เป้าสำหรับช่วงที่เลือก (บาท)<input
-            id="target"
-            type="text"
-            inputmode="decimal"
-            placeholder="เช่น 50,000"
-            aria-describedby="target-storage"
-        /></label>
         <button type="submit" id="refresh">อัปเดตข้อมูล ↻</button>
-        <div class="filter-notes">
-          <span id="target-storage"
-            >บันทึกเป้าอัตโนมัติในเบราว์เซอร์นี้ · แยกตามช่วงวันที่</span
-          >
-        </div>
       </form>
       <p id="status" role="status" aria-live="polite">กำลังโหลดข้อมูล…</p>
       <div id="summary" hidden>
-        <section class="hero" aria-label="ตัวเลขหลัก">
-          <div class="metric-wrap">
-            <button class="metric featured" data-detail="net">
-              <span>ยอดขายสุทธิ ↗</span><strong id="net">—</strong
-              ><small id="net-note"></small
-              ><span class="metric-footer">ดูเอกสารขายและรับคืน →</span></button
-            ><button
-              type="button"
-              class="help-button"
-              data-help="net"
-              aria-label="คำอธิบายยอดขายสุทธิ"
-              aria-haspopup="dialog"
-            >
-              <span aria-hidden="true">!</span>
+        <section class="exec-kpis" aria-label="ตัวเลขหลัก">
+          <article class="kpi-card kpi-featured">
+            <div class="kpi-head">
+              <h2>ยอดขายสุทธิ</h2>
+              <button
+                type="button"
+                class="kpi-help"
+                data-help="net"
+                data-tip="ยอดขายและเพิ่มหนี้ หักรับคืน / ลดหนี้ ในช่วงวันที่เลือก · กดเพื่ออ่านเพิ่ม"
+                aria-label="คำอธิบายยอดขายสุทธิ"
+                aria-haspopup="dialog"
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+            <strong class="kpi-value" id="net">—</strong>
+            <div class="kpi-split" id="net-split" aria-hidden="true">
+              <span class="kept"></span><span class="returned"></span>
+            </div>
+            <div class="kpi-split-legend" id="net-note">
+              <span id="net-sold"></span><span id="net-returned"></span>
+            </div>
+            <button type="button" class="kpi-link" data-detail="net">
+              <span>ดูเอกสารขายและรับคืน</span><span aria-hidden="true">→</span>
             </button>
-          </div>
-          <div class="metric-wrap">
-            <button class="metric" data-detail="activity">
-              <span>จำนวนบิลขาย ↗</span
-              ><strong id="sales-invoice-count">—</strong
-              ><small id="average-sale"></small
-              ><span class="metric-footer">ดูรายละเอียดการขาย →</span></button
-            ><button
-              type="button"
-              class="help-button"
-              data-help="activity"
-              aria-label="คำอธิบายจำนวนบิลขาย"
-              aria-haspopup="dialog"
-            >
-              <span aria-hidden="true">!</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-head">
+              <h2>จำนวนบิลขาย</h2>
+              <button
+                type="button"
+                class="kpi-help"
+                data-help="activity"
+                data-tip="จำนวนเอกสารขายในช่วงที่เลือก และยอดเฉลี่ยต่อบิลก่อนหักคืน · กดเพื่ออ่านเพิ่ม"
+                aria-label="คำอธิบายจำนวนบิลขาย"
+                aria-haspopup="dialog"
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+            <strong class="kpi-value" id="sales-invoice-count">—</strong>
+            <div class="kpi-stats">
+              <div>
+                <span>เฉลี่ย / บิล</span><b id="average-sale">—</b>
+              </div>
+              <div>
+                <span>บิล / วันทำการ</span><b id="bills-per-day">—</b>
+              </div>
+            </div>
+            <button type="button" class="kpi-link" data-detail="activity">
+              <span>ดูรายละเอียดการขาย</span><span aria-hidden="true">→</span>
             </button>
-          </div>
-          <div class="metric-wrap">
-            <button class="metric" data-detail="growth">
-              <span>การเติบโต ↗</span><strong id="mom">—</strong
-              ><small id="yoy"></small
-              ><span class="metric-footer"
-                >ดูช่วงเวลาเปรียบเทียบ →</span
-              ></button
-            ><button
-              type="button"
-              class="help-button"
-              data-help="growth"
-              aria-label="คำอธิบายการเติบโต"
-              aria-haspopup="dialog"
-            >
-              <span aria-hidden="true">!</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-head">
+              <h2>การเติบโต</h2>
+              <button
+                type="button"
+                class="kpi-help"
+                data-help="growth"
+                data-tip="ยอดสุทธิเทียบช่วงวันเดียวกันของเดือนก่อน (MoM) และปีก่อน (YoY) · กดเพื่ออ่านเพิ่ม"
+                aria-label="คำอธิบายการเติบโต"
+                aria-haspopup="dialog"
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+            <strong class="kpi-value" id="mom">—</strong>
+            <small class="kpi-caption" id="mom-caption">เทียบเดือนก่อน (MoM)</small>
+            <svg
+              class="kpi-spark"
+              id="growth-spark"
+              viewBox="0 0 240 44"
+              preserveAspectRatio="none"
+              role="img"
+              aria-label="ยอดขายสะสมรายวัน"
+            ></svg>
+            <p class="kpi-yoy" id="yoy"></p>
+            <button type="button" class="kpi-link" data-detail="growth">
+              <span>ดูช่วงเวลาเปรียบเทียบ</span><span aria-hidden="true">→</span>
             </button>
-          </div>
-          <div class="metric-wrap">
-            <button class="metric" data-detail="target">
-              <span>เป้ายอดขาย ↗</span><strong id="achievement">—</strong
-              ><progress
-                id="progress"
-                max="100"
-                value="0"
-                aria-label="ความคืบหน้าเป้ายอดขาย"
-              ></progress
-              ><small id="remaining"></small
-              ><span class="metric-footer">ดูยอดที่ต้องทำเพิ่ม →</span></button
-            ><button
-              type="button"
-              class="help-button"
-              data-help="target"
-              aria-label="คำอธิบายเป้ายอดขาย"
-              aria-haspopup="dialog"
-            >
-              <span aria-hidden="true">!</span>
+          </article>
+          <article class="kpi-card" id="target-card">
+            <div class="kpi-head">
+              <h2>เป้ายอดขาย</h2>
+              <button
+                type="button"
+                class="kpi-help"
+                data-help="target"
+                data-tip="เป้ายอดขายสุทธิของเดือน บันทึกในระบบและใช้ร่วมกันทุกคน · กดเพื่ออ่านเพิ่ม"
+                aria-label="คำอธิบายเป้ายอดขาย"
+                aria-haspopup="dialog"
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+            <div class="kpi-target" id="target-body"></div>
+            <button type="button" class="kpi-link" data-detail="target">
+              <span>ดูยอดที่ต้องทำเพิ่ม</span><span aria-hidden="true">→</span>
             </button>
-          </div>
+          </article>
         </section>
         <section class="drivers" aria-label="ปัจจัยขับเคลื่อนยอดขาย">
           <article class="panel">

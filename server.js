@@ -11,6 +11,7 @@ import { installExecutive } from './executive.js';
 import { installCustomerInsights } from './customer-insights.js';
 import { installProductPerformance } from './product-performance.js';
 import { installSalesTrend } from './sales-trend.js';
+import { installSalesTarget } from './sales-target.js';
 import { createAccessStore } from './src/models/accessStore.js';
 import { createScopedPool } from './src/services/territoryService.js';
 import { installAccess } from './src/middleware/access.js';
@@ -44,6 +45,7 @@ app.get('/api/connection-status', async (_req, res) => {
 installReports(app, pool);
 installProducts(app, pool);
 installAnalytics(app, pool);
+installSalesTarget(app, accessStore, auth.audit);
 installExecutive(app, pool);
 installCustomerInsights(app, pool, accessStore);
 installProductPerformance(app, pool);
