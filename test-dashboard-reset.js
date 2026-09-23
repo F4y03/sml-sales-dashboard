@@ -72,6 +72,13 @@ test('clear restores the initial month and reloads both charts after a single-da
       await expect.poll(() => page.evaluate(() => window.salesTrend.debug().daily?.days.length)).toBe(1);
       await expect(page.locator('#total-sales')).toHaveText('฿100.00');
       await expect(page.locator('#item-sales')).toHaveText('฿90.00');
+      await expect(page.locator('#overview-spark .ov-spark-line')).toHaveAttribute('d', 'M0,37.0L240,4.0');
+      await expect(page.locator('#overview-spark circle')).toHaveCount(0);
+      await expect(page.locator('#overview-spark')).toHaveAttribute('aria-label', /ข้อมูล 1 วัน/);
+      await expect(page.locator('#daily-chart .tg-single-bar')).toHaveCount(1);
+      assert.ok(Number(await page.locator('#daily-chart .tg-single-bar').getAttribute('height')) > 0);
+      await expect(page.locator('#daily-chart .tg-line')).toHaveCount(0);
+      await expect(page.locator('#daily-chart')).toContainText('฿100.00');
       await page.locator('#clear-day').click();
       await expect(page.locator('[data-preset="month"]')).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('#start')).toHaveValue('2026-09-01');
@@ -81,6 +88,9 @@ test('clear restores the initial month and reloads both charts after a single-da
       await expect.poll(() => page.evaluate(() => window.salesTrend.debug().daily?.days.length)).toBe(2);
       await expect(page.locator('#donut-legend .donut-amount').first()).toHaveText('฿200');
       await expect(page.locator('#item-sales')).toHaveText('฿180.00');
+      await expect(page.locator('#overview-spark circle')).toHaveCount(0);
+      await expect(page.locator('#daily-chart .tg-single-bar')).toHaveCount(0);
+      await expect(page.locator('#daily-chart .tg-line')).toHaveCount(1);
       assert.deepEqual(requests.filter(r => r.path === '/api/dashboard').at(-1), { path: '/api/dashboard', start: '2026-09-01', end: '2026-09-10' });
     }
     await expect(page.locator('#overview-growth-mom')).toContainText('1–10 ส.ค. 69');

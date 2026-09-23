@@ -565,24 +565,24 @@
     svgEl("stop", { offset: "0%", "stop-color": RED, "stop-opacity": 0.35 }, grad);
     svgEl("stop", { offset: "100%", "stop-color": RED, "stop-opacity": 0 }, grad);
     const clipRect = svgEl("rect", { x: b.l - 8, y: 0, width: 0, height: H }, svgEl("clipPath", { id: id + "c" }, defs));
-    // Sundays: grey band = closed.
-    const band = n > 1 ? step : Math.min(48, b.w),
-      bands = svgEl("g", { class: "tg-sundays" }, svg);
-    d.days.forEach((s, i) => {
-      if (!sunday(i)) return;
-      const x0 = Math.max(b.l, X(i) - band / 2),
-        x1 = Math.min(b.l + b.w, X(i) + band / 2);
-      svgEl("rect", { x: r1(x0), y: b.t, width: r1(Math.max(2, x1 - x0)), height: b.h, class: "tg-sunday" }, bands);
-    });
     yAxis(svg, b, scale);
     // Straight segments between days; a dot on every day (grey on Sundays).
     const pts = d.values.map((v, i) => [X(i), Y(v)]),
       line = pts.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join(""),
       g = svgEl("g", { "clip-path": `url(#${id}c)` }, svg);
     if (n > 1) svgEl("path", { d: `${line}L${X(n - 1)},${b.t + b.h}L${X(0)},${b.t + b.h}Z`, fill: `url(#${id}a)`, class: "tg-area" }, g);
-    svgEl("path", { d: line, class: "tg-line" }, g);
-    const radius = step && step < 9 ? 2.5 : 4;
-    pts.forEach(([x, y], i) => svgEl("circle", { cx: x, cy: y, r: radius, class: sunday(i) ? "tg-point sunday" : "tg-point" }, g));
+    if (n === 1) {
+      const width = Math.min(100, b.w * 0.35),
+        height = Math.max(0, b.t + b.h - Y(d.values[0]));
+      svgEl("rect", { x: X(0) - width / 2, y: Y(d.values[0]), width, height,
+        rx: 5, fill: RED, class: "tg-single-bar" }, g);
+      svgEl("text", { x: X(0), y: Math.max(b.t + 14, Y(d.values[0]) - 12),
+        "text-anchor": "middle", class: "tg-tick" }, svg).textContent = money(d.values[0]);
+    } else {
+      svgEl("path", { d: line, class: "tg-line" }, g);
+      const radius = step && step < 9 ? 2.5 : 4;
+      pts.forEach(([x, y], i) => svgEl("circle", { cx: x, cy: y, r: radius, class: sunday(i) ? "tg-point sunday" : "tg-point" }, g));
+    }
     if (d.avg != null) avgMarker(svg, b, Y(d.avg), "เฉลี่ย " + short(d.avg));
     // X labels: "d MMM" spaced by the available width so they never collide.
     const xg = svgEl("g", { class: "tg-xaxis" }, svg),
@@ -630,7 +630,7 @@
     });
     svg.setAttribute(
       "aria-label",
-      `กราฟเส้นยอดขายรายวัน ${rangeLabel(d.start, d.end)} รวม ${money(d.total)}` +
+      `${n === 1 ? "กราฟแท่งยอดขายวันที่เลือก" : "กราฟเส้นยอดขายรายวัน"} ${rangeLabel(d.start, d.end)} รวม ${money(d.total)}` +
         (d.avg != null ? ` เฉลี่ยวันทำการ ${money(d.avg)}` : "") +
         " · ใช้ลูกศรซ้ายขวาเพื่อดูรายวัน",
     );

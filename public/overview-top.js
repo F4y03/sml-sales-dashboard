@@ -221,7 +221,11 @@
       peak = Math.max(...points, 1),
       x = (i) => (points.length > 1 ? (i / (points.length - 1)) * 240 : 120),
       y = (v) => 37 - (v / peak) * 33,
-      line = points.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""),
+      // One day: cumulative baseline to the daily total, without inventing
+      // intermediate hourly values. Use the same line/area style as other ranges.
+      line = points.length === 1
+        ? `M0,${y(0).toFixed(1)}L240,${y(points[0]).toFixed(1)}`
+        : points.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""),
       ns = "http://www.w3.org/2000/svg",
       svgNode = (tag, attrs) => {
         const node = document.createElementNS(ns, tag);
@@ -241,9 +245,12 @@
       grad.append(stop);
     }
     defs.append(grad);
-    svgNode("path", { d: `${line}L${x(points.length - 1).toFixed(1)},40L${x(0).toFixed(1)},40Z`, fill: "url(#ov-spark-fill)" });
+    svgNode("path", { d: `${line}L240,40L0,40Z`, fill: "url(#ov-spark-fill)" });
     svgNode("path", { d: line, class: "ov-spark-line", "vector-effect": "non-scaling-stroke" });
-    svg.setAttribute("aria-label", `ยอดขายสะสม ${thaiRange(r.from, days.at(-1).day, "short")}: ฿${money2.format(points.at(-1))}`);
+    const label = `ยอดขายสะสม ${thaiRange(r.from, days.at(-1).day, "short")}: ฿${money2.format(points.at(-1))}` +
+      (points.length === 1 ? " · ข้อมูล 1 วัน จากฐานศูนย์ถึงยอดรวม ไม่ใช่ยอดรายชั่วโมง" : "");
+    svg.setAttribute("aria-label", label);
+    svgNode("title", {}).textContent = label;
   }
   function renderCards(r, animate) {
     const prev = latest;
