@@ -7,7 +7,7 @@ export function createAccessStore(path = ':memory:', env = {}) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive:true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
+  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
   const store = {
     db, path,
     all: (sql, ...params) => db.prepare(sql).all(...params),

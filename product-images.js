@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { sameSite } from './auth.js';
-import { requirePermission } from './src/middleware/access.js';
+import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
 import { hasPermission } from './src/services/permissionService.js';
 
 // One source of truth for link rules: evaluate the same file the browser loads.
@@ -38,6 +38,31 @@ export function installProductImages(app, store, audit, pool) {
     if (!row) return null;
     try { const links = JSON.parse(row.links_json); return Array.isArray(links) ? { links, updatedAt: row.updated_at } : null; } catch { return null; }
   };
+  app.get('/api/products/images/pending', requireSuperAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const imported = store.all('SELECT i.code, i.product_name, i.source_name, i.source_row, p.links_json FROM product_image_imports i JOIN product_images p ON p.code=i.code ORDER BY i.code');
+    if (!imported.length) return res.json({ products: [] });
+    try {
+      const codes = imported.map(row => row.code);
+      const { rows } = await pool.query('SELECT code FROM ic_inventory WHERE code = ANY($1::text[])', [codes]);
+      const registered = new Set(rows.map(row => row.code));
+      const products = imported.filter(row => !registered.has(row.code)).map(row => {
+        const links = JSON.parse(row.links_json);
+        return {
+          code: row.code,
+          name: row.product_name,
+          imageCount: links.length,
+          links,
+          source: row.source_name,
+          sourceRow: row.source_row,
+        };
+      });
+      res.json({ products });
+    } catch (error) {
+      console.error('Pending product image check failed:', error.code);
+      res.status(503).json({ error: 'ตรวจรายการสินค้าที่ยังไม่มีใน SML ไม่สำเร็จ' });
+    }
+  });
   app.get('/api/products/images', (req, res) => {
     res.set('Cache-Control', 'no-store');
     const codes = [].concat(req.query.code ?? []);

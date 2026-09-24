@@ -1,0 +1,12 @@
+.pending-product-images { margin-bottom: 20px; }
+.pending-product-images-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.pending-product-images-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pending-product-images-heading h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.pending-product-images-heading p { margin: 0 0 12px; color: var(--muted, #aaa); }
+.pending-product-images-scroll { overflow-x: auto; }
+.pending-product-images table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.pending-product-images th, .pending-product-images td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(128,128,128,.25); }
+.pending-product-images td:first-child { font-weight: 700; white-space: nowrap; }
+.pending-product-images td:last-child { min-width: 220px; }
+.pending-product-images td:last-child a { display: inline-block; margin: 2px 6px 2px 0; }
+@media (max-width: 640px) { .pending-product-images-heading { flex-direction: column; } }

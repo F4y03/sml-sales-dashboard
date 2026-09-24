@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="reports.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="pending-product-images.css" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js" defer></script>
+    <script src="pending-product-images.js" defer></script>
+  </head>
+  <body>
+    <main class="report-main">
+      <div class="heading products-heading">
+        <div>
+          <div class="eyebrow">PRODUCT CATALOG</div>
+          <h1>รูปสินค้ารอเพิ่มใน SML<span class="heading-dot">.</span></h1>
+          <p class="subtitle">สำหรับ Super Admin เท่านั้น</p>
+        </div>
+      </div>
+      <section id="pending-product-images" class="card pending-product-images" hidden aria-labelledby="pending-product-images-title">
+        <div class="pending-product-images-heading">
+          <div>
+            <h2 id="pending-product-images-title">สินค้ามีรูปแล้ว แต่ยังไม่มีใน SML</h2>
+            <p>เพิ่มสินค้าใน SML ด้วยรหัสที่ตรงกัน แล้วรูปที่เก็บไว้จะปรากฏในหน้าเว็บอัตโนมัติ</p>
+          </div>
+          <div class="pending-product-images-actions">
+            <button id="download-pending-product-images" class="button secondary" type="button" disabled>↓ ดาวน์โหลด CSV</button>
+            <button id="download-codex-prompt" class="button secondary" type="button">↓ คำสั่งให้ Codex</button>
+            <button id="refresh-pending-product-images" class="button secondary" type="button">ตรวจอีกครั้ง</button>
+          </div>
+        </div>
+        <p id="pending-product-images-status" role="status" aria-live="polite">กำลังตรวจรายการ…</p>
+        <div class="pending-product-images-scroll">
+          <table hidden id="pending-product-images-table">
+            <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้าในไฟล์นำเข้า</th><th>จำนวนรูป</th><th>แถวใน Excel</th><th>ลิงก์รูป</th></tr></thead>
+            <tbody id="pending-product-images-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <p id="pending-product-images-denied" role="status">ตรวจสอบสิทธิ์การเข้าถึง…</p>
+    </main>
+  </body>
+</html>

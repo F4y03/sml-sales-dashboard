@@ -20,6 +20,7 @@ export function installAccess(app) {
     const forbidden=()=>path.startsWith('/api/')?res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'}):res.status(403).send('<meta charset="utf-8"><p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p><a href="/access-denied.html">กลับหน้าบัญชี</a>');
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
+    if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
     if(path==='/api/products/export'&&req.auth.role!=='super_admin')return forbidden();

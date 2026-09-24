@@ -315,6 +315,14 @@ window.prplusUser
         link.setAttribute("aria-current", "page");
       workspace.querySelector("nav").append(link);
     }
+    if (user.role === "super_admin") {
+      const link = document.createElement("a");
+      link.href = "/pending-product-images.html";
+      link.textContent = "🖼 รูปสินค้ารอเพิ่มใน SML";
+      if (location.pathname === "/pending-product-images.html")
+        link.setAttribute("aria-current", "page");
+      workspace.querySelector("nav").append(link);
+    }
     const sourceBadge = document.querySelector(".source-badge");
     const updateSourceBadge = (text, selected = false) => {
       if (!sourceBadge) return;
