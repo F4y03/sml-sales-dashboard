@@ -62,8 +62,8 @@ let current = null,
   exporting = false;
 const sortableHeaders = [];
 for (const [index, sort] of [
-  [6, "stock"],
-  [7, "price"],
+  [7, "stock"],
+  [8, "price"],
 ]) {
   const header = document.querySelectorAll(".product-panel thead th")[index];
   const button = document.createElement("button"),
@@ -183,6 +183,11 @@ async function load(page = 0, filters = applied, silent = false) {
       .classList.toggle("ranked", ranking);
     for (const p of data.rows) {
       const tr = document.createElement("tr");
+      // Thumbnail of the product's first image; product-detail-ui.js fills it once links are fetched.
+      const thumb = document.createElement("td");
+      thumb.className = "thumb-cell";
+      thumb.dataset.code = p.code;
+      tr.append(thumb);
       const rank = document.createElement("td");
       rank.className = "rank-cell";
       rank.textContent =
@@ -224,11 +229,12 @@ async function load(page = 0, filters = applied, silent = false) {
       tr.setAttribute("aria-haspopup", "dialog");
       tr.setAttribute("aria-controls", "product-detail");
       tr.setAttribute("aria-label", `ดูรายละเอียด ${p.code} ${p.name_1}`);
-      tr.onclick = () => detail(p);
+      // The detail modal lives in product-detail-ui.js.
+      tr.onclick = () => window.ProductDetail?.open(p, tr);
       tr.onkeydown = (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          detail(p);
+          window.ProductDetail?.open(p, tr);
         }
       };
       $("product-table").append(tr);
@@ -236,11 +242,14 @@ async function load(page = 0, filters = applied, silent = false) {
     if (!data.rows.length) {
       const tr = document.createElement("tr"),
         td = document.createElement("td");
-      td.colSpan = 9;
+      td.colSpan = 10;
       td.textContent = "ไม่พบสินค้าตามตัวกรอง";
       tr.append(td);
       $("product-table").append(tr);
     }
+    // Hand the page to the detail modal (subgroup names, fetch time, thumbnails for these codes).
+    window.productPage = { rows: data.rows, subgroups: data.subgroups || [], updatedAt: data.updatedAt };
+    window.dispatchEvent(new CustomEvent("products-rendered", { detail: window.productPage }));
     $("products-page").textContent =
       `หน้า ${data.page + 1} / ${Math.max(1, Math.ceil(data.matching / data.pageSize))} · หน้าละ ${data.pageSize} สินค้า`;
     $("products-prev").disabled = data.page === 0;
@@ -288,163 +297,6 @@ async function load(page = 0, filters = applied, silent = false) {
     }
   }
 }
-const bahtLabel = (value) =>
-  value == null || String(value).trim() === ""
-    ? "—"
-    : Number(value).toLocaleString("th-TH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-let bestSellerRequest = 0;
-async function loadBestSeller(code) {
-  const panel = $("detail-bestseller");
-  const id = ++bestSellerRequest;
-  panel.replaceChildren();
-  panel.append(
-    detailNode("p", "อันดับสินค้าขายดี", "detail-bestseller-title"),
-    detailNode("p", "กำลังดึงอันดับขายดีจาก SML…", "detail-bestseller-state"),
-  );
-  try {
-    const r = await fetch(
-      "/api/products/best-seller?" + new URLSearchParams({ code }),
-      { cache: "no-store", signal: AbortSignal.timeout(20000) },
-    );
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error);
-    if (id !== bestSellerRequest) return;
-    panel.replaceChildren(
-      detailNode("p", "อันดับสินค้าขายดี", "detail-bestseller-title"),
-    );
-    if (!data.sold) {
-      panel.append(
-        detailNode(
-          "p",
-          "สินค้านี้ยังไม่มีรายการขายในระบบ จึงไม่ติดอันดับขายดี",
-          "detail-bestseller-state",
-        ),
-      );
-      return;
-    }
-    const standing = (label, place) =>
-      place
-        ? [label, `อันดับ ${count(place.rank)} จาก ${count(place.total)}`]
-        : [label, "ไม่ติดอันดับ"];
-    const metrics = [
-      standing("อันดับขายดีทั้งหมด", data.all),
-      standing("อันดับขายดี 3 เดือนล่าสุด", data.recent),
-      ["ยอดขายสุทธิทั้งหมด (บาท)", bahtLabel(data.netAll)],
-      ["ยอดขายสุทธิ 3 เดือน (บาท)", bahtLabel(data.netRecent)],
-      ["ขายล่าสุด", data.lastSold ?? "—"],
-      [
-        "ใบขาย · ลูกค้า",
-        `${count(data.invoices ?? 0)} ใบ · ${count(data.buyers ?? 0)} ราย`,
-      ],
-    ];
-    const grid = detailNode("div", "", "detail-bestseller-grid");
-    for (const [label, value] of metrics) {
-      const card = detailNode("article", "", "product-detail-metric");
-      if (label.startsWith("อันดับ") && value !== "ไม่ติดอันดับ")
-        card.classList.add("status-info");
-      card.append(detailNode("span", label), detailNode("strong", value));
-      grid.append(card);
-    }
-    panel.append(
-      grid,
-      detailNode(
-        "p",
-        "อันดับคิดจากยอดขายสุทธิทั้งทะเบียน (ขาย + เพิ่มหนี้ − รับคืน) ไม่ขึ้นกับตัวกรองในตาราง · ไม่รวมสินค้าฝากขาย",
-        "detail-bestseller-note",
-      ),
-    );
-  } catch (e) {
-    if (id !== bestSellerRequest) return;
-    panel.replaceChildren(
-      detailNode("p", "อันดับสินค้าขายดี", "detail-bestseller-title"),
-      detailNode(
-        "p",
-        e.name === "TimeoutError"
-          ? "ดึงอันดับขายดีนานเกินไป กรุณาปิดแล้วเปิดใหม่"
-          : e.message,
-        "detail-bestseller-state error",
-      ),
-    );
-  }
-}
-function detailNode(tag, text, className = "") {
-  const node = document.createElement(tag);
-  node.textContent = text;
-  node.className = className;
-  return node;
-}
-const hasMeaningfulValue = (value) =>
-  value !== null && value !== undefined && String(value).trim() !== "";
-function detail(product) {
-  const summaryMetrics = [
-    ["ราคาขายในทะเบียน (บาท)", priceLabel(product.catalog_sale_price)],
-    [
-      "คงเหลือในทะเบียน",
-      `${stockLabel(product.balance_qty)} ${product.unit_standard || ""}`,
-    ],
-    ["สถานะคงเหลือ", stockStatus(product.balance_qty)],
-    ["การเคลื่อนไหว", product.activity_2568_2569],
-  ].filter(
-    ([, value]) => hasMeaningfulValue(value) && String(value).trim() !== "—",
-  );
-  $("detail-title").textContent = product.name_1 || product.code;
-  const summary = $("detail-summary");
-  summary.replaceChildren();
-  for (const [label, value] of summaryMetrics) {
-    const card = detailNode("article", "", "product-detail-metric");
-    const status =
-      label === "สถานะคงเหลือ"
-        ? value === "มีสินค้า"
-          ? "status-good"
-          : value === "ไม่มีสินค้า"
-            ? "status-bad"
-            : "status-neutral"
-        : label === "การเคลื่อนไหว" && value && value !== "ไม่ระบุ"
-          ? "status-info"
-          : "";
-    if (status) card.classList.add(status);
-    card.append(detailNode("span", label), detailNode("strong", value));
-    summary.append(card);
-  }
-  // Keep this quick-view focused on the summary cards; full SML field values are intentionally omitted.
-  $("detail-fields").replaceChildren();
-  $("detail-subtitle").textContent =
-    `รหัส ${product.code} · ข้อมูลทะเบียนปัจจุบัน · ดึงข้อมูล ${new Date(current.updatedAt).toLocaleString("th-TH")}`;
-  $("product-detail").showModal();
-  $("product-detail").scrollTop = 0;
-  if (canRankBestSellers) loadBestSeller(product.code);
-  else $("detail-bestseller").replaceChildren();
-}
-$("close-detail").onclick = () => $("product-detail").close();
-const productDialog = $("product-detail");
-let backdropPress = false;
-function outsideProductDialog(event) {
-  const bounds = productDialog.getBoundingClientRect();
-  return (
-    event.target === productDialog &&
-    (event.clientX < bounds.left ||
-      event.clientX > bounds.right ||
-      event.clientY < bounds.top ||
-      event.clientY > bounds.bottom)
-  );
-}
-productDialog.addEventListener("pointerdown", (event) => {
-  backdropPress = event.button === 0 && outsideProductDialog(event);
-});
-productDialog.addEventListener("click", (event) => {
-  if (backdropPress && outsideProductDialog(event)) productDialog.close();
-  backdropPress = false;
-});
-productDialog.addEventListener("pointercancel", () => {
-  backdropPress = false;
-});
-productDialog.addEventListener("close", () => {
-  backdropPress = false;
-  bestSellerRequest++;
-});
 function applyProductFilters() {
   const filters = {
     q: $("product-search").value.trim(),

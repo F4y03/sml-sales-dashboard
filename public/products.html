@@ -8,11 +8,14 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="reports.css" />
     <link rel="stylesheet" href="products.css" />
+    <script src="product-image-links.js" defer></script>
     <script src="products-ui.js" defer></script>
+    <script src="product-detail-ui.js" defer></script>
     <link rel="stylesheet" href="workspace-nav.css" />
     <script src="workspace-nav.js" defer></script>
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="product-detail.css" />
     <script src="/theme-mode.js"></script>
   </head>
   <body>
@@ -132,6 +135,7 @@
           <table>
             <thead>
               <tr>
+                <th class="thumb-cell"><span class="visually-hidden">รูป</span></th>
                 <th class="rank-cell">อันดับ</th>
                 <th>รหัสสินค้า</th>
                 <th>ชื่อสินค้า</th>
@@ -157,29 +161,86 @@
       </section>
       <dialog
         id="product-detail"
+        class="pd-dialog"
         aria-labelledby="detail-title"
         aria-describedby="detail-subtitle"
       >
-        <div class="detail-heading">
-          <div>
-            <p class="eyebrow">รายละเอียดสินค้า</p>
+        <div class="pd-shell">
+          <button type="button" class="pd-x" id="detail-x" aria-label="ปิดรายละเอียดสินค้า">×</button>
+          <section class="pd-media" aria-label="รูปสินค้า">
+            <div class="pd-stage" id="pd-stage">
+              <button type="button" class="pd-frame" id="pd-frame" aria-label="ดูรูปเต็มจอ">
+                <img id="pd-image" alt="" decoding="async" hidden />
+                <span class="pd-spinner" id="pd-spinner" aria-hidden="true" hidden></span>
+              </button>
+              <div class="pd-empty" id="pd-empty" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                  <circle cx="9" cy="10" r="1.8" />
+                  <path d="m21 16-5-5-8 8" />
+                </svg>
+                <p>ยังไม่มีรูปสินค้า</p>
+                <button type="button" class="pd-ghost" id="pd-empty-add">+ เพิ่มลิงก์รูป</button>
+              </div>
+              <p class="pd-error" id="pd-error" role="status" hidden>
+                โหลดรูปไม่ได้ · ตรวจว่าไฟล์ใน Drive แชร์เป็น 'ทุกคนที่มีลิงก์' แล้ว
+              </p>
+              <button type="button" class="pd-nav is-prev" id="pd-prev" aria-label="รูปก่อนหน้า" hidden>‹</button>
+              <button type="button" class="pd-nav is-next" id="pd-next" aria-label="รูปถัดไป" hidden>›</button>
+              <span class="pd-counter" id="pd-counter" aria-live="polite" hidden></span>
+            </div>
+            <div class="pd-thumbs" id="pd-thumbs" aria-label="รูปทั้งหมด"></div>
+            <div class="pd-editor" id="pd-editor" hidden>
+              <p class="pd-editor-title">ลิงก์รูปสินค้า <span>รูปแรกคือรูปหลัก ใช้เป็นรูปย่อในตารางด้วย</span></p>
+              <ol class="pd-editor-list" id="pd-editor-list"></ol>
+              <button type="button" class="pd-add" id="pd-editor-add">+ เพิ่มลิงก์รูป</button>
+              <p class="pd-tip">
+                ใน Google Drive: คลิกขวาที่ไฟล์รูป → แชร์ → ตั้ง "ทุกคนที่มีลิงก์" เป็นผู้มีสิทธิ์อ่าน → คัดลอกลิงก์
+                · ใช้ลิงก์ของไฟล์ทีละรูป ไม่ใช่ลิงก์โฟลเดอร์
+              </p>
+              <p class="pd-editor-status" id="pd-editor-status" role="status" aria-live="polite"></p>
+              <div class="pd-editor-actions">
+                <button type="button" class="pd-btn" id="pd-editor-cancel">ยกเลิก</button>
+                <button type="button" class="pd-btn is-primary" id="pd-editor-save">บันทึก</button>
+              </div>
+            </div>
+            <div class="pd-media-bar">
+              <a id="pd-open-drive" class="pd-drive-link" target="_blank" rel="noopener noreferrer" hidden>เปิดใน Google Drive ↗</a>
+              <div class="pd-media-actions">
+                <button type="button" class="pd-btn" id="pd-copy-link"><svg class="pd-btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v10H9zM5 15V5h10"/></svg><span>คัดลอกลิงก์</span></button>
+                <button type="button" class="pd-btn" id="pd-edit" hidden><svg class="pd-btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg><span id="pd-edit-label">แก้ไขรูป</span></button>
+              </div>
+            </div>
+          </section>
+          <section class="pd-info">
+            <p class="pd-eyebrow">รายละเอียดสินค้า</p>
             <h2 id="detail-title"></h2>
-          </div>
-          <button class="button secondary" id="close-detail" autofocus>
-            ปิด ×
-          </button>
-        </div>
-        <div class="product-detail-body">
-          <p id="detail-subtitle"></p>
-          <div id="detail-summary"></div>
-          <p class="product-detail-note">
-            ราคา ต้นทุน และคงเหลืออ้างอิงทะเบียนปัจจุบัน ·
-            ไม่ใช่ยอดย้อนหลังหรือยอดพร้อมขายหลังหักจอง
-          </p>
-          <section id="detail-bestseller" class="detail-bestseller"></section>
-          <div id="detail-fields" hidden></div>
+            <div class="pd-tags" id="pd-tags"></div>
+            <div class="pd-price">
+              <span>ราคาขายในทะเบียน</span>
+              <strong id="pd-price">—</strong>
+            </div>
+            <div class="pd-metrics" id="detail-summary"></div>
+            <p class="pd-note">
+              ราคา ต้นทุน และคงเหลืออ้างอิงทะเบียนปัจจุบัน ·
+              ไม่ใช่ยอดย้อนหลังหรือยอดพร้อมขายหลังหักจอง
+            </p>
+            <section id="detail-bestseller" class="detail-bestseller"></section>
+            <div id="detail-fields" hidden></div>
+            <footer class="pd-foot">
+              <span id="detail-subtitle"></span>
+              <div class="pd-foot-actions">
+                <button type="button" class="pd-btn" id="pd-copy-code">คัดลอกรหัส</button>
+                <button type="button" class="pd-btn is-primary" id="close-detail">ปิด</button>
+              </div>
+            </footer>
+          </section>
         </div>
       </dialog>
+      <dialog id="pd-lightbox" class="pd-lightbox" aria-label="รูปสินค้าเต็มจอ">
+        <img id="pd-lightbox-image" alt="" />
+      </dialog>
+      <div id="pd-toast" class="pd-toast" popover="manual" role="status" aria-live="polite"></div>
     </main>
   </body>
 </html>

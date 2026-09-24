@@ -7,7 +7,7 @@ export function createAccessStore(path = ':memory:', env = {}) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive:true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  for (const file of ['001-access.sql','002-security.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
+  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
   const store = {
     db, path,
     all: (sql, ...params) => db.prepare(sql).all(...params),
@@ -35,6 +35,16 @@ export function createAccessStore(path = ':memory:', env = {}) {
     if (!store.get('SELECT 1 FROM system_settings WHERE key=?','best_sellers_super_admin_v1')) {
       store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='super_admin' AND p.code='best_sellers' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
       store.run('INSERT INTO system_settings VALUES(?,?)','best_sellers_super_admin_v1','true');
+    }
+    // product_images (edit product photo links) is granted to Super Admin once, the same way as best_sellers.
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','product_images_super_admin_v1')) {
+      store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='super_admin' AND p.code='product_images' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
+      store.run('INSERT INTO system_settings VALUES(?,?)','product_images_super_admin_v1','true');
+    }
+    // Everyone except Sales may edit product photo links: grant the existing Executive/Admin roles once.
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','product_images_roles_v1')) {
+      store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code IN ('executive','admin') AND p.code='product_images' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
+      store.run('INSERT INTO system_settings VALUES(?,?)','product_images_roles_v1','true');
     }
     // Import the existing account once; never overwrite managed users on restart.
     if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {

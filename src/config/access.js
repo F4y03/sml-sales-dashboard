@@ -1,13 +1,13 @@
 export const PERMISSIONS = {
   dashboard: 'ภาพรวม / สรุปผู้บริหาร', price_stock: 'เช็คราคา / Stock', consignment: 'รับ–เบิกสินค้าฝาก',
-  product_info: 'ข้อมูลสินค้า', best_sellers: 'ตัวกรองสินค้าขายดี / อันดับยอดขาย', customer_analysis: 'วิเคราะห์ลูกค้า', product_analysis: 'วิเคราะห์สินค้า', reports: 'รายงาน SML',
+  product_info: 'ข้อมูลสินค้า', best_sellers: 'ตัวกรองสินค้าขายดี / อันดับยอดขาย', product_images: 'แก้ไขลิงก์รูปสินค้า', customer_analysis: 'วิเคราะห์ลูกค้า', product_analysis: 'วิเคราะห์สินค้า', reports: 'รายงาน SML',
   users_manage: 'จัดการผู้ใช้', roles_manage: 'จัดการ Role / Permission', territories_manage: 'จัดการเขตการขาย',
   system_settings: 'ตั้งค่าระบบ', environment_settings: 'ตั้งค่า Environment (Super Admin เท่านั้น)', activity_logs: 'ดู Activity Log',
 };
 export const ROLES = [
   ['super_admin', 'Super Admin', 'all', Object.keys(PERMISSIONS)],
-  ['executive', 'ผู้บริหาร', 'all', ['dashboard','price_stock','consignment','product_info','customer_analysis','product_analysis','reports']],
-  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info']],
+  ['executive', 'ผู้บริหาร', 'all', ['dashboard','price_stock','consignment','product_info','product_images','customer_analysis','product_analysis','reports']],
+  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images']],
   ['sales', 'Sales', 'territory', ['price_stock','consignment','customer_analysis','product_analysis']],
 ];
 // Same explicit assignments as executive-ui.js / consignment-data.js. Unknown teams are not assigned.

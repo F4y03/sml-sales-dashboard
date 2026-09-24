@@ -15,3 +15,10 @@ Excel เป็นไฟล์ .xlsx จริง มีชีตสินค้
 JSON เก็บชื่อฟิลด์จริงและ metadata พร้อมจำนวนสินค้าและตัวกรอง ทุกการส่งออกดึงข้อมูลใหม่ใน transaction read-only ไม่มีการเขียนลง SML ส่งออกครั้งละหนึ่งงานเพื่อจำกัดหน่วยความจำ และไม่มีการจำกัดจำนวนสินค้าตามหน้าตาราง
 
 ทดสอบด้วย `node test-products.js` (ค่าเริ่มต้น localhost:3002) หรือกำหนด `$env:TEST_URL='http://localhost:3000'` ก่อนรัน ครอบคลุมไฟล์ทั้งสามแบบ จำนวนแถว/คอลัมน์ Excel ครบทั้งต้นและท้าย รหัสที่ขึ้นต้นด้วยศูนย์ การป้องกันสูตร การค้นหา การแบ่งหน้า รายละเอียดสินค้า และการดาวน์โหลดบนเบราว์เซอร์
+
+## รูปสินค้า (ลิงก์ Google Drive)
+- กดแถวสินค้าเพื่อเปิดรายละเอียด รูปแสดงจากลิงก์ที่บันทึกไว้ ลิงก์ Drive ทุกแบบ (`/file/d/ID/view`, `open?id=`, `uc?id=` หรือ ID อย่างเดียว) แปลงเป็น `https://drive.google.com/file/d/ID/view` และแสดงผ่าน `drive.google.com/thumbnail?id=ID&sz=…` ลิงก์รูปอื่นต้องขึ้นต้นด้วย `https://` ลิงก์โฟลเดอร์ใช้ไม่ได้
+- ลิงก์เก็บในตาราง `product_images` ของ `data/access.sqlite` (migration `003-product-images.sql`) ไม่เขียนลง SML ทุกคนที่เปิดหน้านี้ได้เห็นลิงก์ชุดเดียวกัน ส่วนการแก้ไขต้องมีสิทธิ์ `product_images` (Super Admin ได้อัตโนมัติ มอบให้คนอื่นได้ใน System Admin) ทุกครั้งที่บันทึกมีบันทึกใน Activity Log
+- API: `GET /api/products/images?code=…` (ไม่เกิน 100 รหัส) และ `PUT /api/products/images` `{code, links}` (ต้องมีหัว `X-PRPlus-Request: 1`, ไม่เกิน 20 รูป, ตรวจว่ารหัสมีในทะเบียนด้วย SELECT แบบ parameterized) กฎตรวจลิงก์อยู่ไฟล์เดียว `public/product-image-links.js` ใช้ทั้งเบราว์เซอร์และเซิร์ฟเวอร์
+- ไฟล์ใน Drive ต้องแชร์เป็น "ทุกคนที่มีลิงก์" มิฉะนั้นรูปจะโหลดไม่ได้
+- ทดสอบ: `node --test test-product-images.js test-product-dialog.js`

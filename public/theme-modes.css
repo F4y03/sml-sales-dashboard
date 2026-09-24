@@ -547,7 +547,7 @@ html[data-theme] dialog::backdrop {
   backdrop-filter: blur(5px);
 }
 html[data-theme]
-  :is(#product-detail, #product-table td:nth-child(2), .sku-dialog) {
+  :is(#product-detail, #product-table td:nth-child(3), .sku-dialog) {
   color: var(--ink);
 }
 html[data-theme] #detail-fields div:nth-child(odd) {
