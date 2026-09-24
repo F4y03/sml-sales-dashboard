@@ -387,6 +387,17 @@
       card.style.setProperty("--my", `${e.clientY - box.top}px`);
     }),
   );
+  // Clicking anywhere on a card opens its details; inner buttons (copy value, help icon, link) keep their own action.
+  document.querySelectorAll(".ov-card").forEach((card) => {
+    const link = card.querySelector(".ov-link");
+    if (!link) return;
+    card.classList.add("is-clickable");
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("button, a, input, [data-copy], .ov-icon")) return;
+      if (String(window.getSelection?.() || "")) return;
+      if (!link.disabled) link.click();
+    });
+  });
   byId("doc-link").addEventListener("click", () => byId("invoice-card").click());
   byId("item-link").addEventListener("click", () => byId("products").scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }));
   byId("growth-link").addEventListener("click", () => byId("growth-dialog").showModal());
