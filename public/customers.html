@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="insights-help.css" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="product-highlights.css" />
     <script src="/theme-mode.js"></script>
   </head>
   <body>
@@ -384,31 +385,65 @@
           </section>
           <p id="performance-period" class="performance-context"></p>
           <div class="performance-highlights">
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">BEST SELLERS</p>
-                  <h2>สินค้าที่ทำยอดสูงสุด</h2>
+            <article class="ph-card" aria-labelledby="ph-best-title">
+              <header class="ph-head">
+                <div class="ph-titles">
+                  <p class="ph-eyebrow"><i aria-hidden="true"></i>BEST SELLERS</p>
+                  <h2 id="ph-best-title">สินค้าที่ทำยอดสูงสุด</h2>
+                  <p class="ph-hint">เรียงตามยอดสุทธิ · คลิกแถวเพื่อดูลูกค้าที่ซื้อมากที่สุด</p>
                 </div>
-                <span class="pill">TOP 5</span>
+                <div class="ph-tools">
+                  <span class="pill ph-help">ⓘ</span>
+                  <div class="ph-segment" role="group" aria-label="จำนวนอันดับสินค้าขายดี">
+                    <button type="button" data-ph-limit="5" data-ph-list="best" aria-pressed="true">TOP 5</button
+                    ><button type="button" data-ph-limit="10" data-ph-list="best" aria-pressed="false">TOP 10</button>
+                  </div>
+                </div>
+              </header>
+              <div class="ph-stats">
+                <div class="ph-stat">
+                  <span>ยอดรวมกลุ่มนี้</span><strong id="ph-best-sum">—</strong>
+                </div>
+                <div class="ph-stat">
+                  <span>สัดส่วนจากยอดขายทั้งหมด</span><strong id="ph-best-share">—</strong>
+                </div>
               </div>
-              <p class="panel-hint">
-                เรียงตามยอดสุทธิ · คลิกดูจำนวนขายและลูกค้าที่ซื้อ
-              </p>
-              <div id="performance-best" class="performance-leaders"></div>
+              <div id="performance-best" class="ph-list"></div>
+              <footer class="ph-foot">
+                <span>แถบ = สัดส่วนเทียบอันดับ 1</span
+                ><button type="button" class="ph-link" id="ph-best-all">ดูสินค้าทั้งหมด →</button>
+              </footer>
             </article>
-            <article class="panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">PRODUCTS TO WATCH</p>
-                  <h2>ยอดขายลดลงที่ควรติดตาม</h2>
+            <article class="ph-card ph-watch" aria-labelledby="ph-watch-title">
+              <header class="ph-head">
+                <div class="ph-titles">
+                  <p class="ph-eyebrow"><i aria-hidden="true"></i>PRODUCTS TO WATCH</p>
+                  <h2 id="ph-watch-title">ยอดขายลดลงที่ควรติดตาม</h2>
+                  <p class="ph-hint">เรียงตามยอดที่ลดลงเป็นบาท · เทียบช่วงก่อนหน้าที่ยาวเท่ากัน</p>
                 </div>
-                <span class="pill watch-pill">ติดตาม</span>
+                <div class="ph-tools">
+                  <span class="pill ph-help">ⓘ</span>
+                  <div class="ph-segment" role="group" aria-label="จำนวนอันดับสินค้าที่ควรติดตาม">
+                    <button type="button" data-ph-limit="5" data-ph-list="watch" aria-pressed="true">TOP 5</button
+                    ><button type="button" data-ph-limit="10" data-ph-list="watch" aria-pressed="false">TOP 10</button>
+                  </div>
+                </div>
+              </header>
+              <div class="ph-stats">
+                <div class="ph-stat">
+                  <span>ยอดที่หายไปรวม</span><strong id="ph-watch-lost" class="ph-negative">—</strong>
+                </div>
+                <div class="ph-stat">
+                  <span>ลดลงเกิน 90%</span><strong id="ph-watch-critical">—</strong>
+                </div>
               </div>
-              <p class="panel-hint">
-                5 อันดับที่ยอดลดลงมากที่สุดเป็นบาท · เทียบช่วงก่อนหน้า
-              </p>
-              <div id="performance-watch" class="performance-leaders"></div>
+              <div id="performance-watch" class="ph-list"></div>
+              <footer class="ph-foot">
+                <span class="ph-legend"
+                  ><b class="ph-level is-critical">วิกฤต</b> ลด ≥ 90% ·
+                  <b class="ph-level is-warning">เฝ้าระวัง</b> ลด 50–89%</span
+                ><button type="button" class="ph-link" id="ph-watch-all">ดูทั้งหมด →</button>
+              </footer>
             </article>
           </div>
           <section

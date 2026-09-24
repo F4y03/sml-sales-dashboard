@@ -1,62 +1,5 @@
 (() => {
   const byId = (id) => document.getElementById(id);
-  const tooltip = document.createElement("div");
-  tooltip.id = "product-chart-tooltip";
-  tooltip.className = "product-chart-tooltip";
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.hidden = true;
-  document.body.append(tooltip);
-  function hideChartTooltip() {
-    tooltip.hidden = true;
-  }
-  document.addEventListener("scroll", hideChartTooltip, true);
-  window.addEventListener("resize", hideChartTooltip);
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") hideChartTooltip();
-  });
-  function showChartTooltip(button, item, periods, watch, selected) {
-    tooltip.replaceChildren(
-      node("strong", item.name, "chart-tip-name"),
-      node("span", skuLabel(item.code), "chart-tip-code"),
-    );
-    for (const [key, title, period, amount] of [
-      ["previous", "ช่วงก่อน", periods.previous, item.previousNet],
-      ["current", "ช่วงนี้", periods.current, item.net],
-    ]) {
-      if (!watch && key === "previous") continue;
-      const section = node(
-        "div",
-        "",
-        `chart-tip-period${selected === key ? " is-highlighted" : ""}`,
-      );
-      section.append(
-        node("span", title, `chart-tip-label ${key}`),
-        node("span", period, "chart-tip-date"),
-        node("b", money(amount), "chart-tip-value"),
-      );
-      tooltip.append(section);
-    }
-    tooltip.append(
-      node(
-        "span",
-        "ยอดขายสุทธิ · คลิกเพื่อดูรายละเอียดสินค้า",
-        "chart-tip-footer",
-      ),
-    );
-    tooltip.hidden = false;
-    const bounds = button.getBoundingClientRect(),
-      width = tooltip.offsetWidth,
-      height = tooltip.offsetHeight;
-    const right = bounds.right + 12;
-    const left =
-      right + width <= innerWidth - 12
-        ? right
-        : bounds.left - width - 12 >= 12
-          ? bounds.left - width - 12
-          : Math.max(12, innerWidth - width - 12);
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${Math.max(12, Math.min(bounds.top, innerHeight - height - 12))}px`;
-  }
   const num = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 });
   const baht = new Intl.NumberFormat("th-TH", {
     minimumFractionDigits: 2,
@@ -171,6 +114,8 @@
     data = null;
     scope = [];
     visible = [];
+    buyerCache.clear();
+    openHighlight.best = openHighlight.watch = null;
     byId("performance-dashboard").hidden = true;
     if (byId("sku-detail").open) closeSku();
   }
@@ -194,6 +139,7 @@
       );
       if (currentRequest !== requestId || !active) return;
       data = result;
+      buyerCache.clear();
       data.products = result.products
         .filter(
           (item) =>
@@ -265,27 +211,10 @@
     byId("performance-declining").textContent = num.format(
       scope.filter(declining).length,
     );
+    // renderSummaryCharts consumes the one-shot animate flag, so read it first.
+    const animateRows = animateCharts;
     renderSummaryCharts(total, previous);
-    renderLeaders(
-      "performance-best",
-      scope
-        .filter((item) => item.net > 0 && item.invoiceCount > 0)
-        .sort(descending)
-        .slice(0, 5),
-      false,
-    );
-    renderLeaders(
-      "performance-watch",
-      scope
-        .filter(declining)
-        .sort(
-          (a, b) =>
-            b.previousNet - b.net - (a.previousNet - a.net) ||
-            a.code.localeCompare(b.code),
-        )
-        .slice(0, 5),
-      true,
-    );
+    renderHighlights(total, animateRows);
     status(
       scope.length
         ? `พบ ${num.format(scope.length)} รหัสสินค้า · คลิกสินค้าเพื่อดูจำนวนขายและลูกค้าที่ซื้อ`
@@ -477,156 +406,356 @@
       }
     }
   }
-  function renderLeaders(id, products, watch) {
-    hideChartTooltip();
-    const container = byId(id);
-    container.replaceChildren();
-    const minimum = watch
-      ? Math.min(0, ...products.map((item) => item.net))
-      : 0;
-    const maximum = Math.max(
-      0,
-      ...products.flatMap((item) =>
-        watch ? [item.previousNet, item.net] : [item.net],
-      ),
-    );
-    const range = maximum - minimum || 1;
-    const zero = (-minimum / range) * 100;
-    container.classList.toggle("leader-chart-paired", watch);
-    if (products.length)
-      container.append(
-        node(
-          "p",
-          watch ? "ยอดสุทธิช่วงก่อน เทียบช่วงนี้ · บาท" : "ยอดขายสุทธิ · บาท",
-          "leader-chart-caption",
-        ),
-      );
-    products.forEach((item, index) => {
-      const button = node("button", "", "performance-leader"),
-        label = node("span", "", "leader-label");
-      const currentPeriod = `${date(data.start)} – ${date(data.end)}`;
-      const previousPeriod = `${date(data.previous.start)} – ${date(data.previous.end)}`;
-      button.type = "button";
-      button.setAttribute(
-        "aria-label",
-        `${item.name}\nช่วงนี้: ${currentPeriod} · ${money(item.net)}` +
-          (watch
-            ? `\nช่วงก่อน: ${previousPeriod} · ${money(item.previousNet)}`
-            : "") +
-          "\nกดเพื่อดูรายละเอียดสินค้า",
-      );
-      const showTip = (selected) =>
-        showChartTooltip(
-          button,
-          item,
-          { current: currentPeriod, previous: previousPeriod },
-          watch,
-          selected,
-        );
-      button.addEventListener("pointerenter", (event) => {
-        if (event.pointerType !== "touch") showTip();
-      });
-      button.addEventListener("pointermove", (event) => {
-        if (event.pointerType !== "touch")
-          showTip(event.target.closest(".leader-chart-series")?.dataset.period);
-      });
-      button.addEventListener("pointerleave", hideChartTooltip);
-      button.addEventListener("focus", () => {
-        if (!byId("sku-detail").open) showTip();
-      });
-      button.addEventListener("blur", hideChartTooltip);
-      button.setAttribute("aria-haspopup", "dialog");
-      button.setAttribute("aria-controls", "sku-detail");
-      label.append(
-        node("strong", item.name),
-        node("small", skuLabel(item.code)),
-      );
-      const value = node(
-        "span",
-        watch ? `−${money(item.previousNet - item.net)}` : money(item.net),
-        `leader-value${watch ? " performance-negative" : ""}`,
-      );
-      value.append(
-        node(
-          "small",
-          watch
-            ? `ลดลง ${changeLabel(item).replace(/^−|-/, "")}`
-            : `${num.format(item.buyerCount)} ลูกค้า · ${num.format(item.invoiceCount)} บิล`,
-        ),
-      );
-      button.append(
-        node("span", String(index + 1).padStart(2, "0")),
-        label,
-        value,
-      );
-      const plot = node("span", "", "leader-chart-plot");
-      const entries = watch
-        ? [
-            ["ช่วงก่อน", item.previousNet, "is-previous"],
-            ["ช่วงนี้", item.net, "is-current"],
-          ]
-        : [["", item.net, ""]];
-      for (const [periodLabel, amount, className] of entries) {
-        const row = node("span", "", "leader-chart-series");
-        row.dataset.period =
-          className === "is-previous" ? "previous" : "current";
-        row.addEventListener("pointerenter", (event) => {
-          if (event.pointerType !== "touch")
-            showTip(className === "is-previous" ? "previous" : "current");
-        });
-        row.addEventListener("pointerleave", () => showTip());
-        if (watch) row.append(node("span", periodLabel, "leader-series-label"));
-        const track = node("span", "", "leader-chart-track");
-        track.setAttribute("aria-hidden", "true");
-        track.style.setProperty("--zero", `${zero}%`);
-        const bar = node(
-          "span",
-          "",
-          `leader-chart-fill ${className}${amount < 0 ? " is-negative" : ""}`,
-        );
-        bar.style.left = `${((Math.min(0, amount) - minimum) / range) * 100}%`;
-        bar.style.width = `${(Math.abs(amount) / range) * 100}%`;
-        track.append(bar);
-        row.append(track);
-        if (watch)
-          row.append(node("span", money(amount), "leader-series-amount"));
-        plot.append(row);
-      }
-      button.append(plot);
-      button.addEventListener("click", () => {
-        hideChartTooltip();
-        openSku(item, button);
-      });
-      container.append(button);
-    });
-    if (products.length) {
-      const axis = node("div", "", "leader-chart-axis");
-      axis.setAttribute("aria-hidden", "true");
-      axis.append(
-        node("span", money(minimum)),
-        node("span", money((minimum + maximum) / 2)),
-        node("span", money(maximum)),
-      );
-      container.append(axis);
-      container.append(
-        node(
-          "p",
-          "ความยาวแท่งเทียบกันภายในกราฟนี้ · แต่ละกราฟใช้สเกลต่างกัน",
-          "leader-chart-scale-note",
-        ),
-      );
-    }
-    if (!products.length)
-      container.append(
-        node(
-          "p",
-          watch
-            ? "ไม่พบสินค้าที่มียอดลดลงจากฐานบวกในช่วงเปรียบเทียบ"
-            : "ยังไม่มีสินค้าที่มียอดขายสุทธิเป็นบวกตามตัวกรอง",
-          "empty-state",
-        ),
-      );
+  // ---------- Best sellers / products to watch ----------
+  // Rows are expandable buttons; one open row per card. Names are set with textContent, never HTML.
+  const pct1 = new Intl.NumberFormat("th-TH", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  const highlightLimits = { best: 5, watch: 5 },
+    openHighlight = { best: null, watch: null },
+    buyerCache = new Map();
+  let highlightTotal = 0;
+  // Percent of a whole; null when the base is not positive, so callers print "–" instead of NaN / Infinity.
+  const shareOf = (part, whole) =>
+    whole > 0 && Number.isFinite(part) ? (part / whole) * 100 : null;
+  const pctText = (value) =>
+    value === null || !Number.isFinite(value) ? "–" : `${pct1.format(value)}%`;
+  const dropOf = (row) => shareOf(row.prev - row.now, row.prev);
+  const reducedMotion = () =>
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const bestRows = () =>
+    scope
+      .filter((item) => item.net > 0 && item.invoiceCount > 0)
+      .sort(descending)
+      .slice(0, highlightLimits.best)
+      .map((item) => ({
+        item,
+        name: item.name,
+        sku: item.code,
+        amt: item.net,
+        cust: item.buyerCount,
+        bills: item.invoiceCount,
+      }));
+  const watchRows = () =>
+    scope
+      .filter(declining)
+      .sort(
+        (a, b) =>
+          b.previousNet - b.net - (a.previousNet - a.net) ||
+          a.code.localeCompare(b.code),
+      )
+      .slice(0, highlightLimits.watch)
+      .map((item) => ({
+        item,
+        name: item.name,
+        sku: item.code,
+        prev: item.previousNet,
+        now: item.net,
+      }));
+  function renderHighlights(total, animate = false) {
+    highlightTotal = total;
+    renderBest(animate);
+    renderWatch(animate);
   }
+  function highlightRow(list, row, index) {
+    const wrap = node("div", "", "ph-item"),
+      toggle = node("button", "", "ph-toggle"),
+      detail = node("div", "", "ph-detail"),
+      inner = node("div", "", "ph-detail-inner");
+    wrap.style.setProperty("--i", index);
+    wrap.dataset.sku = row.sku;
+    toggle.type = "button";
+    toggle.id = `ph-${list}-row-${index}`;
+    detail.id = `ph-${list}-detail-${index}`;
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", detail.id);
+    detail.setAttribute("role", "region");
+    detail.setAttribute("aria-labelledby", toggle.id);
+    detail.inert = true;
+    detail.append(inner);
+    wrap.append(toggle, detail);
+    toggle.addEventListener("click", () =>
+      setHighlightOpen(list, wrap, row, toggle.getAttribute("aria-expanded") !== "true"),
+    );
+    return { wrap, toggle, inner };
+  }
+  function setHighlightOpen(list, wrap, row, open) {
+    const container = byId(`performance-${list}`);
+    container.querySelectorAll(".ph-item.is-open").forEach((other) => {
+      if (other === wrap) return;
+      other.classList.remove("is-open");
+      other.querySelector(".ph-toggle").setAttribute("aria-expanded", "false");
+      other.querySelector(".ph-detail").inert = true;
+    });
+    wrap.classList.toggle("is-open", open);
+    wrap.querySelector(".ph-toggle").setAttribute("aria-expanded", String(open));
+    wrap.querySelector(".ph-detail").inert = !open;
+    openHighlight[list] = open ? row.sku : null;
+    if (open) (list === "best" ? fillBest : fillWatch)(wrap.querySelector(".ph-detail-inner"), row);
+  }
+  function nameBlock(row, meta) {
+    const block = node("span", "", "ph-name"),
+      title = node("strong", row.name);
+    title.title = row.name;
+    block.append(title, meta);
+    return block;
+  }
+  function amountBlock(value, sub, className = "") {
+    const block = node("span", "", `ph-amount${className ? ` ${className}` : ""}`);
+    block.append(node("b", value), node("small", sub));
+    return block;
+  }
+  const chevron = () => {
+    const arrow = node("span", "▾", "ph-chevron");
+    arrow.setAttribute("aria-hidden", "true");
+    return arrow;
+  };
+  function finishList(container, count, emptyText, animate) {
+    clearTimeout(container.phTimer);
+    if (!count) container.append(node("p", emptyText, "empty-state ph-empty"));
+    if (!animate || reducedMotion()) return;
+    void container.offsetWidth;
+    container.classList.add("is-animating");
+    // Drop the class once the stagger has played, so later re-renders (search keystrokes) don't replay it.
+    container.phTimer = setTimeout(
+      () => container.classList.remove("is-animating"),
+      1500,
+    );
+  }
+  function renderBest(animate = false) {
+    const container = byId("performance-best"),
+      rows = bestRows(),
+      sum = rows.reduce((total, row) => total + row.amt, 0),
+      leader = rows[0]?.amt || 0;
+    container.classList.remove("is-animating");
+    container.replaceChildren();
+    byId("ph-best-sum").textContent = rows.length ? money(sum) : "–";
+    byId("ph-best-share").textContent = rows.length
+      ? pctText(shareOf(sum, highlightTotal))
+      : "–";
+    rows.forEach((row, index) => {
+      const { wrap, toggle } = highlightRow("best", row, index),
+        rank = node("span", String(index + 1), `ph-rank${index < 3 ? ` is-top${index + 1}` : ""}`),
+        meta = node("small", "", "ph-meta"),
+        bar = node("span", "", "ph-bar"),
+        fill = node("i", "", "ph-fill");
+      meta.append(
+        node("code", skuLabel(row.sku)),
+        document.createTextNode(
+          ` · ${num.format(row.cust)} ลูกค้า · ${num.format(row.bills)} บิล`,
+        ),
+      );
+      fill.style.width = `${leader > 0 ? Math.max(0, (row.amt / leader) * 100) : 0}%`;
+      bar.setAttribute("aria-hidden", "true");
+      bar.append(fill);
+      toggle.append(
+        rank,
+        nameBlock(row, meta),
+        amountBlock(money(row.amt), `${pctText(shareOf(row.amt, highlightTotal))} ของยอดขาย`),
+        chevron(),
+        bar,
+      );
+      toggle.setAttribute(
+        "aria-label",
+        `อันดับ ${index + 1} ${row.name} ยอดสุทธิ ${money(row.amt)} · กดเพื่อดูลูกค้าที่ซื้อมากที่สุด`,
+      );
+      container.append(wrap);
+      if (openHighlight.best === row.sku) setHighlightOpen("best", wrap, row, true);
+    });
+    if (openHighlight.best && !rows.some((row) => row.sku === openHighlight.best))
+      openHighlight.best = null;
+    finishList(
+      container,
+      rows.length,
+      "ยังไม่มีสินค้าที่มียอดขายสุทธิเป็นบวกตามตัวกรอง",
+      animate,
+    );
+  }
+  function renderWatch(animate = false) {
+    const container = byId("performance-watch"),
+      rows = watchRows(),
+      lost = rows.reduce((total, row) => total + (row.prev - row.now), 0),
+      critical = rows.filter((row) => (dropOf(row) ?? 0) >= 90).length;
+    container.classList.remove("is-animating");
+    container.replaceChildren();
+    byId("ph-watch-lost").textContent = rows.length ? `−${money(lost)}` : "–";
+    byId("ph-watch-critical").textContent = rows.length
+      ? `${num.format(critical)} จาก ${num.format(rows.length)} รายการ`
+      : "–";
+    rows.forEach((row, index) => {
+      const { wrap, toggle } = highlightRow("watch", row, index),
+        drop = dropOf(row),
+        left = shareOf(row.now, row.prev),
+        meta = node("small", "", "ph-meta"),
+        bars = node("span", "", "ph-pair");
+      meta.append(node("code", skuLabel(row.sku)));
+      if (drop !== null && drop >= 50)
+        meta.append(
+          node(
+            "b",
+            drop >= 90 ? "วิกฤต" : "เฝ้าระวัง",
+            `ph-level ${drop >= 90 ? "is-critical" : "is-warning"}`,
+          ),
+        );
+      // Each row uses its own scale: the previous period is always the full track.
+      for (const [label, amount, width, className] of [
+        ["ช่วงก่อน", row.prev, 100, "is-previous"],
+        ["ช่วงนี้", row.now, left === null ? 0 : Math.min(100, Math.max(0, left)), "is-current"],
+      ]) {
+        const line = node("span", "", `ph-pair-line ${className}`),
+          track = node("span", "", "ph-bar"),
+          fill = node("i", "", "ph-fill");
+        track.setAttribute("aria-hidden", "true");
+        fill.style.width = `${width}%`;
+        track.append(fill);
+        line.append(node("span", label, "ph-pair-label"), track, node("span", money(amount), "ph-pair-amount"));
+        bars.append(line);
+      }
+      toggle.append(
+        node("span", String(index + 1), "ph-rank is-watch"),
+        nameBlock(row, meta),
+        amountBlock(`−${money(row.prev - row.now)}`, `ลดลง ${pctText(drop)}`, "ph-negative"),
+        chevron(),
+        bars,
+      );
+      toggle.setAttribute(
+        "aria-label",
+        `อันดับ ${index + 1} ${row.name} ยอดลดลง ${money(row.prev - row.now)} (${pctText(drop)}) · ช่วงก่อน ${money(row.prev)} ช่วงนี้ ${money(row.now)} · กดเพื่อดูรายละเอียด`,
+      );
+      container.append(wrap);
+      if (openHighlight.watch === row.sku) setHighlightOpen("watch", wrap, row, true);
+    });
+    if (openHighlight.watch && !rows.some((row) => row.sku === openHighlight.watch))
+      openHighlight.watch = null;
+    finishList(
+      container,
+      rows.length,
+      "ไม่พบสินค้าที่มียอดลดลงจากฐานบวกในช่วงเปรียบเทียบ",
+      animate,
+    );
+  }
+  function detailLine(label, value, className = "") {
+    const line = node("div", "", `ph-detail-line${className ? ` ${className}` : ""}`);
+    line.append(node("span", label), node("b", value));
+    return line;
+  }
+  function detailLink(text, item) {
+    const link = node("button", text, "ph-link");
+    link.type = "button";
+    link.setAttribute("aria-haspopup", "dialog");
+    link.setAttribute("aria-controls", "sku-detail");
+    link.addEventListener("click", () => openSku(item, link));
+    return link;
+  }
+  // Top buyers come from the same product-buyers API as the SKU popup, fetched once per product and period.
+  function fillBest(inner, row) {
+    if (!data) return;
+    const snapshot = data,
+      key = `${data.start}|${data.end}|${row.sku}`;
+    inner.replaceChildren(node("p", "กำลังโหลดลูกค้าที่ซื้อมากที่สุด…", "ph-detail-status"));
+    let pending = buyerCache.get(key);
+    if (!pending) {
+      pending = getJSON(
+        `/api/customer-insights/product-buyers?${new URLSearchParams({ start: data.start, end: data.end, code: row.sku })}`,
+      ).then((result) => result.buyers);
+      buyerCache.set(key, pending);
+      pending.catch(() => buyerCache.delete(key));
+    }
+    pending.then(
+      (buyers) => {
+        if (data !== snapshot || !inner.isConnected) return;
+        const topBuyers = buyers.slice(0, 3),
+          list = node("ol", "", "ph-buyers");
+        topBuyers.forEach((buyer) => {
+          const entry = node("li");
+          entry.append(node("span", buyer.name), node("b", money(Number(buyer.net))));
+          list.append(entry);
+        });
+        inner.replaceChildren(node("p", "ลูกค้าที่ซื้อมากที่สุด", "ph-detail-title"));
+        if (topBuyers.length) inner.append(list);
+        else inner.append(node("p", "ยังไม่มีลูกค้าที่มีรายการสินค้านี้ในช่วงนี้", "ph-detail-status"));
+        if (buyers.length > 3)
+          inner.append(node("p", `และอีก ${num.format(buyers.length - 3)} ราย`, "ph-detail-more"));
+        const foot = node("div", "", "ph-detail-foot");
+        foot.append(
+          detailLine("เฉลี่ยต่อบิล", row.bills > 0 ? money(row.amt / row.bills) : "–"),
+          detailLink("ดูลูกค้าทั้งหมด →", row.item),
+        );
+        inner.append(foot);
+      },
+      (error) => {
+        if (data !== snapshot || !inner.isConnected) return;
+        const retry = node("button", "ลองใหม่", "ph-link");
+        retry.type = "button";
+        retry.addEventListener("click", () => fillBest(inner, row));
+        inner.replaceChildren(
+          node(
+            "p",
+            error.message === "Failed to fetch" ? "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่" : error.message,
+            "ph-detail-status is-error",
+          ),
+          retry,
+        );
+      },
+    );
+  }
+  function fillWatch(inner, row) {
+    if (!data) return;
+    const left = shareOf(row.now, row.prev),
+      stock =
+        row.item.stock == null || row.item.stock === ""
+          ? null
+          : Number(row.item.stock);
+    const foot = node("div", "", "ph-detail-foot");
+    foot.append(
+      node(
+        "span",
+        `ช่วงก่อน ${date(data.previous.start)} – ${date(data.previous.end)} · ช่วงนี้ ${date(data.start)} – ${date(data.end)}`,
+        "ph-detail-period",
+      ),
+      detailLink("ดูลูกค้าและสต็อก →", row.item),
+    );
+    inner.replaceChildren(
+      detailLine("ยอดช่วงนี้เหลือ", left === null ? "–" : `${pct1.format(left)}% ของช่วงก่อน`),
+      detailLine("ยอดที่หายไป", `−${money(row.prev - row.now)}`, "ph-negative"),
+      // NULL stock means "no data", not zero.
+      detailLine(
+        "คงเหลือในทะเบียน",
+        stock !== null && Number.isFinite(stock)
+          ? `${num.format(stock)} ${row.item.stockUnit || "ไม่ระบุหน่วย"}`
+          : "ไม่มีข้อมูล",
+      ),
+      foot,
+    );
+  }
+  document.querySelectorAll("[data-ph-limit]").forEach((button) =>
+    button.addEventListener("click", () => {
+      const list = button.dataset.phList,
+        limit = Number(button.dataset.phLimit);
+      document
+        .querySelectorAll(`[data-ph-list="${list}"]`)
+        .forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+      if (highlightLimits[list] === limit) return;
+      highlightLimits[list] = limit;
+      if (data) (list === "best" ? renderBest : renderWatch)(true);
+    }),
+  );
+  for (const [id, target] of [
+    ["ph-best-all", "all"],
+    ["ph-watch-all", "declining"],
+  ])
+    byId(id).addEventListener("click", () => {
+      if (!data) return;
+      mode = target;
+      page = 0;
+      renderTable();
+      byId("performance-table-title").scrollIntoView({
+        block: "start",
+        behavior: reducedMotion() ? "auto" : "smooth",
+      });
+    });
+
 
   function renderTable() {
     const modes = {
