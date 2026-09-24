@@ -122,26 +122,15 @@ workspace
   .querySelectorAll("nav a")
   .forEach((link) => link.addEventListener("click", collapseWorkspace));
 function updateWorkspace() {
-  const filename = location.pathname.split("/").pop();
-  const page = [
-    "system-admin.html",
-    "select-territory.html",
-    "access-denied.html",
-  ].includes(filename)
-    ? ""
-    : filename === "customers.html"
-      ? "customers"
-      : filename === "executive.html"
-        ? "executive"
-        : filename === "reports.html"
-          ? "reports"
-          : filename === "products.html"
-            ? "products"
-            : filename === "consignment.html"
-              ? "consignment"
-              : "overview";
-  workspace.querySelectorAll("[data-page]").forEach((link) => {
-    if (link.dataset.page === page) link.setAttribute("aria-current", "page");
+  const currentPath =
+    location.pathname === "/" ? "/index.html" : location.pathname;
+  workspace.querySelectorAll("nav a").forEach((link) => {
+    const linkPath = new URL(link.getAttribute("href"), location.href)
+      .pathname;
+    const normalizedLinkPath =
+      linkPath === "/" ? "/index.html" : linkPath;
+    if (normalizedLinkPath === currentPath)
+      link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
 }
@@ -311,18 +300,15 @@ window.prplusUser
       const link = document.createElement("a");
       link.href = "/system-admin.html";
       link.textContent = "⚙ System Admin";
-      if (location.pathname === "/system-admin.html")
-        link.setAttribute("aria-current", "page");
       workspace.querySelector("nav").append(link);
     }
     if (user.role === "super_admin") {
       const link = document.createElement("a");
       link.href = "/pending-product-images.html";
       link.textContent = "🖼 รูปสินค้ารอเพิ่มใน SML";
-      if (location.pathname === "/pending-product-images.html")
-        link.setAttribute("aria-current", "page");
       workspace.querySelector("nav").append(link);
     }
+    updateWorkspace();
     const sourceBadge = document.querySelector(".source-badge");
     const updateSourceBadge = (text, selected = false) => {
       if (!sourceBadge) return;
@@ -409,7 +395,13 @@ window.prplusUser
   })
   .catch(() => {});
 window.addEventListener("pageshow", (event) => {
-  if (event.persisted) location.reload();
+  if (event.persisted) {
+    // Bfcache restores the old DOM (with its stale aria-current baked in) for
+    // one frame before reload takes effect — resync immediately to avoid the
+    // flash of the wrong link being highlighted.
+    updateWorkspace();
+    location.reload();
+  }
 });
 
 const connection = document.createElement("div");
