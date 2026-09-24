@@ -115,6 +115,7 @@ export function buildWorkbook(ExcelJS, products, filters, source) {
       positive: "มีคงเหลือ",
       zero: "หมดแล้ว",
       negative: "คงเหลือติดลบ",
+      stale: "ไม่เคลื่อนไหวเกิน 90 วัน",
       recent: "เคลื่อนไหวล่าสุด",
       out: "เบิกออกมากที่สุด",
       balance: "คงเหลือมากที่สุด",

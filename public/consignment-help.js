@@ -9,6 +9,11 @@ const topics = {
     "จำนวนรหัสสินค้าในผลลัพธ์ที่มียอดคงเหลือมากกว่า 0 ไม่ใช่ผลรวมจำนวนสินค้าที่เหลือ",
     "ถ้าเลือกสถานะ “มีคงเหลือ” ตัวเลขนี้จะเท่ากับ “สินค้าที่แสดง” เพราะทุกสินค้าที่เลือกมีของเหลือ",
   ],
+  flow: [
+    "เบิกออก / คงเหลือ",
+    "ตัวเลขหลักคือเบิกออกสะสมของสินค้าที่ตรงตัวกรอง ส่วนคงเหลือคือยอดหลังรายการล่าสุดของแต่ละรหัสรวมกัน อัตราคงเหลือ = คงเหลือ ÷ เบิกออก",
+    "ถ้าสินค้าที่แสดงมีหลายหน่วย ยอดรวมจะปนหน่วยกัน (เช่น ตัว + คู่) ให้เลือกตัวกรอง “หน่วย” ก่อนเปรียบเทียบ ไม่ควรอ่านเป็นจำนวนชิ้นเดียวกัน",
+  ],
   recent: [
     "เคลื่อนไหวล่าสุด",
     "วันที่ทำรายการล่าสุดของสินค้าที่ตรงตัวกรอง อาจเป็นการรับเข้า ยกมา เบิกออก หรือขายที่ตัดสต็อก",
@@ -73,11 +78,66 @@ close.textContent = "ปิด ×";
 close.setAttribute("aria-label", "ปิดคำอธิบาย");
 heading.append(title, close);
 const description = document.createElement("p"),
-  example = document.createElement("p");
+  example = document.createElement("p"),
+  data = document.createElement("section");
 example.className = "help-example";
-dialog.append(heading, description, example);
+data.className = "help-data";
+data.setAttribute("aria-label", "ข้อมูลตอนนี้");
+dialog.append(heading, description, data, example);
 document.body.append(dialog);
 close.onclick = () => dialog.close();
+// Clicking the backdrop (outside the dialog's own padding) closes it, same as the × button.
+dialog.addEventListener("click", (event) => {
+  if (event.target === dialog) dialog.close();
+});
+// The page registers a provider returning { rows: [[label, value]], table: { head, rows }, note } for a topic, or null.
+let dataProvider = null;
+export function setHelpData(provider) {
+  dataProvider = provider;
+}
+const node = (tag, className, text) => {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text != null) el.textContent = text;
+  return el;
+};
+function renderData(info) {
+  data.replaceChildren();
+  data.hidden = !info;
+  if (!info) return;
+  data.append(node("h3", "", "ข้อมูลตอนนี้ · ตามตัวกรองที่เลือก"));
+  if (info.note) data.append(node("p", "help-data-note", info.note));
+  if (info.rows?.length) {
+    const list = node("dl");
+    for (const [label, value] of info.rows)
+      list.append(node("dt", "", label), node("dd", "", value));
+    data.append(list);
+  }
+  if (info.table?.rows.length) {
+    const wrap = node("div", "table-scroll"),
+      table = node("table"),
+      head = node("tr"),
+      body = node("tbody");
+    for (const h of info.table.head) head.append(node("th", "", h));
+    for (const r of info.table.rows) {
+      const tr = node("tr");
+      for (const v of r) tr.append(node("td", "", v));
+      body.append(tr);
+    }
+    table.append(node("thead"), body);
+    table.tHead.append(head);
+    if (info.table.caption) data.append(node("p", "help-data-caption", info.table.caption));
+    wrap.append(table);
+    data.append(wrap);
+  }
+}
+export function showHelp(key) {
+  if (!topics[key]) return;
+  [title.textContent, description.textContent, example.textContent] =
+    topics[key];
+  renderData(dataProvider?.(key) || null);
+  dialog.showModal();
+}
 function attach(selector, key) {
   const target = document.querySelector(selector);
   if (!target) return;
@@ -89,16 +149,18 @@ function attach(selector, key) {
   b.setAttribute("aria-haspopup", "dialog");
   b.onclick = (event) => {
     event.stopPropagation();
-    [title.textContent, description.textContent, example.textContent] =
-      topics[key];
-    dialog.showModal();
+    showHelp(key);
   };
   target.append(b);
 }
+// KPI cards and the filter bar carry their own [data-help] icons.
+document.querySelectorAll("[data-help]").forEach((b) =>
+  b.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showHelp(b.dataset.help);
+  }),
+);
 for (const [selector, key] of [
-  [".simple-kpis article:nth-child(1) p", "products"],
-  [".simple-kpis article:nth-child(2) p", "stock"],
-  [".simple-kpis article:nth-child(3) p", "recent"],
   [".movement-table thead th:nth-child(1)", "code"],
   [".movement-table thead th:nth-child(2)", "recent"],
   [".movement-table thead th:nth-child(3)", "incoming"],
@@ -110,8 +172,3 @@ for (const [selector, key] of [
   ["#regional-title", "regional"],
 ])
   attach(selector, key);
-const filterTitle = document.createElement("div");
-filterTitle.className = "filter-help-title";
-filterTitle.textContent = "ค้นหาและกรองข้อมูล";
-document.querySelector(".simple-filters").before(filterTitle);
-attach(".filter-help-title", "filters");

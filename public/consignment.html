@@ -8,73 +8,216 @@
     <link rel="stylesheet" href="workspace-nav.css" />
     <link rel="stylesheet" href="consignment.css" />
     <link rel="stylesheet" href="theme-modes.css" />
+    <link rel="stylesheet" href="consignment-top.css" />
     <script src="theme-mode.js"></script>
     <script src="workspace-nav.js" defer></script>
     <script src="consignment-ui.js" type="module"></script>
   </head>
   <body>
-    <main>
-      <header class="consignment-heading">
-        <div>
-          <p class="eyebrow">CONSIGNMENT ACTIVITY</p>
-          <h1>สินค้าฝาก<span> .</span></h1>
-          <p>ดูว่าเบิกอะไรไป และตอนนี้เหลือเท่าไร</p>
+    <main id="cs-top" class="cs-intro">
+      <!-- Must stay a direct child of <main>: workspace-nav.js appends the territory switcher here. -->
+      <header class="consignment-heading cs-header">
+        <div class="cs-title">
+          <p class="cs-eyebrow">CONSIGNMENT ACTIVITY</p>
+          <h1>สินค้าฝาก<span class="cs-dot" aria-hidden="true">.</span></h1>
+          <p class="cs-subtitle">ดูว่าเบิกอะไรไป และตอนนี้เหลือเท่าไร</p>
         </div>
-        <p id="source" role="status">กำลังโหลดข้อมูลจาก SML…</p>
-        <span class="source-badge"
-          ><span aria-hidden="true"></span>กำลังตรวจสอบเขต…</span
-        >
+        <div class="cs-meta">
+          <div class="cs-badges">
+            <span class="cs-live" id="source-state" data-state="loading"
+              >SML · รายงาน 2060</span
+            >
+            <span class="source-badge"
+              ><span aria-hidden="true"></span>กำลังตรวจสอบเขต…</span
+            >
+          </div>
+          <p id="source" role="status">กำลังโหลดข้อมูลจาก SML…</p>
+        </div>
       </header>
       <p id="error" role="alert"></p>
-      <section class="panel">
-        <div class="simple-filters">
-          <label
-            >ค้นหาสินค้าหรือรหัสฝาก<input
-              id="search"
-              type="search"
-              placeholder="เช่น UK12, ลำโพง, ฝหย055"
-          /></label>
-          <label
-            >ภูมิภาค<select id="region">
+      <section class="cs-filters" aria-label="ค้นหาและกรองสินค้าฝาก">
+        <div class="cs-filter-row">
+          <label class="cs-field cs-field-search"
+            ><span class="cs-label">ค้นหาสินค้าหรือรหัสฝาก</span
+            ><span class="cs-search"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" /></svg
+              ><input
+                id="search"
+                type="search"
+                placeholder="เช่น UK12, ลำโพง, ฝหย055"
+                autocomplete="off"
+                aria-keyshortcuts="/" /><kbd aria-hidden="true">/</kbd></span
+            ></label
+          >
+          <label class="cs-field"
+            ><span class="cs-label">ภูมิภาค</span
+            ><select id="region">
               <option value="">ทั้งหมด</option>
             </select></label
           >
-          <label
-            >รหัสฝาก<select id="customer">
+          <label class="cs-field"
+            ><span class="cs-label">รหัสฝาก</span
+            ><select id="customer">
               <option value="">ทั้งหมด</option>
             </select></label
           >
-          <label
-            >หน่วย<select id="unit">
+          <label class="cs-field"
+            ><span class="cs-label">หน่วย</span
+            ><select id="unit">
               <option value="">ทั้งหมด</option>
             </select></label
           >
-          <label
-            >สถานะสินค้า<select id="stock">
+          <label class="cs-field"
+            ><span class="cs-label">สถานะสินค้า</span
+            ><select id="stock">
               <option value="">ทั้งหมด</option>
               <option value="positive">มีคงเหลือ</option>
               <option value="zero">หมดแล้ว</option>
+              <option value="stale">ไม่เคลื่อนไหว 90 วัน</option>
               <option value="negative">คงเหลือติดลบ</option>
             </select></label
           >
-          <button id="reset">ล้างตัวกรอง</button>
+          <button id="reset" type="button" class="cs-reset" disabled>
+            ล้างตัวกรอง
+          </button>
+        </div>
+        <div class="cs-active">
+          <div class="cs-chips" id="active-filters" aria-live="polite"></div>
+          <button
+            type="button"
+            class="cs-icon"
+            data-help="filters"
+            aria-label="วิธีใช้ตัวกรอง"
+            aria-haspopup="dialog"
+          >
+            ⓘ
+          </button>
         </div>
       </section>
-      <div class="simple-kpis">
-        <article class="panel">
-          <p>สินค้าที่แสดง</p>
-          <strong id="product-count">—</strong><small>รหัสสินค้า</small>
+      <p class="cs-empty" id="cs-empty" hidden>
+        ไม่พบสินค้าที่ตรงกับตัวกรอง ·
+        <button type="button" class="cs-empty-reset" id="empty-reset">
+          ล้างตัวกรอง
+        </button>
+      </p>
+      <section class="cs-kpis" id="cs-kpis" aria-label="สรุปสินค้าฝาก">
+        <article class="cs-card cs-featured" style="--i: 0">
+          <div class="cs-head">
+            <span class="cs-name">สินค้าที่แสดง</span
+            ><button
+              type="button"
+              class="cs-icon"
+              data-help="products"
+              data-tip="จำนวนรหัสสินค้าที่ตรงคำค้นหาและตัวกรองทั้งหมด นับรหัสละ 1 ครั้ง"
+              aria-label="คำอธิบาย สินค้าที่แสดง"
+              aria-haspopup="dialog"
+            >
+              ⓘ
+            </button>
+          </div>
+          <p class="cs-value">
+            <strong id="product-count">—</strong
+            ><span class="cs-unit">รหัส</span>
+          </p>
+          <span class="cs-line" id="product-total"></span>
+          <span class="cs-bar" aria-hidden="true"
+            ><i class="cs-bar-fill" id="product-bar"></i
+          ></span>
+          <div class="cs-foot">
+            <span>รหัสสินค้า</span
+            ><button type="button" class="cs-link" id="link-table">
+              ดูตาราง →
+            </button>
+          </div>
         </article>
-        <article class="panel">
-          <p>มีสินค้าคงเหลือ</p>
-          <strong id="stock-count">—</strong><small>รหัสสินค้า</small>
+        <article class="cs-card" style="--i: 1">
+          <div class="cs-head">
+            <span class="cs-name">มีสินค้าคงเหลือ</span
+            ><button
+              type="button"
+              class="cs-icon"
+              data-help="stock"
+              data-tip="จำนวนรหัสสินค้าที่คงเหลือมากกว่า 0 ไม่ใช่ผลรวมจำนวนชิ้น"
+              aria-label="คำอธิบาย มีสินค้าคงเหลือ"
+              aria-haspopup="dialog"
+            >
+              ⓘ
+            </button>
+          </div>
+          <p class="cs-value">
+            <strong id="stock-count">—</strong><span class="cs-unit">รหัส</span>
+          </p>
+          <span class="cs-bar cs-bar-split" aria-hidden="true"
+            ><i class="cs-bar-fill is-good" id="stock-bar"></i
+          ></span>
+          <span class="cs-line" id="stock-share"></span>
+          <div class="cs-foot">
+            <span>รหัสที่คงเหลือ &gt; 0</span
+            ><button type="button" class="cs-link" id="link-in-stock">
+              เฉพาะที่มีของ →
+            </button>
+          </div>
         </article>
-        <article class="panel">
-          <p>เคลื่อนไหวล่าสุด</p>
-          <strong id="last-date">—</strong><small>ตามข้อมูลที่เลือก</small>
+        <article class="cs-card" style="--i: 2">
+          <div class="cs-head">
+            <span class="cs-name">เบิกออก / คงเหลือ</span
+            ><button
+              type="button"
+              class="cs-icon"
+              data-help="flow"
+              data-tip="เบิกออกสะสม เทียบคงเหลือล่าสุด ของสินค้าที่ตรงตัวกรอง · อัตราคงเหลือ = คงเหลือ ÷ เบิกออก"
+              aria-label="คำอธิบาย เบิกออก / คงเหลือ"
+              aria-haspopup="dialog"
+            >
+              ⓘ
+            </button>
+          </div>
+          <p class="cs-value">
+            <strong id="out-total">—</strong
+            ><span class="cs-unit" id="out-unit"></span>
+          </p>
+          <span class="cs-line" id="balance-line"></span>
+          <span class="cs-line cs-warn" id="unit-warning" hidden></span>
+          <div class="cs-foot">
+            <span id="flow-unit">เบิกออกสะสม</span
+            ><button type="button" class="cs-link" id="link-regional">
+              ดูแยกตามภาค →
+            </button>
+          </div>
         </article>
-      </div>
-      <section class="panel" aria-labelledby="regional-title">
+        <article class="cs-card" style="--i: 3">
+          <div class="cs-head">
+            <span class="cs-name">เคลื่อนไหวล่าสุด</span
+            ><button
+              type="button"
+              class="cs-icon"
+              data-help="recent"
+              data-tip="วันที่ทำรายการล่าสุดของสินค้าที่ตรงตัวกรอง ไม่ใช่เวลาที่โหลดข้อมูล"
+              aria-label="คำอธิบาย เคลื่อนไหวล่าสุด"
+              aria-haspopup="dialog"
+            >
+              ⓘ
+            </button>
+          </div>
+          <p class="cs-value"><strong id="last-date">—</strong></p>
+          <span class="cs-line" id="last-ago"></span>
+          <span class="cs-line" id="stale-line"></span>
+          <div class="cs-foot">
+            <span>ตามข้อมูลที่เลือก</span
+            ><button
+              type="button"
+              class="cs-link"
+              id="link-history"
+              aria-haspopup="dialog"
+            >
+              ดูประวัติ →
+            </button>
+          </div>
+        </article>
+      </section>
+      <section class="panel" id="regional" aria-labelledby="regional-title">
         <h2 id="regional-title">เบิกออกและคงเหลือ แยกตามภาค</h2>
         <p>
           เบิกออกสะสมเทียบกับคงเหลือล่าสุด · ตามคำค้นหาและตัวกรองทุกหน้าตาราง
@@ -109,7 +252,7 @@
           </div>
         </details>
       </section>
-      <section class="panel">
+      <section class="panel" id="movement">
         <div class="section-heading">
           <div>
             <h2>รายการสินค้าฝาก</h2>

@@ -217,24 +217,6 @@ th:nth-child(n + 3) {
   border-radius: 8px;
   max-width: 100%;
 }
-.simple-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: end;
-}
-.simple-filters label {
-  display: grid;
-  gap: 6px;
-  flex: 1;
-  min-width: 140px;
-}
-.simple-filters label:first-child {
-  flex: 2;
-  min-width: 220px;
-}
-.simple-filters input,
-.simple-filters select,
 select {
   font: inherit;
   padding: 10px;
@@ -242,18 +224,6 @@ select {
   border-radius: 8px;
   min-width: 0;
   width: 100%;
-}
-.simple-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-.simple-kpis strong {
-  display: block;
-  font-size: 28px;
-}
-.simple-kpis small {
-  display: block;
 }
 .movement-table .product-cell {
   white-space: normal;
@@ -322,22 +292,6 @@ button:disabled {
   cursor: default;
 }
 @media (max-width: 700px) {
-  .simple-kpis {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-  .simple-kpis .panel {
-    padding: 14px;
-  }
-  .simple-kpis strong {
-    font-size: 24px;
-  }
-  .simple-filters label {
-    min-width: calc(50% - 16px);
-  }
-  .simple-filters label:first-child {
-    min-width: 100%;
-  }
   .pagination {
     font-size: 12px;
   }
@@ -422,15 +376,6 @@ html[data-theme] .consignment-help-button {
   outline: 2px solid var(--brand);
   outline-offset: 3px;
 }
-.simple-kpis article > p {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.filter-help-title {
-  margin-bottom: 14px;
-  font-weight: 600;
-}
 #consignment-help {
   width: min(580px, calc(100vw - 32px));
   max-height: 85vh;
@@ -457,6 +402,65 @@ html[data-theme] .consignment-help-button {
 #consignment-help p {
   line-height: 1.9;
   margin-top: 20px;
+}
+/* Current numbers inside the help popup */
+#consignment-help .help-data {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+#consignment-help .help-data[hidden] {
+  display: none;
+}
+#consignment-help .help-data h3 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+#consignment-help .help-data dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+#consignment-help .help-data dt {
+  color: var(--muted);
+}
+#consignment-help .help-data dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+#consignment-help .help-data .help-data-note {
+  margin: 0 0 10px;
+  color: var(--warning, #f5b945);
+  font-size: 12px;
+  line-height: 1.6;
+}
+#consignment-help .help-data .help-data-note:empty {
+  display: none;
+}
+#consignment-help .help-data .help-data-caption {
+  margin: 14px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+#consignment-help .help-data table {
+  font-size: 13px;
+}
+#consignment-help .help-data :is(th, td) {
+  padding: 7px 8px;
+  text-align: right;
+}
+#consignment-help .help-data :is(th, td):first-child {
+  text-align: left;
+  white-space: normal;
 }
 .help-example {
   background: var(--surface-raised);
@@ -625,90 +629,6 @@ html[data-theme] .regional-table tfoot :is(th, td):not(:first-child) {
 .regional-table :is(td, th):not(:first-child) {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-.consignment-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  grid-template-rows: auto auto;
-  align-items: start;
-  gap: 6px 24px;
-}
-.consignment-heading > div:first-child {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-}
-.consignment-heading #source {
-  grid-column: 2;
-  grid-row: 1;
-  margin: 0;
-  text-align: right;
-  font-size: 12px;
-  line-height: 1.9;
-  overflow-wrap: anywhere;
-}
-.consignment-heading > .source-badge {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
-}
-.consignment-heading > .territory-bar {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
-  width: 100%;
-  margin: 0;
-  min-width: 0;
-  min-height: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  box-shadow: none;
-  background: var(--surface-raised, #f8f9fb);
-}
-.consignment-heading > .territory-bar label {
-  font-size: 13px;
-  white-space: nowrap;
-}
-.consignment-heading > .territory-bar select {
-  min-width: 138px;
-}
-.consignment-heading > .territory-bar .source-badge {
-  padding: 7px 9px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-@media (max-width: 700px) {
-  .consignment-heading {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 4px;
-  }
-  .consignment-heading > div:first-child {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .consignment-heading #source {
-    grid-column: 1;
-    grid-row: 2;
-    text-align: left;
-    margin: 0;
-  }
-  .consignment-heading > .source-badge {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: start;
-  }
-  .consignment-heading > .territory-bar {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: stretch;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 9px;
-  }
-  .consignment-heading > .territory-bar .source-badge {
-    align-self: flex-start;
-    margin-left: 0;
-  }
 }
 .consignment-sort {
   display: flex;

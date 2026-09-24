@@ -1,0 +1,738 @@
+/* Consignment top: header, filter bar, active-filter chips and KPI cards. Mirrors overview-top.css.
+   Scoped to #cs-top so the theme's global button / input rules don't leak in.
+   Dark values follow the spec; light mode uses theme tokens. */
+#cs-top {
+  --cs-red: #ff3b30;
+  --cs-red-deep: #c4130c;
+  --cs-red-text: #ff8a82;
+  --cs-up: #4ade80;
+  --cs-down: #ff6b6b;
+  --cs-warn: #f5b945;
+  --cs-card: var(--surface, #1f1f1f);
+  --cs-field: var(--surface-raised, #262626);
+  --cs-line: var(--line, #333);
+  --cs-ink: var(--ink, #fff);
+  --cs-muted: var(--muted, #a8a8a8);
+  position: relative;
+  isolation: isolate;
+  /* 1160px of content plus main's 32px side padding (consignment.css). */
+  max-width: calc(1160px + 64px);
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="light"] #cs-top {
+  --cs-red-text: #c42a20;
+  --cs-up: #15803d;
+  --cs-down: #c22b38;
+  --cs-warn: #a86400;
+}
+#cs-top :is(button, a, select, input):focus-visible {
+  outline: 2px solid var(--cs-red);
+  outline-offset: 3px;
+}
+
+/* ---------- 1. Header ---------- */
+#cs-top .cs-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 24px;
+  margin: 0 0 20px;
+}
+#cs-top .cs-title {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+#cs-top .cs-eyebrow {
+  margin: 0 0 8px;
+  color: var(--cs-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+#cs-top h1 {
+  margin: 0;
+  color: var(--cs-ink);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+#cs-top h1 .cs-dot {
+  color: var(--cs-red);
+}
+#cs-top .cs-subtitle {
+  margin: 8px 0 0;
+  color: var(--cs-muted);
+  font-size: 14px;
+}
+#cs-top .cs-meta {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+#cs-top .cs-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+#cs-top #source {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+#cs-top .cs-live,
+html[data-theme] #cs-top .cs-badges .source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--cs-muted) 35%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cs-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+#cs-top .cs-live::before,
+html[data-theme] #cs-top .cs-badges .source-badge > span {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+#cs-top .cs-live[data-state="connected"] {
+  border-color: color-mix(in srgb, var(--cs-up) 45%, transparent);
+  background: color-mix(in srgb, var(--cs-up) 10%, transparent);
+  color: var(--cs-up);
+}
+#cs-top .cs-live[data-state="connected"]::before {
+  animation: cs-pulse 1.8s ease-in-out infinite;
+}
+#cs-top .cs-live[data-state="failed"] {
+  border-color: color-mix(in srgb, var(--cs-down) 45%, transparent);
+  color: var(--cs-down);
+}
+html[data-theme] #cs-top .cs-badges .source-badge {
+  border-color: color-mix(in srgb, var(--cs-red) 40%, transparent);
+  background: color-mix(in srgb, var(--cs-red) 12%, transparent);
+  color: var(--cs-red-text);
+}
+/* Territory users: workspace-nav.js appends its switcher (with the badge) to the header. */
+#cs-top .cs-header > .territory-bar {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow: none;
+  background: var(--cs-card);
+}
+#cs-top .cs-header > .territory-bar label {
+  font-size: 13px;
+  white-space: nowrap;
+}
+#cs-top .cs-header > .territory-bar select {
+  width: auto;
+  min-width: 138px;
+}
+#cs-top .cs-header > .territory-bar .source-badge {
+  padding: 7px 9px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ---------- 2. Filter bar ---------- */
+#cs-top .cs-filters {
+  margin: 0 0 16px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--cs-line);
+  border-radius: 16px;
+  background: var(--cs-card);
+}
+#cs-top .cs-filter-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.2fr) repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+#cs-top .cs-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+#cs-top .cs-label {
+  overflow: hidden;
+  color: var(--cs-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#cs-top .cs-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+#cs-top .cs-search svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--cs-muted);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+html[data-theme] #cs-top .cs-filters :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--cs-line);
+  border-radius: 10px;
+  background-color: var(--cs-field);
+  color: var(--cs-ink);
+  font: inherit;
+  font-size: 14px;
+  color-scheme: inherit;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+html[data-theme] #cs-top .cs-filters #search {
+  padding: 0 38px 0 36px;
+}
+#cs-top #search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+html[data-theme] #cs-top .cs-filters :is(input, select):focus {
+  border-color: color-mix(in srgb, var(--cs-red) 70%, var(--cs-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cs-red) 22%, transparent);
+  outline: none;
+}
+html[data-theme] #cs-top .cs-filters select.is-active {
+  border-color: color-mix(in srgb, var(--cs-red) 55%, var(--cs-line));
+  background-color: color-mix(in srgb, var(--cs-red) 12%, var(--cs-field));
+}
+#cs-top .cs-search kbd {
+  position: absolute;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--cs-line);
+  border-radius: 5px;
+  color: var(--cs-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+#cs-top #search:not(:placeholder-shown) ~ kbd {
+  opacity: 0;
+}
+html[data-theme] #cs-top .cs-reset {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--cs-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cs-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+html[data-theme] #cs-top .cs-reset:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--cs-red) 55%, var(--cs-line));
+  background: transparent;
+  color: var(--cs-red-text);
+}
+html[data-theme] #cs-top .cs-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- 3. Active-filter chips ---------- */
+#cs-top .cs-active {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cs-line);
+}
+#cs-top .cs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+  min-height: 26px;
+}
+#cs-top .cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 3px 2px 10px;
+  border: 1px solid color-mix(in srgb, var(--cs-red) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cs-red) 12%, transparent);
+  color: var(--cs-red-text);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+html[data-theme] #cs-top .cs-chip button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+html[data-theme] #cs-top .cs-chip button:hover {
+  background: color-mix(in srgb, var(--cs-red) 25%, transparent);
+}
+#cs-top .cs-chips-empty {
+  color: var(--cs-muted);
+  font-size: 12px;
+}
+
+/* Empty result */
+#cs-top .cs-empty {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px dashed color-mix(in srgb, var(--cs-muted) 55%, transparent);
+  border-radius: 14px;
+  color: var(--cs-muted);
+  font-size: 14px;
+  text-align: center;
+}
+html[data-theme] #cs-top .cs-empty-reset {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cs-red-text);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- 4. KPI cards ---------- */
+#cs-top .cs-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 20px;
+  transition: opacity 0.2s ease;
+}
+#cs-top .cs-kpis.is-filtering {
+  opacity: 0.55;
+}
+#cs-top .cs-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 16px 12px;
+  overflow: hidden;
+  border: 1px solid var(--cs-line);
+  border-radius: 14px;
+  background: var(--cs-card);
+  color: var(--cs-ink);
+  transition:
+    translate 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+/* Pointer glow */
+#cs-top .cs-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--cs-ink) 7%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+#cs-top .cs-card:hover {
+  translate: 0 -2px;
+  border-color: color-mix(in srgb, var(--cs-ink) 22%, var(--cs-line));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+}
+#cs-top .cs-card:hover::before {
+  opacity: 1;
+}
+#cs-top .cs-card.is-clickable {
+  cursor: pointer;
+}
+/* Entrance animates `transform` and keeps its first frame only before it starts (backwards),
+   so it never overrides the hover `translate`. */
+#cs-top.cs-intro .cs-card {
+  animation: cs-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+#cs-top .cs-card.cs-featured {
+  border-color: #8a1a14;
+  background:
+    radial-gradient(130% 100% at 100% 100%, rgba(255, 59, 48, 0.4), transparent 55%),
+    linear-gradient(145deg, #3a0d0b, #7a0f0b);
+  color: #fff;
+}
+#cs-top .cs-card.cs-featured::before {
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 170, 150, 0.22), transparent 70%);
+}
+#cs-top .cs-card.cs-featured:hover {
+  border-color: #b3261e;
+}
+#cs-top .cs-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+#cs-top .cs-name {
+  color: var(--cs-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+#cs-top .cs-featured .cs-name {
+  color: #f6cfcb;
+}
+html[data-theme] #cs-top .cs-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--cs-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cs-ink) 4%, transparent);
+  color: var(--cs-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+html[data-theme] #cs-top .cs-featured .cs-icon {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6cfcb;
+}
+html[data-theme] #cs-top .cs-icon:hover {
+  background: color-mix(in srgb, var(--cs-ink) 10%, transparent);
+  color: var(--cs-ink);
+}
+#cs-top .cs-icon[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 6;
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 10px;
+  border: 1px solid var(--cs-line);
+  border-radius: 9px;
+  background: var(--cs-field);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  color: var(--cs-ink);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 -4px;
+  transition:
+    opacity 0.15s ease,
+    translate 0.15s ease,
+    visibility 0.15s;
+  pointer-events: none;
+}
+#cs-top .cs-icon[data-tip]:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+}
+/* The tooltip must escape the card's overflow: raise the hovered card. */
+#cs-top .cs-card:has(.cs-icon:is(:hover, :focus-visible)) {
+  z-index: 5;
+  overflow: visible;
+}
+#cs-top .cs-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin: 2px 0 0;
+  color: inherit;
+}
+#cs-top .cs-value strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#cs-top .cs-unit {
+  flex: 0 0 auto;
+  color: var(--cs-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+#cs-top .cs-unit:empty {
+  display: none;
+}
+#cs-top .cs-featured .cs-unit {
+  color: #f6cfcb;
+}
+#cs-top .cs-line {
+  color: var(--cs-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+#cs-top .cs-line:empty {
+  display: none;
+}
+#cs-top .cs-featured .cs-line {
+  color: #f6cfcb;
+}
+#cs-top .cs-line.cs-warn {
+  color: var(--cs-warn);
+  font-weight: 600;
+}
+#cs-top .cs-line[hidden] {
+  display: none;
+}
+#cs-top .cs-line.is-fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cs-up);
+  font-weight: 600;
+}
+#cs-top .cs-line.is-fresh::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* Proportion bars */
+#cs-top .cs-bar {
+  display: block;
+  height: 6px;
+  margin: 2px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cs-ink) 12%, transparent);
+}
+#cs-top .cs-bar-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cs-ink);
+  transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+#cs-top .cs-featured .cs-bar {
+  background: rgba(255, 255, 255, 0.2);
+}
+#cs-top .cs-featured .cs-bar-fill {
+  background: #fff;
+}
+#cs-top .cs-bar-split {
+  background: color-mix(in srgb, var(--cs-muted) 40%, transparent);
+}
+#cs-top .cs-bar-fill.is-good {
+  background: var(--cs-up);
+}
+#cs-top .cs-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--cs-line);
+  color: var(--cs-muted);
+  font-size: 11.5px;
+}
+#cs-top .cs-featured .cs-foot {
+  border-top-color: rgba(255, 255, 255, 0.18);
+  color: #f6cfcb;
+}
+#cs-top .cs-foot > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-theme] #cs-top .cs-link {
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cs-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+html[data-theme] #cs-top .cs-link:hover:not(:disabled) {
+  background: none;
+  color: var(--cs-red);
+}
+html[data-theme] #cs-top .cs-featured .cs-link,
+html[data-theme] #cs-top .cs-featured .cs-link:hover:not(:disabled) {
+  color: #fff;
+}
+html[data-theme] #cs-top .cs-link:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@keyframes cs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes cs-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+/* Medium screens: search takes the full row, the rest sit 3 across; cards 2 across. */
+@media (max-width: 1100px) {
+  #cs-top .cs-filter-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #cs-top .cs-field-search {
+    grid-column: 1 / -1;
+  }
+  #cs-top .cs-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  #cs-top .cs-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  #cs-top .cs-title,
+  #cs-top .cs-meta,
+  #cs-top .cs-header > .territory-bar {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  #cs-top .cs-meta {
+    justify-items: start;
+  }
+  #cs-top .cs-badges {
+    justify-content: flex-start;
+  }
+  #cs-top #source {
+    text-align: left;
+  }
+  #cs-top .cs-header > .territory-bar {
+    justify-self: stretch;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+  #cs-top .cs-header > .territory-bar .source-badge {
+    align-self: flex-start;
+    margin-left: 0;
+  }
+  #cs-top h1 {
+    font-size: 26px;
+  }
+}
+@media (max-width: 600px) {
+  #cs-top .cs-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #cs-top .cs-reset {
+    grid-column: 1 / -1;
+  }
+  #cs-top .cs-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cs-top *,
+  #cs-top *::before,
+  #cs-top *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  #cs-top .cs-card:hover {
+    translate: none;
+  }
+}
