@@ -27,8 +27,8 @@
       <section id="pending-product-images" class="card pending-product-images" hidden aria-labelledby="pending-product-images-title">
         <div class="pending-product-images-heading">
           <div>
-            <h2 id="pending-product-images-title">สินค้ามีรูปแล้ว แต่ยังไม่มีใน SML</h2>
-            <p>เพิ่มสินค้าใน SML ด้วยรหัสที่ตรงกัน แล้วรูปที่เก็บไว้จะปรากฏในหน้าเว็บอัตโนมัติ</p>
+            <h2 id="pending-product-images-title">รูปสินค้ารอเพิ่มหรือจับคู่รหัส SML</h2>
+            <p>รายการที่มีรหัสแล้วใช้รูปอัตโนมัติเมื่อเพิ่มใน SML ส่วนรายการ Lazada ต้องยืนยันรหัสสินค้าก่อนนำรูปไปใช้</p>
           </div>
           <div class="pending-product-images-actions">
             <button id="download-pending-product-images" class="button secondary" type="button" disabled>↓ ดาวน์โหลด CSV</button>
@@ -39,7 +39,7 @@
         <p id="pending-product-images-status" role="status" aria-live="polite">กำลังตรวจรายการ…</p>
         <div class="pending-product-images-scroll">
           <table hidden id="pending-product-images-table">
-            <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้าในไฟล์นำเข้า</th><th>จำนวนรูป</th><th>แถวใน Excel</th><th>ลิงก์รูป</th></tr></thead>
+            <thead><tr><th>รหัสสินค้า / อ้างอิง</th><th>ชื่อสินค้า</th><th>จำนวนรูป</th><th>แหล่งข้อมูล / แถว</th><th>สถานะ</th><th>ลิงก์รูป</th></tr></thead>
             <tbody id="pending-product-images-body"></tbody>
           </table>
         </div>

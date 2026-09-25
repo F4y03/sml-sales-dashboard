@@ -1,0 +1,208 @@
+{
+  "products": [
+    {
+      "code": "906NM08",
+      "links_json": "[\"https://drive.google.com/file/d/1eGcxq3I7sehJrRFmaf8vmwwpt5fDArhi/view\",\"https://drive.google.com/file/d/1g7g7lciXBVupA-Op8Yn009uqrUwE0X-2/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "906NM07",
+      "links_json": "[\"https://drive.google.com/file/d/13TPjUWF5cQwAA8lAZLzepBvLFQEzF0kN/view\",\"https://drive.google.com/file/d/16k-Hodsgo8KBp0wB6TP7RyT3fInBiQQM/view\",\"https://drive.google.com/file/d/18WCD5zdY5s9LKVJkvhXx-5XRFnIhFmOC/view\",\"https://drive.google.com/file/d/1EHPsqVcCBOTy3w-WdLgnT31urWpAsPJc/view\",\"https://drive.google.com/file/d/1vprfGCyFLKrB523huEhzwkr6whWYLawt/view\",\"https://drive.google.com/file/d/1AbTtfm5sovav-DjClw2SjpGTOAjY1amh/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "907LCD81",
+      "links_json": "[\"https://drive.google.com/file/d/1xXL_nNDo-o6V-OwZc5SNU3Kpm0N8cIyw/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "907LCD33",
+      "links_json": "[\"https://drive.google.com/file/d/1PHaXAKqz9b3AGxYEqlP0N-Zg-69yf8Pf/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "907LCD99",
+      "links_json": "[\"https://drive.google.com/file/d/19IygT0DrGWODcYG0rKeCzBOM6Aa__Eyc/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "901BW446BL",
+      "links_json": "[\"https://drive.google.com/file/d/1249ppnMIb3YovCOO40ukMc496COxYRPn/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    },
+    {
+      "code": "901BW446R",
+      "links_json": "[\"https://drive.google.com/file/d/1I3-1qknmlUs2qU6fjxtUWMW84u95nlW3/view\"]",
+      "updated_by": null,
+      "updated_at": "2026-09-24T03:21:00.338Z"
+    }
+  ],
+  "pending": [
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16227754912.html",
+      "source_id": "16227754912",
+      "product_name": "BEST LCD-81 ขาแขวนทีวีติดผนัง 40-75 นิ้ว ปรับมุมก้ม-เงยได้",
+      "links_json": "[\"https://drive.google.com/file/d/1P_Sc51X8Ty1UgaOYtTLkdqwZMbzUl-nV/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/027111b34f70ddfd20517e7f61b3a5fd.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.090Z"
+    },
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16227638583.html",
+      "source_id": "16227638583",
+      "product_name": "ดอกลำโพงรถยนต์ 4 นิ้ว 2 ทาง 120W สีน้ำเงิน แดง BEST BW-446",
+      "links_json": "[\"https://drive.google.com/file/d/1wkpMSqj8wfDyIewPJB2b6g8E53dH1fhW/view\",\"https://drive.google.com/file/d/1KYnotEkF6SsBRKwvdCbbiNMOzGOjp723/view\",\"https://drive.google.com/file/d/19pwiljCNDsiOpa4XdcBfnOZhabQXR_XM/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/e38aecc039c4d1736ef6040630e2f20f.jpg\",\"https://img.lazcdn.com/g/p/b05e3319913cb7555146b0510cfd851e.jpg\",\"https://img.lazcdn.com/g/p/b26b0842358a2b3589ad1add21a93e97.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.090Z"
+    },
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16227754973.html",
+      "source_id": "16227754973",
+      "product_name": "BEST LCD-33 ขาแขวนทีวีติดผนัง 17-40 นิ้ว ปรับมุมก้ม-เงยได้",
+      "links_json": "[\"https://drive.google.com/file/d/1SGnXmZpHMkGu_HYTTz9YlrordReqmF3-/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/c6835d4a1554127f17678ad2438d7830.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.090Z"
+    },
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16225459952.html",
+      "source_id": "16225459952",
+      "product_name": "ฟองน้ำสวมหัวไมค์ BEST สำหรับไมค์ลอยและไมค์สาย",
+      "links_json": "[\"https://drive.google.com/file/d/1JiGrBdyDxUwmW_PREHvEXGcgCzTMdDvu/view\",\"https://drive.google.com/file/d/1-lyz2uP0vzVR_B25IcoSb8Y07b4P553o/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/1100aa2d3c5946579e7aa379d5d640be.jpg\",\"https://img.lazcdn.com/g/p/1544b0a06770dccfb4a52b3d2fae01a3.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.090Z"
+    },
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16227015832.html",
+      "source_id": "16227015832",
+      "product_name": "BEST LCD-99 ขาแขวนทีวีติดผนัง 32-65 นิ้ว ปรับมุมก้ม-เงยได้",
+      "links_json": "[\"https://drive.google.com/file/d/1A_weDp4Y2YbDw_CALh3nngVMQPtM-wAM/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/361877ef63d4d645b31bc275ab245f1a.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.091Z"
+    },
+    {
+      "source_url": "https://www.lazada.co.th/products/pdp-i16227828394.html",
+      "source_id": "16227828394",
+      "product_name": "แผ่นสวมกันไมค์กลิ้งคละสี (ไมค์สาย)",
+      "links_json": "[\"https://drive.google.com/file/d/1rIIYBWXaxB5mp18RDdlzBGebZWaI8fLg/view\",\"https://drive.google.com/file/d/1OPhUG-nPjZkJ8ziNg3KIdYfF96xTova9/view\",\"https://drive.google.com/file/d/1N5CtWO571eYbe25SJYU98bGcf1l_R3k6/view\",\"https://drive.google.com/file/d/1P5dX4gybUOpyKJm11F-BMTU22HBWP8DY/view\",\"https://drive.google.com/file/d/1Obz-YAY4TL-7BCF62S_sSJrW_ufWVo_8/view\",\"https://drive.google.com/file/d/1_eLBHJYeDyWxpni2mFTHp_n2DAWTrNc3/view\"]",
+      "image_sources_json": "[\"https://img.lazcdn.com/g/p/eae63edfc61c9bcfda7790674c7046e1.jpg\",\"https://img.lazcdn.com/g/p/2a3e804c662f4b954ad28e9cfcc7b371.jpg\",\"https://img.lazcdn.com/g/p/6d68be87bdc9332606e02618c2467201.jpg\",\"https://img.lazcdn.com/g/p/1429c75855d57b33b5d35d0a992bfc6c.jpg\",\"https://img.lazcdn.com/g/p/77720ba56ccac878ac833305b55d9a26.jpg\",\"https://img.lazcdn.com/g/p/e9049fb8150c06e154e51040e5e780e0.jpg\"]",
+      "updated_at": "2026-09-25T07:08:56.091Z"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "16225459952",
+      "code": "906NM08",
+      "term": "ฟองน้ำสวมหัวไมค์",
+      "name": "ฟองน้ำสวมหัวไมค์ ",
+      "source": "https://www.lazada.co.th/products/pdp-i16225459952.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/1100aa2d3c5946579e7aa379d5d640be.jpg",
+        "https://img.lazcdn.com/g/p/1544b0a06770dccfb4a52b3d2fae01a3.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1JiGrBdyDxUwmW_PREHvEXGcgCzTMdDvu/view",
+        "https://drive.google.com/file/d/1-lyz2uP0vzVR_B25IcoSb8Y07b4P553o/view"
+      ]
+    },
+    {
+      "id": "16227828394",
+      "code": "906NM07",
+      "term": "แผ่นสวมกันไมค์กลิ้ง (ไมค์สาย)",
+      "name": "แผ่นสวมกันไมค์กลิ้ง (ไมค์สาย)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227828394.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/eae63edfc61c9bcfda7790674c7046e1.jpg",
+        "https://img.lazcdn.com/g/p/2a3e804c662f4b954ad28e9cfcc7b371.jpg",
+        "https://img.lazcdn.com/g/p/6d68be87bdc9332606e02618c2467201.jpg",
+        "https://img.lazcdn.com/g/p/1429c75855d57b33b5d35d0a992bfc6c.jpg",
+        "https://img.lazcdn.com/g/p/77720ba56ccac878ac833305b55d9a26.jpg",
+        "https://img.lazcdn.com/g/p/e9049fb8150c06e154e51040e5e780e0.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1rIIYBWXaxB5mp18RDdlzBGebZWaI8fLg/view",
+        "https://drive.google.com/file/d/1OPhUG-nPjZkJ8ziNg3KIdYfF96xTova9/view",
+        "https://drive.google.com/file/d/1N5CtWO571eYbe25SJYU98bGcf1l_R3k6/view",
+        "https://drive.google.com/file/d/1P5dX4gybUOpyKJm11F-BMTU22HBWP8DY/view",
+        "https://drive.google.com/file/d/1Obz-YAY4TL-7BCF62S_sSJrW_ufWVo_8/view",
+        "https://drive.google.com/file/d/1_eLBHJYeDyWxpni2mFTHp_n2DAWTrNc3/view"
+      ]
+    },
+    {
+      "id": "16227754912",
+      "code": "907LCD81",
+      "term": "LCD-81",
+      "note": "Photo 40-75 inches; SML name 30-75 inches. Same BEST model; SML unchanged.",
+      "name": "ขาแขวนจอ LCD 30\"-75\" ติดผนัง BEST LCD-81 (@5)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227754912.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/027111b34f70ddfd20517e7f61b3a5fd.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1P_Sc51X8Ty1UgaOYtTLkdqwZMbzUl-nV/view"
+      ]
+    },
+    {
+      "id": "16227754973",
+      "code": "907LCD33",
+      "term": "LCD-33",
+      "note": "Photo 17-40 inches; SML name 17-37 inches. Same BEST model; SML unchanged.",
+      "name": "ขาแขวนจอ LCD 17\"-37\" ติดผนัง BEST LCD-33 (@20)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227754973.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/c6835d4a1554127f17678ad2438d7830.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1SGnXmZpHMkGu_HYTTz9YlrordReqmF3-/view"
+      ]
+    },
+    {
+      "id": "16227015832",
+      "code": "907LCD99",
+      "term": "LCD-99",
+      "note": "Photo 32-65 inches; SML name 32-55 inches. Same BEST model; SML unchanged.",
+      "name": "ขาแขวนจอ LCD 32\"-55\" ติดผนัง BEST LCD-99 (@10)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227015832.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/361877ef63d4d645b31bc275ab245f1a.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1A_weDp4Y2YbDw_CALh3nngVMQPtM-wAM/view"
+      ]
+    },
+    {
+      "id": "16227638583",
+      "code": "901BW446BL",
+      "term": "BW-446BL",
+      "image": "b05e3319913cb7555146b0510cfd851e",
+      "note": "Blue-only photo selected. Artwork 150W; SML/listing 120W; SML unchanged.",
+      "name": "ลำโพงรถยนต์ 4\" 2 ทาง 120W สีน้ำเงิน BEST BW-446BL (@40)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227638583.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/b05e3319913cb7555146b0510cfd851e.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/1KYnotEkF6SsBRKwvdCbbiNMOzGOjp723/view"
+      ]
+    },
+    {
+      "id": "16227638583",
+      "code": "901BW446R",
+      "term": "BW-446R",
+      "image": "b26b0842358a2b3589ad1add21a93e97",
+      "note": "Red-only photo selected. Artwork 150W; SML/listing 120W; SML unchanged.",
+      "name": "ลำโพงรถยนต์ 4\" 2 ทาง 120W สีแดง BEST BW-446R (@40)",
+      "source": "https://www.lazada.co.th/products/pdp-i16227638583.html",
+      "images": [
+        "https://img.lazcdn.com/g/p/b26b0842358a2b3589ad1add21a93e97.jpg"
+      ],
+      "links": [
+        "https://drive.google.com/file/d/19pwiljCNDsiOpa4XdcBfnOZhabQXR_XM/view"
+      ]
+    }
+  ]
+}

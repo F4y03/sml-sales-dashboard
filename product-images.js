@@ -41,7 +41,13 @@ export function installProductImages(app, store, audit, pool) {
   app.get('/api/products/images/pending', requireSuperAdmin, async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const imported = store.all('SELECT i.code, i.product_name, i.source_name, i.source_row, p.links_json FROM product_image_imports i JOIN product_images p ON p.code=i.code ORDER BY i.code');
-    if (!imported.length) return res.json({ products: [] });
+    const unmatched = store.all('SELECT * FROM unmatched_product_images ORDER BY source_id').map(row => {
+      const links = JSON.parse(row.links_json);
+      return { code: null, reference: `Lazada ${row.source_id}`, name: row.product_name,
+        links, imageCount: links.length, source: 'Lazada', sourceUrl: row.source_url,
+        sourceRow: null, status: links.length ? 'unmatched' : 'unmatched_no_images' };
+    });
+    if (!imported.length) return res.json({ products: unmatched });
     try {
       const codes = imported.map(row => row.code);
       const { rows } = await pool.query('SELECT code FROM ic_inventory WHERE code = ANY($1::text[])', [codes]);
@@ -55,9 +61,10 @@ export function installProductImages(app, store, audit, pool) {
           links,
           source: row.source_name,
           sourceRow: row.source_row,
+          status: 'missing_in_sml',
         };
       });
-      res.json({ products });
+      res.json({ products: [...products, ...unmatched] });
     } catch (error) {
       console.error('Pending product image check failed:', error.code);
       res.status(503).json({ error: 'ตรวจรายการสินค้าที่ยังไม่มีใน SML ไม่สำเร็จ' });

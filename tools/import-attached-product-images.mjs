@@ -46,7 +46,7 @@ try {
       const existing = store.get('SELECT 1 FROM product_images WHERE code=?', item.code);
       if (existing) replaced++; else inserted++;
       store.run('INSERT INTO product_images(code,links_json,updated_by,updated_at) VALUES(?,?,NULL,?) ON CONFLICT(code) DO UPDATE SET links_json=excluded.links_json,updated_by=NULL,updated_at=excluded.updated_at',item.code,JSON.stringify(item.links),now);
-      store.run('INSERT INTO product_image_imports(code,product_name,source_name,source_row,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET product_name=excluded.product_name,source_name=excluded.source_name,source_row=excluded.source_row,updated_at=excluded.updated_at',item.code,item.name,sourceName || 'spreadsheet',item.sourceRow,now);
+      store.run('INSERT INTO product_image_imports(code,product_name,source_name,source_row,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET product_name=excluded.product_name,source_name=excluded.source_name,source_row=excluded.source_row,updated_at=excluded.updated_at',item.code,item.name || '',sourceName || 'spreadsheet',item.sourceRow ?? 0,now);
     }
     store.run("INSERT INTO activity_logs(user_id,action,module,details) VALUES(NULL,'product_images.import','products',?)",JSON.stringify({source:sourceName || 'spreadsheet',matched:matched.length,pending:unmatched.length,replaced,inserted}));
   });
