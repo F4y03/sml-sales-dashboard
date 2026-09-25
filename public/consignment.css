@@ -270,7 +270,10 @@ select {
   width: auto;
 }
 /* ---------- ประวัติการเคลื่อนไหว (คงคำนวณ in/out/balance จากข้อมูลเดิม, สไตล์ใหม่เท่านั้น) ---------- */
-#history.cs-history {
+/* .cs-history.cs-history: theme-modes.css targets every `dialog` element with rules boosted to
+   specificity (1,1,1) via unrelated ids (#filters/#customer-detail) inside :is(); the repeated
+   class beats that so this popup keeps its own fixed dark palette regardless of light/dark theme. */
+#history.cs-history.cs-history {
   width: min(720px, calc(100vw - 48px));
   max-height: calc(100vh - 48px);
   margin: auto;
@@ -284,7 +287,7 @@ select {
   flex-direction: column;
   overflow: hidden;
 }
-#history.cs-history[open] {
+#history.cs-history.cs-history[open] {
   animation: cs-history-in 0.3s ease both;
 }
 @keyframes cs-history-in {

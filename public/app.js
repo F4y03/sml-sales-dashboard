@@ -78,27 +78,295 @@ function renderProductPage(products) {
   $("product-prev").disabled = productPage <= 0;
   $("product-next").disabled = productPage >= totalPages - 1;
 }
+const reducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const shortThaiDate = (isoDate) => {
+  if (!isoDate) return "—";
+  const d = new Date(isoDate + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return "—";
+  const text = d.toLocaleDateString("th-TH", { day: "numeric", month: "short" }),
+    yy = String((d.getFullYear() + 543) % 100).padStart(2, "0");
+  return `${text} ${yy}`;
+};
+const thaiWeekday = (isoDate) => {
+  if (!isoDate) return "";
+  const d = new Date(isoDate + "T00:00:00");
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("th-TH", { weekday: "short" });
+};
+function billCountUp(el, target, delay = 0, formatter = number.format) {
+  if (reducedMotion() || !Number.isFinite(target)) {
+    el.textContent = formatter(target);
+    return;
+  }
+  const duration = 500,
+    start = performance.now() + delay;
+  function step(now) {
+    const t = Math.min(1, Math.max(0, (now - start) / duration));
+    el.textContent = formatter(Math.round(target * t));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function billToast(text) {
+  const box = $("product-invoices-toast");
+  box.textContent = text;
+  box.hidden = false;
+  box.classList.remove("is-shown");
+  void box.offsetWidth;
+  box.classList.add("is-shown");
+  clearTimeout(billToast.timer);
+  billToast.timer = setTimeout(() => {
+    box.classList.remove("is-shown");
+    box.hidden = true;
+  }, 1800);
+}
+async function copyBillText(text, message) {
+  try {
+    await navigator.clipboard.writeText(text);
+    billToast(message);
+  } catch {
+    billToast("คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง");
+  }
+}
+let activeProduct = null,
+  billSort = "recent",
+  billDateFilter = null;
 function openProductInvoices(product) {
   if (!current) return;
-  $("product-invoices-title").textContent =
-    `${product.name || product.code} (${product.code})`;
-  $("product-invoices-period").textContent =
-    `${current.period.start} – ${current.period.end} · รวม ${number.format(product.quantity)} ${product.unit || ""} · ${money(product.sales)} · ยังไม่หักรับคืน`;
-  const body = $("product-invoice-rows");
-  body.replaceChildren();
-  (product.invoices || []).forEach((invoice) => {
-    const row = document.createElement("tr");
-    cell(row, new Date(invoice.date + "T00:00:00").toLocaleDateString("th-TH"));
-    cell(row, invoice.docNo);
-    cell(row, `${number.format(invoice.quantity)} ${product.unit || ""}`);
-    cell(row, money(invoice.sales));
-    body.append(row);
-  });
-  $("product-invoices").showModal();
+  try {
+    activeProduct = product;
+    billSort = "recent";
+    billDateFilter = null;
+    for (const b of $("product-invoices-sort").querySelectorAll("button"))
+      b.setAttribute("aria-pressed", String(b.dataset.sort === "recent"));
+    $("product-invoices-title").textContent = product.name || product.code || "ไม่ระบุชื่อสินค้า";
+    $("product-invoices-code").textContent = product.code || "ไม่ระบุรหัส";
+    $("product-invoices-code").onclick = () =>
+      copyBillText(product.code, `คัดลอกรหัสสินค้า ${product.code} แล้ว`);
+    $("product-invoices-period").textContent =
+      current.period?.start && current.period?.end
+        ? current.period.start === current.period.end
+          ? shortThaiDate(current.period.start)
+          : `${shortThaiDate(current.period.start)} – ${shortThaiDate(current.period.end)}`
+        : "";
+    renderProductInvoices();
+    $("product-invoices").showModal();
+  } catch (error) {
+    console.error("openProductInvoices failed", error);
+    $("product-invoices-title").textContent = "เกิดข้อผิดพลาดในการแสดงบิล";
+    $("product-invoices-empty").hidden = false;
+    $("product-invoices-empty").textContent =
+      "เกิดข้อผิดพลาด: " + (error?.message || String(error));
+    if (!$("product-invoices").open) $("product-invoices").showModal();
+  }
 }
+function renderBillChart(invoices) {
+  const wrap = $("product-invoices-chart");
+  wrap.replaceChildren();
+  if (!current) return;
+  const byDate = new Map();
+  for (const inv of invoices) {
+    const cur = byDate.get(inv.date) || { amount: 0, count: 0 };
+    cur.amount += Number(inv.sales) || 0;
+    cur.count += 1;
+    byDate.set(inv.date, cur);
+  }
+  const days = [];
+  for (
+    let d = new Date(current.period.start + "T00:00:00"),
+      end = new Date(current.period.end + "T00:00:00");
+    d <= end;
+    d.setDate(d.getDate() + 1)
+  )
+    days.push(iso(d));
+  const max = Math.max(0, ...days.map((day) => byDate.get(day)?.amount || 0));
+  $("product-invoices-chart-max").textContent = max ? money(max) : "฿0";
+  $("product-invoices-chart-first").textContent = days.length
+    ? shortThaiDate(days[0])
+    : "";
+  $("product-invoices-chart-last").textContent = days.length
+    ? shortThaiDate(days[days.length - 1])
+    : "";
+  $("product-invoices-chart-mid").textContent = days.length
+    ? shortThaiDate(days[Math.floor((days.length - 1) / 2)])
+    : "";
+  days.forEach((day, i) => {
+    const info = byDate.get(day),
+      hasSales = !!info && info.amount > 0,
+      bar = document.createElement("button");
+    bar.type = "button";
+    bar.className =
+      "cs-bill-bar" +
+      (hasSales ? " has-sales" : "") +
+      (hasSales && info.amount === max ? " is-max" : "") +
+      (billDateFilter === day ? " is-selected" : "");
+    bar.style.height = (hasSales ? Math.max(6, (info.amount / max) * 54) : 3) + "px";
+    bar.style.animationDelay = Math.min(i, 40) * 8 + "ms";
+    const label =
+      thaiWeekday(day) +
+      " " +
+      shortThaiDate(day) +
+      (hasSales
+        ? ` · ${money(info.amount)} · ${number.format(info.count)} บิล`
+        : " · ไม่มียอดขาย");
+    bar.setAttribute("aria-label", label);
+    if (hasSales)
+      bar.onclick = () => {
+        billDateFilter = billDateFilter === day ? null : day;
+        renderProductInvoices();
+      };
+    let tip;
+    bar.addEventListener("pointerenter", () => {
+      tip = document.createElement("div");
+      tip.className = "cs-bill-tip";
+      tip.textContent = label;
+      bar.append(tip);
+    });
+    bar.addEventListener("pointerleave", () => tip?.remove());
+    wrap.append(bar);
+  });
+}
+function renderProductInvoices() {
+  const product = activeProduct;
+  if (!product) return;
+  const all = product.invoices || [],
+    filtered = billDateFilter
+      ? all.filter((inv) => inv.date === billDateFilter)
+      : all,
+    sorted = [...filtered].sort((a, b) =>
+      billSort === "amount"
+        ? Number(b.sales) - Number(a.sales)
+        : b.date === a.date
+          ? 0
+          : b.date.localeCompare(a.date),
+    );
+  renderBillChart(all);
+  const filterBox = $("product-invoices-filter");
+  filterBox.hidden = !billDateFilter;
+  if (billDateFilter)
+    $("product-invoices-filter-label").textContent =
+      `เฉพาะ ${shortThaiDate(billDateFilter)}`;
+  const totalAmount = filtered.reduce((n, i) => n + Number(i.sales), 0),
+    totalQty = filtered.reduce((n, i) => n + Number(i.quantity), 0),
+    billCount = filtered.length;
+  billCountUp($("product-invoices-amount"), totalAmount, 0, money);
+  $("product-invoices-amount-avg").textContent = totalQty
+    ? `เฉลี่ย ${money(totalAmount / totalQty)} / ${product.unit || "หน่วย"}`
+    : "เฉลี่ย —";
+  billCountUp($("product-invoices-qty"), totalQty, 120);
+  $("product-invoices-qty-avg").textContent = billCount
+    ? `เฉลี่ย ${number.format(totalQty / billCount)} ${product.unit || ""} / บิล`
+    : "เฉลี่ย —";
+  billCountUp($("product-invoices-count"), billCount, 240);
+  $("product-invoices-count-avg").textContent = billCount
+    ? `เฉลี่ย ${money(totalAmount / billCount)} / บิล`
+    : "เฉลี่ย —";
+  const maxAmt = Math.max(0, ...sorted.map((i) => Number(i.sales)));
+  const list = $("product-invoice-rows");
+  list.replaceChildren();
+  $("product-invoices-empty").hidden = sorted.length > 0;
+  sorted.forEach((invoice, i) => {
+    const row = document.createElement("div");
+    row.className = "cs-bill-row";
+    row.style.animationDelay = Math.min(i, 20) * 25 + "ms";
+    const dateCol = document.createElement("div");
+    dateCol.className = "cs-bill-row-date";
+    const dateStrong = document.createElement("strong");
+    dateStrong.textContent = shortThaiDate(invoice.date);
+    const dateSmall = document.createElement("small");
+    dateSmall.textContent = thaiWeekday(invoice.date);
+    dateCol.append(dateStrong, dateSmall);
+    const docCol = document.createElement("div");
+    docCol.className = "cs-bill-row-doc";
+    const docBtn = document.createElement("button");
+    docBtn.type = "button";
+    docBtn.className = "cs-doc-btn";
+    docBtn.textContent = invoice.docNo;
+    docBtn.title = "คลิกเพื่อคัดลอกเลขบิล";
+    docBtn.onclick = () =>
+      copyBillText(invoice.docNo, `คัดลอกเลขบิล ${invoice.docNo} แล้ว`);
+    docCol.append(docBtn);
+    if (invoice.docNo) {
+      const prefix = document.createElement("span");
+      prefix.className = "cs-doc-prefix";
+      prefix.textContent = invoice.docNo.slice(0, 2);
+      docCol.append(prefix);
+    }
+    const qtyCol = document.createElement("div");
+    qtyCol.className = "cs-bill-row-qty";
+    qtyCol.textContent = `${number.format(invoice.quantity)} ${product.unit || ""}`;
+    const amtCol = document.createElement("div");
+    amtCol.className = "cs-bill-row-amt";
+    const amtStrong = document.createElement("strong");
+    amtStrong.textContent = money(invoice.sales);
+    amtCol.append(amtStrong);
+    if (Number(invoice.sales) === maxAmt && maxAmt > 0) {
+      const topTag = document.createElement("span");
+      topTag.className = "cs-bill-tag-top";
+      topTag.textContent = "บิลใหญ่สุด";
+      amtCol.append(topTag);
+    }
+    const track = document.createElement("div");
+    track.className = "cs-bill-row-amt-track";
+    const bar = document.createElement("i");
+    bar.style.width =
+      (maxAmt ? Math.max(4, (Number(invoice.sales) / maxAmt) * 100) : 0) + "%";
+    track.append(bar);
+    amtCol.append(track);
+    row.append(dateCol, docCol, qtyCol, amtCol);
+    list.append(row);
+  });
+  $("product-invoices-summary").textContent =
+    `${number.format(billCount)} บิล · รวม ${number.format(totalQty)} ${product.unit || ""} · ${money(totalAmount)}`;
+}
+$("product-invoices-sort").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-sort]");
+  if (!button) return;
+  billSort = button.dataset.sort;
+  for (const b of $("product-invoices-sort").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b === button));
+  renderProductInvoices();
+});
+$("product-invoices-filter-clear").onclick = () => {
+  billDateFilter = null;
+  renderProductInvoices();
+};
+$("product-invoices-csv").onclick = () => {
+  if (!activeProduct) return;
+  const product = activeProduct,
+    rows = [...(product.invoices || [])].sort((a, b) => a.date.localeCompare(b.date)),
+    escape = (v) => {
+      const text = String(v ?? "");
+      return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    },
+    header = ["วันที่", "เลขบิล", "จำนวนขาย", "ยอดขายสินค้า"],
+    body = rows.map((r) => [r.date, r.docNo, r.quantity, r.sales]),
+    csv = [header, ...body].map((row) => row.map(escape).join(",")).join("\r\n"),
+    blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }),
+    url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = `product-invoices-${product.code}.csv`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+$("product-invoices").addEventListener("cancel", (event) => {
+  if (billDateFilter) {
+    event.preventDefault();
+    billDateFilter = null;
+    renderProductInvoices();
+  }
+});
 $("close-product-invoices").addEventListener("click", () =>
   $("product-invoices").close(),
 );
+$("product-invoices").addEventListener("click", (event) => {
+  if (event.target === $("product-invoices")) $("product-invoices").close();
+});
 function renderInvoiceRows(data) {
   const body = $("invoice-rows");
   body.replaceChildren();

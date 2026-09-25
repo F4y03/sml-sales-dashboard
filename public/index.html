@@ -17,10 +17,10 @@
     <link rel="stylesheet" href="overview-growth.css" />
     <link rel="stylesheet" href="overview-top.css" />
     <script src="overview-top.js" defer></script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
     <link rel="stylesheet" href="analytics.css" />
     <script src="analytics-ui.js" defer></script>
-    <script src="app.js" defer></script>
+    <script src="app.js?v=20260925-bill-dialog-2" defer></script>
     <link rel="stylesheet" href="insights-help.css" />
     <script src="insights-help.js" defer></script>
     <link rel="stylesheet" href="workspace-nav.css" />
@@ -155,35 +155,94 @@
         </dialog>
         <dialog
           id="product-invoices"
-          class="invoice-dialog"
+          class="cs-bill"
           aria-labelledby="product-invoices-title"
         >
-          <div class="dialog-heading">
-            <div>
-              <h2 id="product-invoices-title">บิลขายสินค้า</h2>
-              <p id="product-invoices-period"></p>
+          <button
+            type="button"
+            id="close-product-invoices"
+            class="cs-bill-close"
+            aria-label="ปิดบิลขายของสินค้า"
+          >
+            ×
+          </button>
+          <header class="cs-bill-head">
+            <p class="cs-bill-eyebrow"><span class="cs-bill-dot"></span>บิลขายของสินค้า</p>
+            <h2 id="product-invoices-title"></h2>
+            <div class="cs-bill-tags">
+              <button
+                type="button"
+                id="product-invoices-code"
+                class="cs-bill-tag cs-bill-tag-code"
+                title="คลิกเพื่อคัดลอกรหัสสินค้า"
+              ></button>
+              <span class="cs-bill-tag" id="product-invoices-period"></span>
+              <span class="cs-bill-tag cs-bill-tag-warn">ยังไม่หักรับคืน</span>
             </div>
-            <button
-              type="button"
-              class="button secondary"
-              id="close-product-invoices"
+          </header>
+          <div class="cs-bill-cards">
+            <div class="cs-bill-card cs-bill-card-amount">
+              <span class="cs-bill-card-label">ยอดขายสินค้า</span>
+              <span class="cs-bill-card-value" id="product-invoices-amount">฿0</span>
+              <span class="cs-bill-card-sub" id="product-invoices-amount-avg"></span>
+            </div>
+            <div class="cs-bill-card">
+              <span class="cs-bill-card-label">จำนวนขาย</span>
+              <span class="cs-bill-card-value" id="product-invoices-qty">0</span>
+              <span class="cs-bill-card-sub" id="product-invoices-qty-avg"></span>
+            </div>
+            <div class="cs-bill-card">
+              <span class="cs-bill-card-label">จำนวนบิล</span>
+              <span class="cs-bill-card-value" id="product-invoices-count">0</span>
+              <span class="cs-bill-card-sub" id="product-invoices-count-avg"></span>
+            </div>
+          </div>
+          <div class="cs-bill-chart-box">
+            <div class="cs-bill-chart-head">
+              <span>ยอดขายรายวัน · คลิกแท่งเพื่อกรองวันนั้น</span>
+              <span id="product-invoices-chart-max"></span>
+            </div>
+            <div class="cs-bill-chart" id="product-invoices-chart"></div>
+            <div class="cs-bill-chart-axis">
+              <span id="product-invoices-chart-first"></span>
+              <span id="product-invoices-chart-mid"></span>
+              <span id="product-invoices-chart-last"></span>
+            </div>
+          </div>
+          <div class="cs-bill-toolbar">
+            <div class="cs-bill-sort" id="product-invoices-sort" role="group">
+              <button type="button" data-sort="recent" aria-pressed="true">ล่าสุดก่อน</button>
+              <button type="button" data-sort="amount" aria-pressed="false">ยอดสูงสุด</button>
+            </div>
+            <div
+              class="cs-bill-filter"
+              id="product-invoices-filter"
+              hidden
             >
-              ปิด ×
+              <span id="product-invoices-filter-label"></span>
+              <button type="button" id="product-invoices-filter-clear">ล้าง ×</button>
+            </div>
+          </div>
+          <div class="cs-bill-list-head">
+            <span>วันที่</span><span>เลขบิล</span><span>จำนวน</span><span>ยอดขาย</span>
+          </div>
+          <div class="cs-bill-list" id="product-invoice-rows"></div>
+          <p class="cs-bill-empty" id="product-invoices-empty" hidden>
+            ไม่มีบิลขายในช่วงนี้
+          </p>
+          <footer class="cs-bill-foot">
+            <span class="cs-bill-hint" id="product-invoices-summary"></span>
+            <button type="button" id="product-invoices-csv" class="cs-bill-csv">
+              ⭳ ดาวน์โหลด CSV
             </button>
-          </div>
-          <div class="invoice-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>วันที่</th>
-                  <th>เลขบิล</th>
-                  <th>จำนวนขาย</th>
-                  <th>ยอดขายสินค้า</th>
-                </tr>
-              </thead>
-              <tbody id="product-invoice-rows"></tbody>
-            </table>
-          </div>
+          </footer>
+          <div
+            class="cs-bill-toast"
+            id="product-invoices-toast"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
         </dialog>
         <dialog
           id="invoice-dialog"
