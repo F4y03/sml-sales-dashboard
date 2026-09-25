@@ -306,35 +306,72 @@
           ไม่รวมจำนวนต่างหน่วยเข้าด้วยกัน
         </p>
       </details>
-      <dialog id="history">
-        <div class="section-heading">
-          <div>
-            <h2 id="history-title"></h2>
-            <p id="history-subtitle"></p>
+      <dialog id="history" class="cs-history">
+        <button id="close-history" class="cs-history-close" aria-label="ปิดประวัติ">×</button>
+        <header class="cs-history-head">
+          <p class="cs-history-eyebrow"><span class="cs-dot cs-dot-brand"></span>ประวัติการเคลื่อนไหว</p>
+          <h2 id="history-title"></h2>
+          <div class="cs-history-tags">
+            <button type="button" id="history-code" class="cs-tag cs-tag-code" title="คลิกเพื่อคัดลอกรหัส"></button>
+            <span class="cs-tag" id="history-region"></span>
+            <span class="cs-tag" id="history-unit"></span>
           </div>
-          <button id="close-history" aria-label="ปิดประวัติ">ปิด ×</button>
+        </header>
+        <div class="cs-history-cards">
+          <div class="cs-history-card cs-history-card-balance">
+            <span class="cs-history-card-label">คงเหลือล่าสุด</span>
+            <span class="cs-history-card-value"
+              ><span id="history-balance">0</span
+              ><small id="history-balance-unit"></small
+            ></span>
+          </div>
+          <div class="cs-history-card">
+            <span class="cs-history-card-label"
+              ><span class="cs-dot cs-dot-in"></span>รับเข้า / ยกมา</span
+            >
+            <span class="cs-history-card-value"
+              ><span id="history-in">0</span><small id="history-in-unit"></small
+            ></span>
+          </div>
+          <div class="cs-history-card">
+            <span class="cs-history-card-label"
+              ><span class="cs-dot cs-dot-out"></span>เบิกออก</span
+            >
+            <span class="cs-history-card-value"
+              ><span id="history-out">0</span><small id="history-out-unit"></small
+            ></span>
+          </div>
         </div>
-        <p id="history-totals"></p>
-        <p class="note">รายการล่าสุดอยู่บนสุด · คงเหลือหลังรายการรวมทุกคลัง</p>
-        <div class="table-scroll">
-          <table class="movement-table">
-            <thead>
-              <tr>
-                <th>วันที่</th>
-                <th>เลขที่เอกสาร</th>
-                <th>รายการ</th>
-                <th>จำนวน</th>
-                <th>คงเหลือหลังรายการ</th>
-              </tr>
-            </thead>
-            <tbody id="history-rows"></tbody>
-          </table>
+        <div class="cs-history-tabs" id="history-tabs" role="tablist">
+          <button type="button" data-tab="all" aria-pressed="true" role="tab">
+            ทั้งหมด <small id="history-count-all"></small>
+          </button>
+          <button type="button" data-tab="in" aria-pressed="false" role="tab">
+            รับเข้า <small id="history-count-in"></small>
+          </button>
+          <button type="button" data-tab="out" aria-pressed="false" role="tab">
+            เบิกออก <small id="history-count-out"></small>
+          </button>
         </div>
-        <div class="pagination">
-          <button id="history-prev">← ก่อนหน้า</button
-          ><span id="history-page"></span
-          ><button id="history-next">ถัดไป →</button>
-        </div>
+        <div class="cs-history-list" id="history-rows"></div>
+        <p class="cs-history-empty" id="history-empty" hidden>
+          ไม่มีรายการในหมวดนี้
+        </p>
+        <footer class="cs-history-foot">
+          <span class="cs-history-hint"
+            >ล่าสุดอยู่บนสุด · คงเหลือรวมทุกคลัง</span
+          >
+          <button type="button" id="history-csv" class="cs-history-csv">
+            ⭳ ดาวน์โหลด CSV
+          </button>
+        </footer>
+        <div
+          class="cs-history-toast"
+          id="history-toast"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
       </dialog>
       <dialog id="document-detail">
         <div class="section-heading">

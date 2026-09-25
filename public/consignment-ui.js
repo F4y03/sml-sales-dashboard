@@ -17,7 +17,6 @@ let products = [],
   visible = [],
   page = 0,
   selected = null,
-  historyPage = 0,
   loaded = false,
   dataSignature = "";
 let exporting = false,
@@ -519,56 +518,175 @@ function renderTable() {
   $("prev").disabled = page === 0;
   $("next").disabled = (page + 1) * size >= visible.length;
 }
+const weekday = (d) =>
+  d
+    ? new Date(d + "T00:00:00").toLocaleDateString("th-TH", {
+        weekday: "short",
+      })
+    : "";
+const flagLabel = (r) =>
+  r.flag === 54
+    ? "รับเข้า / ยกมา"
+    : r.flag === 44
+      ? "เบิกออก (ขาย)"
+      : r.flag === 58
+        ? "รับคืนจากเบิก"
+        : r.type;
+let historyTab = "all";
+// Ramps a number up from 0 so the summary cards read as "counting"; skipped under reduced motion.
+function countUp(el, target, delay = 0) {
+  if (reducedMotion() || !Number.isFinite(target)) {
+    el.textContent = fmt(target);
+    return;
+  }
+  const duration = 500,
+    start = performance.now() + delay;
+  function step(now) {
+    const t = Math.min(1, Math.max(0, (now - start) / duration));
+    el.textContent = fmt(Math.round(target * t));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 function showHistory(p) {
   selected = p;
-  historyPage = 0;
+  historyTab = "all";
+  for (const button of $("history-tabs").querySelectorAll("button"))
+    button.setAttribute("aria-pressed", String(button.dataset.tab === "all"));
   renderHistory();
   $("history").showModal();
 }
+function historyToast(text) {
+  const box = $("history-toast");
+  box.textContent = text;
+  box.hidden = false;
+  box.classList.remove("is-shown");
+  void box.offsetWidth;
+  box.classList.add("is-shown");
+  clearTimeout(historyToast.timer);
+  historyToast.timer = setTimeout(() => {
+    box.classList.remove("is-shown");
+    box.hidden = true;
+  }, 1800);
+}
+async function copyHistoryText(text, message) {
+  try {
+    await navigator.clipboard.writeText(text);
+    historyToast(message);
+  } catch {
+    historyToast("คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง");
+  }
+}
 function renderHistory() {
   const p = selected,
-    rows = [...p.rows].sort((a, b) => b.index - a.index);
+    rows = [...p.rows].sort((a, b) => b.index - a.index),
+    inCount = rows.filter((r) => r.type !== "เบิกออก").length,
+    outCount = rows.filter((r) => r.type === "เบิกออก").length,
+    shown = rows.filter((r) =>
+      historyTab === "all"
+        ? true
+        : historyTab === "in"
+          ? r.type !== "เบิกออก"
+          : r.type === "เบิกออก",
+    );
   $("history-title").textContent = p.product;
-  $("history-subtitle").textContent =
-    p.code + " · " + (p.customerCode || "ไม่พบรหัสลูกค้า");
-  $("history-totals").textContent =
-    `รับเข้า/ยกมา ${fmt(p.in)} · เบิกออก ${fmt(p.out)} · คงเหลือล่าสุด ${fmt(p.balance)} ${p.unit}`;
-  $("history-rows").replaceChildren();
-  for (const r of rows.slice(historyPage * size, (historyPage + 1) * size)) {
-    const tr = document.createElement("tr");
-    cell(tr, date(r.date));
-    const documentCell = cell(tr, "");
+  $("history-code").textContent = p.code;
+  $("history-code").onclick = () =>
+    copyHistoryText(p.code, `คัดลอกรหัส ${p.code} แล้ว`);
+  $("history-region").textContent = "เขต " + (p.region || "—");
+  $("history-unit").textContent = "หน่วย " + p.unit;
+  countUp($("history-balance"), p.balance, 0);
+  $("history-balance-unit").textContent = " " + p.unit;
+  countUp($("history-in"), p.in, 120);
+  $("history-in-unit").textContent = " " + p.unit;
+  countUp($("history-out"), p.out, 240);
+  $("history-out-unit").textContent = " " + p.unit;
+  $("history-count-all").textContent = fmt(rows.length);
+  $("history-count-in").textContent = fmt(inCount);
+  $("history-count-out").textContent = fmt(outCount);
+  const list = $("history-rows");
+  list.replaceChildren();
+  $("history-empty").hidden = shown.length > 0;
+  shown.forEach((r, i) => {
+    const isOut = r.type === "เบิกออก",
+      row = document.createElement("div");
+    row.className = "cs-history-row" + (i === 0 && r === rows[0] ? " is-latest" : "");
+    row.style.animationDelay = Math.min(i, 20) * 25 + "ms";
+    const dateCol = document.createElement("div");
+    dateCol.className = "cs-history-row-date";
+    const dateStrong = document.createElement("strong");
+    dateStrong.textContent = date(r.date);
+    const dateSmall = document.createElement("small");
+    dateSmall.textContent = weekday(r.date);
+    dateCol.append(dateStrong, dateSmall);
+    const mid = document.createElement("div");
+    mid.className = "cs-history-row-mid";
+    const pill = document.createElement("span");
+    pill.className = "cs-pill " + (isOut ? "cs-pill-out" : "cs-pill-in");
+    pill.textContent = (isOut ? "↑ " : "↓ ") + flagLabel(r);
+    if (i === 0 && r === rows[0]) {
+      const latest = document.createElement("span");
+      latest.className = "cs-pill-latest";
+      latest.textContent = "· ล่าสุด";
+      pill.append(latest);
+    }
+    mid.append(pill);
     if (r.docNo) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "document-link";
+      button.className = "cs-doc-link";
       button.textContent = r.docNo;
       button.onclick = () => openDocument(r);
-      documentCell.append(button);
-    } else documentCell.textContent = "—";
-    cell(
-      tr,
-      r.flag === 54
-        ? "รับเข้า / ยกมา"
-        : r.flag === 44
-          ? "เบิกออก (ขาย)"
-          : r.flag === 58
-            ? "รับคืนจากเบิก"
-            : r.type,
-    );
-    cell(
-      tr,
-      fmt(r.quantity) + " " + p.unit,
-      r.type === "เบิกออก" ? "out-number" : "",
-    );
-    cell(tr, fmt(r.balance) + " " + p.unit);
-    $("history-rows").append(tr);
-  }
-  $("history-page").textContent =
-    `${fmt(rows.length)} รายการ · หน้า ${historyPage + 1} / ${Math.ceil(rows.length / size)}`;
-  $("history-prev").disabled = historyPage === 0;
-  $("history-next").disabled = (historyPage + 1) * size >= rows.length;
+      mid.append(button);
+    }
+    const amount = document.createElement("div");
+    amount.className = "cs-history-row-amount";
+    const amountStrong = document.createElement("strong");
+    amountStrong.className = isOut ? "cs-amount-out" : "cs-amount-in";
+    amountStrong.textContent =
+      (isOut ? "−" : "+") + fmt(r.quantity) + " " + p.unit;
+    const amountSmall = document.createElement("small");
+    amountSmall.textContent = "คงเหลือ " + fmt(r.balance);
+    amount.append(amountStrong, amountSmall);
+    row.append(dateCol, mid, amount);
+    list.append(row);
+  });
 }
+$("history-tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-tab]");
+  if (!button) return;
+  historyTab = button.dataset.tab;
+  for (const b of $("history-tabs").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b === button));
+  renderHistory();
+});
+$("history-csv").onclick = () => {
+  if (!selected) return;
+  const p = selected,
+    rows = [...p.rows].sort((a, b) => a.index - b.index),
+    escape = (v) => {
+      const text = String(v ?? "");
+      return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    },
+    header = ["วันที่", "เลขที่เอกสาร", "รายการ", "จำนวน", "คงเหลือหลังรายการ"],
+    body = rows.map((r) => [
+      r.date,
+      r.docNo || "",
+      flagLabel(r),
+      (r.type === "เบิกออก" ? "-" : "") + r.quantity,
+      r.balance,
+    ]),
+    csv = [header, ...body].map((row) => row.map(escape).join(",")).join("\r\n"),
+    blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }),
+    url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = `movement-${p.code}.csv`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 async function openDocument(row) {
   const dialog = $("document-detail"),
     body = $("document-rows");
@@ -814,14 +932,6 @@ $("prev").onclick = () => {
 $("next").onclick = () => {
   page++;
   render();
-};
-$("history-prev").onclick = () => {
-  historyPage--;
-  renderHistory();
-};
-$("history-next").onclick = () => {
-  historyPage++;
-  renderHistory();
 };
 $("close-history").onclick = () => $("history").close();
 $("close-document").onclick = () => $("document-detail").close();
