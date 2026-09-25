@@ -15,24 +15,22 @@ const dateLabel = (value) =>
 const iso = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const palette = [
-  "#c93436",
-  "#b88935",
-  "#bb7261",
-  "#813437",
-  "#e8b0a9",
-  "#e8b0a9",
-  "#8e7867",
-  "#d8c984",
+  "#ff3b30",
+  "#ff8a7a",
+  "#b3261e",
+  "#9a9aa3",
+  "#5f5f68",
+  "#d9d9de",
+  "#7a1a16",
 ];
-const customerPageSize = 10,
-  productPageSize = 8;
+const customerPageSize = 10;
+const cbx = { query: "", cat: null, sort: "amount", colors: new Map(), searchTimer: 0, toastTimer: 0, hover: null };
 let customers = [],
   filtered = [],
   selectedCode = null,
   detail = null,
   period = null;
 let customerPage = 0,
-  productPage = 0,
   masterController,
   detailController,
   masterRequest = 0,
@@ -298,8 +296,13 @@ function clearDetail(
   detailController = null;
   detailRequest++;
   detail = null;
-  productPage = 0;
+  cbx.query = "";
+  cbx.cat = null;
+  cbx.sort = "amount";
+  el("cbx-search").value = "";
+  syncSortButtons();
   el("detail-content").hidden = true;
+  el("cbx-foot").hidden = true;
   el("detail-retry").hidden = true;
   el("detail-status").hidden = false;
   el("detail-status").textContent = text;
@@ -331,16 +334,107 @@ function openCustomerDetail(code, trigger, revealInTable = false) {
 }
 
 function updateSelectedHeading(customer) {
-  el("detail-title").textContent =
-    `รายการสินค้าของลูกค้า: ${customer?.name ?? "ยังไม่ได้เลือก"}`;
-  el("detail-subtitle").textContent =
-    customer && period
-      ? `${dateLabel(period.start)} – ${dateLabel(period.end)} · ${number.format(customer.invoiceCount)} บิลขาย · ยอดซื้อสุทธิ ${money(customer.net)}`
-      : "เลือกลูกค้าจากกราฟหรือตารางด้านบน";
+  el("detail-title").textContent = customer?.name || "ยังไม่ได้เลือกลูกค้า";
+  el("detail-period").textContent = period
+    ? `${shortDate(period.start)} – ${shortDate(period.end)}`
+    : "";
   el("selected-code").hidden = !customer;
   el("selected-code").textContent = customer
     ? customer.code || "ไม่ระบุรหัสลูกค้า"
     : "";
+}
+
+const thMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+function localDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || "");
+  return match ? new Date(+match[1], +match[2] - 1, +match[3]) : null;
+}
+function shortDate(value) {
+  const date = localDate(value);
+  if (!date) return "—";
+  return `${date.getDate()} ${thMonths[date.getMonth()]} ${String((date.getFullYear() + 543) % 100).padStart(2, "0")}`;
+}
+function daysAgo(value) {
+  const date = localDate(value);
+  if (!date) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today - date) / 86400000);
+}
+const safeNum = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+const pct = (part, whole) => (whole > 0 ? (part / whole) * 100 : 0);
+
+function syncSortButtons() {
+  for (const button of el("cbx-sort").querySelectorAll("button"))
+    button.setAttribute("aria-pressed", String(button.dataset.sort === cbx.sort));
+}
+
+function cbxToast(text) {
+  const box = el("cbx-toast");
+  box.textContent = text;
+  box.hidden = false;
+  box.classList.remove("is-shown");
+  void box.offsetWidth;
+  box.classList.add("is-shown");
+  clearTimeout(cbx.toastTimer);
+  cbx.toastTimer = setTimeout(() => {
+    box.classList.remove("is-shown");
+    box.hidden = true;
+  }, 1800);
+}
+async function cbxCopy(text, label) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    cbxToast(`คัดลอก${label} ${text} แล้ว`);
+  } catch {
+    cbxToast("คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง");
+  }
+}
+
+function countUp(target, value, delay, format) {
+  const end = safeNum(value);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    target.textContent = format(end);
+    return;
+  }
+  target.textContent = format(0);
+  const started = performance.now() + delay;
+  const step = (now) => {
+    const t = Math.min(1, Math.max(0, (now - started) / 700));
+    target.textContent = format(t >= 1 ? end : end * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function renderSummary() {
+  const customer = detail.customer;
+  const bills = safeNum(customer.invoiceCount);
+  const net = safeNum(customer.net);
+  const lastDates = detail.products.map((p) => p.lastPurchased).filter(Boolean).sort();
+  const catCount = new Set(detail.products.map((p) => p.category)).size;
+  countUp(el("cbx-net"), net, 0, money);
+  el("cbx-net-sub").textContent = `ตามเอกสารขาย · เฉลี่ย ${bills > 0 ? money(net / bills) : "฿0.00"} / บิล`;
+  countUp(el("cbx-bills"), bills, 120, (v) => number.format(Math.round(v)));
+  el("cbx-bills-sub").textContent = lastDates.length ? `ซื้อล่าสุด ${shortDate(lastDates.at(-1))}` : "ไม่มีบิลขายในช่วงนี้";
+  countUp(el("cbx-items"), detail.products.length, 240, (v) => number.format(Math.round(v)));
+  el("cbx-items-sub").textContent = `${number.format(catCount)} หมวดหมู่`;
+}
+
+function visibleProducts() {
+  const query = cbx.query.trim().toLowerCase();
+  const list = detail.products.filter(
+    (p) =>
+      (!cbx.cat || p.category === cbx.cat) &&
+      (!query || `${p.name || ""} ${p.code || ""}`.toLowerCase().includes(query)),
+  );
+  const by = {
+    amount: (a, b) => safeNum(b.total) - safeNum(a.total),
+    qty: (a, b) => safeNum(b.quantity) - safeNum(a.quantity),
+    recent: (a, b) => String(b.lastPurchased || "").localeCompare(String(a.lastPurchased || "")) || safeNum(b.total) - safeNum(a.total),
+  };
+  return list.sort(by[cbx.sort]);
 }
 
 function updateSelection() {
@@ -941,13 +1035,14 @@ async function selectCustomer(code, revealInTable = false) {
     if (request !== detailRequest) return;
     detail = data;
     updateSelectedHeading(data.customer);
-    renderProducts();
-    renderCategories();
-    el("item-total").textContent = `รวมยอดรายการสินค้า ${money(data.itemNet)}`;
     el("detail-status").textContent =
       `โหลดสินค้าของ ${data.customer.name} แล้ว ${number.format(data.products.length)} รายการ`;
     el("detail-status").hidden = true;
     el("detail-content").hidden = false;
+    el("cbx-foot").hidden = false;
+    renderSummary();
+    renderCategories();
+    renderProducts();
   } catch (error) {
     if (controller.signal.aborted || request !== detailRequest) return;
     el("detail-status").textContent =
@@ -963,40 +1058,78 @@ async function selectCustomer(code, revealInTable = false) {
   }
 }
 
+function catColor(category) {
+  return cbx.colors.get(category) || "#6f6f6f";
+}
+
 function renderProducts() {
   if (!detail) return;
   const body = el("product-rows");
   body.replaceChildren();
-  detail.products
-    .slice(productPage * productPageSize, (productPage + 1) * productPageSize)
-    .forEach((product) => {
-      const row = node("tr"),
-        name = node("td", product.name),
-        quantity = node("td", number.format(product.quantity), "numeric");
-      name.append(node("small", product.code));
-      quantity.append(node("small", product.unit));
-      row.append(
-        name,
-        node("td", product.category, "category-tag"),
-        quantity,
-        node(
-          "td",
-          money(product.total),
-          `numeric${product.total < 0 ? " negative" : ""}`,
-        ),
-        node("td", dateLabel(product.lastPurchased)),
-      );
-      body.append(row);
-    });
-  if (!detail.products.length)
-    emptyRow(body, 5, "ไม่พบรายการสินค้าในช่วงวันที่เลือก");
-  pagination(
-    "product",
-    productPage,
-    productPageSize,
-    detail.products.length,
-    "รายการ",
-  );
+  const list = visibleProducts();
+  const itemNet = safeNum(detail.itemNet);
+  const maxTotal = Math.max(0, ...list.map((p) => safeNum(p.total)));
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  list.forEach((product, index) => {
+    const total = safeNum(product.total);
+    const row = node("div", "", "cbx-row");
+    row.setAttribute("role", "listitem");
+    if (!reduce && index < 30) row.style.animationDelay = `${index * 25}ms`;
+
+    const rank = node("span", String(index + 1), "cbx-rank");
+    if (index === 0 && cbx.sort === "amount" && total > 0) rank.classList.add("is-top");
+
+    const info = node("div", "", "cbx-prod");
+    const meta = node("div", "", "cbx-prod-meta");
+    const code = node("button", product.code || "ไม่ระบุรหัส", "cbx-code cbx-mono");
+    code.type = "button";
+    code.title = "คลิกเพื่อคัดลอกรหัสสินค้า";
+    code.onclick = () => cbxCopy(product.code, "รหัสสินค้า");
+    const tag = node("span", product.category || "ไม่ระบุหมวดหมู่", "cbx-cat-tag");
+    const dot = node("i", "", "cbx-cat-dot");
+    dot.style.background = catColor(product.category);
+    tag.prepend(dot);
+    meta.append(code, tag);
+    info.append(node("span", product.name || "ไม่ระบุชื่อสินค้า", "cbx-prod-name"), meta);
+
+    const qty = node("div", "", "cbx-qty");
+    qty.append(node("strong", number.format(safeNum(product.quantity))), node("small", product.unit || ""));
+
+    const amt = node("div", "", "cbx-amt");
+    amt.append(
+      node("strong", money(total), total < 0 ? "is-neg" : ""),
+      node("small", `${number.format(Math.round(pct(total, itemNet) * 10) / 10)}% ของยอดซื้อ`),
+    );
+    const track = node("span", "", "cbx-track");
+    const fill = node("span", "", "cbx-fill");
+    fill.style.width = `${total > 0 && maxTotal > 0 ? Math.max(2, (total / maxTotal) * 100) : 0}%`;
+    fill.style.background = catColor(product.category);
+    track.append(fill);
+    amt.append(track);
+
+    const last = node("div", "", "cbx-last");
+    const ago = daysAgo(product.lastPurchased);
+    last.append(
+      node("strong", product.lastPurchased ? shortDate(product.lastPurchased) : "—"),
+      node(
+        "small",
+        ago === null ? "ไม่มีบิลขาย" : ago <= 0 ? "วันนี้" : `${number.format(ago)} วันก่อน`,
+        ago !== null && ago <= 3 ? "is-recent" : "",
+      ),
+    );
+    row.append(rank, info, qty, amt, last);
+    body.append(row);
+  });
+  const empty = el("cbx-empty");
+  empty.hidden = list.length > 0;
+  empty.textContent = detail.products.length
+    ? "ไม่พบสินค้าที่ตรงกับการค้นหา"
+    : "ไม่พบรายการสินค้าในช่วงวันที่เลือก";
+  const sum = list.reduce((s, p) => s + safeNum(p.total), 0);
+  el("item-total").textContent =
+    `${number.format(list.length)} จาก ${number.format(detail.products.length)} รายการ` +
+    (cbx.cat ? ` · หมวด ${cbx.cat}` : "") +
+    ` · รวม ${money(sum)}`;
 }
 
 function renderCategories() {
@@ -1004,86 +1137,146 @@ function renderCategories() {
     legend = el("category-legend");
   svg.replaceChildren();
   legend.replaceChildren();
-  const positiveTotal = detail.categories.reduce(
-    (sum, category) => sum + Math.max(0, Number(category.total)),
-    0,
-  );
-  const positives = detail.categories.filter(
-    (category) => category.total > 0,
-  ).length;
-  const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-  title.id = "donut-title";
-  title.textContent =
-    positiveTotal > 0
-      ? `สัดส่วนการซื้อ ${positives} หมวดหมู่ ยอดสุทธิที่เป็นบวกรวม ${money(positiveTotal)} รายละเอียดเปอร์เซ็นต์อยู่ในรายการด้านล่าง`
-      : "ไม่มีมูลค่าซื้อสุทธิที่เป็นบวกสำหรับคำนวณสัดส่วน";
-  svg.append(title);
-  const circle = (color, attributes = {}) => {
-    const item = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle",
-    );
-    for (const [key, value] of Object.entries({
-      cx: 100,
-      cy: 100,
-      r: 76,
-      fill: "none",
-      stroke: color,
-      "stroke-width": 24,
-      ...attributes,
-    }))
+  const cats = [...detail.categories].sort((a, b) => safeNum(b.total) - safeNum(a.total));
+  const positiveTotal = cats.reduce((sum, c) => sum + Math.max(0, safeNum(c.total)), 0);
+  const positives = cats.filter((c) => safeNum(c.total) > 0);
+  const maxCat = Math.max(0, ...positives.map((c) => safeNum(c.total)));
+  cbx.colors = new Map();
+  positives.forEach((c, i) => cbx.colors.set(c.name, palette[i % palette.length]));
+
+  const ns = "http://www.w3.org/2000/svg";
+  const ring = (attrs) => {
+    const item = document.createElementNS(ns, "circle");
+    for (const [key, value] of Object.entries({ cx: 88, cy: 88, r: 70, fill: "none", "stroke-width": 14, ...attrs }))
       item.setAttribute(key, String(value));
     svg.append(item);
     return item;
   };
-  circle("#f4ebe7");
+  ring({ stroke: "#242424" });
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const gap = positives.length > 1 ? 0.8 : 0;
   let offset = 0;
-  detail.categories.forEach((category, index) => {
-    const percent =
-      positiveTotal > 0 && category.total > 0
-        ? (category.total / positiveTotal) * 100
-        : 0;
-    const color =
-      category.total > 0 ? palette[index % palette.length] : "#9b8c87";
-    if (percent > 0) {
-      const segment = circle(color, {
-        pathLength: 100,
-        "stroke-dasharray": `${percent} ${100 - percent}`,
-        "stroke-dashoffset": -offset,
-        transform: "rotate(-90 100 100)",
-      });
-      const tip = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "title",
+  const segments = new Map();
+  positives.forEach((c) => {
+    const share = pct(safeNum(c.total), positiveTotal);
+    const length = Math.max(0.1, share - gap);
+    const seg = ring({
+      stroke: catColor(c.name),
+      pathLength: 100,
+      "stroke-linecap": "butt",
+      "stroke-dasharray": reduce ? `${length} ${100 - length}` : `0 100`,
+      "stroke-dashoffset": -offset,
+      transform: "rotate(-90 88 88)",
+      class: "cbx-seg-arc",
+      tabindex: 0,
+      role: "button",
+      "aria-label": `${c.name} ${number.format(Math.round(share * 10) / 10)}% ${money(c.total)}`,
+    });
+    if (!reduce)
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => seg.setAttribute("stroke-dasharray", `${length} ${100 - length}`)),
       );
-      tip.textContent = `${category.name}: ${number.format(percent)}% · ${money(category.total)}`;
-      segment.append(tip);
-      offset += percent;
-    }
-    const item = node("li"),
-      dot = node("span", "", "legend-dot"),
-      name = node("span", category.name, "legend-name");
-    dot.style.backgroundColor = color;
-    dot.setAttribute("aria-hidden", "true");
-    name.append(node("small", money(category.total)));
-    item.append(
-      dot,
-      name,
-      node(
-        "span",
-        percent > 0 ? `${number.format(percent)}%` : "—",
-        "legend-percent",
-      ),
+    seg.addEventListener("mouseenter", () => setCenter(c));
+    seg.addEventListener("mouseleave", () => setCenter(null));
+    seg.addEventListener("focus", () => setCenter(c));
+    seg.addEventListener("blur", () => setCenter(null));
+    seg.addEventListener("click", () => toggleCat(c.name));
+    seg.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleCat(c.name);
+      }
+    });
+    segments.set(c.name, seg);
+    offset += share;
+  });
+
+  cats.forEach((c) => {
+    const total = safeNum(c.total);
+    const share = total > 0 ? pct(total, positiveTotal) : 0;
+    const item = node("li");
+    const button = node("button", "", "cbx-legend-row");
+    button.type = "button";
+    button.dataset.cat = c.name;
+    const swatch = node("i", "", "cbx-swatch");
+    swatch.style.background = catColor(c.name);
+    const label = node("span", "", "cbx-legend-name");
+    const track = node("span", "", "cbx-track");
+    const fill = node("span", "", "cbx-fill");
+    fill.style.width = `${total > 0 && maxCat > 0 ? (total / maxCat) * 100 : 0}%`;
+    fill.style.background = catColor(c.name);
+    track.append(fill);
+    label.append(node("span", c.name || "ไม่ระบุหมวดหมู่"), track);
+    button.append(
+      swatch,
+      label,
+      node("strong", share > 0 ? `${number.format(Math.round(share * 10) / 10)}%` : "—", "cbx-legend-pct"),
+      node("small", money(total), "cbx-legend-amt"),
     );
+    button.addEventListener("mouseenter", () => total > 0 && setCenter(c));
+    button.addEventListener("mouseleave", () => setCenter(null));
+    button.onclick = () => toggleCat(c.name);
+    item.append(button);
     legend.append(item);
   });
-  el("category-count").textContent = number.format(positives);
+
+  function setCenter(c) {
+    for (const [key, seg] of segments) seg.classList.toggle("is-hover", c?.name === key);
+    if (c) {
+      el("category-count").textContent = `${number.format(Math.round(pct(safeNum(c.total), positiveTotal) * 10) / 10)}%`;
+      el("cbx-center-label").textContent = c.name;
+      el("cbx-center-sub").textContent = money(c.total);
+    } else {
+      el("category-count").textContent = number.format(positives.length);
+      el("cbx-center-label").textContent = "หมวดหมู่";
+      el("cbx-center-sub").textContent = money(positiveTotal);
+    }
+  }
+  cbx.paintCats = () => {
+    for (const [key, seg] of segments) seg.classList.toggle("is-dim", !!cbx.cat && cbx.cat !== key);
+    for (const row of legend.querySelectorAll(".cbx-legend-row")) {
+      const active = row.dataset.cat === cbx.cat;
+      row.classList.toggle("is-active", active);
+      row.classList.toggle("is-dim", !!cbx.cat && !active);
+      row.setAttribute("aria-pressed", String(active));
+    }
+  };
+  setCenter(null);
+  cbx.paintCats();
+  el("cbx-cat-total").textContent = `รวม ${money(positiveTotal)}`;
   el("category-empty").hidden = positiveTotal > 0;
-  el("category-note").textContent = detail.categories.some(
-    (category) => category.total <= 0,
-  )
-    ? "คำนวณสัดส่วนเฉพาะหมวดที่มียอดสุทธิมากกว่า 0 หมวดที่เป็นศูนย์หรือติดลบแสดงยอดไว้โดยไม่คิดเปอร์เซ็นต์ · หมวดหมู่อ้างอิงทะเบียนสินค้าปัจจุบัน"
-    : "สัดส่วน = ยอดสุทธิหมวดหมู่ ÷ ยอดสุทธิสินค้ารวม · หมวดหมู่อ้างอิงทะเบียนสินค้าปัจจุบัน";
+}
+
+function toggleCat(category) {
+  cbx.cat = cbx.cat === category ? null : category;
+  cbx.paintCats?.();
+  renderProducts();
+}
+
+function downloadCustomerCsv() {
+  if (!detail) return;
+  const cell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const lines = [
+    ["รหัสสินค้า", "ชื่อสินค้า", "หมวดหมู่", "จำนวน", "หน่วย", "ยอดรวม", "ซื้อล่าสุด"],
+    ...detail.products.map((p) => [
+      p.code,
+      p.name,
+      p.category,
+      safeNum(p.quantity),
+      p.unit,
+      safeNum(p.total).toFixed(2),
+      p.lastPurchased || "",
+    ]),
+  ].map((row) => row.map(cell).join(","));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `customer-products-${detail.customer.code || "unknown"}-${period?.start || ""}_${period?.end || ""}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function validateDates() {
@@ -1227,50 +1420,59 @@ for (const id of ["start", "end"]) {
     } else message("กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน", true);
   });
 }
-for (const [prefix, size] of [
-  ["customer", customerPageSize],
-  ["product", productPageSize],
+for (const [direction, change] of [
+  ["prev", -1],
+  ["next", 1],
 ]) {
-  for (const [direction, change] of [
-    ["prev", -1],
-    ["next", 1],
-  ]) {
-    el(`${prefix}-${direction}`).addEventListener("click", () => {
-      if (prefix === "customer") {
-        customerPage = Math.max(
-          0,
-          Math.min(
-            Math.max(0, Math.ceil(filtered.length / size) - 1),
-            customerPage + change,
-          ),
-        );
-        renderCustomers();
-      } else if (detail) {
-        productPage = Math.max(
-          0,
-          Math.min(
-            Math.max(0, Math.ceil(detail.products.length / size) - 1),
-            productPage + change,
-          ),
-        );
-        renderProducts();
-      }
-    });
-  }
+  el(`customer-${direction}`).addEventListener("click", () => {
+    customerPage = Math.max(
+      0,
+      Math.min(
+        Math.max(0, Math.ceil(filtered.length / customerPageSize) - 1),
+        customerPage + change,
+      ),
+    );
+    renderCustomers();
+  });
 }
 el("detail-retry").addEventListener("click", () =>
   selectCustomer(selectedCode),
 );
 el("detail-close").addEventListener("click", closeCustomerDetail);
+el("selected-code").addEventListener("click", () =>
+  cbxCopy(detail?.customer?.code, "รหัสลูกค้า"),
+);
+el("cbx-search").addEventListener("input", () => {
+  clearTimeout(cbx.searchTimer);
+  cbx.searchTimer = setTimeout(() => {
+    cbx.query = el("cbx-search").value;
+    renderProducts();
+  }, 150);
+});
+el("cbx-sort").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-sort]");
+  if (!button || !detail) return;
+  cbx.sort = button.dataset.sort;
+  syncSortButtons();
+  renderProducts();
+});
+el("cbx-csv").addEventListener("click", downloadCustomerCsv);
 el("customer-detail").addEventListener("cancel", (event) => {
   event.preventDefault();
-  closeCustomerDetail();
+  if (cbx.query || el("cbx-search").value) {
+    clearTimeout(cbx.searchTimer);
+    cbx.query = "";
+    el("cbx-search").value = "";
+    renderProducts();
+  } else if (cbx.cat) {
+    toggleCat(cbx.cat);
+  } else closeCustomerDetail();
 });
 el("customer-detail").addEventListener("keydown", (event) => {
   if (event.key !== "Tab") return;
   const controls = [
     ...el("customer-detail").querySelectorAll(
-      'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      'button:not(:disabled), input, [tabindex]:not([tabindex="-1"])',
     ),
   ].filter((control) => control.getClientRects().length > 0);
   const first = controls[0],

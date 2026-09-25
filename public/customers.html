@@ -717,119 +717,109 @@
 
       <dialog
         id="customer-detail"
-        class="panel detail-panel"
+        class="cbx"
         aria-labelledby="detail-title"
-        aria-describedby="detail-subtitle"
         aria-busy="false"
       >
-        <div class="panel-heading detail-heading">
-          <div>
-            <p class="eyebrow">BUYING BEHAVIOR / รายละเอียดการซื้อ</p>
-            <h2 id="detail-title">รายการสินค้าของลูกค้า: ยังไม่ได้เลือก</h2>
-            <p id="detail-subtitle" class="panel-hint">
-              เลือกลูกค้าจากกราฟหรือตาราง
-            </p>
-          </div>
-          <div class="detail-actions">
-            <span id="selected-code" class="pill" hidden></span
-            ><button
-              id="detail-close"
+        <button
+          id="detail-close"
+          type="button"
+          class="cbx-close"
+          aria-label="ปิดรายละเอียดลูกค้า"
+        >
+          ×
+        </button>
+        <header class="cbx-head">
+          <p class="cbx-eyebrow"><span class="cbx-dot"></span>พฤติกรรมการซื้อของลูกค้า</p>
+          <h2 id="detail-title">ยังไม่ได้เลือกลูกค้า</h2>
+          <div class="cbx-tags">
+            <button
               type="button"
-              aria-label="ปิดรายละเอียดลูกค้า"
-              autofocus
-            >
-              ปิด <span aria-hidden="true">×</span>
-            </button>
+              id="selected-code"
+              class="cbx-tag cbx-mono"
+              title="คลิกเพื่อคัดลอกรหัสลูกค้า"
+              hidden
+            ></button>
+            <span class="cbx-tag" id="detail-period"></span>
+            <span class="cbx-tag cbx-tag-warn">หักรับคืนแล้ว</span>
           </div>
+        </header>
+        <div
+          id="detail-status"
+          class="cbx-status"
+          role="status"
+          aria-live="polite"
+        >
+          เลือกลูกค้าเพื่อดูรายการสินค้าและสัดส่วนหมวดหมู่
         </div>
-        <div class="detail-modal-body">
-          <div
-            id="detail-status"
-            class="detail-status"
-            role="status"
-            aria-live="polite"
-          >
-            เลือกลูกค้าเพื่อดูรายการสินค้าและสัดส่วนหมวดหมู่
-          </div>
-          <button id="detail-retry" type="button" hidden>
-            ลองโหลดรายการสินค้าอีกครั้ง
-          </button>
-          <div id="detail-content" class="detail-grid" hidden>
-            <div class="product-list">
-              <div
-                class="table-scroll"
-                tabindex="0"
-                role="region"
-                aria-label="ตารางสินค้าที่ลูกค้าซื้อ"
-              >
-                <table class="product-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">ชื่อสินค้า</th>
-                      <th scope="col">หมวดหมู่</th>
-                      <th scope="col" class="numeric">จำนวนชิ้น*</th>
-                      <th scope="col" class="numeric">ยอดรวม</th>
-                      <th scope="col">วันที่ซื้อล่าสุด</th>
-                    </tr>
-                  </thead>
-                  <tbody id="product-rows"></tbody>
-                </table>
+        <button id="detail-retry" type="button" class="cbx-retry" hidden>
+          ลองโหลดรายการสินค้าอีกครั้ง
+        </button>
+        <div id="detail-content" class="cbx-body" hidden>
+          <div class="cbx-top">
+            <div class="cbx-cards">
+              <div class="cbx-card cbx-card-main">
+                <span class="cbx-card-label">ยอดซื้อสุทธิ</span>
+                <span class="cbx-card-value" id="cbx-net">฿0</span>
+                <span class="cbx-card-sub" id="cbx-net-sub"></span>
               </div>
-              <nav class="pagination" aria-label="หน้าตารางสินค้า">
-                <span id="product-page-info"></span>
-                <div>
-                  <button
-                    id="product-prev"
-                    type="button"
-                    aria-label="สินค้าหน้าก่อนหน้า"
-                  >
-                    ←</button
-                  ><button
-                    id="product-next"
-                    type="button"
-                    aria-label="สินค้าหน้าถัดไป"
-                  >
-                    →
-                  </button>
-                </div>
-              </nav>
-              <p id="item-total" class="item-total"></p>
-              <p class="panel-footnote">
-                * จำนวนสุทธิตามหน่วยขาย แยกสินค้าต่างหน่วยนับ ·
-                ยอดรวมรายการหักรับคืนแล้ว<br />วันที่ซื้อล่าสุดนับเฉพาะบิลขายในช่วงที่เลือก
-                · ยอดรายการอาจต่างจากยอดเอกสารเนื่องจาก VAT / ส่วนลด
-              </p>
+              <div class="cbx-card">
+                <span class="cbx-card-label">จำนวนบิลขาย</span>
+                <span class="cbx-card-value"><span id="cbx-bills">0</span> <small>บิล</small></span>
+                <span class="cbx-card-sub" id="cbx-bills-sub"></span>
+              </div>
+              <div class="cbx-card">
+                <span class="cbx-card-label">สินค้าที่ซื้อ</span>
+                <span class="cbx-card-value"><span id="cbx-items">0</span> <small>รายการ</small></span>
+                <span class="cbx-card-sub" id="cbx-items-sub"></span>
+              </div>
             </div>
-            <aside class="category-panel" aria-labelledby="category-title">
-              <h3 id="category-title">สัดส่วนการซื้อตามหมวดหมู่</h3>
-              <p class="panel-hint">คิดเป็นเปอร์เซ็นต์จากมูลค่าซื้อสุทธิ</p>
-              <div class="donut-wrap">
-                <svg
-                  id="category-chart"
-                  viewBox="0 0 200 200"
-                  role="img"
-                  aria-labelledby="donut-title"
-                >
-                  <title id="donut-title">สัดส่วนยอดซื้อสุทธิแยกหมวดหมู่</title>
-                </svg>
-                <div class="donut-center" aria-hidden="true">
-                  <strong id="category-count">0</strong><span>หมวดหมู่</span>
-                </div>
+            <section class="cbx-cat" aria-labelledby="category-title">
+              <div class="cbx-cat-head">
+                <span id="category-title">สัดส่วนการซื้อตามหมวดหมู่ · คลิกเพื่อกรอง</span>
+                <span id="cbx-cat-total"></span>
               </div>
-              <p id="category-empty" class="panel-hint" hidden>
+              <div class="cbx-cat-body">
+                <div class="cbx-donut">
+                  <svg id="category-chart" viewBox="0 0 176 176" role="img" aria-label="สัดส่วนยอดซื้อสุทธิแยกหมวดหมู่"></svg>
+                  <div class="cbx-donut-center" aria-hidden="true">
+                    <strong id="category-count">0</strong>
+                    <span id="cbx-center-label">หมวดหมู่</span>
+                    <small id="cbx-center-sub"></small>
+                  </div>
+                </div>
+                <ul id="category-legend" class="cbx-legend" aria-label="ยอดซื้อและเปอร์เซ็นต์แต่ละหมวดหมู่"></ul>
+              </div>
+              <p id="category-empty" class="cbx-muted" hidden>
                 ไม่มีมูลค่าซื้อสุทธิที่เป็นบวกสำหรับคำนวณสัดส่วน
               </p>
-              <ul
-                id="category-legend"
-                class="category-legend"
-                aria-label="ยอดซื้อและเปอร์เซ็นต์แต่ละหมวดหมู่"
-              ></ul>
-              <p id="category-note" class="panel-footnote">
-                หมวดหมู่อ้างอิงทะเบียนสินค้าปัจจุบัน
-              </p>
-            </aside>
+            </section>
+            <div class="cbx-toolbar">
+              <label class="cbx-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="cbx-search" type="search" placeholder="ค้นหาชื่อหรือรหัสสินค้า" aria-label="ค้นหาชื่อหรือรหัสสินค้า" autocomplete="off" />
+              </label>
+              <div class="cbx-seg" id="cbx-sort" role="group" aria-label="เรียงรายการ">
+                <button type="button" data-sort="amount" aria-pressed="true">ยอดสูงสุด</button>
+                <button type="button" data-sort="qty" aria-pressed="false">จำนวนมากสุด</button>
+                <button type="button" data-sort="recent" aria-pressed="false">ซื้อล่าสุด</button>
+              </div>
+            </div>
+            <div class="cbx-list-head" aria-hidden="true">
+              <span>#</span><span>สินค้า</span><span>จำนวน*</span><span>ยอดรวม</span><span>ซื้อล่าสุด</span>
+            </div>
           </div>
+          <div class="cbx-list" id="product-rows" role="list" aria-label="สินค้าที่ลูกค้าซื้อ"></div>
+          <p class="cbx-empty" id="cbx-empty" hidden></p>
         </div>
+        <footer class="cbx-foot" id="cbx-foot" hidden>
+          <span class="cbx-summary">
+            <span id="item-total"></span>
+            <span class="cbx-info" tabindex="0" aria-label="หมายเหตุ">i<span class="cbx-info-tip" id="category-note" role="tooltip">* จำนวนสุทธิตามหน่วยขาย แยกสินค้าต่างหน่วยกัน · ยอดรวมรายการหักรับคืนแล้ว · สัดส่วนหมวด = ยอดสุทธิหมวด ÷ ยอดสุทธิสินค้ารวม · หมวดหมู่อ้างอิงทะเบียนสินค้าปัจจุบัน · ยอดรายการอาจต่างจากยอดเอกสารเนื่องจาก VAT / ส่วนลด</span></span>
+          </span>
+          <button type="button" id="cbx-csv" class="cbx-csv">⭳ ดาวน์โหลด CSV</button>
+        </footer>
+        <div class="cbx-toast" id="cbx-toast" role="status" aria-live="polite" hidden></div>
       </dialog>
     </main>
   </body>
