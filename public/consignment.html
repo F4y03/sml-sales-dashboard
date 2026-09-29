@@ -11,7 +11,9 @@
     <link rel="stylesheet" href="consignment-top.css" />
     <script src="theme-mode.js"></script>
     <script src="workspace-nav.js?v=20260924-nav-fix" defer></script>
-    <script src="consignment-ui.js?v=20260925-history-dialog" type="module"></script>
+    <link rel="stylesheet" href="consignment-images.css?v=20260929-lightbox" />
+    <script src="product-image-links.js?v=20260929-uploads"></script>
+    <script src="consignment-ui.js?v=20260929-links" type="module"></script>
   </head>
   <body>
     <main id="cs-top" class="cs-intro">
@@ -273,7 +275,7 @@
         </div>
 
         <div class="table-scroll">
-          <table class="movement-table">
+          <table class="movement-table cs-stock-table">
             <thead>
               <tr>
                 <th>สินค้า / รหัสฝาก</th>
@@ -309,12 +311,22 @@
       <dialog id="history" class="cs-history">
         <button id="close-history" class="cs-history-close" aria-label="ปิดประวัติ">×</button>
         <header class="cs-history-head">
-          <p class="cs-history-eyebrow"><span class="cs-dot cs-dot-brand"></span>ประวัติการเคลื่อนไหว</p>
-          <h2 id="history-title"></h2>
-          <div class="cs-history-tags">
-            <button type="button" id="history-code" class="cs-tag cs-tag-code" title="คลิกเพื่อคัดลอกรหัส"></button>
-            <span class="cs-tag" id="history-region"></span>
-            <span class="cs-tag" id="history-unit"></span>
+          <div class="cs-history-media">
+            <button type="button" id="history-main-image" class="cs-history-main-image"></button>
+            <div class="cs-history-strip" id="history-strip" hidden></div>
+            <p class="cs-history-image-source" id="history-image-source" hidden></p>
+          </div>
+          <div class="cs-history-info">
+            <p class="cs-history-eyebrow"><span class="cs-dot cs-dot-brand"></span>ประวัติการเคลื่อนไหว</p>
+            <h2 id="history-title"></h2>
+            <div class="cs-history-tags">
+              <button type="button" id="history-code" class="cs-tag cs-tag-code" title="คลิกเพื่อคัดลอกรหัส"></button>
+              <span class="cs-tag" id="history-region"></span>
+              <span class="cs-tag" id="history-unit"></span>
+            </div>
+            <button type="button" id="history-edit-images" class="cs-history-edit-images" hidden>
+              เพิ่ม/เปลี่ยนรูป
+            </button>
           </div>
         </header>
         <div class="cs-history-cards">
@@ -372,6 +384,44 @@
           aria-live="polite"
           hidden
         ></div>
+      </dialog>
+      <dialog id="history-lightbox" class="cs-lightbox" aria-label="รูปสินค้าเต็มจอ">
+        <button type="button" id="close-lightbox" class="cs-lightbox-close" aria-label="ปิดรูปเต็มจอ">✕</button>
+        <img id="lightbox-image" alt="" />
+      </dialog>
+      <dialog id="image-editor" class="cs-img-editor" aria-labelledby="image-editor-title">
+        <header class="cs-img-editor-head">
+          <h2 id="image-editor-title">รูปสินค้า</h2>
+          <p id="image-editor-code"></p>
+          <button type="button" id="close-image-editor" class="cs-history-close" aria-label="ปิดโดยไม่บันทึก">×</button>
+        </header>
+        <p class="cs-img-editor-hint">
+          ลากเพื่อเรียงลำดับ · รูปแรกคือรูปหลัก · JPG, PNG หรือ WebP ไม่เกิน 2MB ต่อรูป (ระบบย่อขนาดให้อัตโนมัติ)
+        </p>
+        <ol class="cs-img-editor-list" id="image-editor-list"></ol>
+        <label class="cs-img-editor-add" id="image-editor-add">
+          <input type="file" id="image-editor-file" accept="image/jpeg,image/png,image/webp" multiple />
+          <span>+ เพิ่มรูป</span>
+        </label>
+        <form class="cs-img-editor-link" id="image-editor-link-form">
+          <label for="image-editor-link">หรือวางลิงก์รูป (Google Drive หรือ https://)</label>
+          <div>
+            <input
+              type="text"
+              id="image-editor-link"
+              inputmode="url"
+              autocomplete="off"
+              placeholder="https://drive.google.com/file/d/…/view"
+            />
+            <button type="submit">เพิ่มลิงก์</button>
+          </div>
+          <small>ไฟล์ใน Drive ต้องแชร์แบบ “ทุกคนที่มีลิงก์” ถึงจะแสดงรูปได้ · วางหลายลิงก์ได้โดยขึ้นบรรทัดหรือเว้นวรรค</small>
+        </form>
+        <p class="cs-img-editor-status" id="image-editor-status" role="status" aria-live="polite"></p>
+        <footer class="cs-img-editor-foot">
+          <button type="button" id="image-editor-cancel" class="cs-img-editor-secondary">ยกเลิก</button>
+          <button type="button" id="image-editor-save" class="cs-img-editor-primary">บันทึกรูป</button>
+        </footer>
       </dialog>
       <dialog id="document-detail">
         <div class="section-heading">

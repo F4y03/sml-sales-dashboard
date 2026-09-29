@@ -1,0 +1,575 @@
+/* Product photos on the consignment page (consignment-images.js). Photos sit on white so product shots
+   read the same in both themes; the fallback icon sits on dark grey. Dialog selectors repeat a class to
+   beat theme-modes.css, which styles every `dialog` at specificity (1,1,1) (see consignment.css). */
+
+/* ---------- table ---------- */
+.movement-table.cs-stock-table .product-cell {
+  min-width: 300px;
+  max-width: 440px;
+}
+.cs-product {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.cs-product-text {
+  min-width: 0;
+}
+.cs-thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: #262626;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: transform 0.18s ease;
+}
+.cs-thumb img,
+.cs-strip-media img,
+.cs-img-tile-media img,
+.cs-history-main-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+#summary .clickable-product:hover .cs-thumb,
+#summary .clickable-product:focus-visible .cs-thumb {
+  transform: scale(1.08);
+}
+.cs-thumb.has-image {
+  cursor: zoom-in;
+}
+
+/* Fallback icon (no photo, or the photo failed to load). */
+.cs-thumb.is-icon,
+.cs-strip-media.is-icon,
+.cs-img-tile-media.is-icon,
+#history .cs-history-main-image.is-icon {
+  background: #262626;
+  color: #8c8c8c;
+}
+.cs-img-icon {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.cs-img-icon svg {
+  width: 56%;
+  height: 56%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Hover preview; position comes from JS (fixed, follows the pointer, kept off the row). */
+.cs-img-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: 236px;
+  height: 236px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  animation: cs-img-pop 0.14s ease both;
+}
+.cs-img-preview[hidden] {
+  display: none;
+}
+.cs-img-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+@keyframes cs-img-pop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- history dialog header ---------- */
+/* consignment.css gives #history display:flex, which beats the browser's own rule that hides a closed
+   dialog, so after closing it stayed drawn at the bottom of the page. Keep it hidden until opened. */
+#history.cs-history.cs-history:not([open]) {
+  display: none;
+}
+/* The header is position:relative and comes after the × in the markup, so it painted over the button
+   and took its clicks. Keep the × on top. */
+#history .cs-history-close {
+  z-index: 2;
+}
+#history.cs-history .cs-history-head {
+  /* The page-level `header { margin-bottom: 28px }` in consignment.css left an empty band here. */
+  margin: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.cs-history-media {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+#history .cs-history-main-image {
+  width: 200px;
+  height: 200px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: #262626;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+#history .cs-history-main-image:disabled {
+  opacity: 1;
+  cursor: default;
+}
+#history .cs-history-main-image .cs-img-icon svg {
+  width: 40%;
+  height: 40%;
+}
+#history .cs-history-main-image:focus-visible,
+#history .cs-strip-thumb:focus-visible,
+#history .cs-history-edit-images:focus-visible {
+  outline: 2px solid #ff3b30;
+  outline-offset: 2px;
+}
+.cs-history-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cs-history-strip[hidden] {
+  display: none;
+}
+#history .cs-strip-thumb {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #262626;
+  overflow: hidden;
+  cursor: pointer;
+}
+#history .cs-strip-thumb[aria-pressed="true"] {
+  background: #262626;
+  border-color: #ff3b30;
+}
+.cs-strip-media {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.cs-history-image-source {
+  margin: 0;
+  font-size: 11px;
+  color: #8c8c8c;
+}
+.cs-history-image-source[hidden] {
+  display: none;
+}
+.cs-history-info {
+  min-width: 0;
+}
+#history .cs-history-edit-images {
+  margin-top: 12px;
+  padding: 7px 12px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #181818;
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+#history .cs-history-edit-images:hover {
+  background: #232323;
+}
+.cs-history-edit-images[hidden] {
+  display: none;
+}
+
+/* ---------- full-screen view ---------- */
+/* Pinned to the four viewport edges (not 100vw/100vh, which ignore the scrollbar and zoom and could push
+   the × off the top-right corner). The photo leaves a 72px band at the top so the × never covers it. */
+#history-lightbox.cs-lightbox.cs-lightbox {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 72px 24px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+#history-lightbox.cs-lightbox.cs-lightbox[open] {
+  display: grid;
+  /* One track that fills the space, so the photo's max-height: 100% is the visible height. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+}
+#history-lightbox.cs-lightbox::backdrop {
+  background: rgba(6, 6, 6, 0.92);
+}
+#lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  animation: cs-img-pop 0.18s ease both;
+}
+#history-lightbox .cs-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+#history-lightbox .cs-lightbox-close:hover {
+  background: #d80600;
+  border-color: #ff3b30;
+}
+#history-lightbox .cs-lightbox-close:focus-visible {
+  outline: 2px solid #ff3b30;
+  outline-offset: 2px;
+}
+
+/* ---------- photo editor ---------- */
+#image-editor.cs-img-editor.cs-img-editor {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 1px solid #333;
+  border-radius: 18px;
+  background: #1f1f1f;
+  color: #f2f2f2;
+  overflow-y: auto;
+}
+#image-editor.cs-img-editor::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+.cs-img-editor-head {
+  display: block;
+  position: relative;
+  padding: 20px 56px 6px 20px;
+}
+.cs-img-editor-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.cs-img-editor-head p,
+.cs-img-editor-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #a8a8a8;
+}
+.cs-img-editor-hint {
+  padding: 0 20px;
+}
+.cs-img-editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 16px 20px 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.cs-img-editor-list:empty {
+  display: none;
+}
+.cs-img-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  background: #181818;
+  cursor: grab;
+}
+.cs-img-tile.is-dragging {
+  opacity: 0.4;
+}
+.cs-img-tile.is-drop {
+  border-color: #ff3b30;
+}
+.cs-img-tile-media {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: #262626;
+  overflow: hidden;
+}
+.cs-img-tile.is-uploading {
+  cursor: default;
+}
+.cs-img-tile.is-uploading .cs-img-tile-media {
+  background: #262626;
+  color: #a8a8a8;
+  font-size: 12px;
+}
+.cs-img-tile-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #d80600;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.cs-img-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#image-editor .cs-img-tile-actions button {
+  flex: 1 1 auto;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #232323;
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+#image-editor .cs-img-tile-actions button:hover:not(:disabled) {
+  background: #2c2c2c;
+}
+#image-editor .cs-img-tile-actions .is-danger {
+  color: #ff8a82;
+}
+.cs-img-editor-add {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  margin: 4px 20px 0;
+  border: 1.5px dashed #444;
+  border-radius: 12px;
+  color: #f2f2f2;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cs-img-editor-add[hidden] {
+  display: none;
+}
+.cs-img-editor-add:hover,
+.cs-img-editor-add.is-dragover {
+  border-color: #ff3b30;
+  background: rgba(255, 59, 48, 0.06);
+}
+.cs-img-editor-add:focus-within {
+  outline: 2px solid #ff3b30;
+  outline-offset: 2px;
+}
+.cs-img-editor-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.cs-img-editor-status {
+  min-height: 1.5em;
+  margin: 10px 20px 0;
+  font-size: 12px;
+  color: #a8a8a8;
+}
+.cs-img-editor-status.is-error {
+  color: #ff8a82;
+}
+.cs-img-editor-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px 20px;
+}
+#image-editor .cs-img-editor-foot button {
+  min-height: 40px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#image-editor .cs-img-editor-primary {
+  border: 0;
+  background: #d80600;
+  color: #fff;
+}
+#image-editor .cs-img-editor-primary:hover:not(:disabled) {
+  background: #ab0000;
+}
+#image-editor .cs-img-editor-secondary {
+  border: 1px solid #333;
+  background: transparent;
+  color: #f2f2f2;
+}
+
+/* ---------- small screens ---------- */
+@media (max-height: 820px) and (min-width: 641px) {
+  #history.cs-history .cs-history-head {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+  #history .cs-history-main-image {
+    width: 150px;
+    height: 150px;
+  }
+}
+@media (max-width: 640px) {
+  .movement-table.cs-stock-table th:nth-child(2),
+  .movement-table.cs-stock-table td:nth-child(2) {
+    display: none;
+  }
+  .movement-table.cs-stock-table .product-cell {
+    min-width: 220px;
+  }
+  .cs-product {
+    gap: 10px;
+  }
+  .cs-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+  /* Photo above the name, full width; the whole dialog scrolls so the list keeps its room. */
+  #history.cs-history.cs-history {
+    overflow-y: auto;
+  }
+  #history.cs-history .cs-history-head {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 60px 16px 16px;
+  }
+  #history .cs-history-main-image {
+    width: 100%;
+    height: min(72vw, 300px);
+  }
+  #history .cs-history-list {
+    flex: none;
+    overflow: visible;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-thumb,
+  .cs-img-preview,
+  #lightbox-image {
+    transition: none;
+    animation: none;
+  }
+  #summary .clickable-product:hover .cs-thumb,
+  #summary .clickable-product:focus-visible .cs-thumb {
+    transform: none;
+  }
+}
+
+/* Dark placeholder while a photo loads (and for the icon); white only once the photo is there. */
+.cs-thumb.has-image,
+.cs-strip-media.has-image,
+.cs-img-tile-media.has-image,
+#history .cs-history-main-image.has-image {
+  background: #fff;
+}
+
+/* Drive / https link entry in the photo editor. */
+.cs-img-editor-link {
+  display: grid;
+  gap: 6px;
+  margin: 14px 20px 0;
+}
+.cs-img-editor-link[hidden] {
+  display: none;
+}
+.cs-img-editor-link label {
+  font-size: 12px;
+  color: #a8a8a8;
+}
+.cs-img-editor-link div {
+  display: flex;
+  gap: 8px;
+}
+#image-editor .cs-img-editor-link input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #181818;
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 13px;
+}
+#image-editor .cs-img-editor-link input:focus-visible {
+  outline: 2px solid #ff3b30;
+  outline-offset: 1px;
+}
+#image-editor .cs-img-editor-link button {
+  flex: none;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #232323;
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#image-editor .cs-img-editor-link button:hover {
+  background: #2c2c2c;
+}
+.cs-img-editor-link small {
+  font-size: 11px;
+  color: #8c8c8c;
+}

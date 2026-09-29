@@ -2,6 +2,12 @@ import { regionFor } from "./consignment-data.js";
 import { renderRegionalChart } from "./consignment-region-chart.js";
 import { setHelpData } from "./consignment-help.js";
 import { exportConsignment } from "./consignment-export.js";
+import {
+  initProductImages,
+  loadTableImages,
+  showProductImages,
+  tableThumb,
+} from "./consignment-images.js?v=20260929-links";
 const $ = (id) => document.getElementById(id),
   fmt = (n) =>
     new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 }).format(n);
@@ -476,15 +482,22 @@ function renderTable() {
     ? `${fmt(visible.length)} รหัสสินค้า · คลิกแถวสินค้าเพื่อดูว่าเบิกอะไร เมื่อไร`
     : "กำลังรอข้อมูลจาก SML";
   $("summary").replaceChildren();
-  for (const p of visible.slice(page * size, (page + 1) * size)) {
+  const pageRows = visible.slice(page * size, (page + 1) * size);
+  for (const p of pageRows) {
     const tr = document.createElement("tr"),
       name = cell(tr, "", "product-cell"),
+      wrap = document.createElement("div"),
+      text = document.createElement("div"),
       strong = document.createElement("strong"),
       small = document.createElement("small");
     strong.textContent = p.product;
     small.textContent =
       p.code + " · " + (p.customerCode || "ไม่พบรหัสลูกค้า") + " · " + p.region;
-    name.append(strong, small);
+    wrap.className = "cs-product";
+    text.className = "cs-product-text";
+    text.append(strong, small);
+    wrap.append(tableThumb(p), text);
+    name.append(wrap);
     cell(tr, date(p.last));
     cell(tr, fmt(p.in));
     cell(tr, fmt(p.out), "out-number");
@@ -507,6 +520,7 @@ function renderTable() {
     };
     $("summary").append(tr);
   }
+  if (pageRows.length) loadTableImages(pageRows);
   if (!visible.length) {
     const tr = document.createElement("tr");
     cell(tr, loaded ? "ไม่พบสินค้าที่ตรงตัวกรอง" : "ยังไม่มีข้อมูล").colSpan =
@@ -554,6 +568,7 @@ function showHistory(p) {
   for (const button of $("history-tabs").querySelectorAll("button"))
     button.setAttribute("aria-pressed", String(button.dataset.tab === "all"));
   renderHistory();
+  showProductImages(p);
   $("history").showModal();
 }
 function historyToast(text) {
@@ -940,6 +955,7 @@ for (const id of ["history", "document-detail"])
   $(id).addEventListener("click", (event) => {
     if (event.target === $(id)) $(id).close();
   });
+initProductImages({ toast: historyToast });
 render();
 load();
 setInterval(() => load(true), 60000);

@@ -21,6 +21,9 @@ export const MODULES = [
   { permissions:['product_analysis'], pages:[], apis:['/api/customer-insights/catalog','/api/customer-insights/product-buyers'] },
   { permissions:['customer_analysis'], pages:[], apis:['/api/customer-insights'] },
   { permissions:['dashboard','customer_analysis','product_analysis'], pages:[], apis:['/api/analytics'] },
+  // Product photos are shown on the consignment page too. Listed before /api/products so it matches first;
+  // saving/uploading still needs product_images and /pending stays Super Admin only (route middleware).
+  { permissions:['price_stock','product_info','consignment'], pages:[], apis:['/api/products/images'] },
   { permissions:['price_stock','product_info'], pages:['/products.html'], apis:['/api/products'] },
   { permissions:['consignment'], pages:['/consignment.html'], apis:['/api/consignment'] },
   { permissions:['reports'], pages:['/reports.html'], apis:['/api/reports'] },
