@@ -7,7 +7,7 @@ import {
   loadTableImages,
   showProductImages,
   tableThumb,
-} from "./consignment-images.js?v=20260929-links";
+} from "./consignment-images.js?v=20260929-icons";
 const $ = (id) => document.getElementById(id),
   fmt = (n) =>
     new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 }).format(n);

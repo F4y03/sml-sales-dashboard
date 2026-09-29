@@ -121,6 +121,22 @@ function formatTarget(input) {
   }
   if (document.activeElement === input) input.setSelectionRange(cursor, cursor);
 }
+// Two-tone icons for the decision alerts: outline in currentColor plus a light `.duo` fill, so the
+// red/yellow tones of each alert still apply. Each one shows what the alert is about.
+const ALERT_ICONS = {
+  // Sales down: chart axes with a line falling to the lower right.
+  decline:
+    '<path class="duo" d="M4 4h16v16H4z"/><path d="M4 4v16h16"/><path d="M7.5 8.5l3.5 3.5 2.5-2 5 5"/><path d="M18.5 11v4h-4"/>',
+  // Low stock: product box with an alert dot.
+  stock:
+    '<path class="duo" d="M3.5 8 12 12.5 20.5 8v8.5L12 21l-8.5-4.5z"/><path d="M20.5 8 12 3.5 3.5 8v8.5L12 21l8.5-4.5V12"/><path d="M3.5 8 12 12.5 16 10.4M12 12.5V21"/><circle class="dot" cx="19.5" cy="5" r="2.5"/>',
+  // High-value bill: receipt showing the baht sign.
+  bill:
+    '<path class="duo" d="M5.5 2.5h13v19l-3.25-2-3.25 2-3.25-2-3.25 2z"/><path d="M5.5 2.5h13v19l-3.25-2-3.25 2-3.25-2-3.25 2z"/><path d="M10 7.5h3a1.75 1.75 0 0 1 0 3.5h-3zm0 3.5h3.4a1.75 1.75 0 0 1 0 3.5H10zM11.4 6v10"/>',
+  // Document totals do not match: document with a not-equal sign.
+  mismatch:
+    '<path class="duo" d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5"/><path d="M8.5 13h7M8.5 16.5h7M13.5 11l-3 7.5"/>',
+};
 function node(tag, text, className = "") {
   const result = document.createElement(tag);
   result.textContent = text;
@@ -588,7 +604,7 @@ function render(animate = false) {
   current.declines.forEach((branch) =>
     alerts.push({
       category: "ยอดขายลดลง",
-      icon: "↘",
+      icon: "decline",
       title: branch.name,
       description: "เทียบเดือนก่อน · ตรวจสอบทีมขายและลูกค้าหลัก",
       value: `−${number.format((1 - branch.sales / branch.previous) * 100)}%`,
@@ -604,7 +620,7 @@ function render(animate = false) {
     .forEach((product) =>
       alerts.push({
         category: "สต๊อกใกล้หมด",
-        icon: "▦",
+        icon: "stock",
         title: product.name || product.code,
         description: "สินค้าขายดี · ตรวจสอบสต๊อกจริงก่อนเติมสินค้า",
         value: `${number.format(product.stock)} ${product.unit || "หน่วยมาตรฐาน"}`,
@@ -618,7 +634,7 @@ function render(animate = false) {
       bill.difference > Math.max(100, Math.abs(bill.total) * 0.05);
     alerts.push({
       category: mismatch ? "ยอดเอกสารไม่ตรง" : "บิลมูลค่าสูง",
-      icon: mismatch ? "≠" : "↗",
+      icon: mismatch ? "mismatch" : "bill",
       title: `เอกสาร ${bill.docNo}`,
       description: `${bill.date} · ${mismatch ? `ยอดเอกสาร ${money(bill.total)} · ` : ""}ตรวจ VAT/ส่วนลดและเอกสารต้นทาง`,
       value: money(mismatch ? bill.difference : bill.total),
@@ -630,8 +646,10 @@ function render(animate = false) {
   alerts.forEach((alert) => {
     const row = node("article", "", `alert${alert.yellow ? " yellow" : ""}`),
       action = node("button", "ตรวจสอบ →", "alert-action");
-    const icon = node("span", alert.icon, "alert-icon");
+    const icon = node("span", "", "alert-icon");
     icon.setAttribute("aria-hidden", "true");
+    // Fixed markup from ALERT_ICONS only; no alert data goes in as HTML.
+    icon.innerHTML = `<svg viewBox="0 0 24 24" focusable="false">${ALERT_ICONS[alert.icon]}</svg>`;
     const content = node("div", "", "alert-content");
     content.append(
       node("span", alert.category, "alert-category"),

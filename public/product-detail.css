@@ -45,13 +45,47 @@ html.pd-scroll-lock {
   padding-top: 6px;
   padding-bottom: 6px;
 }
+.product-panel .thumb-box {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+}
+/* Photo over the type icon; it fades in once loaded (product-detail-ui.js adds .is-loaded). */
 .product-panel .thumb-cell img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 34px;
   height: 34px;
   border-radius: 7px;
-  background: color-mix(in srgb, var(--ink, #fff) 6%, transparent);
+  background: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink, #000) 12%, transparent);
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.product-panel .thumb-cell img.is-loaded {
+  opacity: 1;
+}
+/* No photo (or it failed): icon by product type on a dark tile (product-fallback-icons.js). */
+.product-panel .thumb-cell .product-fallback-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ink, #fff) 8%, transparent);
+  color: var(--muted, #8c8c8c);
+}
+.product-panel .thumb-cell .product-fallback-icon svg {
+  width: 20px;
+  height: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-panel .thumb-cell img {
+    transition: none;
+  }
 }
 
 /* ---------- dialog shell ---------- */

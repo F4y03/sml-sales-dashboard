@@ -46,32 +46,10 @@ function fetchImages(codes) {
   return Promise.all(wanted.map((code) => inflight.get(code)).filter(Boolean));
 }
 
-// ---------- fallback icons by product type ----------
-const ICONS = {
-  speaker:
-    '<rect x="5" y="2.5" width="14" height="19" rx="2.5"/><circle cx="12" cy="14.5" r="4"/><circle cx="12" cy="14.5" r="1"/><circle cx="12" cy="6.5" r="1.4"/>',
-  stand:
-    '<rect x="8" y="2.5" width="8" height="4" rx="1"/><path d="M12 6.5v8M12 14.5l-6.5 7M12 14.5l6.5 7M12 14.5v7"/>',
-  battery:
-    '<rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.5v3M7 12h5M9.5 9.5v5"/>',
-  mic: '<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7"/>',
-  other:
-    '<path d="M3.5 7.5 12 3l8.5 4.5L12 12z"/><path d="M3.5 7.5v9L12 21l8.5-4.5v-9M12 12v9"/>',
-};
-// Order matters: "ขาไมค์" is a stand and "ตู้ลำโพง…มีไมค์" is a speaker.
-export function kindOf(name) {
-  const text = String(name || "");
-  if (/แบต|battery/i.test(text)) return "battery";
-  if (/^ขา|ขาตั้ง|ขาแขวน|stand|bracket/i.test(text)) return "stand";
-  if (/ลำโพง|ตู้|ทวิตเตอร์|ฮอร์น|speaker|tweeter|horn/i.test(text)) return "speaker";
-  if (/ไมค์|ไมโครโฟน|mic/i.test(text)) return "mic";
-  return "other";
-}
+// ---------- fallback icons by product type (shared: product-fallback-icons.js) ----------
 function iconFor(name) {
-  const span = document.createElement("span");
-  span.className = "cs-img-icon";
-  // Constant markup from ICONS only; the product name is never part of it.
-  span.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[kindOf(name)]}</svg>`;
+  const span = window.ProductFallbackIcons.iconElement(name);
+  span.classList.add("cs-img-icon");
   return span;
 }
 

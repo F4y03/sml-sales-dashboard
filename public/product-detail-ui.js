@@ -84,21 +84,33 @@
   window.saveImages = saveImages;
 
   // ---------- table thumbnails ----------
+  // No photo, or it fails to load: the type icon from product-fallback-icons.js (never a broken image).
+  const thumbBox = (cell) => cell.querySelector(".thumb-box") || cell;
+  function showThumbIcon(cell) {
+    if (cell.querySelector(".product-fallback-icon") || !window.ProductFallbackIcons) return;
+    thumbBox(cell).replaceChildren(window.ProductFallbackIcons.iconElement(cell.dataset.kindText));
+  }
   function fillThumbs() {
     document.querySelectorAll("#product-table .thumb-cell").forEach((cell) => {
       const first = imageCache.get(cell.dataset.code)?.[0];
       const src = first ? links.imageSource(first, 160) : "";
       const img = cell.querySelector("img");
-      if (!src) return img?.remove();
+      if (!src) return showThumbIcon(cell);
       if (img?.dataset.src === src) return;
       const thumb = el("img");
       thumb.alt = "";
       thumb.loading = "lazy";
       thumb.decoding = "async";
       thumb.dataset.src = src;
-      thumb.onerror = () => (thumb.hidden = true); // unreachable image: hide instead of a broken icon
+      thumb.onerror = () => showThumbIcon(cell);
+      // The photo sits transparent over the icon until it has loaded (not display:none, which would
+      // stop lazy loading), so the cell is never empty while it loads.
+      thumb.onload = () => {
+        thumb.classList.add("is-loaded");
+        cell.querySelector(".product-fallback-icon")?.remove();
+      };
       thumb.src = src;
-      img ? img.replaceWith(thumb) : cell.append(thumb);
+      img ? img.replaceWith(thumb) : thumbBox(cell).append(thumb);
     });
   }
   async function loadPageImages(rows) {

@@ -187,6 +187,13 @@ async function load(page = 0, filters = applied, silent = false) {
       const thumb = document.createElement("td");
       thumb.className = "thumb-cell";
       thumb.dataset.code = p.code;
+      // Name + group pick the fallback icon shown until (or instead of) a photo.
+      thumb.dataset.kindText = `${p.name_1 || ""} ${p.group_main_name || ""}`;
+      const thumbBox = document.createElement("span");
+      thumbBox.className = "thumb-box";
+      if (window.ProductFallbackIcons)
+        thumbBox.append(window.ProductFallbackIcons.iconElement(thumb.dataset.kindText));
+      thumb.append(thumbBox);
       tr.append(thumb);
       const rank = document.createElement("td");
       rank.className = "rank-cell";
