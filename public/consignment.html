@@ -12,6 +12,9 @@
     <script src="theme-mode.js"></script>
     <script src="workspace-nav.js?v=20260924-nav-fix" defer></script>
     <link rel="stylesheet" href="consignment-images.css?v=20260929-lightbox" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Kanit:wght@500;600;700&display=swap" />
+    <link rel="stylesheet" href="consignment-kpi-detail.css" />
     <script src="product-fallback-icons.js?v=20260929-icons"></script>
     <script src="product-image-links.js?v=20260929-uploads"></script>
     <script src="consignment-ui.js?v=20260929-icons" type="module"></script>
@@ -22,7 +25,7 @@
       <header class="consignment-heading cs-header">
         <div class="cs-title">
           <p class="cs-eyebrow">CONSIGNMENT ACTIVITY</p>
-          <h1>สินค้าฝาก<span class="cs-dot" aria-hidden="true">.</span></h1>
+          <h1>สินค้าฝาก<span class="cs-heading-dot" aria-hidden="true">.</span></h1>
           <p class="cs-subtitle">ดูว่าเบิกอะไรไป และตอนนี้เหลือเท่าไร</p>
         </div>
         <div class="cs-meta">
@@ -367,6 +370,7 @@
           </button>
         </div>
         <div class="cs-history-list" id="history-rows"></div>
+        <nav class="cs-history-pager" id="history-pager" aria-label="เปลี่ยนหน้าประวัติการเคลื่อนไหว" hidden></nav>
         <p class="cs-history-empty" id="history-empty" hidden>
           ไม่มีรายการในหมวดนี้
         </p>

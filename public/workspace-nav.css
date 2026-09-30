@@ -1,6 +1,13 @@
 body.workspace-layout {
   padding-left: 246px;
 }
+/* Some pages (e.g. system-admin.html) don't load styles.css, which is where
+   the global border-box reset lives — keep the sidebar's sizing self-contained. */
+.workspace-sidebar *,
+.workspace-sidebar *::before,
+.workspace-sidebar *::after {
+  box-sizing: border-box;
+}
 .workspace-layout > .main-shell {
   margin-left: 0;
 }
@@ -544,5 +551,109 @@ body.workspace-layout {
     margin-top: 8px;
     padding: 8px;
     font-size: 13px;
+  }
+}
+
+/* Desktop collapse: workspace-nav.js toggles body.workspace-collapsed and the
+   sidebar shrinks to an icon rail (link names stay available as tooltips). */
+.workspace-sidebar .workspace-collapse {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line, #e8e2de);
+  border-radius: 8px;
+  background: var(--surface-raised, #fff);
+  color: var(--muted, #716b68);
+  cursor: pointer;
+}
+.workspace-sidebar .workspace-collapse:hover {
+  color: var(--ink, #24262b);
+}
+.workspace-collapse svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s;
+}
+.workspace-collapse:focus-visible {
+  outline: 2px solid var(--brand, #a33235);
+  outline-offset: 2px;
+}
+@media (min-width: 1001px) {
+  body.workspace-layout.workspace-collapsed {
+    padding-left: 72px;
+  }
+  .workspace-collapsed .workspace-sidebar {
+    width: 72px;
+    padding: 12px 10px 14px;
+    overflow-x: hidden;
+  }
+  .workspace-collapsed .workspace-sidebar .workspace-collapse {
+    position: static;
+    order: -1;
+    flex-shrink: 0;
+    align-self: center;
+    margin-bottom: 14px;
+  }
+  .workspace-collapsed .workspace-collapse svg {
+    transform: scaleX(-1);
+  }
+  .workspace-collapsed .workspace-brand {
+    justify-content: center;
+  }
+  .workspace-collapsed .workspace-brand img {
+    width: 48px;
+    height: 30px;
+  }
+  .workspace-collapsed .workspace-brand > span,
+  .workspace-collapsed .workspace-label,
+  .workspace-collapsed .workspace-links a > .workspace-link-copy,
+  .workspace-collapsed .workspace-connection small,
+  .workspace-collapsed .workspace-profile > div,
+  .workspace-collapsed .workspace-bottom > button,
+  html[data-theme] .workspace-collapsed .workspace-bottom > button {
+    display: none;
+  }
+  .workspace-collapsed .workspace-links a {
+    justify-content: center;
+    gap: 0;
+    padding: 10px 0;
+    font-size: 0;
+  }
+  html[data-theme] body.workspace-layout.workspace-collapsed .workspace-sidebar .theme-switch {
+    flex-direction: column;
+  }
+  html[data-theme] body.workspace-layout.workspace-collapsed .workspace-sidebar .theme-switch button {
+    gap: 0;
+    padding: 5px 0;
+    font-size: 0;
+  }
+  .workspace-collapsed .workspace-source {
+    display: grid;
+    place-items: center;
+    padding: 10px 0;
+  }
+  .workspace-collapsed .workspace-connection [role="status"] {
+    font-size: 0;
+  }
+  .workspace-collapsed .workspace-connection [role="status"]::before {
+    margin-right: 0;
+  }
+  .workspace-collapsed .workspace-profile {
+    justify-content: center;
+  }
+}
+@media (max-width: 1000px) {
+  .workspace-sidebar .workspace-collapse {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-collapse svg {
+    transition: none;
   }
 }

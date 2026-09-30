@@ -1,3 +1,4 @@
+import { showKpiDetail } from "./consignment-kpi-detail.js";
 const topics = {
   products: [
     "สินค้าที่แสดง",
@@ -133,9 +134,12 @@ function renderData(info) {
 }
 export function showHelp(key) {
   if (!topics[key]) return;
+  const info = dataProvider?.(key) || null;
+  // KPI cards with data get the richer detail window; loading/other topics keep this one.
+  if (info?.kpi) return showKpiDetail(key, info.kpi, topics[key]);
   [title.textContent, description.textContent, example.textContent] =
     topics[key];
-  renderData(dataProvider?.(key) || null);
+  renderData(info);
   dialog.showModal();
 }
 function attach(selector, key) {

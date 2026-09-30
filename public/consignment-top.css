@@ -15,8 +15,9 @@
   --cs-muted: var(--muted, #a8a8a8);
   position: relative;
   isolation: isolate;
-  /* 1160px of content plus main's 32px side padding (consignment.css). */
-  max-width: calc(1160px + 64px);
+  /* Same frame as เช็คราคา/สต๊อก (.report-main in reports.css). */
+  max-width: 1800px;
+  padding-inline: 28px;
   font-variant-numeric: tabular-nums;
 }
 html[data-theme="light"] #cs-top {
@@ -58,7 +59,7 @@ html[data-theme="light"] #cs-top {
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
-#cs-top h1 .cs-dot {
+#cs-top h1 .cs-heading-dot {
   color: var(--cs-red);
 }
 #cs-top .cs-subtitle {
@@ -681,6 +682,9 @@ html[data-theme] #cs-top .cs-link:disabled {
   }
 }
 @media (max-width: 700px) {
+  #cs-top {
+    padding-inline: 16px;
+  }
   #cs-top .cs-header {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;

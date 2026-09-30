@@ -474,16 +474,18 @@ select {
   overflow-y: auto;
   padding: 10px 24px;
 }
+/* Timeline: date | dot on a continuous rail | details | amount.
+   Rows carry no vertical padding so the rail segments join up between rows. */
 .cs-history-row {
   display: grid;
-  grid-template-columns: 70px 1fr auto;
+  grid-template-columns: 58px 34px minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: center;
-  padding: 12px 10px;
-  border-bottom: 1px solid #262626;
+  align-items: stretch;
+  padding: 0 10px;
   border-radius: 10px;
   opacity: 0;
   animation: cs-history-row-in 0.25s ease both;
+  transition: background 0.15s ease;
 }
 @keyframes cs-history-row-in {
   from {
@@ -496,87 +498,316 @@ select {
   }
 }
 .cs-history-row:hover {
-  background: #202020;
+  background: #1d1d1d;
 }
 .cs-history-row.is-latest {
-  background: rgba(255, 59, 48, 0.06);
+  background: linear-gradient(90deg, rgba(255, 59, 48, 0.12), rgba(255, 59, 48, 0.02) 70%);
+}
+.cs-history-row.is-latest:hover {
+  background: linear-gradient(90deg, rgba(255, 59, 48, 0.16), #1d1d1d 70%);
+}
+.cs-history-row-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 .cs-history-row-date strong {
-  display: block;
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f2f2f2;
+}
+.cs-history-row-date span {
+  font-size: 12.5px;
+  color: #d0d0d0;
 }
 .cs-history-row-date small {
-  display: block;
-  margin-top: 2px;
   font-size: 11px;
   color: #6f6f6f;
+}
+.cs-history-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-history-rail::before,
+.cs-history-rail::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: #262626;
+}
+.cs-history-rail::before {
+  top: 0;
+  bottom: 50%;
+}
+.cs-history-rail::after {
+  top: 50%;
+  bottom: 0;
+}
+.cs-history-row:first-child .cs-history-rail::before,
+.cs-history-row:last-child .cs-history-rail::after {
+  display: none;
+}
+.cs-history-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+.cs-history-row.is-in .cs-history-dot {
+  background: #13261b;
+  color: #3ddc84;
+  box-shadow: 0 0 0 1px rgba(61, 220, 132, 0.3);
+}
+.cs-history-row.is-out .cs-history-dot {
+  background: #2c1616;
+  color: #ff6b70;
+  box-shadow: 0 0 0 1px rgba(255, 107, 112, 0.3);
+}
+.cs-history-row.is-latest .cs-history-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: cs-history-pulse 1.8s ease-out infinite;
+}
+@keyframes cs-history-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
 }
 .cs-history-row-mid {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
+  padding: 12px 0;
 }
-.cs-pill {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+.cs-history-row-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.cs-history-row-head strong {
+  font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
 }
-.cs-pill-in {
-  background: rgba(74, 222, 128, 0.14);
-  color: #4ade80;
+.cs-history-row-head .cs-type-in {
+  color: #3ddc84;
 }
-.cs-pill-out {
-  background: rgba(255, 107, 107, 0.14);
-  color: #ff6b6b;
+.cs-history-row-head .cs-type-out {
+  color: #ff6b70;
+}
+.cs-history-row-head small {
+  font-size: 11.5px;
+  color: #6f6f6f;
 }
 .cs-pill-latest {
-  margin-left: 2px;
-  color: #ff3b30;
+  align-self: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e10600;
+  color: #fff;
+  font-size: 11px;
   font-weight: 700;
 }
 .cs-doc-link {
   align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  padding: 2px 7px;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  background: #151515;
   font-family: "Consolas", "SFMono-Regular", monospace;
   font-size: 12px;
-  color: #a8a8a8;
+  color: #bdbdbd;
   cursor: pointer;
-  text-decoration: underline dotted;
 }
 .cs-doc-link:hover {
+  border-color: #4a4a4a;
   color: #f2f2f2;
 }
+.cs-doc-link:focus-visible,
+.cs-history-pager button:focus-visible {
+  outline: 2px solid #ff3b30;
+  outline-offset: 2px;
+}
+.cs-history-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cs-history-bar {
+  flex: none;
+  width: 140px;
+  height: 4px;
+  border-radius: 999px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+.cs-history-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #8a8a8a;
+}
+.cs-history-row.is-latest .cs-history-bar > span {
+  background: #ff3b30;
+}
+.cs-history-balance small {
+  font-size: 11.5px;
+  color: #8a8a8a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .cs-history-row-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px 0;
   text-align: right;
 }
 .cs-history-row-amount strong {
-  display: block;
   font-variant-numeric: tabular-nums;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 1.2;
 }
 .cs-history-row-amount strong.cs-amount-in {
-  color: #4ade80;
+  color: #3ddc84;
 }
 .cs-history-row-amount strong.cs-amount-out {
-  color: #ff6b6b;
+  color: #ff6b70;
 }
 .cs-history-row-amount small {
-  display: block;
   margin-top: 2px;
-  font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: #6f6f6f;
+}
+#history .cs-history-pager {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 24px 16px;
+}
+#history .cs-history-pager[hidden] {
+  display: none;
+}
+#history .cs-history-pager-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  background: #141414;
+}
+#history .cs-history-pager button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: #a8a8a8;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+#history .cs-history-pager button:first-child,
+#history .cs-history-pager button:last-child {
+  font-size: 17px;
+  color: #d8d8d8;
+}
+#history .cs-history-pager button:hover:not(:disabled):not([aria-current]) {
+  background: #222;
+  color: #f2f2f2;
+}
+#history .cs-history-pager button[aria-current="page"] {
+  background: linear-gradient(135deg, #ff3b30, #c4130c);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(225, 6, 0, 0.35);
+}
+#history .cs-history-pager button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+#history .cs-history-pager button:focus-visible {
+  outline: 2px solid #ff3b30;
+  outline-offset: 1px;
+}
+#history .cs-history-pager-gap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  color: #5a5a5a;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+#history .cs-history-pager small {
+  font-size: 12px;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .cs-history-list {
+    padding-inline: 12px;
+  }
+  .cs-history-row {
+    grid-template-columns: 44px 28px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 0 6px;
+  }
+  .cs-history-row-date strong {
+    font-size: 18px;
+  }
+  .cs-history-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .cs-history-bar {
+    width: 90px;
+  }
+  .cs-history-row-amount strong {
+    font-size: 17px;
+  }
 }
 .cs-history-empty {
   flex: 1;
@@ -646,8 +877,12 @@ select {
 }
 @media (prefers-reduced-motion: reduce) {
   #history.cs-history[open],
-  .cs-history-row {
+  .cs-history-row,
+  .cs-history-row.is-latest .cs-history-dot::after {
     animation: none;
+  }
+  .cs-history-row {
+    transition: none;
   }
   .cs-history-toast.is-shown {
     animation: none;
@@ -660,9 +895,6 @@ select {
   }
   .cs-history-card-balance {
     grid-column: 1 / -1;
-  }
-  .cs-history-row {
-    grid-template-columns: 56px 1fr auto;
   }
 }
 details > summary {

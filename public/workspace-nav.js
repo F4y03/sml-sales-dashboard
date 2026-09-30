@@ -16,6 +16,10 @@ const workspaceIcons = {
     '<path d="m3 7 8-4 8 4-8 4-8-4Zm0 0v10l8 4m0-10v10m8-14v4m-4 6h7m-3-3 3 3-3 3"/>',
   executive:
     '<path d="M3 3h18M5 3v13h14V3M8 12l3-3 3 2 3-4M12 16v5m-4 0 4-3 4 3"/>',
+  admin:
+    '<circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  images:
+    '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
 };
 const workspaceIcon = (name) =>
   `<svg class="workspace-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${workspaceIcons[name]}</svg>`;
@@ -23,6 +27,7 @@ workspace.className = "workspace-sidebar";
 workspace.setAttribute("aria-label", "เมนู Workspace");
 workspace.innerHTML = `
   <a class="workspace-brand" href="index.html"><img src="assets/pr-plus-logo-red.png" alt="PR PLUS Professional Audio"><span>SML<small>analytics</small></span></a>
+  <button class="workspace-collapse" type="button" aria-expanded="true" aria-controls="workspace-links" aria-label="ย่อเมนู" title="ย่อเมนู"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m6-11-3 3 3 3"/></svg></button>
   <button class="workspace-toggle" type="button" aria-expanded="false" aria-controls="workspace-links">☰ เมนู Workspace</button>
   <nav id="workspace-links" class="workspace-links" aria-label="หน้าหลัก">
     <p class="workspace-label">WORKSPACE</p>
@@ -98,6 +103,31 @@ async function applyBrandLogoTheme() {
 // order), so the first check has to wait for that to land.
 document.addEventListener("DOMContentLoaded", applyBrandLogoTheme);
 window.addEventListener("dashboard-theme-change", applyBrandLogoTheme);
+
+// Desktop collapse: shrink the sidebar to an icon rail. Remembered per
+// browser; storage can throw in private mode, so it is best-effort only.
+const collapseButton = workspace.querySelector(".workspace-collapse");
+function setWorkspaceCollapsed(collapsed) {
+  document.body.classList.toggle("workspace-collapsed", collapsed);
+  collapseButton.setAttribute("aria-expanded", String(!collapsed));
+  const label = collapsed ? "ขยายเมนู" : "ย่อเมนู";
+  collapseButton.setAttribute("aria-label", label);
+  collapseButton.title = label;
+}
+try {
+  setWorkspaceCollapsed(localStorage.getItem("workspace-collapsed") === "1");
+} catch {}
+collapseButton.addEventListener("click", () => {
+  const collapsed = !document.body.classList.contains("workspace-collapsed");
+  setWorkspaceCollapsed(collapsed);
+  try {
+    localStorage.setItem("workspace-collapsed", collapsed ? "1" : "0");
+  } catch {}
+});
+// Icon-only links need a hover tooltip when collapsed.
+workspace.querySelectorAll("nav a").forEach((link) => {
+  link.title = link.getAttribute("aria-label") || link.textContent.trim();
+});
 
 const toggle = workspace.querySelector(".workspace-toggle");
 function collapseWorkspace() {
@@ -299,13 +329,15 @@ window.prplusUser
     ) {
       const link = document.createElement("a");
       link.href = "/system-admin.html";
-      link.textContent = "⚙ System Admin";
+      link.innerHTML = `${workspaceIcon("admin")}System Admin`;
+      link.title = "System Admin";
       workspace.querySelector("nav").append(link);
     }
     if (user.role === "super_admin") {
       const link = document.createElement("a");
       link.href = "/pending-product-images.html";
-      link.textContent = "🖼 รูปสินค้ารอเพิ่มใน SML";
+      link.innerHTML = `${workspaceIcon("images")}รูปสินค้ารอเพิ่มใน SML`;
+      link.title = "รูปสินค้ารอเพิ่มใน SML";
       workspace.querySelector("nav").append(link);
     }
     updateWorkspace();

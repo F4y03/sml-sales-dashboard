@@ -458,7 +458,95 @@ function helpData(key) {
     },
   };
 }
-setHelpData(helpData);
+// Structured figures for the KPI detail window (consignment-kpi-detail.js). Same filtered list and
+// the same formulas as helpData()/the cards; only arranged for charts.
+function kpiData(key) {
+  const shown = visible.length,
+    filtered = filterIds.some((id) => filterText(id)),
+    filterSummary = filterIds
+      .map((id) => [filterLabels[id], filterText(id)])
+      .filter(([, text]) => text)
+      .map(([label, text]) => `${label}: ${text}`)
+      .join(" · "),
+    base = { filtered, filterSummary, empty: !shown };
+  const byRegion = () =>
+    groupBy(visible, (p) => p.region).sort((a, b) => b[1].length - a[1].length);
+  if (key === "products")
+    return {
+      ...base,
+      count: shown,
+      total: products.length,
+      share: products.length ? shown / products.length : 0,
+      regions: byRegion().map(([region, list]) => ({
+        label: region,
+        value: list.length,
+        unknown: region === "ไม่ระบุภูมิภาค",
+      })),
+    };
+  if (key === "stock") {
+    const inStock = visible.filter((p) => p.balance > 0).length,
+      zero = visible.filter((p) => p.balance === 0).length;
+    return {
+      ...base,
+      inStock,
+      zero,
+      negative: shown - inStock - zero,
+      share: shown ? inStock / shown : 0,
+      regions: byRegion().map(([region, list]) => ({
+        label: region,
+        inStock: list.filter((p) => p.balance > 0).length,
+        zero: list.filter((p) => p.balance === 0).length,
+      })),
+    };
+  }
+  if (key === "flow") {
+    const outSum = sum(visible, "out"),
+      balanceSum = sum(visible, "balance"),
+      byUnit = groupBy(visible, (p) => p.unit);
+    return {
+      ...base,
+      outSum,
+      balanceSum,
+      ratio: outSum > 0 ? balanceSum / outSum : null,
+      oneUnit: byUnit.length === 1 ? byUnit[0][0] : "",
+      units: byUnit
+        .sort((a, b) => sum(b[1], "out") - sum(a[1], "out"))
+        .map(([unit, list]) => ({
+          unit,
+          count: list.length,
+          out: sum(list, "out"),
+          balance: sum(list, "balance"),
+        })),
+    };
+  }
+  if (key === "recent") {
+    const days = daysSince(latestVisible?.last);
+    return {
+      ...base,
+      lastDate: latestVisible ? date(latestVisible.last) : "–",
+      ago: !Number.isFinite(days)
+        ? ""
+        : days <= 0
+          ? "วันนี้"
+          : days === 1
+            ? "เมื่อวาน"
+            : `ผ่านมา ${fmt(days)} วัน`,
+      stale: visible.filter(isStale).length,
+      staleDays: STALE_DAYS,
+      recent: [...visible]
+        .sort((a, b) => b.last.localeCompare(a.last) || b.index - a.index)
+        .slice(0, 5)
+        .map((p) => ({ product: p, date: date(p.last) })),
+    };
+  }
+  return null;
+}
+setHelpData((key) => {
+  const info = helpData(key);
+  if (info && loaded && ["products", "stock", "flow", "recent"].includes(key))
+    info.kpi = kpiData(key);
+  return info;
+});
 function renderTable() {
   const unit = criteria.unit,
     sort = $("sort").value;
@@ -565,6 +653,7 @@ function countUp(el, target, delay = 0) {
 function showHistory(p) {
   selected = p;
   historyTab = "all";
+  historyPage = 0;
   for (const button of $("history-tabs").querySelectorAll("button"))
     button.setAttribute("aria-pressed", String(button.dataset.tab === "all"));
   renderHistory();
@@ -592,7 +681,7 @@ async function copyHistoryText(text, message) {
     historyToast("คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง");
   }
 }
-function renderHistory() {
+function renderHistory(listOnly = false) {
   const p = selected,
     rows = [...p.rows].sort((a, b) => b.index - a.index),
     inCount = rows.filter((r) => r.type !== "เบิกออก").length,
@@ -610,11 +699,11 @@ function renderHistory() {
     copyHistoryText(p.code, `คัดลอกรหัส ${p.code} แล้ว`);
   $("history-region").textContent = "เขต " + (p.region || "—");
   $("history-unit").textContent = "หน่วย " + p.unit;
-  countUp($("history-balance"), p.balance, 0);
+  if (!listOnly) countUp($("history-balance"), p.balance, 0);
   $("history-balance-unit").textContent = " " + p.unit;
-  countUp($("history-in"), p.in, 120);
+  if (!listOnly) countUp($("history-in"), p.in, 120);
   $("history-in-unit").textContent = " " + p.unit;
-  countUp($("history-out"), p.out, 240);
+  if (!listOnly) countUp($("history-out"), p.out, 240);
   $("history-out-unit").textContent = " " + p.unit;
   $("history-count-all").textContent = fmt(rows.length);
   $("history-count-in").textContent = fmt(inCount);
@@ -622,30 +711,51 @@ function renderHistory() {
   const list = $("history-rows");
   list.replaceChildren();
   $("history-empty").hidden = shown.length > 0;
-  shown.forEach((r, i) => {
+  const pageCount = Math.max(1, Math.ceil(shown.length / HISTORY_PAGE_SIZE));
+  historyPage = Math.min(historyPage, pageCount - 1);
+  const first = historyPage * HISTORY_PAGE_SIZE,
+    pageRows = shown.slice(first, first + HISTORY_PAGE_SIZE),
+    // Bar scale: largest balance this product ever reached (display only).
+    maxBalance = Math.max(0, ...rows.map((r) => Number(r.balance) || 0));
+  pageRows.forEach((r, i) => {
     const isOut = r.type === "เบิกออก",
+      isLatest = r === rows[0],
       row = document.createElement("div");
-    row.className = "cs-history-row" + (i === 0 && r === rows[0] ? " is-latest" : "");
-    row.style.animationDelay = Math.min(i, 20) * 25 + "ms";
-    const dateCol = document.createElement("div");
+    row.className =
+      "cs-history-row " + (isOut ? "is-out" : "is-in") + (isLatest ? " is-latest" : "");
+    row.style.animationDelay = i * 25 + "ms";
+    const parts = historyDateParts(r.date),
+      dateCol = document.createElement("div");
     dateCol.className = "cs-history-row-date";
-    const dateStrong = document.createElement("strong");
-    dateStrong.textContent = date(r.date);
-    const dateSmall = document.createElement("small");
-    dateSmall.textContent = weekday(r.date);
-    dateCol.append(dateStrong, dateSmall);
+    for (const [tag, text] of [["strong", parts.day], ["span", parts.month], ["small", parts.year]]) {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      dateCol.append(el);
+    }
+    const rail = document.createElement("div");
+    rail.className = "cs-history-rail";
+    const dot = document.createElement("span");
+    dot.className = "cs-history-dot";
+    dot.setAttribute("aria-hidden", "true");
+    dot.textContent = isOut ? "↑" : "↓";
+    rail.append(dot);
     const mid = document.createElement("div");
     mid.className = "cs-history-row-mid";
-    const pill = document.createElement("span");
-    pill.className = "cs-pill " + (isOut ? "cs-pill-out" : "cs-pill-in");
-    pill.textContent = (isOut ? "↑ " : "↓ ") + flagLabel(r);
-    if (i === 0 && r === rows[0]) {
+    const head = document.createElement("div");
+    head.className = "cs-history-row-head";
+    const type = document.createElement("strong");
+    type.className = isOut ? "cs-type-out" : "cs-type-in";
+    type.textContent = flagLabel(r);
+    const day = document.createElement("small");
+    day.textContent = weekday(r.date);
+    head.append(type, day);
+    if (isLatest) {
       const latest = document.createElement("span");
       latest.className = "cs-pill-latest";
-      latest.textContent = "· ล่าสุด";
-      pill.append(latest);
+      latest.textContent = "ล่าสุด";
+      head.append(latest);
     }
-    mid.append(pill);
+    mid.append(head);
     if (r.docNo) {
       const button = document.createElement("button");
       button.type = "button";
@@ -654,23 +764,98 @@ function renderHistory() {
       button.onclick = () => openDocument(r);
       mid.append(button);
     }
+    const balance = document.createElement("div");
+    balance.className = "cs-history-balance";
+    const bar = document.createElement("span");
+    bar.className = "cs-history-bar";
+    const fill = document.createElement("span");
+    fill.style.width =
+      (maxBalance > 0 ? Math.min(100, Math.max(0, (Number(r.balance) / maxBalance) * 100)) : 0) + "%";
+    bar.append(fill);
+    const balanceText = document.createElement("small");
+    balanceText.textContent = "คงเหลือ " + fmt(r.balance);
+    balance.append(bar, balanceText);
+    mid.append(balance);
     const amount = document.createElement("div");
     amount.className = "cs-history-row-amount";
     const amountStrong = document.createElement("strong");
     amountStrong.className = isOut ? "cs-amount-out" : "cs-amount-in";
-    amountStrong.textContent =
-      (isOut ? "−" : "+") + fmt(r.quantity) + " " + p.unit;
+    amountStrong.textContent = (isOut ? "−" : "+") + fmt(r.quantity);
     const amountSmall = document.createElement("small");
-    amountSmall.textContent = "คงเหลือ " + fmt(r.balance);
+    amountSmall.textContent = p.unit;
     amount.append(amountStrong, amountSmall);
-    row.append(dateCol, mid, amount);
+    row.append(dateCol, rail, mid, amount);
     list.append(row);
   });
+  renderHistoryPager(shown.length, pageCount);
+}
+const HISTORY_PAGE_SIZE = 10;
+let historyPage = 0;
+function historyDateParts(d) {
+  if (!d) return { day: "—", month: "", year: "" };
+  const value = new Date(d + "T00:00:00");
+  return {
+    day: String(value.getDate()),
+    month: value.toLocaleDateString("th-TH", { month: "short" }),
+    year: String(value.getFullYear() + 543),
+  };
+}
+// First, last and the current page's neighbours; gaps collapse to "…".
+function historyPageItems(current, count) {
+  const pages = [...new Set([0, count - 1, current - 1, current, current + 1])]
+    .filter((n) => n >= 0 && n < count)
+    .sort((a, b) => a - b);
+  const items = [];
+  pages.forEach((n, i) => {
+    if (i && n - pages[i - 1] > 1) items.push(null);
+    items.push(n);
+  });
+  return items;
+}
+function renderHistoryPager(total, pageCount) {
+  const pager = $("history-pager");
+  pager.replaceChildren();
+  pager.hidden = total <= HISTORY_PAGE_SIZE;
+  if (pager.hidden) return;
+  const go = (n) => {
+    historyPage = n;
+    renderHistory(true);
+    $("history-rows").scrollTop = 0;
+    $("history-rows").scrollIntoView?.({ block: "nearest" });
+  };
+  const button = (text, label, target, disabled, current) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.setAttribute("aria-label", label);
+    b.disabled = disabled;
+    if (current) b.setAttribute("aria-current", "page");
+    b.addEventListener("click", () => go(target));
+    return b;
+  };
+  const nav = document.createElement("div");
+  nav.className = "cs-history-pager-buttons";
+  nav.append(button("‹", "หน้าก่อนหน้า", historyPage - 1, historyPage === 0));
+  for (const n of historyPageItems(historyPage, pageCount)) {
+    if (n === null) {
+      const gap = document.createElement("span");
+      gap.className = "cs-history-pager-gap";
+      gap.textContent = "…";
+      gap.setAttribute("aria-hidden", "true");
+      nav.append(gap);
+    } else nav.append(button(String(n + 1), `หน้า ${n + 1}`, n, false, n === historyPage));
+  }
+  nav.append(button("›", "หน้าถัดไป", historyPage + 1, historyPage >= pageCount - 1));
+  const info = document.createElement("small");
+  const from = historyPage * HISTORY_PAGE_SIZE + 1;
+  info.textContent = `${fmt(from)}–${fmt(Math.min(total, from + HISTORY_PAGE_SIZE - 1))} จาก ${fmt(total)}`;
+  pager.append(nav, info);
 }
 $("history-tabs").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-tab]");
   if (!button) return;
   historyTab = button.dataset.tab;
+  historyPage = 0;
   for (const b of $("history-tabs").querySelectorAll("button"))
     b.setAttribute("aria-pressed", String(b === button));
   renderHistory();

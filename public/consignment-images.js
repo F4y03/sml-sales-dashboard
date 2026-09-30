@@ -95,6 +95,19 @@ export function tableThumb(p) {
   fill(box, shown(p.code)[0], p.product, 160, { lazy: true });
   return box;
 }
+// Standalone thumbnail (KPI detail window): icon first, photo once its code has loaded.
+export function detailThumb(p) {
+  const box = document.createElement("span");
+  box.className = "cs-thumb";
+  fill(box, shown(p.code)[0], p.product, 160);
+  fetchImages([p.code])
+    .catch(() => {})
+    .finally(() => {
+      const first = shown(p.code)[0] || "";
+      if (box.isConnected && box.dataset.link !== first) fill(box, first, p.product, 160);
+    });
+  return box;
+}
 function refreshThumbs() {
   for (const box of document.querySelectorAll("#summary .cs-thumb")) {
     const first = shown(box.dataset.code)[0] || "";
