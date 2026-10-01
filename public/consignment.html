@@ -180,10 +180,25 @@
               ⓘ
             </button>
           </div>
-          <p class="cs-value">
-            <strong id="out-total">—</strong
-            ><span class="cs-unit" id="out-unit"></span>
-          </p>
+          <div class="cs-flow">
+            <div class="cs-flow-item">
+              <span class="cs-flow-label">เบิกออกสะสม</span>
+              <p class="cs-value">
+                <strong id="out-total">—</strong
+                ><span class="cs-unit" id="out-unit"></span>
+              </p>
+            </div>
+            <div class="cs-flow-item is-balance">
+              <span class="cs-flow-label">คงเหลือล่าสุด</span>
+              <p class="cs-value">
+                <strong id="balance-total">—</strong
+                ><span class="cs-unit" id="balance-unit"></span>
+              </p>
+            </div>
+          </div>
+          <span class="cs-bar cs-bar-split" aria-hidden="true"
+            ><i class="cs-bar-fill is-good" id="balance-bar"></i
+          ></span>
           <span class="cs-line" id="balance-line"></span>
           <span class="cs-line cs-warn" id="unit-warning" hidden></span>
           <div class="cs-foot">

@@ -266,7 +266,12 @@ function renderCards() {
   staleLine.classList.remove("cs-warn");
   if (!loaded) {
     // Still loading, or the first load failed: show dashes, never zeros.
-    for (const id of ["product-count", "stock-count", "out-total"])
+    for (const id of [
+      "product-count",
+      "stock-count",
+      "out-total",
+      "balance-total",
+    ])
       clearValue($(id));
     for (const id of [
       "product-total",
@@ -275,10 +280,12 @@ function renderCards() {
       "last-ago",
       "stale-line",
       "out-unit",
+      "balance-unit",
     ])
       $(id).textContent = "";
     $("product-bar").style.width = "0%";
     $("stock-bar").style.width = "0%";
+    $("balance-bar").style.width = "0%";
     $("last-date").textContent = "—";
     $("flow-unit").textContent = "เบิกออกสะสม";
     unitWarning.hidden = true;
@@ -296,8 +303,11 @@ function renderCards() {
   const oneUnit = units.size === 1 ? [...units][0] : "",
     ratio = outSum > 0 ? pct(balanceSum / outSum) : "–";
   $("out-unit").textContent = oneUnit;
-  $("balance-line").textContent =
-    `คงเหลือล่าสุด ${fmt(balanceSum)}${oneUnit ? " " + oneUnit : ""} · อัตราคงเหลือ ${ratio}`;
+  countTo($("balance-total"), balanceSum);
+  $("balance-unit").textContent = oneUnit;
+  $("balance-bar").style.width =
+    `${outSum > 0 ? Math.min(100, Math.max(0, (balanceSum / outSum) * 100)) : 0}%`;
+  $("balance-line").textContent = `อัตราคงเหลือ ${ratio}`;
   unitWarning.hidden = units.size < 2;
   unitWarning.textContent = `⚠ รวม ${fmt(units.size)} หน่วยปนกัน`;
   $("flow-unit").textContent = oneUnit
