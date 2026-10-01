@@ -323,9 +323,19 @@ function applyProductFilters() {
       : filters.activity;
   load(0, filters);
 }
+let searchTimer;
 $("product-filters").onsubmit = (e) => {
   e.preventDefault();
+  clearTimeout(searchTimer);
   applyProductFilters();
+};
+// Search as the user types; wait for a pause so each keystroke isn't a query.
+$("product-search").oninput = () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    if ($("product-search").value.trim() !== (applied.q ?? ""))
+      applyProductFilters();
+  }, 400);
 };
 $("clear-products").onclick = () => {
   $("product-search").value = "";
