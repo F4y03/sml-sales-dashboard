@@ -1269,3 +1269,4 @@ html[data-theme] .regional-table tfoot :is(th, td):not(:first-child) {
 .movement-table th[aria-sort="descending"] .consignment-sort-icon {
   color: #ef312b;
 }
+#export-status:empty { display: none; }

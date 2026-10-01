@@ -1111,15 +1111,16 @@ $("export-excel").onclick = async () => {
     filters = ["search", "region", "customer", "unit", "stock", "sort"].map(
       (id) => [id, $(id).value],
     );
+  const status = $("export-status") ?? { textContent: "" };
   exporting = true;
-  render();
-  $("export-status").textContent = "กำลังสร้างไฟล์ Excel…";
   try {
+    render();
+    status.textContent = "กำลังสร้างไฟล์ Excel…";
     await exportConsignment(snapshot, filters, exportSource);
-    $("export-status").textContent =
+    status.textContent =
       `ส่งออก ${fmt(snapshot.length)} รหัสสินค้า พร้อมประวัติรับ–เบิกแล้ว`;
   } catch {
-    $("export-status").textContent = "ส่งออกไม่สำเร็จ กรุณาลองใหม่";
+    status.textContent = "ส่งออกไม่สำเร็จ กรุณาลองใหม่";
   } finally {
     exporting = false;
     render();
