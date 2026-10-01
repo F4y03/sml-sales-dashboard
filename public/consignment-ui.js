@@ -1118,7 +1118,7 @@ $("export-excel").onclick = async () => {
     status.textContent = "กำลังสร้างไฟล์ Excel…";
     await exportConsignment(snapshot, filters, exportSource);
     status.textContent =
-      `ส่งออก ${fmt(snapshot.length)} รหัสสินค้า พร้อมประวัติรับ–เบิกแล้ว`;
+      `ส่งออก ${fmt(snapshot.length)} รหัสสินค้าแล้ว`;
   } catch {
     status.textContent = "ส่งออกไม่สำเร็จ กรุณาลองใหม่";
   } finally {
