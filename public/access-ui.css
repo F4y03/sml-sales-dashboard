@@ -603,9 +603,70 @@
   text-transform: capitalize;
 }
 .role-chip {
-  border: 1px solid var(--tone-blue-soft-border, #37618c);
-  background: var(--tone-blue-soft-bg, #183452);
-  color: var(--tone-blue-soft-text, #d7ebff);
+  --role-c: #5aa2e8;
+  gap: 7px;
+  min-height: 29px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  border: 1px solid color-mix(in srgb, var(--role-c) 70%, transparent);
+  background: color-mix(in srgb, var(--role-c) 22%, transparent);
+  color: color-mix(in srgb, var(--role-c) 45%, var(--text, #fff));
+}
+.role-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--role-c);
+}
+[data-role="super_admin"] { --role-c: #f0554f; }
+[data-role="admin"] { --role-c: #f2a93b; }
+[data-role="executive"] { --role-c: #5aa2e8; }
+[data-role="manager"] { --role-c: #a07ef0; }
+[data-role="sales"] { --role-c: #4cc98a; }
+.role-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.role-filter-chip {
+  --role-c: var(--muted, #b0b1b8);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #303035);
+  background: transparent;
+  color: var(--text, #f2f2f4);
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.role-filter-chip:not([data-role=""])::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--role-c);
+}
+.role-filter-chip:hover {
+  border-color: color-mix(in srgb, var(--role-c) 60%, transparent);
+}
+.role-filter-chip[aria-pressed="true"] {
+  border-color: var(--role-c);
+  background: color-mix(in srgb, var(--role-c) 22%, transparent);
+}
+.role-filter-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text, #fff) 10%, transparent);
+  font-size: 11.5px;
+  text-align: center;
 }
 .user-status {
   gap: 7px;

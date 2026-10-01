@@ -204,6 +204,35 @@ async function usersView() {
     button("+ เพิ่มผู้ใช้", () => editUser(), "primary"),
   );
   list.append(toolbar);
+  const roleLabel = (code) => code.replaceAll("_", " "),
+    roleCodes = [...new Set(users.map((u) => u.role))],
+    filterBar = node("div", undefined, "role-filter");
+  filterBar.setAttribute("role", "group");
+  filterBar.setAttribute("aria-label", "กรองตามสิทธิ์");
+  const applyRoleFilter = (code) => {
+    for (const chip of filterBar.children)
+      chip.setAttribute("aria-pressed", String(chip.dataset.role === code));
+    let shown = 0;
+    for (const tr of list.querySelectorAll("tbody tr")) {
+      const match = code === "" || tr.dataset.role === code;
+      tr.hidden = !match;
+      if (match) shown++;
+    }
+    empty.hidden = shown > 0;
+  };
+  for (const code of ["", ...roleCodes]) {
+    const count = code ? users.filter((u) => u.role === code).length : users.length,
+      chip = button("", () => applyRoleFilter(code), "role-filter-chip");
+    chip.dataset.role = code;
+    chip.append(
+      node("span", code ? roleLabel(code) : "ทั้งหมด"),
+      node("span", String(count), "role-filter-count"),
+    );
+    filterBar.append(chip);
+  }
+  list.append(filterBar);
+  const empty = node("p", "ไม่มีผู้ใช้ในสิทธิ์นี้", "muted");
+  empty.hidden = true;
   table(
     list,
     ["ผู้ใช้งาน", "สิทธิ์", "สถานะ", "การจัดการ"],
@@ -211,7 +240,7 @@ async function usersView() {
       const person = node("div", undefined, "user-identity"),
         name = node("strong", u.full_name || u.username),
         username = node("span", "@" + u.username),
-        role = node("span", u.role.replaceAll("_", " "), "role-chip"),
+        role = node("span", roleLabel(u.role), "role-chip"),
         state = node(
           "span",
           u.is_active ? "เปิดใช้งาน" : "ปิดใช้งาน",
@@ -219,6 +248,7 @@ async function usersView() {
         ),
         actions = node("div", undefined, "user-row-actions");
       person.append(name, username);
+      role.dataset.role = u.role;
       actions.append(button("แก้ไข", () => editUser(u), "action-edit"));
       if (u.twoFactorRequired && u.id !== me.id)
         actions.append(
@@ -267,6 +297,11 @@ async function usersView() {
     }),
   );
   list.querySelector(".table-scroll")?.classList.add("users-table");
+  list.querySelectorAll("tbody tr").forEach((tr, i) => {
+    tr.dataset.role = users[i].role;
+  });
+  list.append(empty);
+  applyRoleFilter("");
 }
 function editUser(user) {
   content.querySelector("#user-editor")?.remove();
