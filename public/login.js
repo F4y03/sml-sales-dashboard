@@ -139,6 +139,26 @@ function showTwoFactor(step) {
   document.querySelector("#twofa-trust-days").textContent = step.trustDays ?? 15;
   document.querySelector("#otp").focus();
 }
+document.querySelector("#twofa-copy")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const secret = document.querySelector("#twofa-secret").textContent.trim();
+  if (!secret) return;
+  try {
+    await navigator.clipboard.writeText(secret);
+    button.textContent = "คัดลอกแล้ว ✓";
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("#twofa-secret"));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    button.textContent = "กด Ctrl+C";
+  }
+  clearTimeout(button._resetTimer);
+  button._resetTimer = setTimeout(() => {
+    button.textContent = "คัดลอก";
+  }, 2000);
+});
 document.querySelector("#twofa-back").addEventListener("click", () => {
   challenge = "";
   card.dataset.step = "login";

@@ -270,6 +270,38 @@ body {
   word-break: break-all;
   user-select: all;
 }
+.login-shell .lg-card .lg-poster .lg-secret-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.login-shell .lg-card .lg-poster .lg-secret-row #twofa-secret {
+  margin: 0;
+}
+.login-shell .lg-card .lg-poster .lg-copy {
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid #ffffff5c;
+  background: #ffffff;
+  color: #c8102e;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.login-shell .lg-card .lg-poster .lg-copy:hover {
+  background: #ffe9ec;
+}
+.login-shell .lg-card .lg-poster .lg-copy:active {
+  transform: scale(0.96);
+}
+.login-shell .lg-card .lg-poster .lg-copy:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
 
 /* floating "SALES WORKSPACE" widget */
 .login-shell .lg-card .lg-poster .lg-widget {
