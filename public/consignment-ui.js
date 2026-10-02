@@ -29,7 +29,7 @@ let exporting = false,
   sortDirection = "desc",
   exportSource = "",
   latestVisible = null;
-const size = 25;
+const size = 10;
 const STALE_DAYS = 90;
 const filterIds = ["search", "region", "customer", "unit", "stock"];
 const filterLabels = {
@@ -164,6 +164,12 @@ function renderChips() {
     box.append(note);
   }
   $("reset").disabled = !active;
+  // While searching/filtering, bring the product table up right under the KPI cards.
+  const movement = $("movement"),
+    regional = $("regional"),
+    anchor = active ? regional : regional.nextElementSibling;
+  if (movement !== anchor && movement.nextElementSibling !== anchor)
+    regional.parentNode.insertBefore(movement, anchor);
 }
 const summaryTable = document.querySelector(".panel .movement-table");
 const sortableSummaryHeaders = [
