@@ -34,7 +34,7 @@ npm start
 
 **2FA (บังคับทุกบัญชี)** Password → ตรวจ Trusted Device → ถ้ายังไม่เชื่อถือ ให้กรอก TOTP 6 หลัก (Google/Microsoft Authenticator) บัญชีที่ยังไม่เคยตั้งค่าจะถูกพาไปสแกน QR ตอน Login ครั้งแรก แล้วได้ Recovery Codes 10 ชุด (แสดงครั้งเดียว) ไม่มีตัวเลือกปิด 2FA รายบัญชี Super Admin รีเซ็ต 2FA ของผู้อื่นได้จากหน้า System Admin Secret เข้ารหัส AES-256-GCM ด้วยคีย์จาก `AUTH_2FA_KEY` หรือไฟล์ `data/2fa.key` (สร้างเองครั้งแรก, ต้อง backup คู่กับ `access.sqlite` และห้าม commit) OTP ใช้ซ้ำไม่ได้ `AUTH_REQUIRE_2FA=false` มีไว้ใช้ทดสอบ/พัฒนาเท่านั้น อย่าตั้งบนเว็บจริง
 
-**Trusted Device** ตัวเลือก "เชื่อถืออุปกรณ์นี้ N วัน" — N ขึ้นกับ role: Super Admin และผู้บริหาร (executive) = 30 วัน, Admin และ Sales = 7 วัน (ดู `trustDaysFor` ใน `src/services/twoFactorService.js`) ใช้ Token สุ่ม 256 บิตใน Cookie httpOnly, SameSite=Strict (Secure เมื่อ HTTPS, ชื่อ `__Host-prplus_trusted`) DB เก็บเฉพาะ SHA-256 ของ Token ถูกยกเลิกเมื่อ: เปลี่ยน/รีเซ็ตรหัสผ่าน, รีเซ็ต 2FA, "ออกจากระบบทุกอุปกรณ์" (`POST /api/auth/logout-all`), และ Revoke Session โดย Super Admin
+**Trusted Device** ตัวเลือก "เชื่อถืออุปกรณ์นี้ N วัน" — N ขึ้นกับ role: Super Admin และผู้บริหาร (executive) = 30 วัน, Admin และ Sales = 15 วัน (ดู `trustDaysFor` ใน `src/services/twoFactorService.js`) ใช้ Token สุ่ม 256 บิตใน Cookie httpOnly, SameSite=Strict (Secure เมื่อ HTTPS, ชื่อ `__Host-prplus_trusted`) DB เก็บเฉพาะ SHA-256 ของ Token ถูกยกเลิกเมื่อ: เปลี่ยน/รีเซ็ตรหัสผ่าน, รีเซ็ต 2FA, "ออกจากระบบทุกอุปกรณ์" (`POST /api/auth/logout-all`), และ Revoke Session โดย Super Admin
 
 **Recovery** ใช้ Recovery Code แทน OTP ได้รหัสละ 1 ครั้ง (เก็บเฉพาะ SHA-256) สร้างชุดใหม่: `POST /api/auth/recovery-codes` `{password}` (ชุดเก่าใช้ไม่ได้) Super Admin รีเซ็ต 2FA ของผู้อื่น: `POST /api/admin/users/:id/2fa/reset`
 
