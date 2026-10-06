@@ -35,13 +35,15 @@ export function scopeQuery(sql,values=[],context) {
   const teamOf=column=>`regexp_replace(regexp_replace(btrim(COALESCE(${column},'')), '^ฝ', ''), '^กท-', 'ก')`;
   const inDeposit=column=>`EXISTS (SELECT 1 FROM unnest(${deposit}::text[]) p WHERE left(${column},char_length(p))=p)`;
   const customerMatch=column=>`(${column}=ANY(${customer}::text[]) OR split_part(btrim(${column}),'-',1)=ANY(${team}::text[]))`;
-  const headerMatch=`(${teamOf('h.sale_code')}=ANY(${team}::text[]) OR h.cust_code=ANY(${customer}::text[]))`;
+  // Team list accepts the raw SML sale_code (e.g. กท-ต) or its normalized team code (กต).
+  const teamMatch=column=>`(${teamOf(column)}=ANY(${team}::text[]) OR btrim(COALESCE(${column},''))=ANY(${team}::text[]))`;
+  const headerMatch=`(${teamMatch('h.sale_code')} OR h.cust_code=ANY(${customer}::text[]))`;
   const lineMatch=context.module==='consignment' ? inDeposit('d.item_code') : `EXISTS(SELECT 1 FROM ic_trans h WHERE h.doc_no=d.doc_no AND h.doc_date=d.doc_date AND h.trans_flag=d.trans_flag AND h.cust_code IS NOT DISTINCT FROM d.cust_code AND (COALESCE(h.branch_code,'')='' OR h.branch_code=d.branch_code))`;
   const ctes=`ic_trans AS (SELECT h.* FROM public.ic_trans h WHERE ${headerMatch}),
     ic_trans_detail AS (SELECT d.* FROM public.ic_trans_detail d WHERE ${lineMatch}),
     ar_customer AS (SELECT c.* FROM public.ar_customer c WHERE ${customerMatch('c.code')} OR EXISTS(SELECT 1 FROM ic_trans h WHERE h.cust_code=c.code)),
     ic_inventory AS (SELECT i.* FROM public.ic_inventory i WHERE left(i.code,1)<>'ฝ' OR ${inDeposit('i.code')}),
-    erp_user AS (SELECT u.* FROM public.erp_user u WHERE ${teamOf('u.code')}=ANY(${team}::text[]))`;
+    erp_user AS (SELECT u.* FROM public.erp_user u WHERE ${teamMatch('u.code')})`;
   // No schema-qualified base tables/functions in scoped application queries.
   if(/\bpublic\s*\.|\bWITH\s+RECURSIVE\b/i.test(sql))throw new Error('Query requires explicit territory review');
   const text=/^\s*WITH\b/i.test(sql) ? sql.replace(/^\s*WITH\b/i,`WITH ${ctes},`) : `WITH ${ctes} ${sql}`;

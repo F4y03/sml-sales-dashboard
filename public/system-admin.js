@@ -533,7 +533,7 @@ function editTerritory(territory) {
   );
   const helpList = node("ul");
   for (const text of [
-    "รหัสทีมขาย: ใช้ค่า sale_code เช่น กจ, กบ",
+    "รหัสทีมขาย: ใส่ sale_code ตามที่อยู่ใน SML เช่น กจ, กท-ต (กท-ต ตรงกับ กต ด้วย)",
     "รหัสลูกค้าเพิ่มเติม: ใส่รหัสลูกค้าแบบเต็ม เมื่อต้องการรวมลูกค้าที่ไม่ตรงกับทีมขาย",
     "รหัสกลุ่มสินค้าฝาก: ต้องขึ้นต้นด้วย ฝ เช่น ฝกจ, ฝกบ",
     "กรอกหลายรหัสโดยคั่นด้วยจุลภาค และปิด “เปิดใช้งาน” หากยังไม่ต้องการให้เลือกเขตนี้",
@@ -545,7 +545,7 @@ function editTerritory(territory) {
     grid = node("div", undefined, "admin-grid");
   panel.append(form);
   form.append(grid);
-  field(grid, "Territory Code เช่น BKK", "code", territory?.code).required =
+  field(grid, "Territory Code เช่น BKK, ภาคกลางtik", "code", territory?.code).required =
     true;
   field(grid, "ชื่อเขต", "name", territory?.name).required = true;
   const active = check(
@@ -556,7 +556,7 @@ function editTerritory(territory) {
     territory?.is_active ?? true,
   );
   for (const [key, label] of [
-    ["teams", "รหัสทีมขาย เช่น กจ, หย"],
+    ["teams", "รหัสทีมขาย (sale_code ใน SML) เช่น กจ, กท-ต"],
     ["customerCodes", "รหัสลูกค้าเพิ่มเติม (ตรงรหัสเต็ม)"],
     ["consignmentPrefixes", "รหัสกลุ่มสินค้าฝาก เช่น ฝกจ, ฝหย"],
   ]) {

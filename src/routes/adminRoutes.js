@@ -36,7 +36,7 @@ export function installAdminRoutes(app,store,audit,envPath,twofa=createTwoFactor
   const saveTerritory=handle((req,res)=>{
     const id=req.params.id?positiveId(req.params.id):null,body=req.body||{};
     if(id&&!store.get('SELECT 1 FROM sales_territories WHERE id=?',id))throw bad('ไม่พบเขต',404);
-    const code=text(body.code,'Code'),name=text(body.name,'ชื่อ');if(!/^[A-Z0-9_-]{2,40}$/.test(code)||typeof body.is_active!=='boolean')throw bad('Code หรือสถานะไม่ถูกต้อง');
+    const code=text(body.code,'Code'),name=text(body.name,'ชื่อ');if(!/^[A-Za-z0-9฀-๿_-]{2,40}$/.test(code))throw bad('Code ใช้ได้เฉพาะ ไทย/อังกฤษ/ตัวเลข/_/- ยาว 2-40 ตัว ห้ามเว้นวรรคหรือวงเล็บ');if(typeof body.is_active!=='boolean')throw bad('สถานะไม่ถูกต้อง');
     if(store.get('SELECT 1 FROM sales_territories WHERE code=? AND id<>?',code,id||0))throw bad('Code ซ้ำ');
     const mapping=validateMapping(body.mapping);
     store.transaction(()=>{if(id)store.run('UPDATE sales_territories SET code=?,name=?,is_active=?,mapping_json=? WHERE id=?',code,name,Number(body.is_active),JSON.stringify(mapping),id);else store.run('INSERT INTO sales_territories(code,name,is_active,mapping_json) VALUES(?,?,?,?)',code,name,Number(body.is_active),JSON.stringify(mapping));audit.record(req.auth,id?'territory.update':'territory.create','territories',{code,mapping},id,req.socket.remoteAddress);});res.json({ok:true});
