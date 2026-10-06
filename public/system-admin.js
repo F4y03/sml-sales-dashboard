@@ -592,7 +592,7 @@ function editTerritory(territory) {
   form.append(
     node(
       "p",
-      "แยกรหัสด้วยจุลภาค รหัสทีมอ้างอิง sale_code; รหัสลูกค้าเพิ่มเติมรวมเอกสารของลูกค้านั้นในเขตนี้",
+      "แยกรหัสด้วยจุลภาค เว้นวรรค หรือขึ้นบรรทัดใหม่ · รหัสทีมอ้างอิง sale_code; รหัสลูกค้าเพิ่มเติมรวมเอกสารของลูกค้านั้นในเขตนี้",
       "muted",
     ),
   );
@@ -600,7 +600,8 @@ function editTerritory(territory) {
     const mapping = {};
     for (const key of ["teams", "customerCodes", "consignmentPrefixes"])
       mapping[key] = String(data.get(key))
-        .split(",")
+        // Comma, space or newline all separate codes ("กท-ณ บอ" = two codes).
+        .split(/[\s,]+/)
         .map((s) => s.trim())
         .filter(Boolean);
     await api(
