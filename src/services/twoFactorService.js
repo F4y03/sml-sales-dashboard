@@ -3,7 +3,7 @@ import { newSecret, verifyTotp, otpauthUri, qrDataUrl, createSecretVault, base32
 const DAY_MS=24*60*60*1000;
 export const CHALLENGE_MS=10*60*1000,RECOVERY_COUNT=10;
 // Super Admin / ผู้บริหาร (executive) get 30 days; Admin and Sales get 7 days.
-export const trustDaysFor=role=>role==='super_admin'||role==='executive'?30:15;
+export const trustDaysFor=()=>30;
 export const trustMsFor=role=>trustDaysFor(role)*DAY_MS;
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const normalizeRecovery=code=>String(code).replace(/[\s-]/g,'').toUpperCase();

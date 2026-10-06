@@ -38,7 +38,7 @@ test('legacy Super Admin sessions cannot bypass 2FA even after enrollment', asyn
 });
 test('every role needs 2FA: password alone never creates a session', async t => {
   const f = await fixture(t, SA);
-  for (const [u, days] of [['sales1', 15], ['exec', 30]]) {
+  for (const [u, days] of [['sales1', 30], ['exec', 30]]) {
     const r = await f.login(u, PW), b = await r.json();
     assert.equal(r.status, 200); assert.equal(b.twoFactor.mode, 'setup'); assert.equal(b.twoFactor.trustDays, days);
     assert.equal(b.redirect, undefined); assert.equal(cookiesOf(r)['prplus_session'], undefined);

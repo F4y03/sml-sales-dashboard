@@ -136,7 +136,7 @@ function showTwoFactor(step) {
     document.querySelector("#twofa-qr").src = step.qr;
     document.querySelector("#twofa-secret").textContent = step.secret;
   }
-  document.querySelector("#twofa-trust-days").textContent = step.trustDays ?? 15;
+  document.querySelector("#twofa-trust-days").textContent = step.trustDays ?? 30;
   document.querySelector("#otp").focus();
 }
 document.querySelector("#twofa-copy")?.addEventListener("click", async (event) => {
