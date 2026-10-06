@@ -17,3 +17,9 @@ report-inventory.json
 report-compatibility.json
 reports-*.png
 products-*.png
+
+# Local TLS certificates
+certs/
+
+# Server logs (scheduled task)
+logs/

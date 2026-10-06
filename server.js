@@ -1,5 +1,6 @@
 import { installConsignment } from './consignment.js';
 import express from 'express';
+import https from 'node:https';
 import { installAuth } from './auth.js';
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
@@ -126,5 +127,11 @@ app.use((error,req,res,next)=>{
 });
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
-const server = app.listen(port, host, () => console.log(`Dashboard: http://localhost:${port} (Intranet: http://<server-ip>:${port})`));
+// HTTPS is opt-in: set TLS_CERT_FILE and TLS_KEY_FILE (PEM paths) in .env; otherwise plain HTTP as before.
+const tlsCert = process.env.TLS_CERT_FILE, tlsKey = process.env.TLS_KEY_FILE;
+const scheme = tlsCert && tlsKey ? 'https' : 'http';
+const server = scheme === 'https'
+  ? https.createServer({ cert: await readFile(tlsCert), key: await readFile(tlsKey) }, app).listen(port, host)
+  : app.listen(port, host);
+server.once('listening', () => console.log(`Dashboard: ${scheme}://localhost:${port} (Intranet: ${scheme}://<server-ip>:${port})`));
 process.on('SIGINT', () => server.close(async () => { await pool.end(); process.exit(0); }));

@@ -5,7 +5,12 @@
 - App DB: `data/access.sqlite` (users, roles, territories, sessions, trusted devices, activity log). Migrations in `migrations/` + `src/models/accessStore.js` run on every start; new columns must be added idempotently (check `pragma_table_info` first).
 - `sahakhun.vrtunnel.net` is served from **another machine** with its own DB. Changes there need commit → push → pull on that machine → restart. You cannot restart it from here.
 
-## Restart locally (Windows PowerShell)
+## Production on SKISERVER (this machine)
+- Runs as scheduled task **"SML Dashboard"** (SYSTEM, at startup, auto-restart), HTTPS via `TLS_CERT_FILE`/`TLS_KEY_FILE`, log in `logs\server.log`.
+- Public URL `https://dashboard.sksales.app` via the `cloudflared` Windows service (route: HTTPS `127.0.0.1:3000`, No TLS Verify).
+- Restart: admin `schtasks /End /TN "SML Dashboard"` then `schtasks /Run /TN "SML Dashboard"`. Update from Git: `scripts\update-dashboard.ps1` (admin). Do not start a second `node server.js` by hand — port 3000 will conflict.
+
+## Restart locally (Windows PowerShell, dev machines without the task)
 ```powershell
 $c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($c) { Get-CimInstance Win32_Process -Filter "ProcessId=$($c.OwningProcess)" | Select-Object ProcessId,CreationDate,CommandLine }
