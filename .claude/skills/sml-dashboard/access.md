@@ -13,6 +13,7 @@
 - Consignment prefixes: must start with `ฝ`, ≥3 chars, matched as item-code prefix (`ฝกต042LCD22` → `ฝกต`). `ฝกท-ต` matches nothing.
 - Known region map (`public/consignment-data.js`): ภาคกลาง กจ กณ กต กร กภ บอ · เหนือ หย · ใต้ ตช · ตะวันออก ลภ · อีสาน อย. Others (ฝวย, ฝลอ…) are unmapped — never guess a region.
 - All three lists empty → territory shows no data.
+- Lists are split on comma, space or newline in `public/system-admin.js` (server stores an array).
 
 ## 2FA / trusted devices
 - Trust length: `trustDaysFor` in `src/services/twoFactorService.js` (30 days, all roles). UI fallbacks in `public/login.html` / `login.js` must match it.
