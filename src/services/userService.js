@@ -28,7 +28,9 @@ export function createUserService(store,audit) {
     const permissions=body.additionalPermissions??[];const territories=body.territoryIds??[];
     if(!Array.isArray(permissions)||!Array.isArray(territories)||permissions.length>100||territories.length>500)throw bad('สิทธิ์หรือเขตไม่ถูกต้อง');
     for(const p of permissions){if(typeof p!=='string'||!store.get('SELECT 1 FROM permissions WHERE code=?',p))throw bad('ไม่พบ Permission');if(p==='environment_settings'&&role.code!=='super_admin')throw bad('Environment Settings สำหรับ Super Admin เท่านั้น');}
-    if(role.scope==='territory'&&permissions.some(p=>ADMIN_PERMISSIONS.includes(p)))throw bad('บัญชีจำกัดเขตไม่สามารถจัดการระบบส่วนกลาง');
+    const keepOverride=target?store.get('SELECT scope_override FROM users WHERE id=?',id).scope_override:null;
+    const scopeOverride=role.scope==='all'&&role.code!=='super_admin'&&(actor.role==='super_admin'?body.territoryScope===true:keepOverride==='territory')?'territory':null,scope=scopeOverride||role.scope;
+    if(scope==='territory'&&permissions.some(p=>ADMIN_PERMISSIONS.includes(p)))throw bad('บัญชีจำกัดเขตไม่สามารถจัดการระบบส่วนกลาง');
     const ids=[...new Set(territories.map(positiveId))];
     for(const t of ids)if(!store.get('SELECT 1 FROM sales_territories WHERE id=? AND is_active=1',t))throw bad('เขตไม่พร้อมใช้งาน');
     if(target&&body.password){
@@ -44,20 +46,20 @@ export function createUserService(store,audit) {
       for(const t of ids)if(!store.get('SELECT 1 FROM sales_territories WHERE id=? AND is_active=1',t))throw bad('เขตเปลี่ยนสถานะ กรุณาลองใหม่');
       if(currentTarget?.role==='super_admin'&&(!body.is_active||role.code!=='super_admin')&&store.get("SELECT COUNT(*) n FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='super_admin' AND u.is_active=1").n<=1)throw bad('ต้องมี Super Admin ที่เปิดใช้งานอย่างน้อยหนึ่งบัญชี');
       if(store.get('SELECT 1 FROM users WHERE username=? AND id<>?',username,id||0))throw bad('Username นี้ถูกใช้แล้ว');
-      if(target)store.run('UPDATE users SET username=?,full_name=?,role_id=?,is_active=?,password_hash=COALESCE(?,password_hash),auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',username,name,role.id,Number(body.is_active),hash,id);
-      else id=Number(store.run('INSERT INTO users(username,full_name,role_id,is_active,password_hash) VALUES(?,?,?,?,?)',username,name,role.id,Number(body.is_active),hash).lastInsertRowid);
+      if(target)store.run('UPDATE users SET username=?,full_name=?,role_id=?,is_active=?,scope_override=?,password_hash=COALESCE(?,password_hash),auth_version=auth_version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?',username,name,role.id,Number(body.is_active),scopeOverride,hash,id);
+      else id=Number(store.run('INSERT INTO users(username,full_name,role_id,is_active,scope_override,password_hash) VALUES(?,?,?,?,?,?)',username,name,role.id,Number(body.is_active),scopeOverride,hash).lastInsertRowid);
       if(actor.role==='super_admin'||!target){
         store.run('DELETE FROM user_permissions WHERE user_id=?',id);
         for(const p of new Set(permissions))store.run('INSERT INTO user_permissions SELECT ?,id FROM permissions WHERE code=?',id,p);
         store.run('DELETE FROM user_territories WHERE user_id=?',id);
-        if(role.scope==='territory')for(const t of ids)store.run('INSERT INTO user_territories VALUES(?,?)',id,t);
+        if(scope==='territory')for(const t of ids)store.run('INSERT INTO user_territories VALUES(?,?)',id,t);
       }
       store.run('DELETE FROM sessions WHERE user_id=?',id);
       audit.record(actor,target?'user.update':'user.create','users',{userId:id,is_active:body.is_active},null,ip);
       if(target?.role!==role.code)audit.record(actor,'user.role','users',{userId:id,role:role.code},null,ip);
       if(actor.role==='super_admin'){
         audit.record(actor,'user.permissions','users',{userId:id,permissions},null,ip);
-        audit.record(actor,'user.territories','users',{userId:id,territoryIds:role.scope==='territory'?ids:[]},null,ip);
+        audit.record(actor,'user.territories','users',{userId:id,territoryIds:scope==='territory'?ids:[],scopeOverride},null,ip);
       }
       if(hash){audit.record(actor,'user.password_reset','users',{userId:id},null,ip);{const n=store.run('DELETE FROM trusted_devices WHERE user_id=?',id).changes;store.run('DELETE FROM login_challenges WHERE user_id=?',id);if(n)audit.record(actor,'trusted_device.revoke','auth',{userId:id,count:n,reason:'password_reset'},null,ip);}}
       return get(id);

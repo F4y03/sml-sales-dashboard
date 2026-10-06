@@ -324,6 +324,18 @@ function editUser(user) {
     user?.role || "admin",
   );
   if (me.role !== "super_admin" && user) role.disabled = true;
+  // Roles with "all" scope (e.g. Admin) can be limited to assigned territories per user.
+  const scopeChoice = select(
+    grid,
+    "ขอบเขตข้อมูล",
+    "scope",
+    [
+      { code: "all", name: "เห็นทุกเขต (ตาม Role)" },
+      { code: "territory", name: "เฉพาะเขตที่กำหนด" },
+    ],
+    user && user.scope !== user.roleScope ? "territory" : "all",
+  );
+  scopeChoice.disabled = me.role !== "super_admin";
   const toggles = node("div", undefined, "admin-toggles"),
     active = toggle(
       toggles,
@@ -435,7 +447,12 @@ function editUser(user) {
   grid.append(defaults);
   const update = () => {
     const r = catalog.roles.find((r) => r.code === role.value);
-    territory.hidden = r?.scope !== "territory";
+    const overridable = r?.scope === "all" && r.code !== "super_admin";
+    scopeChoice.parentElement.hidden = !overridable;
+    territory.hidden = !(
+      r?.scope === "territory" ||
+      (overridable && scopeChoice.value === "territory")
+    );
     defaults.textContent =
       "สิทธิ์ตาม Role: " +
       (r?.permissions
@@ -443,6 +460,7 @@ function editUser(user) {
         .join(", ") || "ยังไม่มี");
   };
   role.onchange = update;
+  scopeChoice.onchange = update;
   update();
   submit(form, "บันทึกผู้ใช้", async (data) => {
     await api("users" + (user ? "/" + user.id : ""), user ? "PUT" : "POST", {
@@ -450,6 +468,8 @@ function editUser(user) {
       full_name: data.get("full_name"),
       role: role.value,
       is_active: active.checked,
+      territoryScope:
+        !scopeChoice.parentElement.hidden && scopeChoice.value === "territory",
       currentPassword: data.get("currentPassword") || undefined,
       password: data.get("password") || undefined,
       additionalPermissions:
