@@ -1101,3 +1101,22 @@ html[data-theme="light"] .login-shell .lg-card .lg-logo img {
     content: "...";
   }
 }
+
+/* Remember me: username in localStorage; password goes to the browser's password manager, never our storage. */
+.login-shell .lg-card .lg-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  user-select: none;
+}
+.login-shell .lg-card .lg-remember input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--brand, #ff3b30);
+  cursor: pointer;
+}

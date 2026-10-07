@@ -61,6 +61,27 @@
 
 const form = document.querySelector("#login-form");
 const password = document.querySelector("#password");
+const remember = document.querySelector("#remember-me");
+const rememberKey = "prplus.rememberUsername";
+try {
+  const saved = localStorage.getItem(rememberKey);
+  if (saved) {
+    form.username.value = saved;
+    remember.checked = true;
+  }
+} catch {}
+// Username only; the password is handed to the browser password manager when supported.
+const saveRemembered = async () => {
+  try {
+    if (remember.checked) localStorage.setItem(rememberKey, form.username.value.trim());
+    else localStorage.removeItem(rememberKey);
+  } catch {}
+  if (remember.checked && window.PasswordCredential) {
+    try {
+      await navigator.credentials.store(new PasswordCredential({ id: form.username.value.trim(), password: password.value }));
+    } catch {}
+  }
+};
 const toggle = document.querySelector("#toggle-password");
 document.querySelector("#year").textContent = new Date().getFullYear();
 toggle.addEventListener("click", () => {
@@ -283,6 +304,7 @@ form.addEventListener("submit", async (event) => {
     const data = await response.json();
     if (!response.ok)
       throw new Error(data.error || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
+    await saveRemembered();
     if (data.twoFactor) return showTwoFactor(data.twoFactor);
     proceed(data);
   } catch (error) {
