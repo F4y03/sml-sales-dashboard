@@ -19,7 +19,8 @@ $c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyCon
 if ($c) { Stop-Process -Id $c.OwningProcess -Force -Confirm:$false }
 Start-Sleep 2
 schtasks /Run /TN 'SML Dashboard' | Out-Null
-Start-Sleep 8
+# Startup can take well over 10 s; poll instead of a fixed wait.
+for ($i = 0; $i -lt 30 -and !(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep 2 }
 if (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue) {
     Write-Host "Dashboard restarted at $(git log -1 --format='%h %s')"
 } else {
