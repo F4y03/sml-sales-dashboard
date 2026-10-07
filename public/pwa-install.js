@@ -9,7 +9,9 @@
   style.textContent = `
     .pwa-install-btn{display:flex;align-items:center;gap:8px;width:100%;margin-top:12px;padding:10px 12px;border:1px dashed currentColor;border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:.9rem;cursor:pointer;opacity:.85}
     .pwa-install-btn:hover{opacity:1}
+    .pwa-install-btn svg{flex:none;color:#e11d2a}
     .pwa-install-btn[hidden]{display:none}
+    .pwa-install-btn--compact{width:auto;margin:0 0 0 auto;align-self:center;flex:none;padding:6px 12px;border-radius:999px;font-size:.78rem;gap:6px}
     .pwa-ios-guide{position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.5)}
     .pwa-ios-guide>div{max-width:420px;width:100%;padding:20px;border-radius:16px;background:#fff;color:#111;font-size:.95rem;line-height:1.6}
     .pwa-ios-guide ol{margin:8px 0 16px;padding-left:20px}
@@ -19,7 +21,7 @@
   const button = document.createElement("button");
   button.type = "button";
   button.className = "pwa-install-btn";
-  button.innerHTML = '<span aria-hidden="true">📲</span><span>ติดตั้งแอป</span>';
+  button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg><span>ติดตั้งแอป</span>';
 
   const showGuide = (title, steps) => {
     const guide = document.createElement("div");
@@ -51,8 +53,10 @@
   const mount = () => {
     const nav = document.getElementById("workspace-links");
     if (nav) return nav.append(button);
-    const loginFooter = document.querySelector(".lg-side > footer");
-    if (loginFooter) loginFooter.before(button);
+    const loginNote = document.querySelector(".lg-note");
+    if (!loginNote) return;
+    button.classList.add("pwa-install-btn--compact");
+    loginNote.append(button);
   };
   // Wait for load: workspace-nav.js builds the sidebar after this deferred script runs.
   if (document.readyState === "complete") mount();
