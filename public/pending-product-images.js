@@ -64,6 +64,98 @@
     return 'รอเพิ่มใน SML';
   }
 
+  // ใส่รหัส SML ที่ถูกต้องเอง แล้วย้ายรูปไปที่รหัสนั้น (แก้เฉพาะฐานรูปของ Dashboard ไม่แก้ SML)
+  function matchCell(item) {
+    const cell = document.createElement('td');
+    cell.className = 'pending-match';
+    const form = document.createElement('form');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.required = true;
+    input.maxLength = 200;
+    input.placeholder = 'พิมพ์รหัสหรือชื่อสินค้าใน SML';
+    input.autocomplete = 'off';
+    const list = document.createElement('ul');
+    list.className = 'pending-match-list';
+    list.hidden = true;
+    let searchId = 0, timer;
+    const search = async () => {
+      const id = ++searchId, q = input.value.trim();
+      const params = new URLSearchParams(q ? { q } : { name: item.name || '' });
+      if (!q && !item.name) { list.hidden = true; return; }
+      list.replaceChildren(Object.assign(document.createElement('li'), { className: 'note', textContent: 'กำลังค้นหาใน SML…' }));
+      list.hidden = false;
+      try {
+        const response = await fetch(`/api/products/images/pending/search?${params}`, { cache: 'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (id !== searchId) return;
+        if (!response.ok) throw new Error(data.error || 'ค้นหาไม่สำเร็จ');
+        list.replaceChildren();
+        if (!q) list.append(Object.assign(document.createElement('li'), { className: 'note', textContent: 'ชื่อใกล้เคียงใน SML:' }));
+        if (!data.rows.length) list.append(Object.assign(document.createElement('li'), { className: 'note', textContent: 'ไม่พบสินค้าใน SML' }));
+        for (const row of data.rows) {
+          const li = document.createElement('li');
+          const pick = document.createElement('button');
+          pick.type = 'button';
+          const strong = document.createElement('strong');
+          strong.textContent = row.code;
+          pick.append(strong, ` ${row.name}`);
+          pick.addEventListener('mousedown', event => {
+            event.preventDefault();
+            input.value = row.code;
+            message.className = '';
+            message.textContent = row.name;
+            list.hidden = true;
+          });
+          li.append(pick);
+          list.append(li);
+        }
+      } catch (error) {
+        if (id === searchId) list.replaceChildren(Object.assign(document.createElement('li'), { className: 'note', textContent: error.message }));
+      }
+    };
+    input.addEventListener('focus', search);
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(search, 300); });
+    input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
+    input.addEventListener('keydown', event => { if (event.key === 'Escape') list.hidden = true; });
+    input.setAttribute('aria-label', `รหัส SML สำหรับ ${item.code || item.reference}`);
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.textContent = 'จับคู่';
+    const message = document.createElement('small');
+    message.setAttribute('role', 'status');
+    if (!item.imageCount) { input.disabled = button.disabled = true; message.textContent = 'ไม่มีรูปให้จับคู่'; }
+    form.append(input, button);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const smlCode = input.value.trim();
+      if (!smlCode) return;
+      if (!confirm(`ย้ายรูป ${item.imageCount} รูปของ "${item.code || item.reference}" ไปที่รหัส ${smlCode}?`)) return;
+      input.disabled = button.disabled = true;
+      message.className = '';
+      message.textContent = 'กำลังจับคู่…';
+      try {
+        const response = await fetch('/api/products/images/pending/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' },
+          body: JSON.stringify(item.code ? { code: item.code, smlCode } : { sourceUrl: item.sourceUrl, smlCode }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'จับคู่ไม่สำเร็จ');
+        message.className = 'ok';
+        message.textContent = `จับคู่กับ ${result.code} แล้ว`;
+        setTimeout(load, 1200);
+      } catch (error) {
+        input.disabled = button.disabled = false;
+        message.className = 'error';
+        message.textContent = error.message;
+        input.focus();
+      }
+    });
+    cell.append(form, list, message);
+    return cell;
+  }
+
   async function load() {
     const current = ++request;
     status.textContent = 'กำลังตรวจรายการ…';
@@ -94,7 +186,7 @@
           if (linksCell.childElementCount) linksCell.append(' ');
           linksCell.append(a);
         }
-        row.append(linksCell);
+        row.append(linksCell, matchCell(item));
         body.append(row);
       }
       table.hidden = !data.products.length;

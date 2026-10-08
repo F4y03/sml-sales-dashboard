@@ -273,6 +273,128 @@ app.get("/download.xlsx", (req, res) => {
   });
   res.send(Buffer.from(file));
 });
+app.post("/api/sml-stock", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const codes = Array.isArray(req.body?.codes) ? req.body.codes : null;
+  if (
+    !codes ||
+    codes.length > 5000 ||
+    codes.some((code) => typeof code !== "string" || code.length > 100)
+  )
+    return res.status(400).json({ error: "รายการรหัสสินค้าไม่ถูกต้อง" });
+  try {
+    const result = await smlPool.query({
+      text: `SELECT DISTINCT ON (lower(BTRIM(i.code))) lower(BTRIM(i.code)) AS code,
+                    i.balance_qty, i.unit_standard AS unit
+             FROM ic_inventory i
+             WHERE lower(BTRIM(i.code)) = ANY($1::text[])
+             ORDER BY lower(BTRIM(i.code)), i.roworder DESC`,
+      values: [codes.map((code) => code.trim().toLocaleLowerCase())],
+    });
+    const stock = {};
+    for (const row of result.rows)
+      stock[row.code] = { qty: row.balance_qty, unit: row.unit };
+    res.json({ stock, updatedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error("SML stock query failed:", error.code || error.message);
+    res.status(503).json({ error: "ดึงคลังจาก SML ไม่สำเร็จ" });
+  }
+});
+
+app.get("/api/sml-suggest", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const code = typeof req.query.code === "string" ? req.query.code.trim() : "";
+  if (!code || code.length > 100)
+    return res.status(400).json({ error: "รหัสสินค้าไม่ถูกต้อง" });
+  // หารหัสใน SML ที่ขึ้นต้นเหมือนกัน ตัดท้ายทีละตัวจนเจอ (ขั้นต่ำ 4 ตัวอักษร)
+  try {
+    for (let length = code.length; length >= Math.min(4, code.length); length--) {
+      const prefix = code.slice(0, length).toLocaleLowerCase();
+      const result = await smlPool.query({
+        text: `SELECT DISTINCT ON (lower(BTRIM(code))) BTRIM(code) AS code, name_1 AS name,
+                      balance_qty, unit_standard AS unit
+               FROM ic_inventory
+               WHERE lower(BTRIM(code)) LIKE $1 || '%' ESCAPE '\\'
+               ORDER BY lower(BTRIM(code)), roworder DESC
+               LIMIT 30`,
+        values: [prefix.replace(/[\\%_]/g, "\\$&")],
+      });
+      if (result.rowCount) return res.json({ prefix, rows: result.rows });
+    }
+    res.json({ prefix: "", rows: [] });
+  } catch (error) {
+    console.error("SML suggest failed:", error.code || error.message);
+    res.status(503).json({ error: "ค้นหารหัสใน SML ไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/update-sku", async (req, res) => {
+  const oldCode =
+    typeof req.body?.oldCode === "string" ? req.body.oldCode.trim() : "";
+  const newCode =
+    typeof req.body?.newCode === "string" ? req.body.newCode.trim() : "";
+  if (!oldCode || !newCode || newCode.length > 100)
+    return res.status(400).json({ error: "รหัสสินค้าไม่ถูกต้อง" });
+  if (!existsSync(driveWorkbookPath))
+    return res.status(503).json({ error: "ไม่พบไฟล์ Excel สำหรับแก้ไข" });
+  if (savingProduct)
+    return res.status(429).json({ error: "กำลังบันทึกอยู่ กรุณาลองใหม่" });
+  let temporaryPath;
+  savingProduct = true;
+  try {
+    const exists = await smlPool.query({
+      text: `SELECT BTRIM(code) AS code FROM ic_inventory
+             WHERE lower(BTRIM(code)) = lower($1) LIMIT 1`,
+      values: [newCode],
+    });
+    if (!exists.rowCount)
+      return res.status(400).json({ error: "ไม่พบรหัสใหม่นี้ใน SML" });
+    const smlCode = exists.rows[0].code;
+    const workbook = await readDriveWorkbook();
+    const tab = workbook.worksheets[0];
+    const headers = workbookHeaders(tab);
+    const skuColumn = headers.indexOf("รหัสสินค้า") + 1;
+    const parentColumn = headers.indexOf("หลัก") + 1;
+    if (!skuColumn) throw new Error("SKU_COLUMN_NOT_FOUND");
+    const oldKey = oldCode.toLocaleLowerCase();
+    const newKey = smlCode.toLocaleLowerCase();
+    let target = 0;
+    for (let row = 2; row <= tab.rowCount; row++) {
+      const sku = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase();
+      if (sku === newKey && newKey !== oldKey)
+        return res
+          .status(409)
+          .json({ error: `รหัส ${smlCode} มีอยู่ในไฟล์แล้ว (แถว ${row})` });
+      if (sku === oldKey) target = row;
+    }
+    if (!target)
+      return res.status(404).json({ error: "ไม่พบรหัสเดิมในไฟล์ Excel" });
+    tab.getCell(target, skuColumn).value = smlCode;
+    // ตัวเลือกสินค้าที่อ้างรหัสแม่เดิมในคอลัมน์ "หลัก" ต้องเปลี่ยนตาม
+    let children = 0;
+    if (parentColumn)
+      for (let row = 2; row <= tab.rowCount; row++) {
+        const cell = tab.getCell(row, parentColumn);
+        if (cell.text.trim().toLocaleLowerCase() === oldKey) {
+          cell.value = smlCode;
+          children++;
+        }
+      }
+    temporaryPath = `${driveWorkbookPath}.${process.pid}.${Date.now()}.tmp`;
+    await workbook.xlsx.writeFile(temporaryPath);
+    await rename(temporaryPath, driveWorkbookPath);
+    temporaryPath = null;
+    console.log(`SKU updated: ${oldCode} -> ${smlCode} (row ${target}, ${children} children)`);
+    res.json({ saved: true, oldCode, newCode: smlCode, row: target, children });
+  } catch (error) {
+    console.error("Update SKU failed:", error.code || error.message);
+    res.status(500).json({ error: "แก้ไขรหัสใน Excel ไม่สำเร็จ" });
+  } finally {
+    if (temporaryPath) await unlink(temporaryPath).catch(() => {});
+    savingProduct = false;
+  }
+});
+
 app.use(express.static(fileURLToPath(new URL("./public", import.meta.url))));
 const server = app.listen(3002, "127.0.0.1", () =>
   console.log("Product sheet: http://localhost:3002"),

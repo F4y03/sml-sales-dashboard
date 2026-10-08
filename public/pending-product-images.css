@@ -7,6 +7,17 @@
 .pending-product-images table { width: 100%; border-collapse: collapse; min-width: 560px; }
 .pending-product-images th, .pending-product-images td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(128,128,128,.25); }
 .pending-product-images td:first-child { font-weight: 700; white-space: nowrap; }
-.pending-product-images td:last-child { min-width: 220px; }
-.pending-product-images td:last-child a { display: inline-block; margin: 2px 6px 2px 0; }
+.pending-product-images td:nth-last-child(2) { min-width: 220px; }
+.pending-product-images td:nth-last-child(2) a { display: inline-block; margin: 2px 6px 2px 0; }
+.pending-match { min-width: 260px; position: relative; }
+.pending-match-list { position: absolute; z-index: 20; left: 12px; right: 12px; top: calc(100% - 6px); max-height: 300px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--panel, #1c1c1f); border: 1px solid rgba(128,128,128,.45); border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+.pending-match-list button { display: block; width: 100%; padding: 6px 8px; text-align: left; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; font-size: .85rem; cursor: pointer; }
+.pending-match-list button:hover { background: rgba(128,128,128,.2); }
+.pending-match-list .note { padding: 6px 8px; font-size: .8rem; color: var(--muted, #aaa); }
+.pending-match form { display: flex; gap: 6px; }
+.pending-match input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid rgba(128,128,128,.45); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+.pending-match button { padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.pending-match small { display: block; margin-top: 4px; color: var(--muted, #aaa); }
+.pending-match small.ok { color: #22c55e; }
+.pending-match small.error { color: #ef4444; }
 @media (max-width: 640px) { .pending-product-images-heading { flex-direction: column; } }

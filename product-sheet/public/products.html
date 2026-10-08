@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ข้อมูลสินค้าหลัก · Excel</title>
+    <link rel="stylesheet" href="sheet.css" />
+    <style>
+      .page-link {
+        margin-left: auto;
+        color: #fff;
+        white-space: nowrap;
+      }
+      #sheet {
+        width: 100%;
+        min-width: 1400px;
+      }
+      #sheet th,
+      #sheet td {
+        max-width: none;
+        height: auto;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #sheet thead th {
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      #sheet thead th.from-sml {
+        background: #1d4ed8;
+      }
+      #sheet td {
+        white-space: normal;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+      #sheet td.number,
+      #sheet th.number {
+        text-align: right;
+        white-space: nowrap;
+      }
+      #sheet td.code {
+        font-weight: bold;
+        color: #185c37;
+      }
+      #sheet th:first-child,
+      #sheet td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        box-shadow: 1px 0 0 #cbd8cf;
+      }
+      #sheet thead th:first-child {
+        z-index: 4;
+      }
+      #sheet td.name {
+        font-weight: bold;
+        color: #24332d;
+      }
+      .clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        color: #4b5f53;
+      }
+      .empty {
+        color: #b4c0b8;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .pill.in {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .pill.out {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .pill.none {
+        background: #eef2ef;
+        color: #687c70;
+      }
+      .tag {
+        display: inline-block;
+        margin: 0 4px 4px 0;
+        padding: 1px 8px;
+        border-radius: 4px;
+        background: #e7eee9;
+        color: #3e5a49;
+        font-size: 12px;
+      }
+      .img-link {
+        display: inline-block;
+        margin: 0 4px 4px 0;
+        padding: 2px 8px;
+        border: 1px solid #b7cfc0;
+        border-radius: 4px;
+        color: #185c37;
+        font-size: 12px;
+        text-decoration: none;
+      }
+      .img-link:hover {
+        background: #e5f2e9;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: #53705e;
+      }
+      .legend {
+        align-items: center;
+      }
+      .unmatched {
+        margin: 14px 0 0;
+        background: #fff;
+        border: 1px solid #dfe8e2;
+        border-radius: 8px;
+      }
+      .unmatched summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 18px;
+        cursor: pointer;
+        color: #b91c1c;
+        font-weight: bold;
+      }
+      .unmatched-count {
+        padding: 1px 9px;
+        border-radius: 999px;
+        background: #fee2e2;
+        font-size: 12px;
+      }
+      .unmatched-body {
+        padding: 0 18px 16px;
+      }
+      .unmatched-note {
+        margin: 0 0 10px;
+        color: #687c70;
+        font-size: 12px;
+      }
+      .unmatched-scroll {
+        max-height: 420px;
+        overflow: auto;
+        border: 1px solid #dfe8e2;
+      }
+      .unmatched-table {
+        width: 100%;
+        min-width: 820px;
+        table-layout: auto;
+      }
+      .unmatched-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        height: 36px;
+        background: #e7eee9;
+        color: #24332d;
+      }
+      .unmatched-table td {
+        height: auto;
+        white-space: normal;
+        cursor: default;
+      }
+      .unmatched-table select {
+        width: 100%;
+        min-width: 280px;
+        padding: 5px 6px;
+        border: 1px solid #ccd9d0;
+        border-radius: 5px;
+        font: 12px Tahoma;
+      }
+      .type-badge {
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+        background: #eef2ef;
+        color: #53705e;
+      }
+      .type-badge.simple,
+      .type-badge.variation {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .row-msg {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+      }
+      .row-msg.ok {
+        color: #166534;
+      }
+      .row-msg.err {
+        color: #b91c1c;
+      }
+      #sheet thead tr.column-filters th {
+        height: auto;
+        padding: 5px 6px;
+        background: #e7eee9;
+        border-bottom: 1px solid #cbd8cf;
+      }
+      .column-filters select {
+        width: 100%;
+        padding: 3px 4px;
+        border: 1px solid #ccd9d0;
+        border-radius: 4px;
+        background: #fff;
+        font: 11px Tahoma;
+        color: #24332d;
+      }
+      .column-filters select.active {
+        border-color: #217346;
+        background: #e5f2e9;
+        font-weight: bold;
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+      }
+      .filters label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .filters select {
+        max-width: 220px;
+        padding: 5px 8px;
+        border: 1px solid #ccd9d0;
+        border-radius: 6px;
+        background: #fff;
+        font: 12px Tahoma;
+      }
+      @media (max-width: 650px) {
+        .filters {
+          margin-left: 0;
+        }
+      }
+      .legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 5px;
+        border-radius: 2px;
+        vertical-align: -1px;
+      }
+      @media (max-width: 650px) {
+        .page-link {
+          margin-left: 0;
+        }
+      }
+    </style>
+    <script src="products.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand-icon" aria-hidden="true">X</div>
+      <div>
+        <p class="eyebrow">PRODUCT WORKBOOK</p>
+        <h1>ข้อมูลสินค้าหลัก</h1>
+        <p>รหัส ชื่อ คำอธิบาย ขนาด ราคา หมวดหมู่ และรูปภาพ</p>
+      </div>
+      <a class="page-link download" href="./">← ตารางสินค้าทั้งหมด</a>
+    </header>
+    <main>
+      <section class="toolbar">
+        <div><strong>สินค้า</strong><span id="count">กำลังโหลด…</span></div>
+        <label class="search"
+          ><span class="sr-only">ค้นหารายการสินค้า</span
+          ><input
+            id="search"
+            type="search"
+            placeholder="ค้นหารหัส ชื่อ หรือหมวดหมู่"
+            autocomplete="off"
+          /><button id="clear-search" type="button" aria-label="ล้างคำค้น">
+            ×
+          </button></label
+        >
+        <p>
+          ข้อมูลจากไฟล์ WooCommerce · คลังจาก SML
+        </p>
+      </section>
+      <div class="legend">
+        <span><i style="background: #217346"></i>ไฟล์ WooCommerce</span
+        ><span><i style="background: #1d4ed8"></i>คลังจาก SML</span>
+        <div class="filters">
+          <label
+            >คลัง
+            <select id="filter-stock">
+              <option value="all">ทั้งหมด</option>
+              <option value="in">มีของ</option>
+              <option value="out">หมด (0 หรือติดลบ)</option>
+              <option value="missing">ไม่พบใน SML</option>
+            </select></label
+          ><label
+            >หมวดหมู่
+            <select id="filter-category">
+              <option value="">ทั้งหมด</option>
+            </select></label
+          ><button id="reset-filters" type="button">ล้างตัวกรอง</button>
+        </div>
+      </div>
+      <div class="formula">
+        <span id="cell-name">A1</span><span class="fx">fx</span
+        ><textarea
+          id="cell-value"
+          readonly
+          aria-label="ข้อมูลเต็มของเซลล์ที่เลือก"
+          placeholder="คลิกเซลล์เพื่ออ่านข้อมูลเต็ม"
+        ></textarea>
+      </div>
+      <div
+        class="sheet-scroll"
+        tabindex="0"
+        role="region"
+        aria-label="ตารางข้อมูลสินค้าหลัก"
+      >
+        <table id="sheet">
+          <colgroup id="columns"></colgroup>
+          <thead id="head"></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <footer>
+        <span class="sheet-tab">สินค้าหลัก</span><span id="page-info"></span>
+        <div class="pager">
+          <button id="prev" disabled>← ก่อนหน้า</button
+          ><button id="next" disabled>ถัดไป →</button>
+        </div>
+      </footer>
+      <details id="unmatched" class="unmatched">
+        <summary>
+          รหัสที่ไม่พบใน SML
+          <span id="unmatched-count" class="unmatched-count">กำลังตรวจสอบ…</span>
+        </summary>
+        <div class="unmatched-body">
+          <p class="unmatched-note">
+            เลือกรหัสที่ถูกต้องจาก SML แล้วกดบันทึก ระบบจะแก้รหัสในไฟล์ Excel
+            (ไม่แก้ SML) · สินค้าแม่ (variable) ไม่มีใน SML เป็นปกติ
+            เพราะคลังอยู่ที่ตัวเลือกย่อย
+          </p>
+          <div class="unmatched-scroll">
+            <table class="unmatched-table">
+              <thead>
+                <tr>
+                  <th>รหัสในไฟล์</th>
+                  <th>ชนิด</th>
+                  <th>ชื่อ</th>
+                  <th>รหัสใน SML ที่ใกล้เคียง</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="unmatched-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+      <p id="status" role="status">แสดงหน้าละ 10 รายการ</p>
+    </main>
+  </body>
+</html>

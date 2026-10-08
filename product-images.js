@@ -108,6 +108,68 @@ export function installProductImages(app, store, audit, pool) {
       res.status(503).json({ error: 'ตรวจรายการสินค้าที่ยังไม่มีใน SML ไม่สำเร็จ' });
     }
   });
+  // SML products by code or name for the match box. With no q, ranks by similarity to `name`
+  // (the pending row's product name) using its words. Read-only, parameterized.
+  app.get('/api/products/images/pending/search', requireSuperAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+    if (q.length > 100 || name.length > 300 || (!q && !name)) return res.status(400).json({ error: 'คำค้นไม่ถูกต้อง' });
+    // Backslash is PostgreSQL's default LIKE escape.
+    const like = text => `%${text.toLowerCase().replace(/[\\%_]/g, '\\$&')}%`;
+    // Without q: products sharing any of the name's words (2+ chars, at most 6), best match first.
+    const words = q ? [q] : [...new Set(name.replace(/\(@[^)]*\)/g, ' ').split(/[\s,/()"]+/).filter(w => w.length >= 2))].slice(0, 6);
+    if (!words.length) return res.json({ rows: [] });
+    try {
+      const { rows } = await pool.query(q
+        ? `SELECT DISTINCT ON (code) code, name_1 FROM ic_inventory
+           WHERE lower(code) LIKE $1 OR lower(name_1) LIKE $1 ORDER BY code LIMIT 300`
+        : `SELECT code, name_1 FROM (SELECT DISTINCT ON (code) code, name_1 FROM ic_inventory
+             WHERE lower(name_1) LIKE ANY($1::text[]) ORDER BY code) i
+           ORDER BY (SELECT count(*) FROM unnest($1::text[]) w WHERE lower(i.name_1) LIKE w) DESC, code LIMIT 300`,
+        [q ? like(q) : words.map(like)]);
+      const target = q || name;
+      const ranked = rows.map(row => ({ code: row.code, name: row.name_1 || '', score: nameSimilarity(target, `${row.code} ${row.name_1 || ''}`) }))
+        .sort((a, b) => b.score - a.score).slice(0, 15);
+      res.json({ rows: ranked.map(({ code, name }) => ({ code, name })) });
+    } catch (error) {
+      console.error('Pending image SML search failed:', error.code);
+      res.status(503).json({ error: 'ค้นหาสินค้าใน SML ไม่สำเร็จ' });
+    }
+  });
+  // Super admin matches a pending row to an SML code by hand: an imported code that is not in SML
+  // ({ code }) or a Lazada item without a code ({ sourceUrl }). Only the access store changes; SML is
+  // only read to confirm the new code exists.
+  app.post('/api/products/images/pending/match', sameSite, requireSuperAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { code, sourceUrl } = req.body || {};
+    const smlCode = typeof req.body?.smlCode === 'string' ? req.body.smlCode.trim() : '';
+    if (!validCode(smlCode) || (code == null) === (sourceUrl == null) || (code != null && !validCode(code)) || (sourceUrl != null && !validCode(sourceUrl)))
+      return res.status(400).json({ error: 'ข้อมูลการจับคู่ไม่ถูกต้อง' });
+    if (code === smlCode) return res.status(400).json({ error: 'รหัสใหม่ต้องไม่ซ้ำรหัสเดิม' });
+    const imported = code != null ? store.get('SELECT code FROM product_image_imports WHERE code=?', code) : null;
+    const lazada = sourceUrl != null ? store.get('SELECT * FROM unmatched_product_images WHERE source_url=?', sourceUrl) : null;
+    if (!imported && !lazada) return res.status(404).json({ error: 'ไม่พบรายการนี้ อาจถูกจับคู่ไปแล้ว' });
+    const links = imported ? (read(code)?.links || []) : JSON.parse(lazada.links_json);
+    if (!links.length) return res.status(400).json({ error: 'รายการนี้ไม่มีรูปให้จับคู่' });
+    if (read(smlCode)?.links.length) return res.status(409).json({ error: `รหัส ${smlCode} มีรูปอยู่แล้ว` });
+    if (!await productExists(smlCode, res)) return;
+    const updatedAt = new Date().toISOString();
+    store.transaction(() => {
+      store.run('DELETE FROM product_images WHERE code=?', smlCode);
+      if (imported) {
+        store.run('DELETE FROM product_image_imports WHERE code=?', smlCode);
+        store.run('UPDATE product_images SET code=?, updated_by=?, updated_at=? WHERE code=?', smlCode, req.auth.id ?? null, updatedAt, code);
+        store.run('UPDATE product_image_imports SET code=?, updated_at=? WHERE code=?', smlCode, updatedAt, code);
+        store.run('UPDATE product_image_files SET code=? WHERE code=?', smlCode, code);
+      } else {
+        store.run('INSERT INTO product_images(code,links_json,updated_by,updated_at) VALUES(?,?,?,?)', smlCode, JSON.stringify(links), req.auth.id ?? null, updatedAt);
+        store.run('DELETE FROM unmatched_product_images WHERE source_url=?', sourceUrl);
+      }
+      audit.record(req.auth, 'product_images.match', 'products', { from: code ?? `Lazada ${lazada.source_id}`, to: smlCode, count: links.length }, req.territory?.id ?? null, req.socket.remoteAddress);
+    });
+    res.json({ code: smlCode, count: links.length });
+  });
   app.get('/api/products/images', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const codes = [].concat(req.query.code ?? []);
