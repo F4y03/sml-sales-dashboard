@@ -14,5 +14,7 @@ export function landingPage(user) {
   if (hasPermission(user,'consignment')) return '/consignment.html';
   if (hasPermission(user,'price_stock') || hasPermission(user,'product_info')) return '/products.html';
   if (hasPermission(user,'reports') && user.scope!=='territory') return '/reports.html';
+  if (hasPermission(user,'marketplace_view') && user.scope!=='territory') return '/marketplace.html';
+  if (hasPermission(user,'marketplace_upload')) return '/marketplace-upload.html';
   return canAdmin(user) ? '/system-admin.html' : '/access-denied.html';
 }

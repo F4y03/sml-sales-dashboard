@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ยอดขายออนไลน์ · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=20261008" />
+    <script src="/theme-mode.js"></script>
+    <script src="assets/chart.umd.js" defer></script>
+    <script src="workspace-nav.js?v=20261008-marketplace" defer></script>
+    <script src="marketplace-ui.js?v=20261008" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PROPLUS" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+    <script src="/pwa-install.js" defer></script>
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">ONLINE MARKETPLACE</p>
+              <h1>ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลด <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
+            </div>
+            <div class="ov-actions">
+              <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
+            </div>
+          </header>
+
+          <div class="mp-tabs" role="tablist" aria-label="เลือกช่องทาง">
+            <button type="button" role="tab" id="tab-shopee" data-platform="shopee" aria-selected="false" aria-controls="mp-content">Shopee</button>
+            <button type="button" role="tab" id="tab-lazada" data-platform="lazada" aria-selected="false" aria-controls="mp-content">Lazada</button>
+            <button type="button" role="tab" id="tab-tiktok" data-platform="tiktok" aria-selected="false" aria-controls="mp-content">TikTok Shop</button>
+            <button type="button" role="tab" id="tab-all" data-platform="all" aria-selected="true" aria-controls="mp-content">รวมทุกช่องทาง</button>
+          </div>
+
+          <section class="ov-filters" aria-label="เลือกช่วงข้อมูล">
+            <form id="filters" class="ov-filter-row">
+              <div class="ov-presets" role="group" aria-label="เลือกช่วงวันที่อย่างรวดเร็ว">
+                <button type="button" data-preset="latest" aria-pressed="true">เดือนล่าสุดที่มีข้อมูล</button
+                ><button type="button" data-preset="7d" aria-pressed="false">7 วัน</button
+                ><button type="button" data-preset="30d" aria-pressed="false">30 วัน</button
+                ><button type="button" data-preset="month" aria-pressed="false">เดือนนี้</button
+                ><button type="button" data-preset="prev-month" aria-pressed="false">เดือนก่อน</button
+                ><button type="button" data-preset="year" aria-pressed="false">ปีนี้</button>
+              </div>
+              <div class="ov-dates">
+                <label><span>จากวันที่</span><input type="date" id="start" required /></label>
+                <span class="ov-dates-arrow" aria-hidden="true">→</span>
+                <label><span>ถึงวันที่</span><input type="date" id="end" required /></label>
+              </div>
+              <div class="ov-filter-actions">
+                <button type="submit" class="ov-btn ov-btn-primary">แสดงข้อมูล</button>
+              </div>
+            </form>
+            <div class="ov-range-line">
+              <span class="ov-range-label">ช่วงข้อมูลที่แสดง</span>
+              <strong id="display-period">—</strong>
+            </div>
+            <div id="status" class="ov-status" role="status" aria-live="polite"></div>
+          </section>
+
+          <section class="ov-kpis mp-kpis" aria-label="สรุปยอดขาย">
+            <article class="ov-card ov-featured">
+              <div class="ov-head"><span class="ov-name">ยอดขายรวม</span><span class="ov-icon" tabindex="0" data-tip="ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง ไม่รวมออเดอร์ที่ยกเลิกหรือคืนสินค้า">ⓘ</span></div>
+              <div class="ov-value" id="kpi-sales">—</div>
+              <div class="ov-foot"><span id="kpi-sales-foot">สำเร็จ + กำลังดำเนินการ</span></div>
+            </article>
+            <article class="ov-card">
+              <div class="ov-head"><span class="ov-name">จำนวนออเดอร์</span></div>
+              <div class="ov-value" id="kpi-orders">—</div>
+              <div class="ov-foot"><span>ไม่นับยกเลิก/คืนสินค้า</span></div>
+            </article>
+            <article class="ov-card">
+              <div class="ov-head"><span class="ov-name">ยอดเฉลี่ยต่อออเดอร์</span></div>
+              <div class="ov-value" id="kpi-aov">—</div>
+              <div class="ov-foot"><span>ยอดขายรวม ÷ จำนวนออเดอร์</span></div>
+            </article>
+            <article class="ov-card">
+              <div class="ov-head"><span class="ov-name">ค่าธรรมเนียมแพลตฟอร์ม</span><span class="ov-icon" tabindex="0" data-tip="คิดเฉพาะออเดอร์ที่มีไฟล์รายรับ/การชำระเงิน — Lazada ไฟล์ออเดอร์ไม่มีค่าธรรมเนียม">ⓘ</span></div>
+              <div class="ov-value" id="kpi-fees">—</div>
+              <div class="ov-foot"><span id="kpi-fees-foot">—</span></div>
+            </article>
+            <article class="ov-card">
+              <div class="ov-head"><span class="ov-name">เงินที่ได้รับสุทธิ</span><span class="ov-icon" tabindex="0" data-tip="ยอดที่แพลตฟอร์มโอนให้หลังหักค่าธรรมเนียมและค่าส่ง ของออเดอร์ที่มีข้อมูลการชำระเงิน ยังไม่หักต้นทุนสินค้า จึงยังไม่ใช่กำไรสุทธิ">ⓘ</span></div>
+              <div class="ov-value" id="kpi-net">—</div>
+              <div class="ov-foot"><span id="kpi-net-foot">ยังไม่หักต้นทุนสินค้า</span></div>
+            </article>
+          </section>
+        </div>
+
+        <div id="mp-content" class="mp-grid" role="tabpanel" aria-labelledby="tab-all">
+          <section class="mp-panel mp-span-2" id="compare-panel" aria-labelledby="compare-title">
+            <div class="mp-panel-head"><h2 id="compare-title">เปรียบเทียบ 3 แพลตฟอร์ม</h2></div>
+            <div id="compare-bars" class="mp-share" aria-hidden="true"></div>
+            <div class="mp-scroll">
+              <table class="mp-table" id="compare-table">
+                <thead><tr><th scope="col">ช่องทาง</th><th scope="col" class="num">ยอดขาย</th><th scope="col" class="num">สัดส่วน</th><th scope="col" class="num">ออเดอร์</th><th scope="col" class="num">เฉลี่ย/ออเดอร์</th><th scope="col" class="num">ค่าธรรมเนียม</th><th scope="col" class="num">เงินที่ได้รับสุทธิ</th><th scope="col" class="num">ยกเลิก</th><th scope="col" class="num">คืนสินค้า</th></tr></thead>
+                <tbody id="compare-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="mp-panel mp-span-2" aria-labelledby="daily-title">
+            <div class="mp-panel-head"><h2 id="daily-title">ยอดขายรายวัน</h2><div id="daily-legend" class="mp-legend"></div></div>
+            <div class="mp-chart"><canvas id="daily-chart" role="img" aria-label="กราฟยอดขายรายวัน"></canvas></div>
+            <p id="daily-empty" class="mp-muted" hidden></p>
+            <details class="mp-table-toggle"><summary>ดูเป็นตาราง</summary><div class="mp-scroll"><table class="mp-table" id="daily-table"></table></div></details>
+          </section>
+
+          <section class="mp-panel" aria-labelledby="top-title">
+            <div class="mp-panel-head"><h2 id="top-title">สินค้าขายดี 10 อันดับ</h2></div>
+            <p id="top-note" class="mp-muted" hidden></p>
+            <ol id="top-list" class="mp-rank"></ol>
+          </section>
+
+          <section class="mp-panel" aria-labelledby="status-title">
+            <div class="mp-panel-head"><h2 id="status-title">สถานะออเดอร์</h2></div>
+            <ul id="status-list" class="mp-status-list"></ul>
+            <p id="status-note" class="mp-muted" hidden></p>
+          </section>
+
+          <section class="mp-panel mp-span-2" aria-labelledby="province-title">
+            <div class="mp-panel-head"><h2 id="province-title">จังหวัดที่ขายได้มากที่สุด</h2></div>
+            <p id="province-note" class="mp-muted" hidden></p>
+            <ol id="province-list" class="mp-rank mp-rank-compact"></ol>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

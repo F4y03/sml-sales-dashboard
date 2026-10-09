@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>อัปโหลดยอดขายออนไลน์ · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=20261008" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261008-marketplace" defer></script>
+    <script src="marketplace-upload.js?v=20261008" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PROPLUS" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+    <script src="/pwa-install.js" defer></script>
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">MARKETPLACE UPLOAD</p>
+              <h1>อัปโหลดไฟล์ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">ไฟล์ที่ export จาก Seller Center ของ Shopee, Lazada และ TikTok Shop</p>
+            </div>
+          </header>
+        </div>
+
+        <form id="upload-form" class="mp-panel mp-upload" novalidate>
+          <fieldset class="mp-step">
+            <legend><span class="mp-step-no">1</span>เลือกแพลตฟอร์ม</legend>
+            <div class="mp-platforms">
+              <label class="mp-platform" data-platform="shopee">
+                <input type="radio" name="platform" value="shopee" />
+                <span class="mp-platform-mark" aria-hidden="true">S</span>
+                <span class="mp-platform-copy"><strong>Shopee</strong><small>การเงิน › รายรับของฉัน › ดาวน์โหลดรายงานรายรับ</small></span>
+              </label>
+              <label class="mp-platform" data-platform="lazada">
+                <input type="radio" name="platform" value="lazada" />
+                <span class="mp-platform-mark" aria-hidden="true">L</span>
+                <span class="mp-platform-copy"><strong>Lazada</strong><small>คำสั่งซื้อ › Export ไฟล์คำสั่งซื้อ</small></span>
+              </label>
+              <label class="mp-platform" data-platform="tiktok">
+                <input type="radio" name="platform" value="tiktok" />
+                <span class="mp-platform-mark" aria-hidden="true">T</span>
+                <span class="mp-platform-copy"><strong>TikTok Shop</strong><small>คำสั่งซื้อ › Export และ/หรือ การเงิน › รายละเอียดคำสั่งซื้อ</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="mp-step">
+            <legend><span class="mp-step-no">2</span>เลือกไฟล์ Excel หรือ CSV <small>(เลือกได้หลายไฟล์)</small></legend>
+            <label id="dropzone" class="mp-dropzone" for="file-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
+              <strong>ลากไฟล์มาวางที่นี่ หรือแตะเพื่อเลือกไฟล์</strong>
+              <small>รองรับ .xlsx และ .csv ไม่เกิน 20 MB ต่อไฟล์</small>
+              <input id="file-input" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" multiple />
+            </label>
+            <ul id="file-list" class="mp-file-list" aria-live="polite"></ul>
+          </fieldset>
+
+          <p id="form-status" class="mp-form-status" role="alert"></p>
+          <div class="mp-actions">
+            <button type="button" id="clear-files" class="mp-btn mp-btn-ghost" disabled>ล้างรายการ</button>
+            <button type="submit" id="upload-button" class="mp-btn mp-btn-primary" disabled>อัปโหลด</button>
+          </div>
+        </form>
+
+        <section class="mp-panel" aria-labelledby="history-title">
+          <div class="mp-panel-head">
+            <h2 id="history-title">ประวัติการอัปโหลด</h2>
+            <button type="button" id="refresh-history" class="mp-btn mp-btn-ghost mp-btn-sm">รีเฟรช</button>
+          </div>
+          <p id="history-status" class="mp-muted" role="status">กำลังโหลดประวัติ…</p>
+          <table id="history-table" class="mp-table mp-history" hidden>
+            <thead><tr><th scope="col">วันเวลา</th><th scope="col">ชื่อไฟล์</th><th scope="col">แพลตฟอร์ม</th><th scope="col">ผู้อัปโหลด</th></tr></thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

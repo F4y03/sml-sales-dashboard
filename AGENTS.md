@@ -31,6 +31,7 @@
 - Reports -> `REPORTS.md`
 - Auth -> `AUTH-SETUP.md`
 - Consignment -> `consignment-source.md`
+- Shopee / Lazada / TikTok (ยอดขายออนไลน์) -> `MARKETPLACE.md`
 - README -> เหลือไว้สำหรับ context กว้างเมื่อจำเป็น
 
 ## การทดลอง/ทดสอบ

@@ -7,7 +7,7 @@ export function createAccessStore(path = ':memory:', env = {}) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive:true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql','005-unmatched-product-images.sql','006-product-image-files.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
+  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql','005-unmatched-product-images.sql','006-product-image-files.sql','007-marketplace.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
   // Per-user override: an 'all'-scope role (e.g. Admin) can be limited to assigned territories.
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='scope_override'").get()) db.exec("ALTER TABLE users ADD COLUMN scope_override TEXT CHECK(scope_override IN ('territory'))");
   const store = {
@@ -47,6 +47,11 @@ export function createAccessStore(path = ':memory:', env = {}) {
     if (!store.get('SELECT 1 FROM system_settings WHERE key=?','product_images_roles_v1')) {
       store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code IN ('executive','admin') AND p.code='product_images' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
       store.run('INSERT INTO system_settings VALUES(?,?)','product_images_roles_v1','true');
+    }
+    // Marketplace upload is new: existing Admin roles may upload files (they never see the numbers).
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','marketplace_upload_admin_v1')) {
+      store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='admin' AND p.code='marketplace_upload' AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
+      store.run('INSERT INTO system_settings VALUES(?,?)','marketplace_upload_admin_v1','true');
     }
     // Import the existing account once; never overwrite managed users on restart.
     if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {

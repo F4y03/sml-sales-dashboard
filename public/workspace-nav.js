@@ -20,6 +20,10 @@ const workspaceIcons = {
     '<circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
   images:
     '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  marketplace:
+    '<path d="M5 8h14l-1 12H6L5 8Zm4 0V6a3 3 0 0 1 6 0v2M9 15l2 2 4-4"/>',
+  upload:
+    '<path d="M12 15V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
 };
 const workspaceIcon = (name) =>
   `<svg class="workspace-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${workspaceIcons[name]}</svg>`;
@@ -37,6 +41,8 @@ workspace.innerHTML = `
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
     <a href="reports.html" data-page="reports">${workspaceIcon("reports")}รายงาน SML ทั้งหมด</a>
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
+    <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
+    <a href="marketplace-upload.html" data-page="marketplace-upload">${workspaceIcon("upload")}อัปโหลดไฟล์ยอดขาย</a>
   </nav>
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
 document.body.classList.add("workspace-layout");
@@ -303,12 +309,17 @@ window.prplusUser
       consignment: ["consignment"],
       products: ["price_stock", "product_info"],
       reports: ["reports"],
+      marketplace: ["marketplace_view"],
+      "marketplace-upload": ["marketplace_upload"],
     };
     workspace.querySelectorAll("nav a").forEach((link) => {
       link.hidden = Array.isArray(user.permissions)
         ? !policy[link.dataset.page]?.some(can)
         : false;
-      if (link.dataset.page === "reports" && user.scope === "territory")
+      if (
+        ["reports", "marketplace"].includes(link.dataset.page) &&
+        user.scope === "territory"
+      )
         link.hidden = true;
     });
     workspace.querySelector(".workspace-brand").href = user.landing || "/";

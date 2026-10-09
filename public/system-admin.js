@@ -443,7 +443,7 @@ function editUser(user) {
     );
     c.disabled = me.role !== "super_admin";
   }
-  const defaults = node("p", undefined, "muted");
+  const defaults = node("p", undefined, "muted admin-role-defaults");
   grid.append(defaults);
   const update = () => {
     const r = catalog.roles.find((r) => r.code === role.value);
