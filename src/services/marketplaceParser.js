@@ -2,6 +2,7 @@
 // Column names follow the sample exports documented in MARKETPLACE.md. Only the columns listed in SHEETS are
 // read: customer name, phone, address and e-mail columns are never touched (province only).
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 
 export const PLATFORMS = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop' };
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -133,6 +134,12 @@ const SHEETS = [
     hint: 'ไฟล์นี้เป็นรายการเงินเข้า–ออกของ Lazada ซึ่งไม่มีรายการคำสั่งซื้อ กรุณา export ไฟล์คำสั่งซื้อจาก Lazada Seller Center (คำสั่งซื้อ › Export)',
   },
   {
+    platform: 'lazada', kind: 'statement', required: ['statementPeriod', 'cycle', 'feeName', 'amount', 'orderNumber'],
+    cols: { statementPeriod: ['ระยะเวลาใบแจ้งยอด'], cycle: ['รหัสรอบบิล'], shortCode: ['short code'], feeName: ['ชื่อรายการธุรกรรม'], amount: ['จำนวนเงิน(รวมภาษี)'], orderNumber: ['หมายเลขคำสั่งซื้อ'] },
+    read: readLazadaStatement,
+    shopCode: (rows, headerRow, cols) => firstValue(rows.slice(headerRow + 1).map(row => row[cols.shortCode])),
+  },
+  {
     platform: 'shopee', kind: 'income', required: ['orderId', 'orderDate', 'price', 'payout'],
     cols: {
       orderId: ['หมายเลขคำสั่งซื้อ'], returnId: ['รหัสคืนสินค้า'], orderDate: ['วันที่ทำการสั่งซื้อ'], price: ['สินค้าราคาปกติ'],
@@ -143,6 +150,7 @@ const SHEETS = [
       feePayment: ['ค่าธุรกรรมการชำระเงิน'],
     },
     read: readShopeeIncome,
+    shopCode: rows => labelBelow(rows, 'ชื่อผู้ใช้ (ผู้ขาย)'),
   },
   {
     platform: 'shopee', kind: 'wallet', required: ['type', 'orderId', 'amount', 'balance'],
@@ -151,6 +159,20 @@ const SHEETS = [
   },
 ];
 const SHOPEE_FEES = ['feeAms', 'feeCommission', 'feeService', 'feeInfra', 'feeShippingSaver', 'feePayment'];
+
+// Seller identity found inside a file (Shopee username, Lazada short code); null when the export has none.
+const SHOP_CODE = /^[\w.-]{2,60}$/;
+function firstValue(values) {
+  for (const value of values) { const t = text(value); if (SHOP_CODE.test(t)) return t; }
+  return null;
+}
+function labelBelow(rows, label) {
+  for (let r = 0; r < Math.min(rows.length - 1, 10); r++) {
+    const i = (rows[r] || []).findIndex(cell => norm(text(cell)) === label);
+    if (i >= 0) return firstValue([rows[r + 1]?.[i]]);
+  }
+  return null;
+}
 
 function findHeader(rows, sheet) {
   for (let r = 0; r < Math.min(rows.length, 30); r++) {
@@ -253,6 +275,24 @@ function readTiktokSettlement(rows, start, cols) {
   return { orders: [], settlements };
 }
 
+// Lazada Income Overview (ใบแจ้งยอด): one row per money line. Per order and billing cycle,
+// netPayout = Σ all lines; fees = product lines (ยอดรวมค่าสินค้า / หักเงินค่าสินค้า) − netPayout.
+const LAZADA_PRODUCT_LINES = /^(ยอดรวมค่าสินค้า|หักเงินค่าสินค้า)/;
+function readLazadaStatement(rows, start, cols) {
+  const groups = new Map();
+  for (const row of rows.slice(start)) {
+    const get = getter(row, cols), id = orderId(get('orderNumber')), cycle = text(get('cycle'));
+    if (!id || !cycle) continue;
+    const txnId = `statement:${cycle}:${id}`.slice(0, 120), value = amount(get('amount'));
+    const g = groups.get(txnId) || { txnId, orderId: id, product: 0, net: 0 };
+    g.net += value;
+    if (LAZADA_PRODUCT_LINES.test(text(get('feeName')))) g.product += value;
+    groups.set(txnId, g);
+  }
+  const settlements = [...groups.values()].map(g => ({ txnId: g.txnId, orderId: g.orderId, fees: round2(g.product - g.net), netPayout: round2(g.net) }));
+  return { orders: [], settlements };
+}
+
 // ---------- file decoding
 function parseCsv(source) {
   const firstLine = source.slice(0, source.indexOf('\n') >>> 0);
@@ -280,12 +320,29 @@ function decodeText(buffer) {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(buffer).replace(/^﻿/, ''); }
   catch { return new TextDecoder('windows-874').decode(buffer); }
 }
+// TikTok exports write every cell in its own <row r="N"> element; exceljs keeps only the last one per row number.
+// Merge consecutive elements with the same row number before loading.
+async function mergeSplitRows(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  let changed = false;
+  for (const path of Object.keys(zip.files).filter(p => /^xl\/worksheets\/[^/]+\.xml$/.test(p))) {
+    const xml = await zip.file(path).async('string');
+    let current = null;
+    const merged = xml.replace(/(<\/row>\s*)?<row r="(\d+)"[^>]*>/g, (match, close, row) => {
+      const same = close && row === current;
+      current = row;
+      return same ? '' : match;
+    });
+    if (merged !== xml) { zip.file(path, merged); changed = true; }
+  }
+  return changed ? zip.generateAsync({ type: 'nodebuffer' }) : buffer;
+}
 async function readSheets(buffer, fileName) {
   const ext = (fileName.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
   if (buffer.length >= 4 && buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) fail('ไฟล์ .xls รุ่นเก่ายังไม่รองรับ กรุณาเปิดไฟล์แล้วบันทึกเป็น .xlsx หรือ export เป็น .csv');
   if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
     const workbook = new ExcelJS.Workbook();
-    try { await workbook.xlsx.load(buffer); } catch { fail('เปิดไฟล์ Excel นี้ไม่ได้ ไฟล์อาจเสียหายหรือตั้งรหัสผ่านไว้ กรุณา export ไฟล์ใหม่จาก Seller Center'); }
+    try { await workbook.xlsx.load(await mergeSplitRows(buffer)); } catch { fail('เปิดไฟล์ Excel นี้ไม่ได้ ไฟล์อาจเสียหายหรือตั้งรหัสผ่านไว้ กรุณา export ไฟล์ใหม่จาก Seller Center'); }
     const sheets = []; let total = 0;
     workbook.eachSheet(worksheet => {
       const rows = [];
@@ -322,11 +379,13 @@ export async function parseMarketplaceFile({ buffer, fileName = '', platform }) 
     fail(`ไม่พบหัวคอลัมน์ของไฟล์ ${PLATFORMS[platform]} ไฟล์นี้อาจไม่ใช่ไฟล์ที่ export จาก Seller Center หรือหัวคอลัมน์ถูกแก้ไข กรุณาตรวจสอบไฟล์อีกครั้ง`);
   }
   const orders = new Map(), settlements = new Map();
+  let shopCode = null;
   for (const { sheet, rows, headerRow, cols } of mine) {
+    shopCode ||= sheet.shopCode?.(rows, headerRow, cols) || null;
     const result = sheet.read(rows, headerRow + 1, cols);
     for (const order of Array.isArray(result) ? result : result.orders) orders.set(order.orderId, order);
     for (const s of Array.isArray(result) ? [] : result.settlements) settlements.set(s.txnId, s);
   }
   if (!orders.size && !settlements.size) fail('ไฟล์นี้ไม่มีรายการคำสั่งซื้อ กรุณาตรวจสอบช่วงวันที่ที่ export');
-  return { orders: [...orders.values()], settlements: [...settlements.values()], kinds: [...new Set(mine.map(f => f.sheet.kind))] };
+  return { orders: [...orders.values()], settlements: [...settlements.values()], kinds: [...new Set(mine.map(f => f.sheet.kind))], shopCode };
 }

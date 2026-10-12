@@ -147,6 +147,30 @@ test('store: re-upload never double counts; summary totals, top products and fee
   store.close();
 });
 
+test('store: deleting an upload removes only the orders and settlements it still owns', async () => {
+  const store = createAccessStore(':memory:');
+  const { saveMarketplaceUpload, deleteMarketplaceUpload } = await import('./marketplace.js');
+  const user = { id: null, full_name: 'แอดมินทดสอบ' };
+  const save = async (platform, buffer, fileName) => saveMarketplaceUpload(store, { platform, fileName, sha256: fileName, user, parsed: await parseMarketplaceFile({ buffer, fileName, platform }) }).uploadId;
+  const first = await save('tiktok', Buffer.from(tiktokCsv()), 'tt-1.csv');
+  const second = await save('tiktok', Buffer.from(tiktokCsv()), 'tt-2.csv'); // re-writes the same orders
+  const settle = await save('tiktok', await tiktokSettlement(), 'tt-settle.xlsx');
+  const lazada = await save('lazada', await lazadaFile(), 'lz.xlsx');
+  const count = sql => store.get(sql).n;
+  assert.equal(deleteMarketplaceUpload(store, first).orders, 0); // its orders now belong to the later upload
+  assert.equal(count("SELECT COUNT(*) AS n FROM marketplace_orders WHERE platform='tiktok'"), 3);
+  assert.equal(deleteMarketplaceUpload(store, second).orders, 3);
+  assert.equal(count("SELECT COUNT(*) AS n FROM marketplace_orders WHERE platform='tiktok'"), 0);
+  assert.equal(count("SELECT COUNT(*) AS n FROM marketplace_order_items WHERE platform='tiktok'"), 0);
+  assert.ok(count('SELECT COUNT(*) AS n FROM marketplace_settlements') > 0); // settlement upload untouched
+  assert.ok(deleteMarketplaceUpload(store, settle).settlements > 0);
+  assert.equal(count('SELECT COUNT(*) AS n FROM marketplace_settlements'), 0);
+  assert.ok(count("SELECT COUNT(*) AS n FROM marketplace_orders WHERE platform='lazada'") > 0);
+  assert.equal(deleteMarketplaceUpload(store, first), null);
+  assert.deepEqual(store.all('SELECT id FROM marketplace_uploads').map(r => r.id), [lazada]);
+  store.close();
+});
+
 test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; owner sees everything', async t => {
   const env = { AUTH_USERNAME: 'root', AUTH_PASSWORD_HASH: await hashPassword('fixture-password-123'), AUTH_COOKIE_SECURE: 'false', AUTH_REQUIRE_2FA: 'false' };
   const store = createAccessStore(':memory:', env), app = express();
@@ -173,6 +197,14 @@ test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; own
   const admin = await login('admin1'), owner = await login('root'), exec = await login('exec1');
   const summaryPath = '/api/marketplace/summary?platform=all&start=2026-09-01&end=2026-09-30';
 
+  const post = (cookie, path, body, method = 'POST') => fetch(base + path, { method, headers: { cookie, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify(body) });
+  const noShop = await upload(admin, 'tiktok', tiktokCsv(), 'x.csv');
+  assert.equal(noShop.status, 400);
+  assert.match((await noShop.json()).error, /เพิ่มร้าน/);
+  assert.equal((await post(exec, '/api/marketplace/shops', { name: 'Proplus' })).status, 403);
+  assert.equal((await post(admin, '/api/marketplace/shops', { name: 'Proplus' })).status, 200);
+  assert.equal((await post(admin, '/api/marketplace/shops', { name: 'proplus' })).status, 409);
+  // A single active shop is picked automatically.
   const ok = await upload(admin, 'tiktok', tiktokCsv(), 'คำสั่งซื้อ TikTok.csv');
   assert.equal(ok.status, 200);
   assert.deepEqual(await ok.json(), { ok: true, message: 'อัปโหลดสำเร็จ', duplicate: false });
@@ -186,9 +218,20 @@ test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; own
   assert.equal((await get(admin, '/marketplace.html')).status, 403);
   assert.equal((await get(admin, '/marketplace-upload.html')).status, 200);
   const history = await (await get(admin, '/api/marketplace/uploads')).json();
-  assert.deepEqual(Object.keys(history.uploads[0]).sort(), ['createdAt', 'fileName', 'id', 'platform', 'uploadedBy']);
+  assert.deepEqual(Object.keys(history.uploads[0]).sort(), ['createdAt', 'fileName', 'id', 'platform', 'shop', 'uploadedBy']);
   assert.equal(history.uploads[0].fileName, 'คำสั่งซื้อ TikTok.csv');
   assert.equal(history.uploads[0].uploadedBy, 'admin1 ชื่อเต็ม');
+  assert.equal(history.uploads[0].shop, 'Proplus');
+  const { shops } = await (await post(admin, '/api/marketplace/shops', { name: 'Best' })).json();
+  const best = shops.find(s => s.name === 'Best');
+  const pick = await upload(admin, 'tiktok', tiktokCsv(), 'x.csv');
+  assert.equal(pick.status, 400); // two active shops: must choose
+  assert.match((await pick.json()).error, /เลือกร้าน/);
+  const wrongShop = await fetch(`${base}/api/marketplace/upload?platform=tiktok&shop=${best.id}`, { method: 'POST', headers: { cookie: admin, 'Content-Type': 'application/octet-stream', 'X-File-Name': 'x.csv', 'X-PRPlus-Request': '1' }, body: tiktokCsv() });
+  assert.equal(wrongShop.status, 400); // same orders already stored under Proplus
+  assert.match((await wrongShop.json()).error, /Proplus/);
+  assert.equal((await post(admin, `/api/marketplace/shops/${best.id}`, { active: false }, 'PATCH')).status, 200);
+  assert.equal((await upload(admin, 'tiktok', tiktokCsv(), 'again.csv')).status, 200); // Best closed: Proplus is the only active shop
 
   assert.equal((await get(exec, summaryPath)).status, 403); // not granted by default; owner can tick it per role
   const summary = await get(owner, summaryPath);
@@ -196,4 +239,7 @@ test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; own
   assert.equal((await summary.json()).platforms[0].sales, 935);
   assert.equal((await get(owner, '/api/marketplace/summary?platform=all&start=2026-09-30&end=2026-09-01')).status, 400);
   assert.equal((await get(owner, '/api/marketplace/summary?platform=ebay&start=2026-09-01&end=2026-09-30')).status, 400);
+  assert.equal((await get(owner, summaryPath + '&shop=abc')).status, 400);
+  const byBest = await (await get(owner, `${summaryPath}&shop=${best.id}`)).json();
+  assert.deepEqual(byBest.platforms, []);
 });

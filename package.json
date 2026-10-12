@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "test:access": "node --test test-auth.js test-rbac.js test-security.js test-2fa.js"
+    "test:access": "node --test test-auth.js test-rbac.js test-security.js test-2fa.js",
+    "backup": "node scripts/backup-db.js"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -15,6 +16,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "fast-xml-parser": "^5.11.1",
+    "jszip": "^3.10.1",
     "pg": "^8.16.3",
     "qrcode-generator": "^2.0.4"
   },

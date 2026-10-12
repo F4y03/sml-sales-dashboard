@@ -7,9 +7,13 @@ export function createAccessStore(path = ':memory:', env = {}) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive:true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql','005-unmatched-product-images.sql','006-product-image-files.sql','007-marketplace.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
+  for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql','005-unmatched-product-images.sql','006-product-image-files.sql','007-marketplace.sql','008-marketplace-shops.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
   // Per-user override: an 'all'-scope role (e.g. Admin) can be limited to assigned territories.
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='scope_override'").get()) db.exec("ALTER TABLE users ADD COLUMN scope_override TEXT CHECK(scope_override IN ('territory'))");
+  // Marketplace seller shop (008); NULL = uploaded before shops existed.
+  for (const table of ['marketplace_uploads','marketplace_orders','marketplace_settlements']) {
+    if (!db.prepare("SELECT 1 FROM pragma_table_info(?) WHERE name='shop_id'").get(table)) db.exec(`ALTER TABLE ${table} ADD COLUMN shop_id INTEGER REFERENCES marketplace_shops(id)`);
+  }
   const store = {
     db, path,
     all: (sql, ...params) => db.prepare(sql).all(...params),

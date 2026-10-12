@@ -12,10 +12,10 @@
     <link rel="stylesheet" href="workspace-nav.css" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
-    <link rel="stylesheet" href="marketplace.css?v=20261008" />
+    <link rel="stylesheet" href="marketplace.css?v=202610092" />
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261008-marketplace" defer></script>
-    <script src="marketplace-upload.js?v=20261008" defer></script>
+    <script src="marketplace-upload.js?v=20261009" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -37,8 +37,26 @@
         </div>
 
         <form id="upload-form" class="mp-panel mp-upload" novalidate>
+          <fieldset class="mp-step" id="shop-step">
+            <legend><span class="mp-step-no">1</span>เลือกร้าน</legend>
+            <div class="mp-shop-row">
+              <select id="shop-select" class="mp-select" aria-label="ร้าน" disabled><option value="">กำลังโหลดรายชื่อร้าน…</option></select>
+              <p id="shop-auto" class="mp-muted mp-shop-auto" hidden></p>
+              <button type="button" id="manage-shops" class="mp-btn mp-btn-ghost mp-btn-sm" aria-expanded="false" aria-controls="shop-manager">จัดการร้าน</button>
+            </div>
+            <div id="shop-manager" class="mp-shop-manager" hidden>
+              <ul id="shop-list" class="mp-shop-list"></ul>
+              <div class="mp-shop-add">
+                <input id="shop-name" class="mp-input" type="text" maxlength="60" placeholder="ชื่อร้านใหม่ เช่น Proplus" aria-label="ชื่อร้านใหม่" />
+                <button type="button" id="add-shop" class="mp-btn mp-btn-sm">เพิ่มร้าน</button>
+              </div>
+              <p class="mp-muted">ปิดร้านแล้วจะเลือกตอนอัปโหลดไม่ได้ แต่ข้อมูลเดิมยังอยู่ในรายงาน</p>
+              <p id="shop-status" class="mp-muted" role="status"></p>
+            </div>
+          </fieldset>
+
           <fieldset class="mp-step">
-            <legend><span class="mp-step-no">1</span>เลือกแพลตฟอร์ม</legend>
+            <legend><span class="mp-step-no">2</span>เลือกแพลตฟอร์ม</legend>
             <div class="mp-platforms">
               <label class="mp-platform" data-platform="shopee">
                 <input type="radio" name="platform" value="shopee" />
@@ -48,7 +66,7 @@
               <label class="mp-platform" data-platform="lazada">
                 <input type="radio" name="platform" value="lazada" />
                 <span class="mp-platform-mark" aria-hidden="true">L</span>
-                <span class="mp-platform-copy"><strong>Lazada</strong><small>คำสั่งซื้อ › Export ไฟล์คำสั่งซื้อ</small></span>
+                <span class="mp-platform-copy"><strong>Lazada</strong><small>คำสั่งซื้อ › Export และ/หรือ การเงิน › รายรับของฉัน</small></span>
               </label>
               <label class="mp-platform" data-platform="tiktok">
                 <input type="radio" name="platform" value="tiktok" />
@@ -59,7 +77,7 @@
           </fieldset>
 
           <fieldset class="mp-step">
-            <legend><span class="mp-step-no">2</span>เลือกไฟล์ Excel หรือ CSV <small>(เลือกได้หลายไฟล์)</small></legend>
+            <legend><span class="mp-step-no">3</span>เลือกไฟล์ Excel หรือ CSV <small>(เลือกได้หลายไฟล์)</small></legend>
             <label id="dropzone" class="mp-dropzone" for="file-input">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
               <strong>ลากไฟล์มาวางที่นี่ หรือแตะเพื่อเลือกไฟล์</strong>
@@ -83,7 +101,7 @@
           </div>
           <p id="history-status" class="mp-muted" role="status">กำลังโหลดประวัติ…</p>
           <table id="history-table" class="mp-table mp-history" hidden>
-            <thead><tr><th scope="col">วันเวลา</th><th scope="col">ชื่อไฟล์</th><th scope="col">แพลตฟอร์ม</th><th scope="col">ผู้อัปโหลด</th></tr></thead>
+            <thead><tr><th scope="col">วันเวลา</th><th scope="col">ชื่อไฟล์</th><th scope="col">ร้าน</th><th scope="col">แพลตฟอร์ม</th><th scope="col">ผู้อัปโหลด</th><th scope="col" aria-label="จัดการ"></th></tr></thead>
             <tbody id="history-body"></tbody>
           </table>
         </section>

@@ -8,7 +8,7 @@
     ['returned', 'คืนสินค้า', '↩'],
   ];
   const $ = id => document.getElementById(id);
-  const form = $('filters'), startInput = $('start'), endInput = $('end'), status = $('status');
+  const form = $('filters'), startInput = $('start'), endInput = $('end'), status = $('status'), shopFilter = $('shop-filter');
   const tabs = [...document.querySelectorAll('.mp-tabs [role=tab]')];
   const presets = [...document.querySelectorAll('.ov-presets [data-preset]')];
   let platform = PLATFORMS.includes(location.hash.slice(1)) || location.hash === '#all' ? location.hash.slice(1) : 'all';
@@ -60,7 +60,7 @@
     document.querySelector('.mp-kpis').classList.add('is-loading');
     setStatus('กำลังโหลดข้อมูล…');
     try {
-      const query = new URLSearchParams({ platform, start: startInput.value, end: endInput.value });
+      const query = new URLSearchParams({ platform, shop: shopFilter.value || 'all', start: startInput.value, end: endInput.value });
       const response = await fetch('/api/marketplace/summary?' + query, { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (id !== request) return;
@@ -96,9 +96,19 @@
     $('mp-content').hidden = true;
   }
 
+  // Shop filter only appears when the data holds more than one shop.
+  function renderShopFilter(shops = []) {
+    const keep = shopFilter.value || 'all';
+    shopFilter.replaceChildren(new Option('ทุกร้าน', 'all'), ...shops.map(shop => new Option(shop.name + (shop.active ? '' : ' (ปิดแล้ว)'), String(shop.id))));
+    shopFilter.value = shops.some(shop => String(shop.id) === keep) ? keep : 'all';
+    $('shop-filter-wrap').hidden = shops.length < 2 && shopFilter.value === 'all';
+  }
+
   function render(data) {
     $('mp-content').hidden = false;
-    $('display-period').textContent = `${NAMES[platform]} · ${thaiDate(data.start)} – ${thaiDate(data.end)}`;
+    renderShopFilter(data.shops);
+    const shopLabel = shopFilter.value === 'all' ? '' : ' · ' + shopFilter.selectedOptions[0].textContent;
+    $('display-period').textContent = `${NAMES[platform]}${shopLabel} · ${thaiDate(data.start)} – ${thaiDate(data.end)}`;
     const badge = $('last-upload');
     badge.dataset.state = data.bounds?.lastUploadAt ? 'connected' : '';
     badge.textContent = data.bounds?.lastUploadAt
@@ -123,7 +133,7 @@
     } else {
       $('kpi-fees').textContent = '—';
       $('kpi-net').textContent = '—';
-      const why = platform === 'lazada' ? 'ไฟล์ออเดอร์ Lazada ไม่มีค่าธรรมเนียม' : 'ไม่มีไฟล์รายรับ/การชำระเงินในช่วงนี้';
+      const why = platform === 'lazada' ? 'ยังไม่มีใบแจ้งยอด Lazada ที่ตรงกับออเดอร์ในช่วงนี้' : 'ไม่มีไฟล์รายรับ/การชำระเงินในช่วงนี้';
       $('kpi-fees-foot').textContent = why;
       $('kpi-net-foot').textContent = why;
     }
@@ -311,6 +321,7 @@
   presets.forEach(button => button.addEventListener('click', () => { applyPreset(button.dataset.preset); load(); }));
   for (const input of [startInput, endInput]) input.addEventListener('change', () => { preset = ''; presets.forEach(b => b.setAttribute('aria-pressed', 'false')); });
   form.addEventListener('submit', event => { event.preventDefault(); load(); });
+  shopFilter.addEventListener('change', load);
   window.addEventListener('hashchange', () => {
     const name = location.hash.slice(1);
     if (name !== platform && (name === 'all' || PLATFORMS.includes(name))) { selectTab(name); load(); }
