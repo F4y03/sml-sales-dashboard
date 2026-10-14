@@ -1,6 +1,7 @@
 import { MODULES } from '../config/access.js';
 import { canAdmin,hasPermission,landingPage } from '../services/permissionService.js';
 import { accessContext } from '../services/territoryService.js';
+import { isProductSheetPublicRead } from '../routes/productSheetProxy.js';
 export const requireLogin=(req,res,next)=>req.auth?next():res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
 export const requireRole=(...roles)=>(req,res,next)=>roles.includes(req.auth?.role)?next():res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'});
 export const requireSuperAdmin=requireRole('super_admin');
@@ -22,6 +23,8 @@ export function installAccess(app) {
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();
+    // Proxied product-sheet tool: viewing is public, editing the product workbook is super_admin only.
+    if(path==='/product-sheet'||path.startsWith('/product-sheet/'))return isProductSheetPublicRead(req)||req.auth.role==='super_admin'?next():forbidden();
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
     if(path==='/api/products/export'&&req.auth.role!=='super_admin')return forbidden();

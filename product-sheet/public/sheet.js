@@ -120,7 +120,7 @@ async function loadMissingProducts() {
   loading.append(loadingCell);
   body.append(loading);
   try {
-    const response = await fetch("/api/missing-products", {
+    const response = await fetch("api/missing-products", {
       cache: "no-store",
     });
     const result = await response.json();
@@ -235,7 +235,7 @@ get("product-form").addEventListener("submit", async (event) => {
   get("cancel-product").disabled = true;
   get("editor-message").textContent = "กำลังบันทึก…";
   try {
-    const response = await fetch("/api/missing-products", {
+    const response = await fetch("api/missing-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sourceCode: editingProduct.code, values }),
@@ -251,7 +251,7 @@ get("product-form").addEventListener("submit", async (event) => {
   }
 });
 
-fetch("/api/sheet")
+fetch("api/sheet")
   .then((response) => {
     if (!response.ok) throw Error();
     return response.json();

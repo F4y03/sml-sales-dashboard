@@ -2,6 +2,7 @@ import { randomBytes, scrypt as scryptCallback, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { isIP } from 'node:net';
 import { createAccessStore } from './src/models/accessStore.js';
+import { isProductSheetPath, isProductSheetPublicRead } from './src/routes/productSheetProxy.js';
 import { createAuditService } from './src/services/auditService.js';
 import { loadUser, landingPage } from './src/services/permissionService.js';
 import { createTwoFactorService } from './src/services/twoFactorService.js';
@@ -120,7 +121,8 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
       if(territoryId!==session.territory_id)store.run('UPDATE sessions SET territory_id=? WHERE token_hash=?',territoryId,key);
       req.auth={...user,territoryId,territories:allowed.map(({mapping,...t})=>t)};req.territory=territory;req.sessionHash=key;return next();
     }
-    if(req.path==='/api'||req.path.startsWith('/api/'))return res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
+    if(isProductSheetPublicRead(req))return next();
+    if(req.path==='/api'||req.path.startsWith('/api/')||(isProductSheetPath(req)&&req.method!=='GET'))return res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
     res.redirect('/login.html?next='+encodeURIComponent(req.originalUrl));
   });
   app.get('/api/auth/me',(req,res)=>{const {auth_version,...user}=req.auth;res.json({...user,landing:landingPage(req.auth),dashboardName:store.get("SELECT value FROM system_settings WHERE key='dashboard_name'")?.value||env.DASHBOARD_NAME||'SML analytics',supportMessage:store.get("SELECT value FROM system_settings WHERE key='support_message'")?.value||''});});

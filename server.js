@@ -19,6 +19,7 @@ import { installTikTokShop } from './tiktok-shop.js';
 import { createAccessStore } from './src/models/accessStore.js';
 import { createScopedPool } from './src/services/territoryService.js';
 import { installAccess } from './src/middleware/access.js';
+import { installProductSheetProxy } from './src/routes/productSheetProxy.js';
 import { installAdminRoutes } from './src/routes/adminRoutes.js';
 
 const app = express();
@@ -32,10 +33,13 @@ const flag = 44;
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;
 app.disable('x-powered-by');
-app.use(express.json({ limit: '32kb' }));
+// product-sheet bodies are streamed to the proxied tool untouched.
+const jsonBody = express.json({ limit: '32kb' });
+app.use((req, res, next) => /^\/product-sheet(\/|$)/i.test(req.path) ? next() : jsonBody(req, res, next));
 const accessStore = createAccessStore(fileURLToPath(new URL('./data/access.sqlite', import.meta.url)), process.env);
 const auth = installAuth(app, process.env, accessStore);
 installAccess(app);
+installProductSheetProxy(app, { store: accessStore });
 installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)), auth.twofa);
 app.get('/api/connection-status', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
