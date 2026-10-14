@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TikTok Shop API · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=202610092" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261014-tiktok" defer></script>
+    <script src="tiktok-api-panel.js?v=20261014-page" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PROPLUS" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+    <script src="/pwa-install.js" defer></script>
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">TIKTOK SHOP API</p>
+              <h1>ดึงยอดขาย TikTok Shop อัตโนมัติ<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">เชื่อมร้านครั้งเดียว แล้วดึงออเดอร์ตามช่วงวันที่ ข้อมูลจะไปรวมในหน้า "ยอดขายออนไลน์"</p>
+            </div>
+          </header>
+        </div>
+
+        <section class="mp-panel" id="tiktok-api" aria-labelledby="tiktok-api-title" hidden>
+          <div class="mp-panel-head">
+            <h2 id="tiktok-api-title">การเชื่อมต่อร้าน</h2>
+            <a id="tiktok-connect" class="mp-btn mp-btn-ghost mp-btn-sm" href="/api/tiktok/connect" hidden>เชื่อมต่อร้าน TikTok</a>
+          </div>
+          <div id="tiktok-shop-row" class="mp-shop-row" hidden>
+            <select id="shop-select" class="mp-select" aria-label="บันทึกออเดอร์เข้าร้าน"></select>
+            <p class="mp-muted">เลือกร้านในแดชบอร์ดที่จะบันทึกออเดอร์ TikTok ก่อนกดเชื่อมต่อ</p>
+          </div>
+          <ul id="tiktok-connections" class="mp-shop-list"></ul>
+          <div id="tiktok-sync" class="mp-shop-add" hidden>
+            <input id="tiktok-start" class="mp-input" type="date" aria-label="ตั้งแต่วันที่" />
+            <input id="tiktok-end" class="mp-input" type="date" aria-label="ถึงวันที่" />
+            <button type="button" id="tiktok-sync-button" class="mp-btn mp-btn-primary mp-btn-sm">ดึงข้อมูล</button>
+          </div>
+          <p class="mp-muted">ดึงได้ครั้งละไม่เกิน 92 วัน ออเดอร์ที่มีอยู่แล้วจะถูกแทนด้วยข้อมูลล่าสุด ไม่นับซ้ำ ค่าธรรมเนียมยังต้องอัปโหลดไฟล์การเงินในหน้า "อัปโหลดไฟล์ยอดขาย" ตามเดิม ประวัติการดึงแต่ละครั้งดูได้ที่หน้านั้น</p>
+          <p id="tiktok-status" class="mp-muted" role="status">กำลังโหลดสถานะ…</p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

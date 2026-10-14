@@ -45,3 +45,24 @@
 ## กันออเดอร์ซ้ำ
 - คีย์ `(platform, order_id)` อัปไฟล์ซ้ำหรือช่วงวันที่ทับกัน = แทนที่ของเดิม (ข้อมูลล่าสุดชนะ เช่นสถานะเปลี่ยน) รายการสินค้าของออเดอร์นั้นถูกแทนทั้งชุด
 - ค่าธรรมเนียมคีย์ `(platform, txn_id)` — TikTok ใช้หมายเลขธุรกรรม, Shopee ใช้ `income:<order id>`
+
+## TikTok Shop API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
+แอป in-house "Proplus SML Analytics" ใน TikTok Shop Partner Center (หมวด นักพัฒนาผู้ขายภายในองค์กร, ตลาดไทย, ผู้ขายท้องถิ่น)
+- ไฟล์: `src/services/tiktokShopApi.js` (เซ็นคำขอ, token, ค้นออเดอร์/คืนสินค้า, แปลงออเดอร์), `tiktok-shop.js` (routes + sync), `migrations/009-tiktok-api.sql`, `public/tiktok-api-panel.js` (การ์ดในหน้าอัปโหลด), `test-tiktok-api.js` (TikTok ปลอม ไม่ต่อเน็ต)
+- `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ)
+- Redirect URL ใน Partner Center: `https://dashboard.sksales.app/api/tiktok/callback`
+- Scopes ที่ขอ: `seller.order.info`, `seller.product.basic`, `seller.finance.info`, `seller.return_refund.basic`
+
+| Route | สิทธิ์ | หน้าที่ |
+|---|---|---|
+| `GET /api/tiktok/status` | `marketplace_upload` | สถานะการเชื่อมต่อ (ไม่มีตัวเลขยอดขาย) |
+| `GET /api/tiktok/connect?shop=` | Super Admin | ส่งไปหน้าอนุญาตของ TikTok พร้อม state (ใช้ครั้งเดียว 10 นาที ผูกกับผู้กด) |
+| `GET /api/tiktok/callback` | Super Admin คนที่กด connect | แลก code เป็น token, ดึงรายชื่อร้าน, เก็บ token แบบเข้ารหัส (vault เดียวกับ 2FA) |
+| `POST /api/tiktok/sync {start,end}` | `marketplace_upload` | ดึงออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน ตอบแค่ "สำเร็จ" |
+| `DELETE /api/tiktok/connections/:id` | Super Admin | ลืม token (ข้อมูลที่ดึงแล้วยังอยู่) |
+
+- แต่ละครั้งที่ sync = 1 แถวใน `marketplace_uploads` ชื่อ "TikTok API <start> ถึง <end> · <ร้าน>" จึงกันซ้ำด้วย `(platform, order_id)` และลบได้จากประวัติเหมือนไฟล์
+- **นิยามเท่ากับไฟล์ export**: ยอดขาย = Σ(original_price − |seller_discount|) ต่อชิ้น (API 202309 ให้ 1 line item = 1 ชิ้น จึงรวมตาม sku_id เป็นจำนวน), ส่วนลดแพลตฟอร์มไม่หัก; สถานะ CANCELLED → ยกเลิก, มีคำขอคืน/คืนเงินที่ไม่ถูกยกเลิก/ปฏิเสธ → คืนสินค้า, COMPLETED/DELIVERED → สำเร็จ, อื่น ๆ → กำลังดำเนินการ
+- เก็บแค่จังหวัด (`district_info` ระดับ L1) ไม่เก็บชื่อ เบอร์ ที่อยู่ อีเมลผู้ซื้อ
+- ยังไม่ดึงค่าธรรมเนียม/ยอดโอนจาก API — ใช้ไฟล์ การเงิน › รายละเอียดคำสั่งซื้อ ตามเดิม
+- **ก่อนเชื่อถือตัวเลข**: ชื่อฟิลด์ตามเอกสาร API 202309 ยังไม่ได้ทดสอบกับร้านจริง ให้ sync ช่วงที่เคยอัปไฟล์ไว้แล้วเทียบยอดก่อนใช้งาน

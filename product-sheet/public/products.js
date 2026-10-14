@@ -51,11 +51,19 @@ function content(td, column, value, stock) {
     return;
   }
   if (column.kind === "tags") {
-    for (const tag of value.split(",").map((t) => t.trim()).filter(Boolean)) {
+    // แสดงเฉพาะหมวดชั้นล่างสุด และรวมชื่อซ้ำที่อยู่ใต้หลายหมวดแม่
+    const paths = value.split(",").map((t) => t.trim()).filter(Boolean);
+    const leaves = new Map();
+    for (const tag of paths) {
+      if (paths.some((other) => other.startsWith(`${tag} >`))) continue;
+      const leaf = tag.split(">").pop().trim();
+      leaves.set(leaf, [...(leaves.get(leaf) || []), tag]);
+    }
+    for (const [leaf, full] of leaves) {
       const span = document.createElement("span");
       span.className = "tag";
-      span.textContent = tag.split(">").pop().trim();
-      span.title = tag;
+      span.textContent = leaf;
+      span.title = full.join("\n");
       td.append(span);
     }
     return;
@@ -127,10 +135,140 @@ function render() {
   document.querySelector(".sheet-scroll").scrollTop = 0;
 }
 
+// ---------- ตัวกรองหมวดหมู่แบบต้นไม้ ----------
+const groupOrder = [
+  "เครื่องเสียงกลางแจ้ง",
+  "ดอกลำโพง & ยูนิต",
+  "ตู้ลำโพง",
+  "แอมป์ & มิกเซอร์",
+  "ไมโครโฟน",
+  "ตู้แร็ค & ขาตั้ง",
+  "เครื่องเสียงรถยนต์",
+  "สายสัญญาณ & ปลั๊ก",
+  "อะไหล่ & อุปกรณ์ช่าง",
+];
+let categoryPath = "",
+  categoryTree = null;
+const openPaths = new Set();
+const inCategory = (item, path) =>
+  item.categories.some((c) => c === path || c.startsWith(`${path} > `));
+
+function buildCategoryTree() {
+  const root = { children: new Map(), count: rows.length };
+  for (const item of rows) {
+    // นับสินค้าหนึ่งครั้งต่อโหนด แม้อยู่หลาย path ใต้โหนดเดียวกัน
+    const seen = new Set();
+    for (const path of item.categories) {
+      let node = root;
+      const parts = path.split(" > ");
+      parts.forEach((name, i) => {
+        const full = parts.slice(0, i + 1).join(" > ");
+        if (!node.children.has(name))
+          node.children.set(name, { name, path: full, children: new Map(), count: 0 });
+        node = node.children.get(name);
+        if (!seen.has(full)) {
+          seen.add(full);
+          node.count++;
+        }
+      });
+    }
+  }
+  categoryTree = root;
+  renderCategoryTree();
+}
+
+function sortedChildren(node, top) {
+  return [...node.children.values()].sort((a, b) => {
+    if (top) {
+      const ia = groupOrder.indexOf(a.name),
+        ib = groupOrder.indexOf(b.name);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    }
+    return a.name.localeCompare(b.name, "th", { numeric: true });
+  });
+}
+
+function renderCategoryTree() {
+  const list = get("cat-tree");
+  if (!categoryTree) return;
+  const query = get("cat-search").value.trim().toLocaleLowerCase();
+  const matches = (node) =>
+    node.name.toLocaleLowerCase().includes(query) ||
+    [...node.children.values()].some(matches);
+  const build = (node, depth) => {
+    const wrap = document.createElement("div");
+    wrap.className = `cat-node depth-${Math.min(depth, 2)}`;
+    const hasChildren = node.children.size > 0;
+    const open = hasChildren && (query ? true : openPaths.has(node.path));
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "cat-item";
+    button.classList.toggle("on", node.path === categoryPath);
+    button.classList.toggle("open", open);
+    if (hasChildren) button.setAttribute("aria-expanded", String(open));
+    button.title = node.path;
+    button.innerHTML = '<span class="cat-name"></span><span class="cat-count"></span>';
+    button.querySelector(".cat-name").textContent = node.name;
+    button.querySelector(".cat-count").textContent = node.count.toLocaleString("th-TH");
+    if (hasChildren) button.insertAdjacentHTML("beforeend", '<span class="cat-chev" aria-hidden="true">›</span>');
+    button.onclick = () => selectCategory(node.path, hasChildren);
+    wrap.append(button);
+    if (open) {
+      const children = document.createElement("div");
+      children.className = "cat-children";
+      for (const child of sortedChildren(node, false))
+        if (!query || matches(child) || node.name.toLocaleLowerCase().includes(query))
+          children.append(build(child, depth + 1));
+      wrap.append(children);
+    }
+    return wrap;
+  };
+  const all = document.createElement("button");
+  all.type = "button";
+  all.className = "cat-item cat-all";
+  all.classList.toggle("on", !categoryPath);
+  all.innerHTML = '<span class="cat-name">ทั้งหมด</span><span class="cat-count"></span>';
+  all.querySelector(".cat-count").textContent = categoryTree.count.toLocaleString("th-TH");
+  all.onclick = () => selectCategory("", false);
+  const nodes = sortedChildren(categoryTree, true)
+    .filter((node) => !query || matches(node))
+    .map((node) => build(node, 0));
+  list.replaceChildren(all, ...nodes);
+  if (!nodes.length && query) {
+    const empty = document.createElement("p");
+    empty.className = "cat-empty";
+    empty.textContent = "ไม่พบหมวดหมู่ที่ค้นหา";
+    list.append(empty);
+  }
+  get("cat-current").textContent = categoryPath
+    ? categoryPath.split(" > ").pop()
+    : "ทั้งหมด";
+  get("cat-current").title = categoryPath;
+}
+
+function selectCategory(path, hasChildren) {
+  if (path && path === categoryPath && hasChildren && openPaths.has(path)) {
+    // กดหมวดที่เลือกอยู่ซ้ำ = ยกเลิกเลือกและพับ
+    openPaths.delete(path);
+    categoryPath = path.includes(" > ") ? path.slice(0, path.lastIndexOf(" > ")) : "";
+  } else {
+    categoryPath = path;
+    const parts = path ? path.split(" > ") : [];
+    parts.forEach((_, i) => openPaths.add(parts.slice(0, i + 1).join(" > ")));
+    if (!hasChildren) get("cat-panel").classList.remove("open");
+  }
+  renderCategoryTree();
+  search();
+}
+
+get("cat-search").addEventListener("input", renderCategoryTree);
+get("cat-toggle").onclick = () => get("cat-panel").classList.toggle("open");
+get("cat-close").onclick = () => get("cat-panel").classList.remove("open");
+
 function search() {
   const query = get("search").value.trim().toLocaleLowerCase();
   const stockFilter = get("filter-stock").value,
-    category = get("filter-category").value;
+    category = categoryPath;
   const presence = [...document.querySelectorAll(".column-filters select")]
     .map((select, index) => [index, select.value])
     .filter(([, value]) => value !== "all");
@@ -140,7 +278,7 @@ function search() {
         ([index, value]) => (value === "has") === item.filled[index],
       ) &&
       (stockFilter === "all" || stockFilter === item.stockState) &&
-      (!category || item.categories.includes(category)) &&
+      (!category || inCategory(item, category)) &&
       (!query ||
         item.values.some((value) => value.toLocaleLowerCase().includes(query))),
   );
@@ -159,15 +297,16 @@ get("next").onclick = () => {
   render();
 };
 get("search").addEventListener("input", search);
-for (const id of ["filter-stock", "filter-category"])
-  get(id).addEventListener("change", search);
+get("filter-stock").addEventListener("change", search);
 get("reset-filters").onclick = () => {
   document.querySelectorAll(".column-filters select").forEach((select, i) => {
     select.value = i === 0 ? "has" : "all";
     select.classList.toggle("active", i === 0);
   });
   get("filter-stock").value = "all";
-  get("filter-category").value = "";
+  categoryPath = "";
+  get("cat-search").value = "";
+  renderCategoryTree();
   search();
 };
 get("clear-search").onclick = () => {
@@ -380,6 +519,20 @@ function applyNewCode(item, newCode, stock) {
         `คลังจาก SML (ยอดคงเหลือในทะเบียน) ณ ${new Date(sml.value.updatedAt).toLocaleString("th-TH")}`,
       );
 
+    // WooCommerce: variation ไม่มีหมวดของตัวเอง ใช้หมวดของสินค้าแม่
+    // คอลัมน์ "หลัก" อ้างแม่ได้ทั้ง id:<ID> หรือรหัสสินค้า
+    const categoryIndex = columns.findIndex((c) => c.kind === "tags");
+    const idColumn = headers.indexOf("ID");
+    const parentColumn = headers.indexOf("หลัก");
+    const parentCategories = new Map();
+    if (indexes[categoryIndex] >= 0)
+      data.rows.forEach((row, r) => {
+        const category = String(row[indexes[categoryIndex]] ?? "");
+        if (!category.trim()) return;
+        const id = idColumn < 0 ? "" : String(row[idColumn] ?? "").trim();
+        if (id) parentCategories.set(`id:${id}`, category);
+        if (codes[r]) parentCategories.set(codes[r].toLocaleLowerCase(), category);
+      });
     rows = data.rows.map((row, r) => {
       const key = codes[r].toLocaleLowerCase();
       const stock =
@@ -389,8 +542,11 @@ function applyNewCode(item, newCode, stock) {
         if (!key) return "";
         return sml.status === "fulfilled" ? formatQty(stock) : "โหลดไม่สำเร็จ";
       });
+      if (!values[categoryIndex].trim() && parentColumn >= 0) {
+        const parent = String(row[parentColumn] ?? "").trim().toLocaleLowerCase();
+        values[categoryIndex] = parentCategories.get(parent) || "";
+      }
       const qty = stock && stock.qty != null ? Number(stock.qty) : NaN;
-      const categoryIndex = columns.findIndex((c) => c.kind === "tags");
       return {
         values,
         stock,
@@ -413,20 +569,14 @@ function applyNewCode(item, newCode, stock) {
                   ? "in"
                   : "out"
                 : "unknown",
+        // path เต็ม เช่น "ไมโครโฟน > ไมโครโฟน > ไมค์ลอย"
         categories: values[categoryIndex]
           .split(",")
-          .map((t) => t.split(">").pop().trim())
+          .map((t) => t.split(">").map((part) => part.trim()).join(" > "))
           .filter(Boolean),
       };
     });
-    const select = get("filter-category");
-    const counts = new Map();
-    rows.forEach((r) =>
-      r.categories.forEach((c) => counts.set(c, (counts.get(c) || 0) + 1)),
-    );
-    [...counts]
-      .sort((a, b) => a[0].localeCompare(b[0], "th"))
-      .forEach(([name, n]) => select.append(new Option(`${name} (${n})`, name)));
+    buildCategoryTree();
     if (sml.status === "fulfilled") renderUnmatched();
     else get("unmatched-count").textContent = "ตรวจสอบไม่ได้ (โหลด SML ไม่สำเร็จ)";
     get("status").textContent = [...notes, "แสดงหน้าละ 10 รายการ"].join(" · ");

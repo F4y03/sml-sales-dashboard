@@ -1,0 +1,132 @@
+// TikTok Shop Open API (API version 202309) for the in-house seller app. See MARKETPLACE.md › TikTok Shop API.
+// Only the order fields the marketplace tables already store are read: no buyer name, phone, address or email —
+// recipient_address is reduced to the province name, like the Seller Center export.
+import { createHmac } from 'node:crypto';
+
+export const API_BASE = 'https://open-api.tiktokglobalshop.com';
+export const AUTH_BASE = 'https://auth.tiktok-shops.com';
+export const AUTHORIZE_URL = 'https://services.tiktokshop.com/open/authorize';
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+export class TikTokApiError extends Error {
+  constructor(message, code = null) { super(message); this.name = 'TikTokApiError'; this.code = code; }
+}
+
+// Signature: HMAC-SHA256(secret, secret + path + sorted(key+value, without sign/access_token) + body + secret), hex.
+export function signRequest(secret, path, query, body = '') {
+  const params = Object.keys(query).filter(k => k !== 'sign' && k !== 'access_token').sort().map(k => k + query[k]).join('');
+  return createHmac('sha256', secret).update(secret + path + params + body + secret).digest('hex');
+}
+
+export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now = () => Date.now() }) {
+  if (!appKey || !appSecret) throw new TikTokApiError('ยังไม่ได้ตั้งค่า TIKTOK_APP_KEY / TIKTOK_APP_SECRET ใน .env');
+  const unwrap = async response => {
+    let json;
+    try { json = await response.json(); } catch { throw new TikTokApiError(`TikTok ตอบกลับไม่ถูกต้อง (HTTP ${response.status})`); }
+    if (json.code !== 0) throw new TikTokApiError(`TikTok: ${json.message || 'ไม่ทราบสาเหตุ'}`, json.code ?? null);
+    return json.data || {};
+  };
+  // Token endpoints answer absolute unix-second expiry times.
+  const token = data => ({
+    accessToken: data.access_token, accessExpires: Number(data.access_token_expire_in) * 1000,
+    refreshToken: data.refresh_token, refreshExpires: Number(data.refresh_token_expire_in) * 1000,
+    sellerName: data.seller_name || '',
+  });
+  const tokenCall = async (path, params) => {
+    const url = new URL(path, AUTH_BASE);
+    for (const [k, v] of Object.entries({ app_key: appKey, app_secret: appSecret, ...params })) url.searchParams.set(k, v);
+    const data = await unwrap(await fetchImpl(url, { method: 'GET' }));
+    if (!data.access_token || !data.refresh_token) throw new TikTokApiError('TikTok ไม่ได้ส่ง token กลับมา');
+    return token(data);
+  };
+  async function call(method, path, { accessToken, shopCipher, query = {}, body } = {}) {
+    const json = body === undefined ? '' : JSON.stringify(body);
+    const params = { ...query, app_key: appKey, timestamp: String(Math.floor(now() / 1000)) };
+    if (shopCipher) params.shop_cipher = shopCipher;
+    params.sign = signRequest(appSecret, path, params, json);
+    const url = new URL(path, API_BASE);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    const headers = { 'content-type': 'application/json', 'x-tts-access-token': accessToken };
+    return unwrap(await fetchImpl(url, { method, headers, body: json || undefined }));
+  }
+  return {
+    authorizeUrl: (serviceId, state) => `${AUTHORIZE_URL}?service_id=${encodeURIComponent(serviceId)}&state=${encodeURIComponent(state)}`,
+    exchangeCode: code => tokenCall('/api/v2/token/get', { auth_code: code, grant_type: 'authorized_code' }),
+    refresh: refreshToken => tokenCall('/api/v2/token/refresh', { refresh_token: refreshToken, grant_type: 'refresh_token' }),
+    async shops(accessToken) {
+      const data = await call('GET', '/authorization/202309/shops', { accessToken });
+      return (data.shops || []).map(s => ({ id: String(s.id), name: String(s.name || ''), cipher: String(s.cipher || ''), region: s.region }));
+    },
+    // Orders created in [fromMs, toMs). Follows next_page_token until the last page.
+    async searchOrders({ accessToken, shopCipher, fromMs, toMs, maxPages = 400 }) {
+      const orders = [];
+      let pageToken = '';
+      for (let page = 0; page < maxPages; page++) {
+        const query = { page_size: '50', sort_field: 'create_time', sort_order: 'ASC', ...(pageToken && { page_token: pageToken }) };
+        const data = await call('POST', '/order/202309/orders/search', { accessToken, shopCipher, query,
+          body: { create_time_ge: Math.floor(fromMs / 1000), create_time_lt: Math.floor(toMs / 1000) } });
+        orders.push(...(data.orders || []));
+        pageToken = data.next_page_token || '';
+        if (!pageToken) return orders;
+      }
+      throw new TikTokApiError('ออเดอร์ในช่วงนี้มากเกินไป กรุณาเลือกช่วงวันที่สั้นลง');
+    },
+    // Returns / refunds for the given orders, keyed by order id (50 order ids per call).
+    async returnsByOrder({ accessToken, shopCipher, orderIds }) {
+      const byOrder = new Map();
+      for (let i = 0; i < orderIds.length; i += 50) {
+        let pageToken = '';
+        do {
+          const query = { page_size: '50', ...(pageToken && { page_token: pageToken }) };
+          const data = await call('POST', '/return_refund/202309/returns/search', { accessToken, shopCipher, query, body: { order_ids: orderIds.slice(i, i + 50) } });
+          for (const r of data.return_orders || []) {
+            const list = byOrder.get(String(r.order_id)) || [];
+            list.push(r);
+            byOrder.set(String(r.order_id), list);
+          }
+          pageToken = data.next_page_token || '';
+        } while (pageToken);
+      }
+      return byOrder;
+    },
+  };
+}
+
+const money = value => { const n = Number(value); return Number.isFinite(n) ? n : 0; };
+const round2 = n => Math.round(n * 100) / 100;
+const clean = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+
+// Order create_time (unix seconds) as the Thai calendar day, ค.ศ. YYYY-MM-DD — same day the Seller Center export shows.
+export const bangkokDate = seconds => new Date(Number(seconds) * 1000 + BANGKOK_OFFSET_MS).toISOString().slice(0, 10);
+// Bangkok midnight of a YYYY-MM-DD day, as epoch ms.
+export const bangkokDayStart = day => Date.parse(day + 'T00:00:00Z') - BANGKOK_OFFSET_MS;
+
+// A return that was cancelled or rejected leaves the order as it was.
+const activeReturn = r => !/CANCEL|REJECT/i.test(String(r.return_status || ''));
+
+// Same buckets and sales definition as the export parser (MARKETPLACE.md › นิยามตัวเลข):
+// sales = Σ(original price − |seller discount|) per line; platform discounts are not deducted.
+export function mapTikTokOrder(order, returns = []) {
+  const id = clean(order.id);
+  if (!/^[A-Za-z0-9_-]{5,40}$/.test(id)) return null;
+  const statusRaw = clean(order.status);
+  const active = returns.filter(activeReturn);
+  const refund = round2(active.reduce((sum, r) => sum + Math.abs(money(r.refund_amount?.refund_total)), 0));
+  const status = /CANCEL/i.test(statusRaw) ? 'cancelled' : active.length ? 'returned' : /COMPLETED|DELIVERED/i.test(statusRaw) ? 'completed' : 'pending';
+  // 202309 line items are one row per unit: group by SKU into lines with a quantity.
+  const lines = new Map();
+  for (const li of order.line_items || []) {
+    const sku = clean(li.seller_sku) || clean(li.sku_id);
+    const name = [clean(li.product_name), clean(li.sku_name)].filter(Boolean).join(' · ') || sku || 'ไม่ระบุชื่อสินค้า';
+    const lineKey = clean(li.sku_id) || `${sku}|${name}`;
+    const line = lines.get(lineKey) || { lineKey, sku, name, quantity: 0, sales: 0, status };
+    line.quantity += 1;
+    line.sales = round2(line.sales + money(li.original_price) - Math.abs(money(li.seller_discount)));
+    lines.set(lineKey, line);
+  }
+  const items = [...lines.values()];
+  const province = clean((order.recipient_address?.district_info || []).find(d => d.address_level === 'L1')?.address_name)
+    .replace(/^จังหวัด\s*/, '').slice(0, 60) || null;
+  return { orderId: id, orderDate: bangkokDate(order.create_time), status, statusRaw: statusRaw.slice(0, 120),
+    sales: round2(items.reduce((sum, item) => sum + item.sales, 0)), refund, province, source: 'api', items };
+}
