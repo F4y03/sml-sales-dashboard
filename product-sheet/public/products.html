@@ -412,6 +412,131 @@
           margin-left: 0;
         }
       }
+      /* ---------- ป็อปอัปรายละเอียดสินค้า ---------- */
+      #rows tr {
+        cursor: pointer;
+      }
+      #rows tr:hover td {
+        background: #e5f2e9;
+      }
+      #rows tr:focus-visible {
+        outline: 2px solid #217346;
+        outline-offset: -2px;
+      }
+      .detail {
+        width: min(760px, calc(100vw - 32px));
+        max-height: calc(100vh - 48px);
+        padding: 0;
+        border: 1px solid #dfe8e2;
+        border-radius: 10px;
+        color: #24332d;
+        box-shadow: 0 20px 50px rgba(20, 40, 30, 0.25);
+      }
+      .detail::backdrop {
+        background: rgba(20, 35, 28, 0.45);
+      }
+      .detail-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 16px 20px;
+        background: #fff;
+        border-bottom: 1px solid #dfe8e2;
+      }
+      .detail-head > div {
+        flex: 1;
+        min-width: 0;
+      }
+      .detail-code {
+        margin: 0;
+        color: #217346;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      .detail-head h2 {
+        margin: 2px 0 0;
+        font-size: 17px;
+        line-height: 1.4;
+      }
+      .detail-close {
+        border: 0;
+        background: none;
+        font-size: 24px;
+        line-height: 1;
+        color: #687c70;
+        cursor: pointer;
+        padding: 2px 6px;
+      }
+      .detail-btn {
+        flex-shrink: 0;
+        border: 1px solid #c9d8ce;
+        background: #fff;
+        color: #217346;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .detail-btn:hover {
+        background: #e5f2e9;
+      }
+      .detail-fields {
+        margin: 0;
+        padding: 8px 20px 20px;
+      }
+      .detail-field {
+        padding: 10px 0;
+        border-bottom: 1px solid #eef2ef;
+      }
+      .detail-field dt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #687c70;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .detail-field dt .detail-btn {
+        margin-left: auto;
+      }
+      .detail-field dd {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        user-select: text;
+      }
+      .detail-field dd a {
+        color: #217346;
+      }
+      .detail-toast {
+        position: sticky;
+        bottom: 0;
+        margin: 0;
+        padding: 0 20px 12px;
+        min-height: 0;
+        color: #217346;
+        font-size: 12px;
+        background: #fff;
+      }
+      .detail-toast:empty {
+        padding: 0;
+      }
+      @media (max-width: 600px) {
+        .detail-head {
+          flex-wrap: wrap;
+        }
+        .detail-head > div {
+          flex-basis: calc(100% - 40px);
+        }
+        .detail-head > .detail-btn {
+          order: 3;
+        }
+      }
     </style>
     <script src="products.js" defer></script>
   </head>
@@ -477,15 +602,6 @@
         <div id="cat-tree" class="cat-tree"><p class="cat-empty">กำลังโหลด…</p></div>
       </aside>
       <div class="sheet-main">
-      <div class="formula">
-        <span id="cell-name">A1</span><span class="fx">fx</span
-        ><textarea
-          id="cell-value"
-          readonly
-          aria-label="ข้อมูลเต็มของเซลล์ที่เลือก"
-          placeholder="คลิกเซลล์เพื่ออ่านข้อมูลเต็ม"
-        ></textarea>
-      </div>
       <div
         class="sheet-scroll"
         tabindex="0"
@@ -535,6 +651,18 @@
         </div>
       </details>
       <p id="status" role="status">แสดงหน้าละ 10 รายการ</p>
+      <dialog id="detail" class="detail" aria-labelledby="detail-title">
+        <div class="detail-head">
+          <div>
+            <p id="detail-code" class="detail-code"></p>
+            <h2 id="detail-title"></h2>
+          </div>
+          <button type="button" id="detail-copy-all" class="detail-btn">คัดลอกทั้งหมด</button>
+          <button type="button" id="detail-close" class="detail-close" aria-label="ปิด">×</button>
+        </div>
+        <dl id="detail-fields" class="detail-fields"></dl>
+        <p id="detail-toast" class="detail-toast" role="status"></p>
+      </dialog>
     </main>
   </body>
 </html>

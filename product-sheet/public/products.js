@@ -103,24 +103,145 @@ function cell(tag, text) {
   return node;
 }
 
+// ---------- ป็อปอัปข้อมูลเต็มของสินค้า ----------
+function htmlToText(value) {
+  // คงการขึ้นบรรทัดของ <br>, <p>, <li> ไว้ ให้คัดลอกไปวางแล้วอ่านง่าย
+  const doc = new DOMParser().parseFromString(value, "text/html");
+  doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+  doc.querySelectorAll("li").forEach((li) => li.prepend("• "));
+  doc
+    .querySelectorAll("p, div, li, tr, h1, h2, h3, h4, h5, h6")
+    .forEach((block) => block.append("\n"));
+  return doc.body.textContent
+    .split("\n")
+    .map((line) => line.replace(/[ \t ]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function detailText(column, value) {
+  if (!value) return "";
+  if (column.long) return htmlToText(value);
+  if (column.kind === "price") {
+    const number = Number(value.replace(/,/g, ""));
+    return Number.isFinite(number) ? `฿${number.toLocaleString("th-TH")}` : value;
+  }
+  if (column.kind === "tags")
+    return value.split(",").map((t) => t.trim()).filter(Boolean).join("\n");
+  if (column.kind === "images")
+    return (value.match(/https?:\/\/[^,\s]+/g) || [value]).join("\n");
+  return value;
+}
+
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // http (ไม่ใช่ secure context) ใช้ clipboard API ไม่ได้
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    get("detail").append(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    if (!ok) {
+      get("detail-toast").textContent = "คัดลอกไม่สำเร็จ กรุณาลากเลือกข้อความแล้วกด Ctrl+C";
+      return;
+    }
+  }
+  get("detail-toast").textContent = `คัดลอก${label}แล้ว`;
+}
+
+function openDetail(item) {
+  const dialog = get("detail");
+  const code = item.values[columns.findIndex((c) => c.kind === "code")] || "";
+  const name = item.values[columns.findIndex((c) => c.kind === "name")] || "";
+  get("detail-code").textContent = code;
+  get("detail-title").textContent = name || "ไม่มีชื่อสินค้า";
+  get("detail-toast").textContent = "";
+  const fields = columns.map((column, index) => [
+    column.name,
+    detailText(column, item.values[index]),
+    column,
+    item.values[index],
+  ]);
+  get("detail-fields").replaceChildren(
+    ...fields.map(([label, text, column, raw]) => {
+      const wrap = document.createElement("div");
+      wrap.className = "detail-field";
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      if (text) {
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "detail-btn";
+        copy.textContent = "คัดลอก";
+        copy.onclick = () => copyText(text, label);
+        dt.append(copy);
+        if (column.long && /<[a-z][\s\S]*>/i.test(raw)) {
+          // WooCommerce เก็บคำอธิบายเป็น HTML เผื่อไปวางในหลังร้าน
+          const copyHtml = document.createElement("button");
+          copyHtml.type = "button";
+          copyHtml.className = "detail-btn";
+          copyHtml.style.marginLeft = "0";
+          copyHtml.textContent = "คัดลอก HTML";
+          copyHtml.onclick = () => copyText(raw, `${label} (HTML)`);
+          dt.append(copyHtml);
+        }
+      }
+      const dd = text ? cell("dd", text) : document.createElement("dd");
+      if (!text) dd.innerHTML = '<span class="empty">—</span>';
+      wrap.append(dt, dd);
+      return wrap;
+    }),
+  );
+  get("detail-copy-all").onclick = () =>
+    copyText(
+      fields
+        .filter(([, text]) => text)
+        .map(([label, text]) => `${label}: ${text.includes("\n") ? `\n${text}` : text}`)
+        .join("\n\n"),
+      "ทั้งหมด",
+    );
+  dialog.showModal();
+  get("detail-fields").scrollTop = 0;
+  dialog.scrollTop = 0;
+}
+
+get("detail-close").onclick = () => get("detail").close();
+// คลิกพื้นหลังนอกกล่อง = ปิด (แต่ไม่ปิดตอนลากเลือกข้อความแล้วปล่อยเมาส์นอกกล่อง)
+let pressedOnBackdrop = false;
+get("detail").addEventListener("mousedown", (event) => {
+  pressedOnBackdrop = event.target === get("detail");
+});
+get("detail").addEventListener("click", (event) => {
+  if (pressedOnBackdrop && event.target === get("detail")) get("detail").close();
+});
+
 function render() {
   const body = get("rows");
   body.replaceChildren();
   filteredRows.slice(page * size, (page + 1) * size).forEach((item) => {
     const tr = document.createElement("tr");
+    tr.tabIndex = 0;
+    // คลิกแถว (ยกเว้นลิงก์รูป) หรือกด Enter = เปิดป็อปอัปข้อมูลเต็มที่คัดลอกได้
+    tr.addEventListener("click", (event) => {
+      if (!event.target.closest("a")) openDetail(item);
+    });
+    tr.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && event.target === tr) openDetail(item);
+    });
     item.values.forEach((value, index) => {
       const column = columns[index];
       const td = document.createElement("td");
-      // คำอธิบายแสดงย่อ 3 บรรทัด ค่าเต็ม (รวม HTML) ดูได้ในช่อง fx
+      // คำอธิบายแสดงย่อ 3 บรรทัด ค่าเต็มดูได้ในป็อปอัป
       content(td, column, value, item.stock);
       if (column.number) td.classList.add("number");
       if (column.kind === "code" || column.kind === "name")
         td.classList.add(column.kind);
-      td.tabIndex = 0;
-      td.addEventListener("focus", () => {
-        get("cell-name").textContent = column.name;
-        get("cell-value").value = value;
-      });
       tr.append(td);
     });
     body.append(tr);
