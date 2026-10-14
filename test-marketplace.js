@@ -84,6 +84,14 @@ test('TikTok CSV: description row skipped, multi-SKU order grouped, statuses buc
   for (const secret of PII) assert.ok(!json.includes(secret), 'PII leaked: ' + secret);
 });
 
+test('zip bomb: workbook that inflates past the limit is rejected before ExcelJS loads it', async () => {
+  const { default: JSZip } = await import('jszip');
+  const zip = await JSZip.loadAsync(await lazadaFile());
+  zip.file('xl/media/padding.bin', Buffer.alloc(310 * 1024 * 1024));
+  const bomb = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+  assert.ok(bomb.length < 2 * 1024 * 1024, 'fixture stays small when compressed');
+  await assert.rejects(parseMarketplaceFile({ buffer: bomb, fileName: 'bomb.xlsx', platform: 'lazada' }), /ใหญ่เกินไป/);
+});
 test('wrong platform, unknown, old .xls and info-only files get clear Thai messages', async () => {
   const lazada = await lazadaFile();
   await assert.rejects(parseMarketplaceFile({ buffer: lazada, fileName: 'a.xlsx', platform: 'shopee' }), /เป็นไฟล์ของ Lazada แต่เลือกแพลตฟอร์ม Shopee/);

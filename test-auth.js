@@ -43,6 +43,14 @@ test('rejects cross-site requests and throttles guessing regardless of spoofed I
   assert.equal(limited.status, 429);
   assert.ok(Number(limited.headers.get('retry-after')) > 0);
 });
+test('behind the tunnel (loopback peer) the limiter keys on CF-Connecting-IP, so one client cannot lock out others', async t => {
+  const { login } = await fixture(t);
+  for (let i = 0; i < 10; i++) assert.equal((await login('wrong', { 'CF-Connecting-IP': '203.0.113.7' })).status, 401);
+  assert.equal((await login('wrong', { 'CF-Connecting-IP': '203.0.113.7' })).status, 429);
+  // Another client is not rate-limited (the account itself is now locked by the 5-failure lockout, hence 401).
+  assert.equal((await login('test-password-123', { 'CF-Connecting-IP': '198.51.100.9' })).status, 401);
+  assert.equal((await login('wrong', { 'CF-Connecting-IP': 'not-an-ip' })).status, 401);
+});
 test('missing configuration fails closed', async t => {
   const { login, request } = await fixture(t, { AUTH_PASSWORD_HASH: '' });
   assert.equal((await login()).status, 503);

@@ -1,5 +1,6 @@
 import { randomBytes, scrypt as scryptCallback, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
+import { isIP } from 'node:net';
 import { createAccessStore } from './src/models/accessStore.js';
 import { createAuditService } from './src/services/auditService.js';
 import { loadUser, landingPage } from './src/services/permissionService.js';
@@ -26,7 +27,12 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
   const tokenOf=req=>cookieOf(req,cookieName);
   const cleanup=setInterval(()=>{store.run('DELETE FROM sessions WHERE expires<=?',Date.now());store.run('DELETE FROM login_challenges WHERE expires<=?',Date.now());store.run('DELETE FROM trusted_devices WHERE expires<=?',Date.now());for(const [key,a] of attempts)if(a.until<=Date.now())attempts.delete(key);},60000);cleanup.unref();
   app.use((req,res,next)=>{res.set({'Cache-Control':'private, no-store','Cloudflare-CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY'});next();});
-  const ipOf=req=>req.socket.remoteAddress||'unknown';
+  // Behind cloudflared every request arrives from loopback; trust Cloudflare's client IP only then.
+  // Direct (non-loopback) clients cannot spoof it, and X-Forwarded-For is never trusted.
+  const ipOf=req=>{
+    const peer=req.socket.remoteAddress||'unknown',cf=req.get('CF-Connecting-IP');
+    return ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(peer)&&cf&&isIP(cf)?cf:peer;
+  };
   // Per-IP limiter: 10 requests per 15 minutes per scope. Answers 429 and returns true when exceeded.
   const throttle=(req,res,scope='')=>{
     const key=scope+ipOf(req),now=Date.now();let attempt=attempts.get(key);

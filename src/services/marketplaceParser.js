@@ -7,6 +7,9 @@ import JSZip from 'jszip';
 export const PLATFORMS = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop' };
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_ROWS = 200000;
+// Zip-bomb guard: measured while inflating, because zip headers can lie about sizes.
+const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 2000;
 
 export class MarketplaceFileError extends Error {
   constructor(message) { super(message); this.status = 400; }
@@ -322,8 +325,25 @@ function decodeText(buffer) {
 }
 // TikTok exports write every cell in its own <row r="N"> element; exceljs keeps only the last one per row number.
 // Merge consecutive elements with the same row number before loading.
+async function checkUnzippedSize(zip) {
+  const tooBig = 'ไฟล์ Excel นี้มีข้อมูลเมื่อคลายออกมาใหญ่เกินไป กรุณาแบ่ง export เป็นช่วงวันที่สั้นลง';
+  const files = Object.values(zip.files).filter(file => !file.dir);
+  if (files.length > MAX_ZIP_ENTRIES) fail(tooBig);
+  let total = 0;
+  for (const file of files) {
+    await new Promise((resolve, reject) => {
+      const stream = file.internalStream('uint8array');
+      stream.on('data', chunk => {
+        total += chunk.length;
+        if (total > MAX_UNZIPPED_BYTES) { stream.pause(); reject(new MarketplaceFileError(tooBig)); }
+      }).on('error', reject).on('end', resolve).resume();
+    });
+  }
+}
 async function mergeSplitRows(buffer) {
-  const zip = await JSZip.loadAsync(buffer);
+  let zip;
+  try { zip = await JSZip.loadAsync(buffer); } catch { fail('เปิดไฟล์ Excel นี้ไม่ได้ ไฟล์อาจเสียหายหรือตั้งรหัสผ่านไว้ กรุณา export ไฟล์ใหม่จาก Seller Center'); }
+  await checkUnzippedSize(zip);
   let changed = false;
   for (const path of Object.keys(zip.files).filter(p => /^xl\/worksheets\/[^/]+\.xml$/.test(p))) {
     const xml = await zip.file(path).async('string');
@@ -342,7 +362,8 @@ async function readSheets(buffer, fileName) {
   if (buffer.length >= 4 && buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) fail('ไฟล์ .xls รุ่นเก่ายังไม่รองรับ กรุณาเปิดไฟล์แล้วบันทึกเป็น .xlsx หรือ export เป็น .csv');
   if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
     const workbook = new ExcelJS.Workbook();
-    try { await workbook.xlsx.load(await mergeSplitRows(buffer)); } catch { fail('เปิดไฟล์ Excel นี้ไม่ได้ ไฟล์อาจเสียหายหรือตั้งรหัสผ่านไว้ กรุณา export ไฟล์ใหม่จาก Seller Center'); }
+    const prepared = await mergeSplitRows(buffer);
+    try { await workbook.xlsx.load(prepared); } catch { fail('เปิดไฟล์ Excel นี้ไม่ได้ ไฟล์อาจเสียหายหรือตั้งรหัสผ่านไว้ กรุณา export ไฟล์ใหม่จาก Seller Center'); }
     const sheets = []; let total = 0;
     workbook.eachSheet(worksheet => {
       const rows = [];

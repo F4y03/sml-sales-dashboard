@@ -15,7 +15,8 @@ export function installAccess(app) {
   app.use((req,res,next)=>{
     if(!req.auth)return next(); // Only auth's explicitly public resources reach here anonymously.
     let path;
-    try{path=decodeURIComponent(req.path).replace(/\/+$/,'')||'/';}catch{return res.status(400).end();}
+    // Express routing and Windows static files are case-insensitive, so the policy must be too.
+    try{path=decodeURIComponent(req.path).replace(/\/+$/,'').toLowerCase()||'/';}catch{return res.status(400).end();}
     if(/%|\\|\/\//.test(path))return res.status(400).json({error:'URL ไม่ถูกต้อง'});
     const forbidden=()=>path.startsWith('/api/')?res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'}):res.status(403).send('<meta charset="utf-8"><p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p><a href="/access-denied.html">กลับหน้าบัญชี</a>');
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
