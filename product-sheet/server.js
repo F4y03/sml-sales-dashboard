@@ -251,7 +251,23 @@ app.get("/download.xlsx", (req, res, next) => {
 app.get("/download.csv", async (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   try {
-    const csv = await (await readDriveWorkbook()).csv.writeBuffer();
+    const workbook = await readDriveWorkbook();
+    const tab = workbook.worksheets[0];
+    // ลิงก์ Drive แบบ /view เปิดเป็นหน้าเว็บ WooCommerce ดึงเป็นรูปไม่ได้
+    // แปลงเป็นลิงก์รูปตรงเฉพาะใน CSV (ไฟล์ Excel ต้นฉบับไม่แก้)
+    // WooCommerce เอาชื่อไฟล์จาก path ของ URL ต้องลงท้าย .jpg ไม่งั้นขึ้น "not allowed to upload this file type"
+    // (#.jpg ไม่ถูกส่งไปที่ server ของ Google และ WordPress แก้นามสกุลให้ตรงชนิดรูปจริงเอง)
+    const imageColumn = workbookHeaders(tab).indexOf("ไฟล์รูปภาพ") + 1;
+    if (imageColumn)
+      for (let row = 2; row <= tab.rowCount; row++) {
+        const cell = tab.getCell(row, imageColumn);
+        const direct = cell.text.replace(
+          /https:\/\/drive\.google\.com\/file\/d\/([\w-]+)\/view[^,\s]*/g,
+          "https://lh3.googleusercontent.com/d/$1#.jpg",
+        );
+        if (direct !== cell.text) cell.value = direct;
+      }
+    const csv = await workbook.csv.writeBuffer();
     res.attachment("woocommerce-products.csv");
     res.type("text/csv; charset=utf-8").send(Buffer.from(csv));
   } catch (error) {
