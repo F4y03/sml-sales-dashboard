@@ -3,6 +3,7 @@ const size = 10;
 // source: "sheet" = ไฟล์ WooCommerce, "sml" = คลังจาก SML
 const columns = [
   { name: "รหัสสินค้า", source: "sheet", width: 120, kind: "code" },
+  { name: "ลงเว็บ", source: "web", width: 124, kind: "web" },
   { name: "ชื่อ", source: "sheet", width: 240, kind: "name" },
   { name: "คำอธิบาย", source: "sheet", long: true, width: 300 },
   { name: "น้ำหนัก (กก.)", source: "sheet", number: true, width: 80 },
@@ -17,6 +18,140 @@ const columns = [
 let rows = [],
   filteredRows = [],
   page = 0;
+// สถานะลงเว็บไซต์: key = รหัสสินค้าตัวเล็ก → { code, postedAt, hash }
+let webPosted = {},
+  webError = "";
+// ฟิลด์ที่ใช้ตรวจว่าข้อมูลเปลี่ยนหลังลงเว็บ (ไม่รวมคลัง เพราะเปลี่ยนทุกวัน)
+const hashFields = ["ชื่อ", "คำอธิบาย", "น้ำหนัก (กก.)", "ยาว (ซม.)", "กว้าง (ซม.)", "สูง (ซม.)", "ราคาปกติ", "หมวดหมู่", "ไฟล์รูปภาพ"];
+const webLabels = { none: "+ ลงเว็บแล้ว", posted: "✓ ลงเว็บแล้ว", changed: "⚠ ข้อมูลเปลี่ยน" };
+
+function productHash(item) {
+  const text = JSON.stringify(
+    hashFields.map((name) => item.values[columns.findIndex((c) => c.name === name)] ?? ""),
+  );
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++)
+    hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return hash.toString(16);
+}
+
+function webState(item) {
+  if (!item.code) return "nocode";
+  if (webError) return "error";
+  const record = webPosted[item.code.toLocaleLowerCase()];
+  if (!record) return "none";
+  return record.hash === item.hash ? "posted" : "changed";
+}
+
+function webCell(td, item) {
+  const state = webState(item);
+  if (state === "nocode") {
+    td.innerHTML = '<span class="empty">—</span>';
+    return;
+  }
+  if (state === "error") {
+    const pill = document.createElement("span");
+    pill.className = "pill none";
+    pill.textContent = "โหลดสถานะไม่ได้";
+    pill.title = webError;
+    return td.append(pill);
+  }
+  const record = webPosted[item.code.toLocaleLowerCase()];
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `web-btn ${state}`;
+  button.disabled = Boolean(item.webSaving);
+  button.textContent = item.webSaving ? "กำลังบันทึก…" : webLabels[state];
+  button.title = {
+    none: "กดเมื่อลงสินค้านี้บนเว็บไซต์แล้ว",
+    posted: "กดเพื่อยกเลิกสถานะลงเว็บ",
+    changed: "ข้อมูลในไฟล์เปลี่ยนหลังลงเว็บ — อัปเดตบนเว็บแล้วกดเพื่อยืนยัน",
+  }[state];
+  button.onclick = () => toggleWeb(item);
+  td.append(button);
+  if (record) {
+    const date = document.createElement("span");
+    date.className = "web-date";
+    date.textContent = new Date(record.postedAt).toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    });
+    td.append(date);
+  }
+  if (item.webMessage) {
+    const message = document.createElement("span");
+    message.className = "row-msg err";
+    message.textContent = item.webMessage;
+    td.append(message);
+  }
+}
+
+async function toggleWeb(item) {
+  const state = webState(item);
+  if (state === "nocode" || state === "error" || item.webSaving) return;
+  if (state === "posted" && !confirm(`ยกเลิกสถานะ "ลงเว็บแล้ว" ของ ${item.code}?`)) return;
+  if (
+    state === "changed" &&
+    !confirm(`อัปเดตข้อมูล ${item.code} บนเว็บไซต์ให้ตรงกับไฟล์แล้วใช่ไหม?\n(ยกเลิก = ยังไม่ได้อัปเดต)`)
+  )
+    return;
+  item.webSaving = true;
+  item.webMessage = "";
+  updateWebViews(item);
+  try {
+    const result = await json("api/web-posted", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: item.code, posted: state !== "posted", hash: item.hash }),
+    });
+    const key = item.code.toLocaleLowerCase();
+    if (result.item) webPosted[key] = result.item;
+    else delete webPosted[key];
+  } catch (error) {
+    item.webMessage = `บันทึกไม่สำเร็จ: ${error.message}`;
+  } finally {
+    item.webSaving = false;
+  }
+  updateWebViews(item);
+}
+
+// อัปเดตเฉพาะช่องที่เกี่ยวข้อง ไม่ render ใหม่ทั้งตาราง (จะได้ไม่เด้งกลับบนสุด)
+function updateWebViews(item) {
+  if (item.webTd?.isConnected) {
+    item.webTd.replaceChildren();
+    webCell(item.webTd, item);
+    item.webTd.parentElement.className = `web-${webState(item)}`;
+  }
+  if (get("detail").open && detailItem === item) renderDetailWeb(item);
+  updateCount();
+}
+
+function renderDetailWeb(item) {
+  const button = get("detail-web");
+  const state = webState(item);
+  button.hidden = state === "nocode" || state === "error";
+  button.className = `detail-btn web-btn ${state}`;
+  button.disabled = Boolean(item.webSaving);
+  button.textContent = item.webSaving ? "กำลังบันทึก…" : webLabels[state] || "";
+  button.onclick = () => toggleWeb(item);
+  if (item.webMessage) get("detail-toast").textContent = item.webMessage;
+}
+
+function updateCount() {
+  let posted = 0,
+    changed = 0;
+  for (const item of rows) {
+    const state = webState(item);
+    if (state === "posted") posted++;
+    else if (state === "changed") changed++;
+  }
+  const web = webError
+    ? " · สถานะลงเว็บโหลดไม่ได้"
+    : ` · ลงเว็บแล้ว ${(posted + changed).toLocaleString("th-TH")}${changed ? ` (ข้อมูลเปลี่ยน ${changed.toLocaleString("th-TH")})` : ""}`;
+  get("count").textContent =
+    `${filteredRows.length.toLocaleString("th-TH")} / ${rows.length.toLocaleString("th-TH")} รายการ${web}`;
+}
 
 function stripHtml(value) {
   return new DOMParser()
@@ -155,19 +290,24 @@ async function copyText(text, label) {
   get("detail-toast").textContent = `คัดลอก${label}แล้ว`;
 }
 
+let detailItem = null;
 function openDetail(item) {
   const dialog = get("detail");
+  detailItem = item;
   const code = item.values[columns.findIndex((c) => c.kind === "code")] || "";
   const name = item.values[columns.findIndex((c) => c.kind === "name")] || "";
   get("detail-code").textContent = code;
   get("detail-title").textContent = name || "ไม่มีชื่อสินค้า";
   get("detail-toast").textContent = "";
-  const fields = columns.map((column, index) => [
-    column.name,
-    detailText(column, item.values[index]),
-    column,
-    item.values[index],
-  ]);
+  renderDetailWeb(item);
+  const fields = columns
+    .map((column, index) => [
+      column.name,
+      detailText(column, item.values[index]),
+      column,
+      item.values[index],
+    ])
+    .filter(([, , column]) => column.kind !== "web");
   get("detail-fields").replaceChildren(
     ...fields.map(([label, text, column, raw]) => {
       const wrap = document.createElement("div");
@@ -227,9 +367,10 @@ function render() {
   filteredRows.slice(page * size, (page + 1) * size).forEach((item) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
+    tr.className = `web-${webState(item)}`;
     // คลิกแถว (ยกเว้นลิงก์รูป) หรือกด Enter = เปิดป็อปอัปข้อมูลเต็มที่คัดลอกได้
     tr.addEventListener("click", (event) => {
-      if (!event.target.closest("a")) openDetail(item);
+      if (!event.target.closest("a, button")) openDetail(item);
     });
     tr.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && event.target === tr) openDetail(item);
@@ -238,7 +379,10 @@ function render() {
       const column = columns[index];
       const td = document.createElement("td");
       // คำอธิบายแสดงย่อ 3 บรรทัด ค่าเต็มดูได้ในป็อปอัป
-      content(td, column, value, item.stock);
+      if (column.kind === "web") {
+        item.webTd = td;
+        webCell(td, item);
+      } else content(td, column, value, item.stock);
       if (column.number) td.classList.add("number");
       if (column.kind === "code" || column.kind === "name")
         td.classList.add(column.kind);
@@ -395,17 +539,21 @@ function search() {
     .filter(([, value]) => value !== "all");
   filteredRows = rows.filter(
     (item) =>
-      presence.every(
-        ([index, value]) => (value === "has") === item.filled[index],
-      ) &&
+      presence.every(([index, value]) => {
+        if (columns[index].kind !== "web")
+          return (value === "has") === item.filled[index];
+        const state = webState(item);
+        return value === "has"
+          ? state === "posted" || state === "changed"
+          : value === state;
+      }) &&
       (stockFilter === "all" || stockFilter === item.stockState) &&
       (!category || inCategory(item, category)) &&
       (!query ||
         item.values.some((value) => value.toLocaleLowerCase().includes(query))),
   );
   page = 0;
-  get("count").textContent =
-    `${filteredRows.length.toLocaleString("th-TH")} / ${rows.length.toLocaleString("th-TH")} รายการ`;
+  updateCount();
   render();
 }
 
@@ -605,11 +753,19 @@ function applyNewCode(item, newCode, stock) {
       const th = document.createElement("th");
       const select = document.createElement("select");
       select.setAttribute("aria-label", `กรองคอลัมน์ ${c.name}`);
-      select.append(
-        new Option("ทั้งหมด", "all"),
-        new Option("มีข้อมูล", "has"),
-        new Option("ไม่มีข้อมูล", "none"),
-      );
+      if (c.kind === "web")
+        select.append(
+          new Option("ทั้งหมด", "all"),
+          new Option("ลงเว็บแล้ว", "has"),
+          new Option("ยังไม่ลง", "none"),
+          new Option("ข้อมูลเปลี่ยน", "changed"),
+        );
+      else
+        select.append(
+          new Option("ทั้งหมด", "all"),
+          new Option("มีข้อมูล", "has"),
+          new Option("ไม่มีข้อมูล", "none"),
+        );
       select.value = i === 0 ? "has" : "all";
       select.classList.toggle("active", i === 0);
       select.addEventListener("change", () => {
@@ -627,13 +783,19 @@ function applyNewCode(item, newCode, stock) {
     const notes = [];
     if (missing.length)
       notes.push(`ไม่พบคอลัมน์ในไฟล์: ${missing.map((c) => c.name).join(", ")}`);
-    const [sml] = await Promise.allSettled([
+    const [sml, web] = await Promise.allSettled([
       json("api/sml-stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codes: [...new Set(codes.filter(Boolean))] }),
       }),
+      json("api/web-posted"),
     ]);
+    if (web.status === "fulfilled") webPosted = web.value.items || {};
+    else {
+      webError = web.reason.message;
+      notes.push(`สถานะลงเว็บ: ${webError}`);
+    }
     if (sml.status === "rejected") notes.push(`คลัง: ${sml.reason.message}`);
     else
       notes.push(
@@ -660,7 +822,7 @@ function applyNewCode(item, newCode, stock) {
         sml.status === "fulfilled" && key ? sml.value.stock[key] : null;
       const values = columns.map((c, i) => {
         if (c.source === "sheet") return indexes[i] < 0 ? "" : String(row[indexes[i]] ?? "");
-        if (!key) return "";
+        if (!key || c.source === "web") return "";
         return sml.status === "fulfilled" ? formatQty(stock) : "โหลดไม่สำเร็จ";
       });
       if (!values[categoryIndex].trim() && parentColumn >= 0) {
@@ -697,6 +859,7 @@ function applyNewCode(item, newCode, stock) {
           .filter(Boolean),
       };
     });
+    for (const item of rows) item.hash = productHash(item);
     buildCategoryTree();
     if (sml.status === "fulfilled") renderUnmatched();
     else get("unmatched-count").textContent = "ตรวจสอบไม่ได้ (โหลด SML ไม่สำเร็จ)";

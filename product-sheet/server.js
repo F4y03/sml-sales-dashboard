@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import pg from "pg";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
-import { rename, unlink } from "node:fs/promises";
+import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 
 const workbook = new ExcelJS.Workbook();
 const sheet = await workbook.csv.readFile(
@@ -393,6 +393,69 @@ app.post("/api/update-sku", async (req, res) => {
     if (temporaryPath) await unlink(temporaryPath).catch(() => {});
     savingProduct = false;
   }
+});
+
+// สถานะ "ลงเว็บไซต์แล้ว" เก็บแยกในไฟล์ JSON (ไม่แก้ SML และไม่แก้ Excel)
+// key = รหัสสินค้าตัวเล็ก, hash = ลายนิ้วมือข้อมูลสินค้าตอนลงเว็บ ใช้เตือนเมื่อข้อมูลเปลี่ยนภายหลัง
+const webPostedPath = fileURLToPath(
+  new URL("./data/web-posted.json", import.meta.url),
+);
+let webPosted = null;
+let webPostedQueue = Promise.resolve();
+
+async function loadWebPosted() {
+  if (webPosted) return webPosted;
+  try {
+    webPosted = JSON.parse(await readFile(webPostedPath, "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    webPosted = {};
+  }
+  return webPosted;
+}
+
+app.get("/api/web-posted", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    res.json({ items: await loadWebPosted() });
+  } catch (error) {
+    console.error("Read web-posted failed:", error.code || error.message);
+    res.status(500).json({ error: "โหลดสถานะลงเว็บไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/web-posted", (req, res) => {
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  const posted = req.body?.posted;
+  const hash = typeof req.body?.hash === "string" ? req.body.hash : "";
+  if (
+    !code ||
+    code.length > 100 ||
+    typeof posted !== "boolean" ||
+    (posted && !/^[0-9a-f]{1,16}$/.test(hash))
+  )
+    return res.status(400).json({ error: "ข้อมูลสถานะลงเว็บไม่ถูกต้อง" });
+  // เขียนทีละคำขอ กันไฟล์ทับกันเมื่อกดหลายแถวพร้อมกัน
+  webPostedQueue = webPostedQueue.then(async () => {
+    let temporaryPath;
+    try {
+      const items = { ...(await loadWebPosted()) };
+      const key = code.toLocaleLowerCase();
+      if (posted) items[key] = { code, postedAt: new Date().toISOString(), hash };
+      else delete items[key];
+      temporaryPath = `${webPostedPath}.${process.pid}.${Date.now()}.tmp`;
+      await writeFile(temporaryPath, JSON.stringify(items, null, 2), "utf8");
+      await rename(temporaryPath, webPostedPath);
+      temporaryPath = null;
+      webPosted = items;
+      res.json({ saved: true, item: items[key] || null });
+    } catch (error) {
+      console.error("Save web-posted failed:", error.code || error.message);
+      res.status(500).json({ error: "บันทึกสถานะลงเว็บไม่สำเร็จ" });
+    } finally {
+      if (temporaryPath) await unlink(temporaryPath).catch(() => {});
+    }
+  });
 });
 
 app.use(express.static(fileURLToPath(new URL("./public", import.meta.url))));

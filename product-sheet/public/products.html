@@ -6,10 +6,60 @@
     <title>ข้อมูลสินค้าหลัก · Excel</title>
     <link rel="stylesheet" href="sheet.css" />
     <style>
-      .page-link {
+      .download-menu {
+        position: relative;
         margin-left: auto;
-        color: #fff;
+      }
+      .download-menu summary {
+        list-style: none;
         white-space: nowrap;
+      }
+      .download-menu summary::-webkit-details-marker {
+        display: none;
+      }
+      .download-menu[open] summary {
+        background: #185c37;
+      }
+      .download-options {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 30;
+        width: 300px;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid #dfe8e2;
+        border-radius: 8px;
+        box-shadow: 0 8px 18px #24332d24;
+      }
+      .download-options a {
+        display: block;
+        padding: 9px 11px;
+        border-radius: 5px;
+        color: #24332d;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .download-options a:hover {
+        background: #f3f8f5;
+      }
+      .download-options small {
+        display: block;
+        color: #687c70;
+        margin-top: 2px;
+      }
+      @media (max-width: 650px) {
+        .download-menu {
+          margin-left: 0;
+          width: 100%;
+        }
+        .download-menu .download {
+          width: 100%;
+          text-align: center;
+        }
+        .download-options {
+          width: 100%;
+        }
       }
       #sheet {
         width: 100%;
@@ -29,6 +79,52 @@
       }
       #sheet thead th.from-sml {
         background: #1d4ed8;
+      }
+      #sheet thead th.from-web {
+        background: #7c3aed;
+      }
+      /* ----- สถานะลงเว็บไซต์ ----- */
+      .web-btn {
+        padding: 3px 9px;
+        border: 1px solid #c9d8ce;
+        border-radius: 999px;
+        background: #fff;
+        color: #53705e;
+        font: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .web-btn:hover {
+        border-color: #217346;
+        color: #217346;
+      }
+      .web-btn.posted {
+        border-color: #bbf7d0;
+        background: #dcfce7;
+        color: #166534;
+      }
+      .web-btn.changed {
+        border-color: #fed7aa;
+        background: #ffedd5;
+        color: #c2410c;
+      }
+      .web-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .web-date {
+        display: block;
+        margin-top: 4px;
+        color: #687c70;
+        font-size: 11px;
+      }
+      #rows tr.web-posted td:first-child {
+        box-shadow: inset 3px 0 0 #16a34a, 1px 0 0 #cbd8cf;
+      }
+      #rows tr.web-changed td:first-child {
+        box-shadow: inset 3px 0 0 #ea580c, 1px 0 0 #cbd8cf;
       }
       #sheet td {
         white-space: normal;
@@ -407,11 +503,6 @@
         border-radius: 2px;
         vertical-align: -1px;
       }
-      @media (max-width: 650px) {
-        .page-link {
-          margin-left: 0;
-        }
-      }
       /* ---------- ป็อปอัปรายละเอียดสินค้า ---------- */
       #rows tr {
         cursor: pointer;
@@ -548,7 +639,18 @@
         <h1>ข้อมูลสินค้าหลัก</h1>
         <p>รหัส ชื่อ คำอธิบาย ขนาด ราคา หมวดหมู่ และรูปภาพ</p>
       </div>
-      <a class="page-link download" href="./">← ตารางสินค้าทั้งหมด</a>
+      <details class="download-menu">
+        <summary class="download">↓ ดาวน์โหลดไฟล์</summary>
+        <div class="download-options">
+          <a href="download.csv"
+            >WooCommerce CSV (.csv)<small
+              >ข้อมูลสินค้าทุกคอลัมน์ UTF-8 สำหรับนำเข้าสินค้าใน WordPress</small
+            ></a
+          ><a href="download.xlsx"
+            >Excel (.xlsx)<small>สำหรับเปิด ตรวจสอบ หรือแก้ไขข้อมูล</small></a
+          >
+        </div>
+      </details>
     </header>
     <main>
       <section class="toolbar">
@@ -570,7 +672,8 @@
       </section>
       <div class="legend">
         <span><i style="background: #217346"></i>ไฟล์ WooCommerce</span
-        ><span><i style="background: #1d4ed8"></i>คลังจาก SML</span>
+        ><span><i style="background: #1d4ed8"></i>คลังจาก SML</span
+        ><span><i style="background: #7c3aed"></i>สถานะลงเว็บไซต์</span>
         <div class="filters">
           <label
             >คลัง
@@ -657,6 +760,7 @@
             <p id="detail-code" class="detail-code"></p>
             <h2 id="detail-title"></h2>
           </div>
+          <button type="button" id="detail-web" class="detail-btn web-btn" hidden></button>
           <button type="button" id="detail-copy-all" class="detail-btn">คัดลอกทั้งหมด</button>
           <button type="button" id="detail-close" class="detail-close" aria-label="ปิด">×</button>
         </div>
