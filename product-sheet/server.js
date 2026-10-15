@@ -248,6 +248,211 @@ app.get("/download.xlsx", (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   res.download(driveWorkbookPath, "products-with-individual-drive-links.xlsx");
 });
+// ---------- แปลงคำอธิบายสำหรับเว็บไซต์ (เฉพาะ CSV) ----------
+// บรรทัด "• หัวข้อ : ค่า" → คุณสมบัติในแท็บ "ข้อมูลทางเทคนิค" และคำอธิบายเป็น <ul><li>
+// รวมเฉพาะชื่อหัวข้อที่สะกดผิด/สะกดต่าง ไม่รวมคำที่ความหมายอาจต่างกัน
+const specKeyAliases = {
+  "อิมพิแดนซ์": "อิมพีแดนซ์",
+  "อิมพีเเดนซ์": "อิมพีแดนซ์",
+  "ความถึ่ตอบสนอง": "ความถี่ตอบสนอง",
+  "ความถี่ตอบสนอ": "ความถี่ตอบสนอง",
+  "ทวีทเตอร์": "ทวีตเตอร์",
+  "วอยซคอยล์ขนาด": "วอยซ์คอยล์ขนาด",
+  "เชื่อมต่อบลทูธ": "เชื่อมต่อบลูทูธ",
+  "ระยะรับสัญญาน": "ระยะรับสัญญาณ",
+  "พาเวอร์มิกเซอร์": "เพาเวอร์มิกเซอร์",
+  "อัตตราส่วนสัญญาณรบกวน": "อัตราส่วนสัญญาณรบกวน",
+  "ฟังก์ชั่นบันมึกเสียง": "ฟังก์ชั่นบันทึกเสียง",
+  "อิมพุทไวลท์": "อินพุทโวลท์",
+  "วัสดุ / สี": "วัสดุ/สี",
+  "POWER SUPPLY": "Power Supply",
+  "lmage rejection": "Image rejection",
+  "การตอบสนองความถี่ (Frequency response)": "การตอบสนองความถี่ (Frequency Response)",
+  "ช่วงความถี่ (Frequency range)": "ช่วงความถี่ (Frequency Range)",
+};
+const escapeHtml = (text) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function parseSpecLine(line) {
+  const match = line.match(/^•\s*([^:：]{1,40}?)\s*[:：]\s*(.+)$/);
+  // "อัตราส่วนการหด 2:1", "MX60 : ..." ไม่ใช่หัวข้อ:ค่า
+  if (!match || /\d$/.test(match[1])) return null;
+  const key = match[1].replace(/^\((.*)\)$/, "$1").trim();
+  return { key: specKeyAliases[key] || key, value: match[2].trim() };
+}
+
+function descriptionToHtml(text) {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines[0] === "รายละเอียดสินค้า") lines.shift();
+  const html = [];
+  let list = [];
+  const flush = () => {
+    if (list.length) html.push(`<ul>\n${list.join("\n")}\n</ul>`);
+    list = [];
+  };
+  for (const line of lines) {
+    if (!line.startsWith("•")) {
+      flush();
+      html.push(`<p>${escapeHtml(line)}</p>`);
+      continue;
+    }
+    const spec = parseSpecLine(line);
+    list.push(
+      spec
+        ? `<li><strong>${escapeHtml(spec.key)}</strong> ${escapeHtml(spec.value)}</li>`
+        : `<li>${escapeHtml(line.replace(/^•\s*/, ""))}</li>`,
+    );
+  }
+  flush();
+  return html.join("\n");
+}
+
+function addSpecAttributes(tab) {
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const descriptionColumn = col("คำอธิบาย");
+  const typeColumn = col("ชนิด");
+  if (!descriptionColumn || !typeColumn) return;
+  const attributeColumns = (n) => ({
+    name: col(`ชื่อคุณสมบัติ ${n}`),
+    value: col(`ค่าคุณสมบัติ ${n}`),
+    visible: col(`คุณสมบัติภายนอกที่เห็นได้ ${n}`),
+    global: col(`คุณสมบัติทั่วไป ${n}`),
+  });
+  const ensureAttribute = (n) => {
+    if (attributeColumns(n).name) return attributeColumns(n);
+    for (const label of ["ชื่อคุณสมบัติ", "ค่าคุณสมบัติ", "คุณสมบัติภายนอกที่เห็นได้", "คุณสมบัติทั่วไป"]) {
+      headers.push(`${label} ${n}`);
+      tab.getCell(1, headers.length).value = `${label} ${n}`;
+    }
+    return attributeColumns(n);
+  };
+  const nameColumn = col("ชื่อ");
+  const brandColumn = col("แบรนด์");
+  const dimensionColumns = ["กว้าง", "ยาว", "สูง"].map((label) => [label, col(`${label} (เซนติเมตร)`)]);
+  // คอมมาเป็นตัวคั่นหลายค่าใน CSV ของ WooCommerce ต้อง escape (ยกเว้นค่าตัวเลือกเดิมที่ตั้งใจคั่นหลายค่า)
+  const escapeValue = (value) => value.replace(/,/g, "\\,");
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const text = (column) => (column ? tab.getCell(row, column).text.trim() : "");
+    const isVariation = text(typeColumn) === "variation";
+    const description = tab.getCell(row, descriptionColumn).text;
+    if (description.trim())
+      tab.getCell(row, descriptionColumn).value = descriptionToHtml(description);
+
+    // คุณสมบัติเดิมในไฟล์ (เช่น Color ของสินค้าหลายสี) เก็บไว้ทั้งหมด
+    const existing = [];
+    for (let n = 1; attributeColumns(n).name; n++) {
+      const columns = attributeColumns(n);
+      const name = text(columns.name);
+      if (name)
+        existing.push({ name, value: text(columns.value), visible: text(columns.visible), global: text(columns.global) });
+      for (const column of Object.values(columns)) tab.getCell(row, column).value = null;
+    }
+    // เว็บใหม่ใช้คุณสมบัติ "สี" แบบ Global และค่าไม่มีคำว่า "สี" นำหน้า (สีดำ → ดำ)
+    const toColorValue = (value) =>
+      value.split(",").map((part) => part.trim().replace(/^สี(?=\S)/, "")).join(", ");
+    for (const attribute of existing)
+      if (/^(color|สี)$/i.test(attribute.name)) {
+        attribute.name = "สี";
+        attribute.value = toColorValue(attribute.value);
+        attribute.global = "1";
+      }
+
+    const attributes = [];
+    if (!isVariation) {
+      const { brand, model } = brandAndModel(text(nameColumn));
+      if (model) attributes.push({ name: "รุ่น", value: escapeValue(model) });
+      if (brand) {
+        attributes.push({ name: "แบรนด์", value: brand });
+        if (brandColumn && !text(brandColumn)) tab.getCell(row, brandColumn).value = brand;
+      }
+      const dimensions = dimensionColumns.map(([label, column]) => [label, text(column)]);
+      if (dimensions.every(([, value]) => value))
+        attributes.push({
+          name: "ขนาด",
+          value: `${dimensions.map(([label, value]) => `${label} ${value} ซม.`).join(" ")} (ขนาดกล่อง)`,
+        });
+    }
+    const color = existing.find((attribute) => attribute.name === "สี");
+    if (color) attributes.push(color);
+    attributes.push(...existing.filter((attribute) => attribute !== color));
+
+    // ตัวเลือกย่อย (variation) ใช้คุณสมบัติของสินค้าแม่ ไม่ใส่สเปกซ้ำ
+    if (!isVariation) {
+      const specs = new Map();
+      for (const line of description.split("\n")) {
+        const spec = parseSpecLine(line.trim());
+        if (!spec) continue;
+        if (spec.key === "Color") spec.key = "สี";
+        // ชื่อซ้ำกับคุณสมบัติที่มีอยู่แล้ว (เช่น สี ของสินค้าหลายสี) ไม่ใส่ทับ
+        if (attributes.some((attribute) => attribute.name.toLocaleLowerCase() === spec.key.toLocaleLowerCase())) continue;
+        const values = specs.get(spec.key) || [];
+        if (!values.includes(spec.value)) values.push(spec.value);
+        specs.set(spec.key, values);
+      }
+      // คำอธิบายมี กว้าง/ยาว/สูง ครบ (ตัวเลขละเอียดกว่าช่องการจัดส่ง) ใช้เป็น "ขนาด" แทน
+      const sides = ["กว้าง", "ยาว", "สูง"].map((label) =>
+        [`ความ${label}`, label].find((key) => specs.get(key)?.length === 1),
+      );
+      const size = attributes.find((attribute) => attribute.name === "ขนาด");
+      if (size && sides.every(Boolean)) {
+        size.value = `${sides.map((key) => `${key.replace(/^ความ/, "")} ${specs.get(key)[0]}`).join(" ")} (ขนาดกล่อง)`;
+        sides.forEach((key) => specs.delete(key));
+      }
+      for (const [key, list] of specs) {
+        const value = list.join(" / ");
+        attributes.push(
+          key === "สี"
+            ? { name: "สี", value: escapeValue(toColorValue(value)), global: "1" }
+            : { name: key, value: escapeValue(value) },
+        );
+      }
+    }
+
+    attributes.forEach((attribute, index) => {
+      const columns = ensureAttribute(index + 1);
+      tab.getCell(row, columns.name).value = attribute.name;
+      tab.getCell(row, columns.value).value = attribute.value;
+      // variation ไม่ต้องกำหนด "เห็นได้" (ใช้ของสินค้าแม่)
+      tab.getCell(row, columns.visible).value = isVariation ? attribute.visible || null : attribute.visible || "1";
+      tab.getCell(row, columns.global).value = attribute.global || "0";
+    });
+  }
+}
+
+// แบรนด์ของร้าน (ยืนยันโดยเจ้าของร้าน) ที่พบในชื่อสินค้า
+// WOER ไม่ใช่แบรนด์ของร้าน, LG / SAMSUNG ในชื่อคือ "ใช้ได้กับ" ไม่ใช่ยี่ห้อสินค้า
+const knownBrands = [
+  ["PRO PLUS", /\bPRO\s?PLUS\b/i],
+  ["BEST", /\bBEST\b/],
+  ["MITSUMI", /\bMITSUMI\b/],
+  ["PERFECTS", /\bPERFECTS\b/],
+  ["NEW POWER", /\bNEW POWER\b/],
+  ["LEGACY", /\bLEGACY\b/],
+];
+const isModelCode = (token) =>
+  token.length >= 3 &&
+  /^[A-Z0-9][A-Z0-9./-]*$/.test(token) &&
+  /\d/.test(token) &&
+  /[A-Z]/.test(token) &&
+  (token.includes("-") || (token.match(/[A-Z]/g) || []).length >= 2) &&
+  // หน่วย เช่น 500W 12V 21AH 2CH ไม่ใช่รุ่น
+  !/^\d+(\.\d+)?(W|V|AH|MM|CM|HZ|KHZ|CH|U|MAH|OHM)$/.test(token);
+
+function brandAndModel(name) {
+  const tokens = name.split(/\s+/).map((token) => token.replace(/^[(\[]+|[)\],;]+$/g, ""));
+  const found = knownBrands.find(([, pattern]) => pattern.test(name));
+  const labelled = name.match(/รุ่น\s+(\S+)/);
+  let model = labelled && isModelCode(labelled[1]) ? labelled[1] : "";
+  if (!model && found) {
+    // รุ่นมักต่อท้ายชื่อแบรนด์ เช่น "PRO PLUS EQ-9", "MITSUMI EXTRA S05-EX"
+    const brandEnd = name.search(found[1]) + name.match(found[1])[0].length;
+    model = name.slice(brandEnd).split(/\s+/).map((token) => token.replace(/^[(\[]+|[)\],;]+$/g, "")).find(isModelCode) || "";
+  }
+  if (!model) model = (found ? tokens.find(isModelCode) : [...tokens].reverse().slice(0, 1).find(isModelCode)) || "";
+  return { brand: found ? found[0] : "", model };
+}
+
 app.get("/download.csv", async (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   try {
@@ -267,6 +472,7 @@ app.get("/download.csv", async (req, res, next) => {
         );
         if (direct !== cell.text) cell.value = direct;
       }
+    addSpecAttributes(tab);
     const csv = await workbook.csv.writeBuffer();
     res.attachment("woocommerce-products.csv");
     res.type("text/csv; charset=utf-8").send(Buffer.from(csv));
