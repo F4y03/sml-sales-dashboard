@@ -2,7 +2,7 @@ import express from "express";
 import ExcelJS from "exceljs";
 import pg from "pg";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 
 const workbook = new ExcelJS.Workbook();
@@ -273,16 +273,63 @@ const specKeyAliases = {
 const escapeHtml = (text) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// หัวข้อย่อยในคำอธิบายใช้ได้ทั้ง "•", "●" และ "- "
+const bulletPattern = /^(?:[•●]|-(?=\s))\s*/;
+const isBullet = (line) => bulletPattern.test(line);
+const stripBullet = (line) => line.replace(bulletPattern, "");
+
 function parseSpecLine(line) {
-  const match = line.match(/^•\s*([^:：]{1,40}?)\s*[:：]\s*(.+)$/);
+  if (!isBullet(line)) return null;
+  // "หัวข้อ : ค่า" หรือ "หัวข้อ = ค่า" (= ต้องมีเว้นวรรค ไม่งั้นชนสูตรอย่าง THD+N=1%)
+  const match = stripBullet(line).match(/^([^:：]{1,40}?)\s*(?:[:：]|\s=\s)\s*(.+)$/);
   // "อัตราส่วนการหด 2:1", "MX60 : ..." ไม่ใช่หัวข้อ:ค่า
   if (!match || /\d$/.test(match[1])) return null;
   const key = match[1].replace(/^\((.*)\)$/, "$1").trim();
-  return { key: specKeyAliases[key] || key, value: match[2].trim() };
+  return { key: specKeyAliases[key] || key, value: match[2].trim(), rawKey: key };
+}
+
+// บรรทัดที่ไม่มี ":" แต่เป็นสเปกชัดเจน เช่น "รองรับน้ำหนักได้สูงสุด 50 กิโลกรัม"
+const looseSpecRules = [
+  ["รองรับน้ำหนัก", /(?:รองรับ|รับ)น้ำหนัก(?:ได้)?(?:สูงสุด|ถึง)?\s*([\d.,]+\s*(?:กก\.?|กิโลกรัม|kg))/i],
+  ["ขนาดทีวีที่รองรับ", /ทีวี(?:ขนาด)?(?:ตั้งแต่)?\s*(\d+(?:\s*(?:นิ้ว)?\s*[-–]\s*\d+)?\s*นิ้ว)/],
+  ["VESA", /VESA\s*(\d+\s*[x×]\s*\d+(?:\s*มม\.?)?)/i],
+  ["เส้นผ่านศูนย์กลาง", /เส้นผ่าน(?:ศูนย์กลาง)?\s*([\d.,]+\s*(?:ซม|cm|มม|mm|นิ้ว|")\.?(?:\s*\/\s*[\d.,]+\s*(?:นิ้ว|ซม|")\.?)?)/i],
+  ["ย่านความถี่", /((?:\d[\d.]*\s*[-–]\s*\d[\d.]*\s*(?:MHz)?\s*(?:\/|และ|,)\s*)*\d[\d.]*\s*[-–]\s*\d[\d.]*\s*MHz)/i],
+  ["ปรับมุม", /^ปรับ(?:มุม)?(?:มอง)?\s*((?:ก้ม|เงย|หมุน|ซ้าย|ขวา).*?\d+\s*(?:องศา|°).*)$/],
+];
+function parseLooseSpec(line, knownKeys) {
+  if (!isBullet(line)) return null;
+  const text = stripBullet(line).trim();
+  for (const [key, pattern] of looseSpecRules) {
+    const match = text.match(pattern);
+    if (match) return { key, value: match[1].replace(/\s+/g, " ").trim() };
+  }
+  const size = text.match(/^(?:ความ)?(กว้าง|ยาว|สูง|ลึก|หนา)\s+([\d.,]+(?:\s*[-–]\s*[\d.,]+)?\s*(?:ซม|cm|มม|mm|เมตร|ม|นิ้ว)\.?)$/i);
+  if (size) return { key: `ความ${size[1]}`, value: size[2] };
+  // ขึ้นต้นด้วยหัวข้อที่เคยเจอแบบ "หัวข้อ : ค่า" และมีตัวเลขตามมา เช่น "กำลังขับ 3000 วัตต์"
+  const key = knownKeys.find((known) => text.startsWith(`${known} `) && /\d/.test(text.slice(known.length)));
+  if (key) return { key: specKeyAliases[key] || key, value: text.slice(key.length).trim() };
+  return null;
+}
+
+// แยกหัวข้อย่อยที่พิมพ์ติดกันในบรรทัดเดียว ("รายละเอียดสินค้า• สินค้าดี", "...20kHz• เนื่องจาก...")
+// และตัดบรรทัดที่ซ้ำกันในสินค้าเดียวกัน
+function descriptionLines(text) {
+  const seen = new Set();
+  return text
+    .split("\n")
+    .flatMap((line) => line.replace(/(\S)\s*([•●])\s*/g, "$1\n$2 ").split("\n"))
+    .map((line) => line.trim())
+    .filter((line) => {
+      const key = stripBullet(line).replace(/\s+/g, " ").toLocaleLowerCase();
+      if (!key || (key.length > 8 && seen.has(key))) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function descriptionToHtml(text) {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = descriptionLines(text);
   if (lines[0] === "รายละเอียดสินค้า") lines.shift();
   const html = [];
   let list = [];
@@ -291,7 +338,7 @@ function descriptionToHtml(text) {
     list = [];
   };
   for (const line of lines) {
-    if (!line.startsWith("•")) {
+    if (!isBullet(line)) {
       flush();
       html.push(`<p>${escapeHtml(line)}</p>`);
       continue;
@@ -300,14 +347,113 @@ function descriptionToHtml(text) {
     list.push(
       spec
         ? `<li><strong>${escapeHtml(spec.key)}</strong> ${escapeHtml(spec.value)}</li>`
-        : `<li>${escapeHtml(line.replace(/^•\s*/, ""))}</li>`,
+        : `<li>${escapeHtml(stripBullet(line))}</li>`,
     );
   }
   flush();
   return html.join("\n");
 }
 
-function addSpecAttributes(tab) {
+// อ่านขนาดจริงที่ทีมกรอก: รหัสสินค้า → { size: "กว้าง x ซม. ยาว y ซม. สูง z ซม.", weight: "w กก." }
+const productSizesPath = fileURLToPath(new URL("./data/product-sizes.xlsx", import.meta.url));
+async function readRealSizesExcel() {
+  const sizes = new Map();
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.readFile(productSizesPath);
+  const tab = book.getWorksheet("ขนาดจริง") || book.worksheets[0];
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const number = (row, name) => {
+    const text = col(name) ? tab.getCell(row, col(name)).text.trim().replace(/,/g, "") : "";
+    return /^\d+(\.\d+)?$/.test(text) && Number(text) > 0 ? text : "";
+  };
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const code = col("รหัสสินค้า") ? tab.getCell(row, col("รหัสสินค้า")).text.trim() : "";
+    if (!code) continue;
+    const [w, l, h, kg] = ["กว้าง (ซม.)", "ยาว (ซม.)", "สูง (ซม.)", "น้ำหนัก (กก.)"].map((name) => number(row, name));
+    if (w || l || h || kg) sizes.set(code.toLocaleLowerCase(), { code, w, l, h, kg, source: "excel" });
+  }
+  return sizes;
+}
+
+// ค่าที่กรอกจากหน้าเว็บ (data/real-sizes.json) ทับค่าจาก Excel
+const realSizesJsonPath = fileURLToPath(new URL("./data/real-sizes.json", import.meta.url));
+let realSizesQueue = Promise.resolve();
+async function readRealSizesJson() {
+  try {
+    return JSON.parse(await readFile(realSizesJsonPath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+async function readAllRealSizes() {
+  const sizes = existsSync(productSizesPath) ? await readRealSizesExcel() : new Map();
+  for (const [key, entry] of Object.entries(await readRealSizesJson()))
+    sizes.set(key, { ...entry, source: "web" });
+  return sizes;
+}
+async function readRealSizes() {
+  const display = new Map();
+  for (const [key, { w, l, h, kg }] of await readAllRealSizes()) {
+    const entry = {
+      size: w && l && h ? `กว้าง ${w} ซม. · ยาว ${l} ซม. · สูง ${h} ซม.` : "",
+      weight: kg ? `${kg} กก.` : "",
+    };
+    if (entry.size || entry.weight) display.set(key, entry);
+  }
+  return display;
+}
+
+app.get("/api/real-sizes", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    res.json({ items: Object.fromEntries(await readAllRealSizes()) });
+  } catch (error) {
+    console.error("Read real sizes failed:", error.code || error.message);
+    res.status(500).json({ error: "โหลดขนาดจริงไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/real-sizes", (req, res) => {
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  const fields = ["w", "l", "h", "kg"].map((key) => {
+    const value = req.body?.[key];
+    return typeof value === "string" ? value.trim().replace(/,/g, "") : "";
+  });
+  if (
+    !code ||
+    code.length > 100 ||
+    fields.some((value) => value && (!/^\d+(\.\d+)?$/.test(value) || !(Number(value) > 0) || Number(value) > 10000))
+  )
+    return res.status(400).json({ error: "ขนาดต้องเป็นตัวเลขมากกว่า 0" });
+  const [w, l, h, kg] = fields;
+  if ((w || l || h) && !(w && l && h))
+    return res.status(400).json({ error: "กรอกกว้าง ยาว สูง ให้ครบทั้ง 3 ช่อง" });
+  realSizesQueue = realSizesQueue.then(async () => {
+    let temporaryPath;
+    try {
+      const items = await readRealSizesJson();
+      const key = code.toLocaleLowerCase();
+      if (w || kg) items[key] = { code, w, l, h, kg, updatedAt: new Date().toISOString() };
+      else delete items[key];
+      temporaryPath = `${realSizesJsonPath}.${process.pid}.${Date.now()}.tmp`;
+      await writeFile(temporaryPath, JSON.stringify(items, null, 2), "utf8");
+      await rename(temporaryPath, realSizesJsonPath);
+      temporaryPath = null;
+      // ล้างค่าในหน้าเว็บแล้ว อาจยังมีค่าจาก Excel อยู่
+      const effective = (await readAllRealSizes()).get(key) || null;
+      res.json({ saved: true, item: effective });
+    } catch (error) {
+      console.error("Save real sizes failed:", error.code || error.message);
+      res.status(500).json({ error: "บันทึกขนาดจริงไม่สำเร็จ" });
+    } finally {
+      if (temporaryPath) await unlink(temporaryPath).catch(() => {});
+    }
+  });
+});
+
+function addSpecAttributes(tab, realSizes = new Map()) {
   const headers = workbookHeaders(tab);
   const col = (name) => headers.indexOf(name) + 1;
   const descriptionColumn = col("คำอธิบาย");
@@ -328,10 +474,25 @@ function addSpecAttributes(tab) {
     return attributeColumns(n);
   };
   const nameColumn = col("ชื่อ");
+  const skuColumn = col("รหัสสินค้า");
+  let imageBrands = {};
+  try {
+    imageBrands = JSON.parse(readFileSync(new URL("./data/brand-from-images.json", import.meta.url), "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read brand-from-images failed:", error.message);
+  }
   const brandColumn = col("แบรนด์");
   const dimensionColumns = ["กว้าง", "ยาว", "สูง"].map((label) => [label, col(`${label} (เซนติเมตร)`)]);
   // คอมมาเป็นตัวคั่นหลายค่าใน CSV ของ WooCommerce ต้อง escape (ยกเว้นค่าตัวเลือกเดิมที่ตั้งใจคั่นหลายค่า)
   const escapeValue = (value) => value.replace(/,/g, "\\,");
+  // หัวข้อที่เคยเขียนแบบ "หัวข้อ : ค่า" ในไฟล์ ใช้จับบรรทัดที่เขียนแบบไม่มี ":" (ยาวก่อน เพื่อจับหัวข้อที่เจาะจงที่สุด)
+  const known = new Set();
+  for (let row = 2; row <= tab.rowCount; row++)
+    for (const line of descriptionLines(tab.getCell(row, descriptionColumn).text)) {
+      const spec = parseSpecLine(line.trim());
+      if (spec && spec.rawKey.length >= 3) known.add(spec.rawKey);
+    }
+  const knownKeys = [...known].sort((a, b) => b.length - a.length);
   for (let row = 2; row <= tab.rowCount; row++) {
     const text = (column) => (column ? tab.getCell(row, column).text.trim() : "");
     const isVariation = text(typeColumn) === "variation";
@@ -360,7 +521,10 @@ function addSpecAttributes(tab) {
 
     const attributes = [];
     if (!isVariation) {
-      const { brand, model } = brandAndModel(text(nameColumn));
+      const parsed = brandAndModel(text(nameColumn));
+      const model = parsed.model;
+      // ชื่อไม่มีแบรนด์ → ใช้แบรนด์จากโลโก้มุมรูปสินค้า (อ่านจากรูปแล้วบันทึกไว้)
+      const brand = parsed.brand || imageBrands[text(skuColumn)] || "";
       if (model) attributes.push({ name: "รุ่น", value: escapeValue(model) });
       if (brand) {
         attributes.push({ name: "แบรนด์", value: brand });
@@ -370,7 +534,7 @@ function addSpecAttributes(tab) {
       if (dimensions.every(([, value]) => value))
         attributes.push({
           name: "ขนาด",
-          value: `${dimensions.map(([label, value]) => `${label} ${value} ซม.`).join(" ")} (ขนาดกล่อง)`,
+          value: `${dimensions.map(([label, value]) => `${label} ${value} ซม.`).join(" · ")} (ขนาดกล่อง)`,
         });
     }
     const color = existing.find((attribute) => attribute.name === "สี");
@@ -380,8 +544,8 @@ function addSpecAttributes(tab) {
     // ตัวเลือกย่อย (variation) ใช้คุณสมบัติของสินค้าแม่ ไม่ใส่สเปกซ้ำ
     if (!isVariation) {
       const specs = new Map();
-      for (const line of description.split("\n")) {
-        const spec = parseSpecLine(line.trim());
+      for (const line of descriptionLines(description)) {
+        const spec = parseSpecLine(line.trim()) || parseLooseSpec(line.trim(), knownKeys);
         if (!spec) continue;
         if (spec.key === "Color") spec.key = "สี";
         // ชื่อซ้ำกับคุณสมบัติที่มีอยู่แล้ว (เช่น สี ของสินค้าหลายสี) ไม่ใส่ทับ
@@ -395,9 +559,43 @@ function addSpecAttributes(tab) {
         [`ความ${label}`, label].find((key) => specs.get(key)?.length === 1),
       );
       const size = attributes.find((attribute) => attribute.name === "ขนาด");
-      if (size && sides.every(Boolean)) {
-        size.value = `${sides.map((key) => `${key.replace(/^ความ/, "")} ${specs.get(key)[0]}`).join(" ")} (ขนาดกล่อง)`;
+      // (แบบเดียวกับหน้า STS-03 บนเว็บใหม่ที่ระบุว่าเป็นขนาดกล่อง)
+      const describedBox = Boolean(size && sides.every(Boolean));
+      if (describedBox) {
+        size.value = sides.map((key) => `${key.replace(/^ความ/, "")} ${specs.get(key)[0]}`).join(" · ");
         sides.forEach((key) => specs.delete(key));
+      }
+      // ขนาดจริงที่ทีมกรอก (data/product-sizes.xlsx) แทน "ขนาด" และย้ายขนาดกล่องไปหัวข้อ "ขนาดกล่อง"
+      const real = realSizes.get(text(skuColumn).toLocaleLowerCase());
+      // ยังไม่มีขนาดจริง: ใช้ขนาดที่เขียนในรายละเอียดสินค้าเท่านั้น (เจ้าของร้านกำหนด
+      // ไม่ใช้นิ้วในชื่อสินค้า และไม่ใช้ขนาดกล่อง) ไม่มีให้เป็น "-"
+      if (!real?.size && !describedBox) {
+        const sizeKeys = ["เส้นผ่านศูนย์กลาง", "ความกว้าง", "กว้าง", "ความยาว", "ยาว", "ความสูง", "สูง", "ความลึก", "ลึก", "ความหนา", "หนา"];
+        const found = sizeKeys.filter((key) => specs.get(key)?.length === 1);
+        const value = escapeValue(found.map((key) => `${key.replace(/^ความ/, "")} ${specs.get(key)[0]}`).join(" · "));
+        if (value && size) {
+          attributes.splice(attributes.indexOf(size) + 1, 0, {
+            name: "ขนาดกล่อง",
+            value: size.value.replace(/\s*\(ขนาดกล่อง\)$/, ""),
+          });
+          size.value = value;
+        } else if (value) {
+          const after = attributes.findLastIndex((attribute) => attribute.name === "แบรนด์" || attribute.name === "รุ่น");
+          attributes.splice(after + 1, 0, { name: "ขนาด", value });
+        }
+        found.forEach((key) => specs.delete(key));
+      }
+      if (real?.size) {
+        if (size) {
+          const box = { name: "ขนาดกล่อง", value: size.value.replace(/\s*\(ขนาดกล่อง\)$/, "") };
+          attributes.splice(attributes.indexOf(size) + 1, 0, box);
+          size.value = real.size;
+        } else attributes.splice(Math.min(2, attributes.length), 0, { name: "ขนาด", value: real.size });
+      }
+      if (real?.weight) {
+        specs.delete("น้ำหนัก");
+        const at = attributes.findIndex((attribute) => attribute.name === "ขนาด");
+        attributes.splice(at < 0 ? attributes.length : at + 1, 0, { name: "น้ำหนัก", value: real.weight });
       }
       for (const [key, list] of specs) {
         const value = list.join(" / ");
@@ -409,6 +607,35 @@ function addSpecAttributes(tab) {
       }
     }
 
+    // แท็บ "ข้อมูลทางเทคนิค" ของเว็บใหม่มีหัวข้อตายตัว 5 ข้อ เรียงตามนี้ ห้ามเพิ่ม/เปลี่ยน ไม่มีข้อมูลใส่ "-"
+    // สเปกอื่นยังอยู่ในรายละเอียดสินค้า, คุณสมบัติเดิมที่ใช้แยกตัวเลือก (เช่น Series) ต้องคงไว้ไม่งั้นตัวเลือกพัง
+    if (!isVariation) {
+      // ประเภท: เอาเฉพาะที่เขียนไว้ในรายละเอียด ("ประเภท/ชนิด/ระบบ : ..." หรือบรรทัดแรกแบบ "BEST LCD-22 ขาแขวนทีวีติดผนัง")
+      // ไม่เดาจากชื่อหรือหมวดหมู่ ถ้าไม่มีให้เป็น "-"
+      const typeAttribute = attributes.find((attribute) => /^(ประเภท|ชนิด|ระบบ|Type)$/i.test(attribute.name));
+      const firstLine = descriptionLines(description).filter((line) => line !== "รายละเอียดสินค้า")[0] || "";
+      const headline = !isBullet(firstLine) && firstLine.match(
+        /^(?:PRO\s?PLUS|BEST|MITSUMI|LEGACY|NEW POWER|PERFECTS|WOER)\s+[A-Z0-9][A-Z0-9./-]*\d[A-Z0-9./-]*\s+([฀-๿][^,]{1,60})$/i,
+      );
+      const typeValue = typeAttribute?.value || (headline ? escapeValue(headline[1].trim()) : "");
+      if (typeValue) attributes.push({ name: "ประเภท", value: typeValue });
+      const fixed = ["รุ่น", "แบรนด์", "ขนาด", "สี", "ประเภท"].map(
+        (name) =>
+          attributes.find((attribute) => attribute.name === name) ||
+          // "-" ของสีเป็นแบบไม่ Global จะได้ไม่สร้างค่าสี "-" ในระบบสีของเว็บ
+          { name, value: "-", global: "0" },
+      );
+      const variationAttributes = existing.filter((attribute) => attribute.name !== "สี");
+      // ชื่อหัวข้อบนเว็บคือ "ขนาด / สัดส่วน" (เจ้าของร้านเลือก) และขึ้นต้นค่าด้วย "ขนาดกล่อง" ถ้าเป็นขนาดกล่อง
+      const size = fixed[2];
+      fixed[2] = {
+        ...size,
+        name: "ขนาด / สัดส่วน",
+        // ขนาดกล่องจากช่องการจัดส่งไม่แสดงในข้อมูลทางเทคนิค (ยังใช้คำนวณค่าส่งตามเดิม)
+        value: size.value.endsWith("(ขนาดกล่อง)") ? "-" : size.value,
+      };
+      attributes.splice(0, attributes.length, ...fixed, ...variationAttributes);
+    }
     attributes.forEach((attribute, index) => {
       const columns = ensureAttribute(index + 1);
       tab.getCell(row, columns.name).value = attribute.name;
@@ -421,12 +648,14 @@ function addSpecAttributes(tab) {
 }
 
 // แบรนด์ของร้าน (ยืนยันโดยเจ้าของร้าน) ที่พบในชื่อสินค้า
-// WOER ไม่ใช่แบรนด์ของร้าน, LG / SAMSUNG ในชื่อคือ "ใช้ได้กับ" ไม่ใช่ยี่ห้อสินค้า
+// WOER = ท่อหด (รูปมีโลโก้ PRO PLUS ด้วย แต่เจ้าของร้านยืนยันว่าแบรนด์คือ WOER)
+// LG / SAMSUNG ในชื่อคือ "ใช้ได้กับ" ไม่ใช่ยี่ห้อสินค้า
 const knownBrands = [
   ["PRO PLUS", /\bPRO\s?PLUS\b/i],
   ["BEST", /\bBEST\b/],
   ["MITSUMI", /\bMITSUMI\b/],
   ["PERFECTS", /\bPERFECTS\b/],
+  ["WOER", /\bWOER\b/],
   ["NEW POWER", /\bNEW POWER\b/],
   ["LEGACY", /\bLEGACY\b/],
 ];
@@ -453,6 +682,43 @@ function brandAndModel(name) {
   return { brand: found ? found[0] : "", model };
 }
 
+// ยอดคงเหลือจาก SML (อ่านอย่างเดียว) ใส่ลง CSV ตามกติกาที่เจ้าของร้านตกลง
+//   > 0 → มีสินค้า + จำนวน (ปัดลงเป็นจำนวนเต็ม) · 0 หรือติดลบ → หมด (จำนวน 0)
+//   SML ไม่มีข้อมูล (balance_qty เป็น NULL) หรือไม่พบรหัส → คงค่าเดิมจาก Excel (NULL ไม่ใช่ 0)
+async function applySmlStock(tab) {
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const [skuColumn, inStockColumn, quantityColumn] = ["รหัสสินค้า", "มีสินค้าในคลังสินค้า?", "คลังสินค้า"].map(col);
+  if (!skuColumn || !inStockColumn || !quantityColumn) throw new Error("STOCK_COLUMNS_NOT_FOUND");
+  const codes = [];
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const code = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase();
+    if (code) codes.push(code);
+  }
+  const result = await smlPool.query({
+    text: `SELECT DISTINCT ON (lower(BTRIM(i.code))) lower(BTRIM(i.code)) AS code, i.balance_qty
+           FROM ic_inventory i
+           WHERE lower(BTRIM(i.code)) = ANY($1::text[])
+           ORDER BY lower(BTRIM(i.code)), i.roworder DESC`,
+    values: [[...new Set(codes)]],
+  });
+  const stock = new Map(result.rows.map((row) => [row.code, row.balance_qty]));
+  const summary = { inStock: 0, outOfStock: 0, kept: 0 };
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const code = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase();
+    const qty = code && stock.has(code) && stock.get(code) !== null ? Number(stock.get(code)) : NaN;
+    if (!Number.isFinite(qty)) {
+      summary.kept++;
+      continue;
+    }
+    const quantity = qty > 0 ? Math.floor(qty) : 0;
+    tab.getCell(row, inStockColumn).value = quantity > 0 ? "1" : "0";
+    tab.getCell(row, quantityColumn).value = String(quantity);
+    summary[quantity > 0 ? "inStock" : "outOfStock"]++;
+  }
+  return summary;
+}
+
 app.get("/download.csv", async (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   try {
@@ -472,7 +738,19 @@ app.get("/download.csv", async (req, res, next) => {
         );
         if (direct !== cell.text) cell.value = direct;
       }
-    addSpecAttributes(tab);
+    addSpecAttributes(tab, await readRealSizes());
+    // ดึงคลังไม่ได้ = ไม่ส่งไฟล์ (ไม่ปล่อยยอดเก่าจาก Excel ไปแทนโดยไม่รู้ตัว)
+    let stockSummary;
+    try {
+      stockSummary = await applySmlStock(tab);
+    } catch (error) {
+      console.error("CSV stock from SML failed:", error.code || error.message);
+      return res
+        .status(503)
+        .type("text/plain; charset=utf-8")
+        .send("ดาวน์โหลด CSV ไม่สำเร็จ: ดึงยอดคงคลังจาก SML ไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ SML แล้วลองใหม่");
+    }
+    console.log("CSV stock:", JSON.stringify(stockSummary));
     const csv = await workbook.csv.writeBuffer();
     res.attachment("woocommerce-products.csv");
     res.type("text/csv; charset=utf-8").send(Buffer.from(csv));
@@ -480,6 +758,41 @@ app.get("/download.csv", async (req, res, next) => {
     next(error);
   }
 });
+// ตัวอย่างสิ่งที่จะขึ้นบนเว็บ (ใช้การแปลงชุดเดียวกับ CSV) สำหรับป็อปอัปในหน้าสินค้า
+app.get("/api/web-preview", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const code = typeof req.query.code === "string" ? req.query.code.trim().toLocaleLowerCase() : "";
+  if (!code || code.length > 100) return res.status(400).json({ error: "รหัสสินค้าไม่ถูกต้อง" });
+  if (!existsSync(driveWorkbookPath)) return res.status(503).json({ error: "ไม่พบไฟล์ Excel" });
+  try {
+    const tab = (await readDriveWorkbook()).worksheets[0];
+    addSpecAttributes(tab, await readRealSizes());
+    const headers = workbookHeaders(tab);
+    const col = (name) => headers.indexOf(name) + 1;
+    for (let row = 2; row <= tab.rowCount; row++) {
+      if (tab.getCell(row, col("รหัสสินค้า")).text.trim().toLocaleLowerCase() !== code) continue;
+      const attributes = [];
+      for (let n = 1; col(`ชื่อคุณสมบัติ ${n}`); n++) {
+        const name = tab.getCell(row, col(`ชื่อคุณสมบัติ ${n}`)).text.trim();
+        if (name)
+          attributes.push({
+            name,
+            value: tab.getCell(row, col(`ค่าคุณสมบัติ ${n}`)).text.replace(/\\,/g, ","),
+          });
+      }
+      return res.json({
+        attributes,
+        brand: tab.getCell(row, col("แบรนด์")).text,
+        description: tab.getCell(row, col("คำอธิบาย")).text,
+      });
+    }
+    res.status(404).json({ error: "ไม่พบรหัสสินค้านี้ในไฟล์" });
+  } catch (error) {
+    console.error("Web preview failed:", error.code || error.message);
+    res.status(500).json({ error: "สร้างตัวอย่างไม่สำเร็จ" });
+  }
+});
+
 app.get("/api/sheet", (req, res) =>
   res.json({
     title: "รายการสินค้า WooCommerce",

@@ -10,6 +10,7 @@ const columns = [
   { name: "ยาว (ซม.)", header: "ยาว (เซนติเมตร)", source: "sheet", number: true, width: 72 },
   { name: "กว้าง (ซม.)", header: "กว้าง (เซนติเมตร)", source: "sheet", number: true, width: 72 },
   { name: "สูง (ซม.)", header: "สูง (เซนติเมตร)", source: "sheet", number: true, width: 72 },
+  { name: "ขนาดจริง", source: "real", width: 150, kind: "real" },
   { name: "ราคาปกติ", source: "sheet", number: true, width: 96, kind: "price" },
   { name: "คลัง", source: "sml", number: true, width: 110, kind: "stock" },
   { name: "หมวดหมู่", source: "sheet", width: 200, kind: "tags" },
@@ -21,6 +22,135 @@ let rows = [],
 // สถานะลงเว็บไซต์: key = รหัสสินค้าตัวเล็ก → { code, postedAt, hash }
 let webPosted = {},
   webError = "";
+// ขนาดตัวสินค้าจริง (ไม่ใช่ขนาดกล่อง): key = รหัสสินค้าตัวเล็ก → { w, l, h, kg, source }
+let realSizes = {},
+  realError = "";
+const realSize = (item) => (item.code ? realSizes[item.code.toLocaleLowerCase()] : null);
+const sizeText = ({ w, l, h }) => (w && l && h ? `${w} × ${l} × ${h} ซม.` : "");
+
+function realCell(td, item) {
+  if (!item.code) {
+    td.innerHTML = '<span class="empty">—</span>';
+    return;
+  }
+  if (item.type === "variation") {
+    td.innerHTML = '<span class="empty" title="สินค้าหลายตัวเลือก กรอกที่สินค้าแม่">ใช้ของสินค้าแม่</span>';
+    return;
+  }
+  if (realError) {
+    td.innerHTML = '<span class="pill none">โหลดไม่ได้</span>';
+    td.firstChild.title = realError;
+    return;
+  }
+  const size = realSize(item);
+  if (size) {
+    const box = document.createElement("div");
+    box.className = "real-size";
+    box.textContent = [sizeText(size), size.kg ? `${size.kg} กก.` : ""].filter(Boolean).join("\n");
+    box.title = size.source === "excel" ? "มาจากไฟล์ product-sizes.xlsx" : "กรอกจากหน้านี้";
+    td.append(box);
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "web-btn";
+  button.textContent = size ? "แก้ไข" : "+ กรอกขนาดจริง";
+  button.onclick = () => {
+    openDetail(item);
+    get("real-w").focus();
+  };
+  td.append(button);
+}
+
+// แสดงข้อมูลทางเทคนิค + รายละเอียด ตามที่ CSV จะส่งขึ้นเว็บ
+function safeDescription(html) {
+  // สร้างใหม่เฉพาะ p / ul / li / strong จากข้อความ ไม่ใส่ HTML ตรงๆ
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const copy = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+    const tag = node.nodeName.toLowerCase();
+    const out = document.createElement(["p", "ul", "li", "strong"].includes(tag) ? tag : "span");
+    node.childNodes.forEach((child) => out.append(copy(child)));
+    return out;
+  };
+  const box = document.createElement("div");
+  box.className = "preview-desc";
+  doc.body.childNodes.forEach((node) => box.append(copy(node)));
+  return box;
+}
+
+let previewRequest = 0;
+async function renderPreview(item) {
+  const section = get("detail-preview");
+  const body = get("preview-body");
+  section.hidden = !item.code || item.type === "variation";
+  if (section.hidden) return;
+  const request = ++previewRequest;
+  body.textContent = "กำลังโหลด…";
+  try {
+    const data = await json(`api/web-preview?code=${encodeURIComponent(item.code)}`);
+    if (request !== previewRequest) return;
+    const specs = document.createElement("table");
+    specs.className = "preview-specs";
+    for (const { name, value } of data.attributes) {
+      const tr = specs.insertRow();
+      tr.insertCell().textContent = name;
+      tr.insertCell().textContent = value;
+    }
+    const specsTitle = document.createElement("h4");
+    specsTitle.textContent = `ข้อมูลทางเทคนิค (${data.attributes.length})`;
+    const descTitle = document.createElement("h4");
+    descTitle.textContent = "รายละเอียดสินค้า";
+    body.replaceChildren(
+      specsTitle,
+      data.attributes.length ? specs : Object.assign(document.createElement("p"), { textContent: "ไม่มี" }),
+      descTitle,
+      data.description ? safeDescription(data.description) : Object.assign(document.createElement("p"), { textContent: "ไม่มี" }),
+    );
+  } catch (error) {
+    if (request === previewRequest) body.textContent = `โหลดตัวอย่างไม่สำเร็จ: ${error.message}`;
+  }
+}
+
+function renderDetailReal(item) {
+  const box = get("detail-real");
+  box.hidden = !item.code || item.type === "variation" || Boolean(realError);
+  if (box.hidden) return;
+  const size = realSize(item) || {};
+  for (const key of ["w", "l", "h", "kg"]) get(`real-${key}`).value = size[key] || "";
+  get("real-msg").className = "row-msg";
+  get("real-msg").textContent = size.source === "excel" ? "ค่าปัจจุบันมาจากไฟล์ product-sizes.xlsx" : "";
+  get("real-form").onsubmit = async (event) => {
+    event.preventDefault();
+    const body = { code: item.code };
+    for (const key of ["w", "l", "h", "kg"]) body[key] = get(`real-${key}`).value.trim();
+    const save = get("real-save");
+    save.disabled = true;
+    get("real-msg").className = "row-msg";
+    get("real-msg").textContent = "กำลังบันทึก…";
+    try {
+      const result = await json("api/real-sizes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const key = item.code.toLocaleLowerCase();
+      if (result.item) realSizes[key] = result.item;
+      else delete realSizes[key];
+      get("real-msg").className = "row-msg ok";
+      get("real-msg").textContent = result.item ? "บันทึกแล้ว" : "ล้างขนาดจริงแล้ว";
+      renderPreview(item);
+      if (item.realTd?.isConnected) {
+        item.realTd.replaceChildren();
+        realCell(item.realTd, item);
+      }
+    } catch (error) {
+      get("real-msg").className = "row-msg err";
+      get("real-msg").textContent = error.message;
+    } finally {
+      save.disabled = false;
+    }
+  };
+}
 // ฟิลด์ที่ใช้ตรวจว่าข้อมูลเปลี่ยนหลังลงเว็บ (ไม่รวมคลัง เพราะเปลี่ยนทุกวัน)
 const hashFields = ["ชื่อ", "คำอธิบาย", "น้ำหนัก (กก.)", "ยาว (ซม.)", "กว้าง (ซม.)", "สูง (ซม.)", "ราคาปกติ", "หมวดหมู่", "ไฟล์รูปภาพ"];
 const webLabels = { none: "+ ลงเว็บแล้ว", posted: "✓ ลงเว็บแล้ว", changed: "⚠ ข้อมูลเปลี่ยน" };
@@ -300,6 +430,8 @@ function openDetail(item) {
   get("detail-title").textContent = name || "ไม่มีชื่อสินค้า";
   get("detail-toast").textContent = "";
   renderDetailWeb(item);
+  renderDetailReal(item);
+  renderPreview(item);
   const fields = columns
     .map((column, index) => [
       column.name,
@@ -307,7 +439,7 @@ function openDetail(item) {
       column,
       item.values[index],
     ])
-    .filter(([, , column]) => column.kind !== "web");
+    .filter(([, , column]) => column.kind !== "web" && column.kind !== "real");
   get("detail-fields").replaceChildren(
     ...fields.map(([label, text, column, raw]) => {
       const wrap = document.createElement("div");
@@ -382,6 +514,9 @@ function render() {
       if (column.kind === "web") {
         item.webTd = td;
         webCell(td, item);
+      } else if (column.kind === "real") {
+        item.realTd = td;
+        realCell(td, item);
       } else content(td, column, value, item.stock);
       if (column.number) td.classList.add("number");
       if (column.kind === "code" || column.kind === "name")
@@ -390,6 +525,26 @@ function render() {
     });
     body.append(tr);
   });
+  if (!filteredRows.length && rows.length) {
+    // ไม่พบ: บอกว่าติดตัวกรองไหน และให้ค้นทุกหมวดได้ในคลิกเดียว
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = columns.length;
+    td.className = "empty-result";
+    const where = categoryPath ? ` ในหมวด "${categoryPath.split(" > ").pop()}"` : "";
+    td.append(`ไม่พบสินค้าที่ตรงกับคำค้นและตัวกรอง${where}`);
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "detail-btn";
+    reset.textContent = categoryPath ? "ค้นหาทุกหมวด" : "ล้างตัวกรองทั้งหมด";
+    reset.onclick = () => {
+      if (categoryPath) selectCategory("", false);
+      else get("reset-filters").click();
+    };
+    td.append(reset);
+    tr.append(td);
+    body.append(tr);
+  }
   const total = filteredRows.length,
     start = total ? page * size + 1 : 0,
     end = Math.min((page + 1) * size, total);
@@ -503,6 +658,19 @@ function renderCategoryTree() {
     const empty = document.createElement("p");
     empty.className = "cat-empty";
     empty.textContent = "ไม่พบหมวดหมู่ที่ค้นหา";
+    // ช่องนี้ค้นชื่อหมวด ไม่ใช่รหัสสินค้า: ให้ล้างกลับมาเห็นทุกหมวดได้ในคลิกเดียว
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "detail-btn";
+    clear.style.display = "block";
+    clear.style.marginTop = "8px";
+    clear.textContent = "ล้างคำค้น";
+    clear.onclick = () => {
+      get("cat-search").value = "";
+      renderCategoryTree();
+      get("cat-search").focus();
+    };
+    empty.append(clear);
     list.append(empty);
   }
   get("cat-current").textContent = categoryPath
@@ -540,6 +708,8 @@ function search() {
   filteredRows = rows.filter(
     (item) =>
       presence.every(([index, value]) => {
+        if (columns[index].kind === "real")
+          return (value === "has") === Boolean(realSize(item));
         if (columns[index].kind !== "web")
           return (value === "has") === item.filled[index];
         const state = webState(item);
@@ -760,6 +930,12 @@ function applyNewCode(item, newCode, stock) {
           new Option("ยังไม่ลง", "none"),
           new Option("ข้อมูลเปลี่ยน", "changed"),
         );
+      else if (c.kind === "real")
+        select.append(
+          new Option("ทั้งหมด", "all"),
+          new Option("กรอกแล้ว", "has"),
+          new Option("ยังไม่กรอก", "none"),
+        );
       else
         select.append(
           new Option("ทั้งหมด", "all"),
@@ -783,14 +959,20 @@ function applyNewCode(item, newCode, stock) {
     const notes = [];
     if (missing.length)
       notes.push(`ไม่พบคอลัมน์ในไฟล์: ${missing.map((c) => c.name).join(", ")}`);
-    const [sml, web] = await Promise.allSettled([
+    const [sml, web, real] = await Promise.allSettled([
       json("api/sml-stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codes: [...new Set(codes.filter(Boolean))] }),
       }),
       json("api/web-posted"),
+      json("api/real-sizes"),
     ]);
+    if (real.status === "fulfilled") realSizes = real.value.items || {};
+    else {
+      realError = real.reason.message;
+      notes.push(`ขนาดจริง: ${realError}`);
+    }
     if (web.status === "fulfilled") webPosted = web.value.items || {};
     else {
       webError = web.reason.message;
@@ -822,7 +1004,7 @@ function applyNewCode(item, newCode, stock) {
         sml.status === "fulfilled" && key ? sml.value.stock[key] : null;
       const values = columns.map((c, i) => {
         if (c.source === "sheet") return indexes[i] < 0 ? "" : String(row[indexes[i]] ?? "");
-        if (!key || c.source === "web") return "";
+        if (!key || c.source === "web" || c.source === "real") return "";
         return sml.status === "fulfilled" ? formatQty(stock) : "โหลดไม่สำเร็จ";
       });
       if (!values[categoryIndex].trim() && parentColumn >= 0) {

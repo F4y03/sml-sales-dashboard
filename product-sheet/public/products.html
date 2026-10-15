@@ -83,6 +83,108 @@
       #sheet thead th.from-web {
         background: #7c3aed;
       }
+      #sheet thead th.from-real {
+        background: #c2410c;
+      }
+      /* ----- ตัวอย่างบนเว็บ ----- */
+      .detail-preview {
+        margin: 12px 20px 0;
+        border: 1px solid #dfe8e2;
+        border-radius: 8px;
+      }
+      .detail-preview summary {
+        padding: 10px 14px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .detail-preview summary span {
+        color: #687c70;
+        font-weight: normal;
+        font-size: 12px;
+      }
+      #preview-body {
+        padding: 0 14px 12px;
+        font-size: 13px;
+      }
+      #preview-body h4 {
+        margin: 10px 0 6px;
+        font-size: 13px;
+        color: #217346;
+      }
+      .preview-specs {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .preview-specs td {
+        height: auto;
+        padding: 6px 8px;
+        border-bottom: 1px solid #eef2ef;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        vertical-align: top;
+        cursor: default;
+      }
+      .preview-specs td:first-child {
+        width: 36%;
+        color: #687c70;
+      }
+      .preview-desc ul {
+        margin: 4px 0;
+        padding: 0;
+        list-style: none;
+      }
+      .preview-desc li::before {
+        content: "✔ ";
+        color: #e11d2a;
+      }
+      .preview-desc p {
+        margin: 6px 0;
+      }
+      /* ----- ขนาดสินค้าจริง ----- */
+      .real-size {
+        margin-bottom: 4px;
+        white-space: pre-line;
+        font-weight: bold;
+        color: #24332d;
+      }
+      .detail-real {
+        margin: 12px 20px 0;
+        padding: 12px 14px;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        background: #fff7ed;
+      }
+      .real-hint {
+        display: block;
+        margin: 2px 0 8px;
+        color: #687c70;
+        font-size: 12px;
+      }
+      .real-inputs {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .real-inputs label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 12px;
+        color: #53705e;
+      }
+      .real-inputs input {
+        width: 92px;
+        padding: 6px 8px;
+        border: 1px solid #ccd9d0;
+        border-radius: 6px;
+        font: 13px Tahoma;
+      }
+      .real-inputs input:focus {
+        outline: 2px solid #c2410c;
+        outline-offset: 1px;
+      }
       /* ----- สถานะลงเว็บไซต์ ----- */
       .web-btn {
         padding: 3px 9px;
@@ -507,6 +609,15 @@
       #rows tr {
         cursor: pointer;
       }
+      #sheet td.empty-result {
+        padding: 28px 16px;
+        color: #687c70;
+        text-align: center;
+        cursor: default;
+      }
+      #sheet td.empty-result .detail-btn {
+        margin-left: 10px;
+      }
       #rows tr:hover td {
         background: #e5f2e9;
       }
@@ -673,7 +784,8 @@
       <div class="legend">
         <span><i style="background: #217346"></i>ไฟล์ WooCommerce</span
         ><span><i style="background: #1d4ed8"></i>คลังจาก SML</span
-        ><span><i style="background: #7c3aed"></i>สถานะลงเว็บไซต์</span>
+        ><span><i style="background: #7c3aed"></i>สถานะลงเว็บไซต์</span
+        ><span><i style="background: #c2410c"></i>ขนาดจริง (กรอกเอง)</span>
         <div class="filters">
           <label
             >คลัง
@@ -764,6 +876,24 @@
           <button type="button" id="detail-copy-all" class="detail-btn">คัดลอกทั้งหมด</button>
           <button type="button" id="detail-close" class="detail-close" aria-label="ปิด">×</button>
         </div>
+        <div id="detail-real" class="detail-real" hidden>
+          <form id="real-form">
+            <b>ขนาดสินค้าจริง</b>
+            <span class="real-hint">ขนาดตัวสินค้า ไม่ใช่ขนาดกล่อง · กรอก กว้าง ยาว สูง ให้ครบ</span>
+            <div class="real-inputs">
+              <label>กว้าง (ซม.)<input id="real-w" inputmode="decimal" autocomplete="off" /></label>
+              <label>ยาว (ซม.)<input id="real-l" inputmode="decimal" autocomplete="off" /></label>
+              <label>สูง (ซม.)<input id="real-h" inputmode="decimal" autocomplete="off" /></label>
+              <label>น้ำหนัก (กก.)<input id="real-kg" inputmode="decimal" autocomplete="off" /></label>
+              <button id="real-save" type="submit" class="detail-btn">บันทึก</button>
+            </div>
+            <span id="real-msg" class="row-msg" role="status"></span>
+          </form>
+        </div>
+        <details id="detail-preview" class="detail-preview" open>
+          <summary>ตัวอย่างบนเว็บ <span>(จาก CSV ที่จะดาวน์โหลด)</span></summary>
+          <div id="preview-body"></div>
+        </details>
         <dl id="detail-fields" class="detail-fields"></dl>
         <p id="detail-toast" class="detail-toast" role="status"></p>
       </dialog>
