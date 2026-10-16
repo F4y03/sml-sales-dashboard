@@ -896,6 +896,7 @@ function addSpecAttributes(tab, realSizes = new Map()) {
     if (error.code !== "ENOENT") console.error("Read brand-from-images failed:", error.message);
   }
   const brandColumn = col("แบรนด์");
+  const productBrandsColumn = col("Product Brands");
   const dimensionColumns = ["กว้าง", "ยาว", "สูง"].map((label) => [label, col(`${label} (เซนติเมตร)`)]);
   // คอมมาเป็นตัวคั่นหลายค่าใน CSV ของ WooCommerce ต้อง escape (ยกเว้นค่าตัวเลือกเดิมที่ตั้งใจคั่นหลายค่า)
   const escapeValue = (value) => value.replace(/,/g, "\\,");
@@ -945,6 +946,8 @@ function addSpecAttributes(tab, realSizes = new Map()) {
       if (brand) {
         attributes.push({ name: "แบรนด์", value: brand });
         if (brandColumn) tab.getCell(row, brandColumn).value = brand;
+        // ปลั๊กอินแบรนด์ของเว็บใหม่ใช้คอลัมน์ "Product Brands"
+        if (productBrandsColumn) tab.getCell(row, productBrandsColumn).value = brand;
       }
       const dimensions = dimensionColumns.map(([label, column]) => [label, text(column)]);
       if (dimensions.every(([, value]) => value))
@@ -1122,7 +1125,9 @@ function addSpecAttributes(tab, realSizes = new Map()) {
       tab.getCell(row, descriptionColumn).value = restHtml || null;
       // สินค้าหลายสีต้องคงคุณสมบัติ "สี" ไว้ ไม่งั้นตัวเลือกสีพัง
       const variationColor = text(typeColumn) === "variable" ? existing.find((attribute) => attribute.name === "สี") : null;
-      attributes.splice(0, attributes.length, ...(variationColor ? [variationColor] : []), ...variationAttributes);
+      // ธีมเว็บแสดง MODEL / BRAND ข้างราคาจากคุณสมบัติ "รุ่น" / "แบรนด์" → คงไว้ (ไม่แสดงในแท็บ เพราะ visible = 0 ด้านล่าง)
+      const header = fixed.filter((attribute) => ["รุ่น", "แบรนด์"].includes(attribute.name) && attribute.value !== "-");
+      attributes.splice(0, attributes.length, ...header, ...(variationColor ? [variationColor] : []), ...variationAttributes);
     }
     attributes.forEach((attribute, index) => {
       const columns = ensureAttribute(index + 1);
