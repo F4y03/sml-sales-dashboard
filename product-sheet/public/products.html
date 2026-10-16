@@ -333,6 +333,12 @@
         color: #b91c1c;
         font-weight: bold;
       }
+      .hidden-products summary {
+        color: #53705e;
+      }
+      .hidden-products .unmatched-count {
+        background: #eef2ef;
+      }
       .unmatched-count {
         padding: 1px 9px;
         border-radius: 999px;
@@ -757,6 +763,16 @@
             >WooCommerce CSV (.csv)<small
               >ข้อมูลสินค้าทุกคอลัมน์ UTF-8 สำหรับนำเข้าสินค้าใน WordPress</small
             ></a
+          ><a href="download.csv?images=with"
+            >WooCommerce CSV — เฉพาะที่มีรูป<small>ตัดหน้าสินค้าที่ยังไม่มีรูปออก</small></a
+          ><a href="download.csv?images=without"
+            >WooCommerce CSV — เฉพาะที่ไม่มีรูป<small>หน้าสินค้าที่ยังต้องหารูป/ถ่ายรูป</small></a
+          ><a href="download.csv?format=xlsx"
+            >ชีต WooCommerce (.xlsx)<small>ข้อมูลชุดเดียวกับ CSV เปิดดูใน Excel</small></a
+          ><a href="download.csv?format=xlsx&amp;images=with"
+            >ชีต WooCommerce — เฉพาะที่มีรูป<small>.xlsx ตัดหน้าสินค้าที่ยังไม่มีรูปออก</small></a
+          ><a href="download.csv?format=xlsx&amp;images=without"
+            >ชีต WooCommerce — เฉพาะที่ไม่มีรูป<small>.xlsx หน้าสินค้าที่ยังต้องหารูป/ถ่ายรูป</small></a
           ><a href="download.xlsx"
             >Excel (.xlsx)<small>สำหรับเปิด ตรวจสอบ หรือแก้ไขข้อมูล</small></a
           >
@@ -865,6 +881,33 @@
           </div>
         </div>
       </details>
+      <details id="hidden-products" class="unmatched hidden-products">
+        <summary>
+          ซ่อน (ไม่ลงเว็บ)
+          <span id="hidden-count" class="unmatched-count">กำลังโหลด…</span>
+        </summary>
+        <div class="unmatched-body">
+          <p class="unmatched-note">
+            สินค้าที่ไม่ลงเว็บ: ไม่แสดงในตารางด้านบน และไม่ส่งออกไปใน WooCommerce CSV
+            (สินค้าแม่ที่ซ่อนจะซ่อนตัวเลือกย่อยด้วย) · ไม่แก้ SML และไฟล์ Excel ·
+            ถ้าเคยนำเข้าเว็บแล้ว ต้องลบ/ซ่อนในหลังร้าน WordPress เอง
+          </p>
+          <div class="unmatched-scroll">
+            <table class="unmatched-table">
+              <thead>
+                <tr>
+                  <th>รหัส</th>
+                  <th>ชนิด</th>
+                  <th>ชื่อ</th>
+                  <th>คลัง SML</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="hidden-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
       <p id="status" role="status">แสดงหน้าละ 10 รายการ</p>
       <dialog id="detail" class="detail" aria-labelledby="detail-title">
         <div class="detail-head">
@@ -873,6 +916,7 @@
             <h2 id="detail-title"></h2>
           </div>
           <button type="button" id="detail-web" class="detail-btn web-btn" hidden></button>
+          <button type="button" id="detail-hide" class="detail-btn" title="ไม่ลงเว็บ: ย้ายไปส่วนที่ซ่อน และไม่ส่งออกไป CSV" hidden>ซ่อน</button>
           <button type="button" id="detail-copy-all" class="detail-btn">คัดลอกทั้งหมด</button>
           <button type="button" id="detail-close" class="detail-close" aria-label="ปิด">×</button>
         </div>

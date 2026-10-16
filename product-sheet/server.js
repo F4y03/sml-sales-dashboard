@@ -229,6 +229,12 @@ app.get("/api/sheet", async (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   try {
     const tab = (await readDriveWorkbook()).worksheets[0];
+    applyWebFixes(tab);
+    appendExtraProducts(tab);
+    applyDescriptionOverrides(tab);
+    applyPriceOverrides(tab);
+    applyCategoryOverrides(tab);
+    applyShippingSizes(tab);
     const values = Array.from({ length: tab.rowCount }, (_, row) =>
       Array.from(
         { length: tab.columnCount },
@@ -248,6 +254,411 @@ app.get("/download.xlsx", (req, res, next) => {
   if (!existsSync(driveWorkbookPath)) return next();
   res.download(driveWorkbookPath, "products-with-individual-drive-links.xlsx");
 });
+// ---------- สินค้าเพิ่มจากไฟล์ร่าง (data/extra-products.json) ----------
+// ต่อท้ายข้อมูลเฉพาะตอนแสดง/ส่งออก (หน้าแดชบอร์ด, CSV, ตัวอย่างเว็บ) — ไม่เขียนลง Excel ต้นฉบับ
+// ห้ามเรียกในเส้นทางที่บันทึก workbook กลับลงไฟล์ (missing-products POST, update-sku)
+function appendExtraProducts(tab) {
+  let extra;
+  try {
+    extra = JSON.parse(readFileSync(new URL("./data/extra-products.json", import.meta.url), "utf8")).rows || [];
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read extra-products failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const existing = new Set();
+  const skuColumn = headers.indexOf("รหัสสินค้า") + 1;
+  for (let row = 2; row <= tab.rowCount; row++) existing.add(tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase());
+  let added = 0;
+  for (const product of extra) {
+    // ถ้าภายหลังรหัสนี้ถูกเพิ่มเข้า Excel แล้ว ใช้ของ Excel
+    if (existing.has(String(product["รหัสสินค้า"] || "").toLocaleLowerCase())) continue;
+    tab.addRow(headers.map((header) => product[header] ?? ""));
+    added++;
+  }
+  return added;
+}
+
+// ---------- แก้รหัสในไฟล์เว็บให้ตรง SML (data/web-fixes.json) ----------
+// ใช้ตอนแสดง/ส่งออกเท่านั้น ไม่เขียนลง Excel ต้นฉบับ — ต้องเรียกก่อน appendExtraProducts
+// renames: { รหัสเดิม: รหัส SML } · splits: { รหัสสินค้าเดี่ยว: [{ code: รหัส SML, color }] }
+// split = SML แยกรหัสตามสี แต่ไฟล์เว็บรวมเป็นสินค้าเดียว → แปลงเป็นสินค้าแม่ + ตัวเลือกสี (ดึงคลังรายสีได้)
+function applyWebFixes(tab) {
+  let fixes;
+  try {
+    fixes = JSON.parse(readFileSync(new URL("./data/web-fixes.json", import.meta.url), "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read web-fixes failed:", error.message);
+    return { renamed: 0, split: 0, blankRemoved: 0 };
+  }
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const skuColumn = col("รหัสสินค้า");
+  if (!skuColumn) return { renamed: 0, split: 0, blankRemoved: 0 };
+  const lower = (value) => String(value || "").trim().toLocaleLowerCase();
+  const renames = new Map(Object.entries(fixes.renames || {}).map(([from, to]) => [lower(from), to]));
+  const splits = new Map(Object.entries(fixes.splits || {}).map(([from, kids]) => [lower(from), kids]));
+  const existing = new Set();
+  for (let row = 2; row <= tab.rowCount; row++) existing.add(lower(tab.getCell(row, skuColumn).text));
+  let extraByCode = new Map();
+  try {
+    const extra = JSON.parse(readFileSync(new URL("./data/extra-products.json", import.meta.url), "utf8")).rows || [];
+    extraByCode = new Map(extra.map((product) => [lower(product["รหัสสินค้า"]), product]));
+  } catch {}
+  const summary = { renamed: 0, split: 0, blankRemoved: 0 };
+  const newRows = [];
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const cell = tab.getCell(row, skuColumn);
+    const key = lower(cell.text);
+    const target = renames.get(key);
+    // รหัสใหม่มีในไฟล์อยู่แล้ว = แก้ไม่ได้ (รหัสซ้ำ) ปล่อยไว้
+    if (target && !existing.has(lower(target))) {
+      cell.value = target;
+      existing.add(lower(target));
+      summary.renamed++;
+      continue;
+    }
+    const kids = splits.get(key);
+    if (!kids?.length || tab.getCell(row, col("ชนิด")).text.trim() !== "simple") continue;
+    if (kids.some((kid) => existing.has(lower(kid.code)))) continue;
+    const parent = Object.fromEntries(headers.map((header, index) => [header, tab.getCell(row, index + 1).text]));
+    tab.getCell(row, col("ชนิด")).value = "variable";
+    if (col("ราคาปกติ")) tab.getCell(row, col("ราคาปกติ")).value = "";
+    if (col("ราคาที่ลด")) tab.getCell(row, col("ราคาที่ลด")).value = "";
+    tab.getCell(row, col("ชื่อคุณสมบัติ 1")).value = "สี";
+    tab.getCell(row, col("ค่าคุณสมบัติ 1")).value = kids.map((kid) => kid.color).join(", ");
+    tab.getCell(row, col("คุณสมบัติภายนอกที่เห็นได้ 1")).value = "1";
+    tab.getCell(row, col("คุณสมบัติทั่วไป 1")).value = "1";
+    // รูปเดิมของสินค้าแม่ + รูปรายสีที่ยังไม่มี (ใช้ชุดเดิมเป็นหลัก แล้วเพิ่มรูปใหม่)
+    const imageColumn = col("ไฟล์รูปภาพ");
+    if (imageColumn) {
+      const images = [parent["ไฟล์รูปภาพ"], ...kids.map((kid) => kid.images || extraByCode.get(lower(kid.code))?.["ไฟล์รูปภาพ"])]
+        .flatMap((value) => String(value || "").split(/,\s*/))
+        .filter(Boolean);
+      tab.getCell(row, imageColumn).value = [...new Set(images)].join(", ");
+    }
+    for (const kid of kids) {
+      const extra = extraByCode.get(lower(kid.code));
+      newRows.push({
+        ...parent,
+        ID: "",
+        "ชนิด": "variation",
+        "รหัสสินค้า": kid.code,
+        "ชื่อ": `${parent["ชื่อ"]} - ${kid.color}`,
+        "หลัก": parent["รหัสสินค้า"],
+        "หมวดหมู่": "",
+        "แบรนด์": "",
+        "คำอธิบาย": "",
+        "คำอธิบายสั้น": "",
+        "ไฟล์รูปภาพ": kid.images || extra?.["ไฟล์รูปภาพ"] || "",
+        "ราคาปกติ": parent["ราคาปกติ"] || extra?.["ราคาปกติ"] || "",
+        "ชื่อคุณสมบัติ 1": "สี",
+        "ค่าคุณสมบัติ 1": kid.color,
+        "คุณสมบัติภายนอกที่เห็นได้ 1": "",
+        "คุณสมบัติทั่วไป 1": "1",
+      });
+      existing.add(lower(kid.code));
+    }
+    summary.split++;
+  }
+  for (const product of newRows) tab.addRow(headers.map((header) => product[header] ?? ""));
+  // แถวว่าง (ไม่มีทั้งรหัสและชื่อ) ในไฟล์เว็บ ไม่ส่งออก
+  const nameColumn = col("ชื่อ");
+  for (let row = tab.rowCount; row >= 2; row--)
+    if (nameColumn && !tab.getCell(row, skuColumn).text.trim() && !tab.getCell(row, nameColumn).text.trim()) {
+      tab.spliceRows(row, 1);
+      summary.blankRemoved++;
+    }
+  return summary;
+}
+
+// ราคาจาก Google Sheet (data/price-overrides.json) — เจ้าของร้านให้ใช้ราคาในชีตบนเว็บ
+// ใช้ตอนแสดง/ส่งออกเท่านั้น สินค้าแม่ (variable) ไม่มีราคาของตัวเอง
+function applyPriceOverrides(tab) {
+  let items;
+  try {
+    items = JSON.parse(readFileSync(new URL("./data/price-overrides.json", import.meta.url), "utf8")).items || {};
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read price-overrides failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const [skuColumn, typeColumn, priceColumn] = ["รหัสสินค้า", "ชนิด", "ราคาปกติ"].map((name) => headers.indexOf(name) + 1);
+  if (!skuColumn || !typeColumn || !priceColumn) return 0;
+  let applied = 0;
+  for (let row = 2; row <= tab.rowCount; row++) {
+    if (tab.getCell(row, typeColumn).text.trim() === "variable") continue;
+    const entry = items[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
+    if (!entry?.price) continue;
+    tab.getCell(row, priceColumn).value = entry.price;
+    applied++;
+  }
+  return applied;
+}
+
+// หมวดหมู่สำหรับสินค้าที่ยังไม่มีหมวด (data/category-overrides.json) — ใช้หมวดของสินค้ารหัสใกล้เคียง
+// ใช้เฉพาะแถวที่หมวดว่าง ถ้าภายหลังใส่หมวดใน Excel/ไฟล์ร่างแล้วจะใช้ของเดิม
+function applyCategoryOverrides(tab) {
+  let items;
+  try {
+    items = JSON.parse(readFileSync(new URL("./data/category-overrides.json", import.meta.url), "utf8")).items || {};
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read category-overrides failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const [skuColumn, typeColumn, categoryColumn] = ["รหัสสินค้า", "ชนิด", "หมวดหมู่"].map((name) => headers.indexOf(name) + 1);
+  if (!skuColumn || !typeColumn || !categoryColumn) return 0;
+  let applied = 0;
+  for (let row = 2; row <= tab.rowCount; row++) {
+    if (tab.getCell(row, typeColumn).text.trim() === "variation" || tab.getCell(row, categoryColumn).text.trim()) continue;
+    const category = items[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
+    if (!category) continue;
+    tab.getCell(row, categoryColumn).value = category;
+    applied++;
+  }
+  return applied;
+}
+
+// น้ำหนัก/ขนาดกล่องสำหรับคิดค่าส่ง (data/shipping-sizes.json)
+// items: ค่าประมาณจากรุ่นใกล้เคียง ใช้เฉพาะช่องที่ว่าง · fixes: แก้ค่าเดิมที่พิมพ์ผิด (ทับค่าเดิม)
+function applyShippingSizes(tab) {
+  let data;
+  try {
+    data = JSON.parse(readFileSync(new URL("./data/shipping-sizes.json", import.meta.url), "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read shipping-sizes failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const skuColumn = col("รหัสสินค้า");
+  const idColumn = col("ID");
+  const fields = { kg: col("น้ำหนัก (กก.)"), l: col("ยาว (เซนติเมตร)"), w: col("กว้าง (เซนติเมตร)"), h: col("สูง (เซนติเมตร)") };
+  if (!skuColumn || Object.values(fields).some((column) => !column)) return 0;
+  let applied = 0;
+  for (let row = 2; row <= tab.rowCount; row++) {
+    // ตัวเลือกที่ไม่มีรหัสสินค้า อ้างด้วย "id:<ID>"
+    const key = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase() || (idColumn && tab.getCell(row, idColumn).text.trim() ? `id:${tab.getCell(row, idColumn).text.trim()}` : "");
+    const fix = data.fixes?.[key], item = data.items?.[key];
+    if (!fix && !item) continue;
+    for (const [field, column] of Object.entries(fields)) {
+      const cell = tab.getCell(row, column);
+      if (fix?.[field] != null) cell.value = String(fix[field]);
+      else if (item?.[field] != null && !cell.text.trim()) cell.value = String(item[field]);
+    }
+    applied++;
+  }
+  return applied;
+}
+
+// รายละเอียดที่ถอดจากข้อความบนรูปสินค้า (data/description-overrides.json)
+// ใช้เฉพาะแถวที่ยังไม่มีคำอธิบาย — ถ้าภายหลังมีคำอธิบายใน Excel แล้วจะใช้ของ Excel
+function applyDescriptionOverrides(tab) {
+  let items;
+  try {
+    items = JSON.parse(readFileSync(new URL("./data/description-overrides.json", import.meta.url), "utf8")).items || {};
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read description-overrides failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const skuColumn = headers.indexOf("รหัสสินค้า") + 1;
+  const descriptionColumn = headers.indexOf("คำอธิบาย") + 1;
+  if (!skuColumn || !descriptionColumn) return 0;
+  let applied = 0;
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const entry = items[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
+    if (!entry?.description || tab.getCell(row, descriptionColumn).text.trim()) continue;
+    tab.getCell(row, descriptionColumn).value = entry.description;
+    applied++;
+  }
+  return applied;
+}
+
+// ---------- รูป/แบรนด์ที่จับคู่จากโฟลเดอร์ Drive ----------
+// data/image-overrides.json: key = รหัสตัวเล็ก → { code, images: [Drive file id], brand? }
+// brand มาจากโฟลเดอร์ "Logo Change" (เจ้าของร้านให้ใช้รูปชุดนั้นแทน และเปลี่ยนแบรนด์ตาม)
+function readImageOverrides() {
+  try {
+    return JSON.parse(readFileSync(new URL("./data/image-overrides.json", import.meta.url), "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read image-overrides failed:", error.message);
+    return {};
+  }
+}
+
+// ---------- รหัสที่ซ่อน (ไม่ลงเว็บ) ----------
+// เก็บใน data/hidden-codes.json: key = รหัสตัวเล็ก → { code, hiddenAt }
+// ไม่แก้ SML / Excel แค่ไม่แสดงในตารางหลักและไม่ส่งออกไป CSV
+const hiddenCodesPath = fileURLToPath(new URL("./data/hidden-codes.json", import.meta.url));
+let hiddenQueue = Promise.resolve();
+async function readHiddenCodes() {
+  try {
+    return JSON.parse(await readFile(hiddenCodesPath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+app.get("/api/hidden-codes", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    res.json({ items: await readHiddenCodes() });
+  } catch (error) {
+    console.error("Read hidden codes failed:", error.code || error.message);
+    res.status(500).json({ error: "โหลดรายการที่ซ่อนไม่สำเร็จ" });
+  }
+});
+
+app.post("/api/hidden-codes", (req, res) => {
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  const hidden = req.body?.hidden;
+  if (!code || code.length > 100 || typeof hidden !== "boolean")
+    return res.status(400).json({ error: "ข้อมูลไม่ถูกต้อง" });
+  hiddenQueue = hiddenQueue.then(async () => {
+    let temporaryPath;
+    try {
+      const items = await readHiddenCodes();
+      const key = code.toLocaleLowerCase();
+      if (hidden) items[key] = { code, hiddenAt: new Date().toISOString() };
+      else delete items[key];
+      temporaryPath = `${hiddenCodesPath}.${process.pid}.${Date.now()}.tmp`;
+      await writeFile(temporaryPath, JSON.stringify(items, null, 2), "utf8");
+      await rename(temporaryPath, hiddenCodesPath);
+      temporaryPath = null;
+      res.json({ saved: true, item: items[key] || null });
+    } catch (error) {
+      console.error("Save hidden codes failed:", error.code || error.message);
+      res.status(500).json({ error: "บันทึกไม่สำเร็จ" });
+    } finally {
+      if (temporaryPath) await unlink(temporaryPath).catch(() => {});
+    }
+  });
+});
+
+// ลบแถวที่ซ่อนออกจาก worksheet (สินค้าแม่ที่ซ่อน → ตัวเลือกย่อยออกด้วย)
+// ลิงก์ Drive แบบ /view เปิดเป็นหน้าเว็บ WooCommerce ดึงเป็นรูปไม่ได้
+// แปลงเป็นลิงก์รูปตรงเฉพาะใน CSV (ไฟล์ Excel ต้นฉบับไม่แก้)
+// WooCommerce เอาชื่อไฟล์จาก path ของ URL ต้องลงท้าย .jpg ไม่งั้นขึ้น "not allowed to upload this file type"
+// (#.jpg ไม่ถูกส่งไปที่ server ของ Google และ WordPress แก้นามสกุลให้ตรงชนิดรูปจริงเอง)
+function applyImageLinks(tab) {
+  const imageColumn = workbookHeaders(tab).indexOf("ไฟล์รูปภาพ") + 1;
+  // รูปจากโฟลเดอร์ Drive (SHP) ที่จับคู่รหัสแล้ว: แทน/เติมรูปของรหัสนั้น (data/image-overrides.json)
+  const overrides = readImageOverrides();
+  const skuColumn = workbookHeaders(tab).indexOf("รหัสสินค้า") + 1;
+  if (imageColumn && skuColumn)
+    for (let row = 2; row <= tab.rowCount; row++) {
+      const override = overrides[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
+      if (override?.images?.length)
+        tab.getCell(row, imageColumn).value = override.images.map((id) => `https://drive.google.com/file/d/${id}/view`).join(", ");
+    }
+  if (imageColumn)
+    for (let row = 2; row <= tab.rowCount; row++) {
+      const cell = tab.getCell(row, imageColumn);
+      const direct = cell.text.replace(
+        /https:\/\/drive\.google\.com\/file\/d\/([\w-]+)\/view[^,\s]*/g,
+        "https://lh3.googleusercontent.com/d/$1#.jpg",
+      );
+      if (direct !== cell.text) cell.value = direct;
+    }
+}
+
+// รูปทั้งหมดของแต่ละรหัส (ตัวเลือกย่อยที่ไม่มีรูปใช้รูปสินค้าแม่) สำหรับป็อปอัปรายละเอียดสินค้าในแดชบอร์ด
+let productImagesCache = { at: 0, images: null };
+async function productImages() {
+  if (productImagesCache.images && Date.now() - productImagesCache.at < 10 * 60 * 1000) return productImagesCache.images;
+  const tab = (await readDriveWorkbook()).worksheets[0];
+  applyWebFixes(tab);
+  appendExtraProducts(tab);
+  applyImageLinks(tab);
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const [typeColumn, skuColumn, parentColumn, imageColumn] = ["ชนิด", "รหัสสินค้า", "หลัก", "ไฟล์รูปภาพ"].map(col);
+  const text = (row, column) => (column ? tab.getCell(row, column).text.trim() : "");
+  const list = (row) => text(row, imageColumn).split(",").map((link) => link.trim().replace(/#\.jpg$/, "")).filter(Boolean);
+  const images = {};
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const sku = text(row, skuColumn).toLocaleUpperCase();
+    if (sku && list(row).length) images[sku] = list(row);
+  }
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const sku = text(row, skuColumn).toLocaleUpperCase();
+    const parent = images[text(row, parentColumn).toLocaleUpperCase()];
+    if (sku && !images[sku] && text(row, typeColumn) === "variation" && parent) images[sku] = parent;
+  }
+  productImagesCache = { at: Date.now(), images };
+  return images;
+}
+app.get("/api/product-images", async (req, res) => {
+  if (!existsSync(driveWorkbookPath)) return res.status(503).json({ error: "ไม่พบไฟล์ Excel" });
+  try {
+    res.json({ images: await productImages() });
+  } catch (error) {
+    console.error("Product images failed:", error.message);
+    res.status(500).json({ error: "อ่านรูปสินค้าไม่สำเร็จ" });
+  }
+});
+
+// กรองตามรูปตอนดาวน์โหลด CSV ("with" = เฉพาะหน้าที่มีรูป, "without" = เฉพาะหน้าที่ไม่มีรูป)
+// นับเป็นหน้า: สินค้าหลายตัวเลือกมีรูปถ้าสินค้าแม่หรือตัวเลือกใดมีรูป และตัวเลือกย่อยไปกับสินค้าแม่เสมอ
+function filterRowsByImages(tab, mode) {
+  if (mode !== "with" && mode !== "without") return 0;
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const [typeColumn, skuColumn, idColumn, parentColumn, imageColumn] = ["ชนิด", "รหัสสินค้า", "ID", "หลัก", "ไฟล์รูปภาพ"].map(col);
+  if (!imageColumn) return 0;
+  const text = (row, column) => (column ? tab.getCell(row, column).text.trim() : "");
+  const pageOf = (row) =>
+    text(row, typeColumn) === "variation"
+      ? text(row, parentColumn).toLocaleLowerCase()
+      : text(row, skuColumn).toLocaleLowerCase() || (text(row, idColumn) ? `id:${text(row, idColumn)}` : `row:${row}`);
+  const withImages = new Set();
+  for (let row = 2; row <= tab.rowCount; row++) if (text(row, imageColumn)) withImages.add(pageOf(row));
+  // ตัวเลือกย่อยอ้างสินค้าแม่ด้วยรหัสหรือ id:ID → ให้ทั้งสองแบบชี้หน้าเดียวกัน
+  for (let row = 2; row <= tab.rowCount; row++)
+    if (text(row, typeColumn) === "variable" && idColumn) {
+      const sku = text(row, skuColumn).toLocaleLowerCase();
+      // สินค้าเพิ่มใหม่ไม่มี ID → ไม่ใช้ "id:" ว่าง (ไม่งั้นทุกหน้าที่ไม่มี ID จะนับว่ามีรูป)
+      const id = text(row, idColumn) ? `id:${text(row, idColumn)}` : "";
+      if (withImages.has(sku) || (id && withImages.has(id))) [sku, id].forEach((key) => key && withImages.add(key));
+    }
+  let removed = 0;
+  for (let row = tab.rowCount; row >= 2; row--) {
+    if (withImages.has(pageOf(row)) === (mode === "with")) continue;
+    tab.spliceRows(row, 1);
+    removed++;
+  }
+  return removed;
+}
+
+async function removeHiddenRows(tab) {
+  const hidden = await readHiddenCodes();
+  if (!Object.keys(hidden).length) return 0;
+  const headers = workbookHeaders(tab);
+  const col = (name) => headers.indexOf(name) + 1;
+  const [skuColumn, idColumn, parentColumn] = ["รหัสสินค้า", "ID", "หลัก"].map(col);
+  const hiddenParents = new Set();
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const sku = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase();
+    if (sku && hidden[sku]) {
+      hiddenParents.add(sku);
+      if (idColumn) hiddenParents.add(`id:${tab.getCell(row, idColumn).text.trim()}`);
+    }
+  }
+  let removed = 0;
+  for (let row = tab.rowCount; row >= 2; row--) {
+    const sku = tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase();
+    const parent = parentColumn ? tab.getCell(row, parentColumn).text.trim().toLocaleLowerCase() : "";
+    if ((sku && hidden[sku]) || (parent && hiddenParents.has(parent))) {
+      tab.spliceRows(row, 1);
+      removed++;
+    }
+  }
+  return removed;
+}
+
 // ---------- แปลงคำอธิบายสำหรับเว็บไซต์ (เฉพาะ CSV) ----------
 // บรรทัด "• หัวข้อ : ค่า" → คุณสมบัติในแท็บ "ข้อมูลทางเทคนิค" และคำอธิบายเป็น <ul><li>
 // รวมเฉพาะชื่อหัวข้อที่สะกดผิด/สะกดต่าง ไม่รวมคำที่ความหมายอาจต่างกัน
@@ -475,6 +886,9 @@ function addSpecAttributes(tab, realSizes = new Map()) {
   };
   const nameColumn = col("ชื่อ");
   const skuColumn = col("รหัสสินค้า");
+  const brandOverrides = Object.fromEntries(
+    Object.entries(readImageOverrides()).filter(([, entry]) => entry.brand).map(([key, entry]) => [key, entry.brand]),
+  );
   let imageBrands = {};
   try {
     imageBrands = JSON.parse(readFileSync(new URL("./data/brand-from-images.json", import.meta.url), "utf8"));
@@ -524,11 +938,13 @@ function addSpecAttributes(tab, realSizes = new Map()) {
       const parsed = brandAndModel(text(nameColumn));
       const model = parsed.model;
       // ชื่อไม่มีแบรนด์ → ใช้แบรนด์จากโลโก้มุมรูปสินค้า (อ่านจากรูปแล้วบันทึกไว้)
-      const brand = parsed.brand || imageBrands[text(skuColumn)] || "";
+      // ลำดับ: Logo Change > แบรนด์ที่ใส่มาในแถวแล้ว (เช่นสินค้าเพิ่มจากโฟลเดอร์รูป) > ชื่อสินค้า > โลโก้ในรูป
+      const brand =
+        brandOverrides[text(skuColumn).toLocaleLowerCase()] || text(brandColumn) || parsed.brand || imageBrands[text(skuColumn)] || "";
       if (model) attributes.push({ name: "รุ่น", value: escapeValue(model) });
       if (brand) {
         attributes.push({ name: "แบรนด์", value: brand });
-        if (brandColumn && !text(brandColumn)) tab.getCell(row, brandColumn).value = brand;
+        if (brandColumn) tab.getCell(row, brandColumn).value = brand;
       }
       const dimensions = dimensionColumns.map(([label, column]) => [label, text(column)]);
       if (dimensions.every(([, value]) => value))
@@ -613,11 +1029,63 @@ function addSpecAttributes(tab, realSizes = new Map()) {
       // ประเภท: เอาเฉพาะที่เขียนไว้ในรายละเอียด ("ประเภท/ชนิด/ระบบ : ..." หรือบรรทัดแรกแบบ "BEST LCD-22 ขาแขวนทีวีติดผนัง")
       // ไม่เดาจากชื่อหรือหมวดหมู่ ถ้าไม่มีให้เป็น "-"
       const typeAttribute = attributes.find((attribute) => /^(ประเภท|ชนิด|ระบบ|Type)$/i.test(attribute.name));
-      const firstLine = descriptionLines(description).filter((line) => line !== "รายละเอียดสินค้า")[0] || "";
-      const headline = !isBullet(firstLine) && firstLine.match(
-        /^(?:PRO\s?PLUS|BEST|MITSUMI|LEGACY|NEW POWER|PERFECTS|WOER)\s+[A-Z0-9][A-Z0-9./-]*\d[A-Z0-9./-]*\s+([฀-๿][^,]{1,60})$/i,
-      );
-      const typeValue = typeAttribute?.value || (headline ? escapeValue(headline[1].trim()) : "");
+      const lines = descriptionLines(description).filter((line) => line !== "รายละเอียดสินค้า");
+      // 1) บรรทัดหัวเรื่องแรก (ไม่ใช่รายการ) ตัดแบรนด์/รหัสรุ่นออก เช่น
+      //    "BEST LCD-22 ขาแขวนทีวีติดผนัง" → ขาแขวนทีวีติดผนัง, "มิเตอร์ไฟแบบเข็ม MITSUMI YX-360TR พร้อมสายวัด" → มิเตอร์ไฟแบบเข็ม พร้อมสายวัด
+      const firstLine = lines[0] || "";
+      const headline =
+        !isBullet(firstLine) && firstLine.length <= 60
+          ? firstLine
+              .split(/\s+/)
+              .filter(
+                (token) =>
+                  !knownBrands.some(([, pattern]) => pattern.test(token)) &&
+                  !/^(PRO|PLUS)$/i.test(token) &&
+                  !isModelCode(token) &&
+                  !/^[A-Z](?:-[A-Z])+$/.test(token), // ชิ้นส่วนรหัสรุ่น เช่น E-B-S
+              )
+              .join(" ")
+          : "";
+      // 2) ประโยค "เป็น..." ที่บอกว่าสินค้าคืออะไร เช่น "เป็นเครื่องแยกสัญญาณเสียง สูง ต่ำ (High Low) ในระบบ..."
+      //    (ไม่ใช้ "เป็นได้ทั้ง...", "เป็นเวลา..." และบรรทัดบอกการใช้งาน เช่น "เหมาะสำหรับ...")
+      const isLine = lines
+        .map(stripBullet)
+        .find((line) => /^เป็น(?!ได้|เวลา|การ|ต้น|พิเศษ)\S/.test(line));
+      // เอาแค่วลีแรก (ภาษาไทยเว้นวรรคระหว่างวลี) และตัดส่วนขยาย เช่น "ที่ทำจาก...", "หรือ" ท้ายวลี
+      const tidyType = (value) =>
+        value
+          .replace(/[​‌‍﻿]/g, "")
+          .replace(/(?:ที่(?:ทำ|มี|ใช้|ผลิต|ช่วย|ให้)|ซึ่ง).*$/, "")
+          .replace(/\s*(?:ยี่ห้อ|รุ่น|หรือ|และ)\s*$/g, "")
+          .replace(/\s+(?:ยี่ห้อ|รุ่น)(?=\s|$)/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      const fromIs = isLine
+        ? tidyType(
+            isLine
+              .replace(/^เป็น\s*/, "")
+              .replace(/[​‌‍﻿]/g, "")
+              .split(/\s+/)
+              .reduce((phrase, word) => (phrase.length < 6 ? `${phrase} ${word}`.trim() : phrase), ""),
+          ).slice(0, 50)
+        : "";
+      const headlineType = headline ? tidyType(headline) : "";
+      // 3) คำนามที่ขึ้นต้นรายการซ้ำ ≥2 บรรทัด และอยู่ในชื่อสินค้าด้วย
+      //    เช่น "เพาเวอร์มิกซ์ มีหน่วยประมวลผล...", "เพาเวอร์มิกซ์ มีช่อง..." → เพาเวอร์มิกซ์
+      const leadCounts = new Map();
+      for (const line of lines.filter(isBullet).map(stripBullet)) {
+        const word = line.split(/\s+/)[0];
+        if (/^[฀-๿]{4,}$/.test(word)) leadCounts.set(word, (leadCounts.get(word) || 0) + 1);
+      }
+      const productName = text(nameColumn);
+      const repeatedLead =
+        [...leadCounts].filter(([word, count]) => count >= 2 && productName.includes(word)).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+      // หัวข้อทั่วไปที่ไม่ได้บอกว่าสินค้าคืออะไร
+      const generic = /^(System parameters|Features?|Specifications?|คุณสมบัติ|คุณสมบัติเด่น|รายละเอียด|ข้อมูลจำเพาะ|สเปค|สินค้าดีมีคุณภาพ)/i;
+      // คำชมคุณสมบัติ (เช่น "ฉนวนไฟฟ้าอย่างดี") ไม่ใช่ประเภทสินค้า
+      const praise = /อย่างดี|คุณภาพ|แข็งแรง|ทนทาน|สวยงาม|เสียงดี/;
+      const pick = (value) => (!generic.test(value) && !praise.test(value) && /[฀-๿]{3}/.test(value) ? value : "");
+      const typeValue = typeAttribute?.value || escapeValue(pick(headlineType) || pick(fromIs) || pick(repeatedLead));
       if (typeValue) attributes.push({ name: "ประเภท", value: typeValue });
       const fixed = ["รุ่น", "แบรนด์", "ขนาด", "สี", "ประเภท"].map(
         (name) =>
@@ -634,14 +1102,35 @@ function addSpecAttributes(tab, realSizes = new Map()) {
         // ขนาดกล่องจากช่องการจัดส่งไม่แสดงในข้อมูลทางเทคนิค (ยังใช้คำนวณค่าส่งตามเดิม)
         value: size.value.endsWith("(ขนาดกล่อง)") ? "-" : size.value,
       };
-      attributes.splice(0, attributes.length, ...fixed, ...variationAttributes);
+      // หัวข้อตายตัว 5 ข้อย้ายไปบนสุดของ "รายละเอียดสินค้า" (เจ้าของร้านกำหนด) ไม่มีข้อมูลไม่แสดง
+      // บรรทัดเดิมในรายละเอียดที่หัวข้อซ้ำกันตัดออก จะได้ไม่แสดงสองที่
+      const shown = fixed
+        .map((attribute) => ({ name: attribute.name.replace(" / สัดส่วน", ""), value: attribute.value.replace(/\\,/g, ",") }))
+        .filter((attribute) => attribute.value && attribute.value !== "-");
+      const shownNames = new Set(shown.map((attribute) => attribute.name));
+      // แสดง "ขนาด" แล้ว ไม่ต้องมีบรรทัด กว้าง/ยาว/สูง ซ้ำ
+      const sizeLine = /^(ความ)?(กว้าง|ยาว|สูง|ลึก|หนา)$|^เส้นผ่านศูนย์กลาง$/;
+      const rest = descriptionLines(description).filter((line) => {
+        const key = parseSpecLine(line)?.key;
+        return !shownNames.has(key) && !(shownNames.has("ขนาด") && key && sizeLine.test(key));
+      });
+      const topItems = shown.map((attribute) => `<li><strong>${escapeHtml(attribute.name)}</strong> ${escapeHtml(attribute.value)}</li>`).join("\n");
+      let restHtml = rest.length ? descriptionToHtml(rest.join("\n")) : "";
+      // รายการแรกของรายละเอียดเดิมเป็น list อยู่แล้ว ต่อเป็น list เดียวกัน
+      if (topItems && restHtml.startsWith("<ul>\n")) restHtml = `<ul>\n${topItems}\n${restHtml.slice(5)}`;
+      else if (topItems) restHtml = [`<ul>\n${topItems}\n</ul>`, restHtml].filter(Boolean).join("\n");
+      tab.getCell(row, descriptionColumn).value = restHtml || null;
+      // สินค้าหลายสีต้องคงคุณสมบัติ "สี" ไว้ ไม่งั้นตัวเลือกสีพัง
+      const variationColor = text(typeColumn) === "variable" ? existing.find((attribute) => attribute.name === "สี") : null;
+      attributes.splice(0, attributes.length, ...(variationColor ? [variationColor] : []), ...variationAttributes);
     }
     attributes.forEach((attribute, index) => {
       const columns = ensureAttribute(index + 1);
       tab.getCell(row, columns.name).value = attribute.name;
       tab.getCell(row, columns.value).value = attribute.value;
       // variation ไม่ต้องกำหนด "เห็นได้" (ใช้ของสินค้าแม่)
-      tab.getCell(row, columns.visible).value = isVariation ? attribute.visible || null : attribute.visible || "1";
+      // แท็บ "ข้อมูลทางเทคนิค" ตัดออก (เจ้าของร้านกำหนด): เหลือแค่คุณสมบัติที่ใช้แยกตัวเลือก และไม่แสดงบนหน้า
+      tab.getCell(row, columns.visible).value = isVariation ? null : "0";
       tab.getCell(row, columns.global).value = attribute.global || "0";
     });
   }
@@ -666,7 +1155,7 @@ const isModelCode = (token) =>
   /[A-Z]/.test(token) &&
   (token.includes("-") || (token.match(/[A-Z]/g) || []).length >= 2) &&
   // หน่วย เช่น 500W 12V 21AH 2CH ไม่ใช่รุ่น
-  !/^\d+(\.\d+)?(W|V|AH|MM|CM|HZ|KHZ|CH|U|MAH|OHM)$/.test(token);
+  !/^\d+(\.\d+)?(W|V|VAC|VDC|AH|MM|CM|HZ|KHZ|CH|U|MAH|OHM)$/.test(token);
 
 function brandAndModel(name) {
   const tokens = name.split(/\s+/).map((token) => token.replace(/^[(\[]+|[)\],;]+$/g, ""));
@@ -724,20 +1213,21 @@ app.get("/download.csv", async (req, res, next) => {
   try {
     const workbook = await readDriveWorkbook();
     const tab = workbook.worksheets[0];
-    // ลิงก์ Drive แบบ /view เปิดเป็นหน้าเว็บ WooCommerce ดึงเป็นรูปไม่ได้
-    // แปลงเป็นลิงก์รูปตรงเฉพาะใน CSV (ไฟล์ Excel ต้นฉบับไม่แก้)
-    // WooCommerce เอาชื่อไฟล์จาก path ของ URL ต้องลงท้าย .jpg ไม่งั้นขึ้น "not allowed to upload this file type"
-    // (#.jpg ไม่ถูกส่งไปที่ server ของ Google และ WordPress แก้นามสกุลให้ตรงชนิดรูปจริงเอง)
-    const imageColumn = workbookHeaders(tab).indexOf("ไฟล์รูปภาพ") + 1;
-    if (imageColumn)
-      for (let row = 2; row <= tab.rowCount; row++) {
-        const cell = tab.getCell(row, imageColumn);
-        const direct = cell.text.replace(
-          /https:\/\/drive\.google\.com\/file\/d\/([\w-]+)\/view[^,\s]*/g,
-          "https://lh3.googleusercontent.com/d/$1#.jpg",
-        );
-        if (direct !== cell.text) cell.value = direct;
-      }
+    const webFixes = applyWebFixes(tab);
+    if (webFixes.renamed || webFixes.split || webFixes.blankRemoved) console.log("CSV web fixes:", JSON.stringify(webFixes));
+    const extraAdded = appendExtraProducts(tab);
+    applyDescriptionOverrides(tab);
+    applyPriceOverrides(tab);
+    applyCategoryOverrides(tab);
+    applyShippingSizes(tab);
+    if (extraAdded) console.log("CSV extra products appended:", extraAdded);
+    applyImageLinks(tab);
+    const hiddenRemoved = await removeHiddenRows(tab);
+    if (hiddenRemoved) console.log("CSV hidden rows removed:", hiddenRemoved);
+    // ?images=with | without (ไม่ระบุ = ทั้งหมด)
+    const imageMode = ["with", "without"].includes(req.query.images) ? req.query.images : "";
+    const imageFiltered = filterRowsByImages(tab, imageMode);
+    if (imageFiltered) console.log(`CSV images=${imageMode} rows removed:`, imageFiltered);
     addSpecAttributes(tab, await readRealSizes());
     // ดึงคลังไม่ได้ = ไม่ส่งไฟล์ (ไม่ปล่อยยอดเก่าจาก Excel ไปแทนโดยไม่รู้ตัว)
     let stockSummary;
@@ -751,8 +1241,15 @@ app.get("/download.csv", async (req, res, next) => {
         .send("ดาวน์โหลด CSV ไม่สำเร็จ: ดึงยอดคงคลังจาก SML ไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ SML แล้วลองใหม่");
     }
     console.log("CSV stock:", JSON.stringify(stockSummary));
+    const fileName = `woocommerce-products${imageMode ? `-${imageMode}-images` : ""}`;
+    // ?format=xlsx = ข้อมูลชุดเดียวกับ CSV แต่เป็นชีต Excel (ไว้เปิดดู/ตรวจ)
+    if (req.query.format === "xlsx") {
+      const xlsx = await workbook.xlsx.writeBuffer();
+      res.attachment(`${fileName}.xlsx`);
+      return res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").send(Buffer.from(xlsx));
+    }
     const csv = await workbook.csv.writeBuffer();
-    res.attachment("woocommerce-products.csv");
+    res.attachment(`${fileName}.csv`);
     res.type("text/csv; charset=utf-8").send(Buffer.from(csv));
   } catch (error) {
     next(error);
@@ -766,6 +1263,12 @@ app.get("/api/web-preview", async (req, res) => {
   if (!existsSync(driveWorkbookPath)) return res.status(503).json({ error: "ไม่พบไฟล์ Excel" });
   try {
     const tab = (await readDriveWorkbook()).worksheets[0];
+    applyWebFixes(tab);
+    appendExtraProducts(tab);
+    applyDescriptionOverrides(tab);
+    applyPriceOverrides(tab);
+    applyCategoryOverrides(tab);
+    applyShippingSizes(tab);
     addSpecAttributes(tab, await readRealSizes());
     const headers = workbookHeaders(tab);
     const col = (name) => headers.indexOf(name) + 1;
@@ -997,9 +1500,15 @@ app.use(express.static(fileURLToPath(new URL("./public", import.meta.url))));
 const server = app.listen(3002, "127.0.0.1", () =>
   console.log("Product sheet: http://localhost:3002"),
 );
-process.on("SIGINT", () =>
+// รันเป็นเบื้องหลัง (scripts/start-product-sheet.cmd ตั้ง PRODUCT_SHEET_BACKGROUND=1):
+// Ctrl+C ที่ส่งมาจากหน้าต่าง terminal อื่นในเครื่องต้องไม่ทำให้เซิร์ฟเวอร์ปิด — หยุดด้วย taskkill แทน
+process.on("SIGINT", () => {
+  if (process.env.PRODUCT_SHEET_BACKGROUND === "1") {
+    console.log("Ignored Ctrl+C (background mode)");
+    return;
+  }
   server.close(async () => {
     await smlPool.end();
     process.exit(0);
-  }),
-);
+  });
+});

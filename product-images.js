@@ -70,6 +70,23 @@ export function cleanLinks(input) {
   return { links };
 }
 
+// Photos from the local product-sheet tool (127.0.0.1:3002, the same set as the WooCommerce CSV),
+// shown for codes with no saved photos. Read-only and optional: if the tool is down, nothing is added.
+let sheetImages = { at: 0, images: {} };
+async function readSheetImages() {
+  if (Date.now() - sheetImages.at < 10 * 60 * 1000) return sheetImages.images;
+  try {
+    const response = await fetch('http://127.0.0.1:3002/api/product-images', { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    sheetImages = { at: Date.now(), images: (await response.json()).images || {} };
+  } catch (error) {
+    console.error('Product-sheet images failed:', error.name);
+    sheetImages = { at: Date.now() - 9 * 60 * 1000, images: sheetImages.images }; // retry in ~1 minute
+  }
+  return sheetImages.images;
+}
+const sheetLink = url => { const id = String(url || '').match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([\w-]+)$/)?.[1]; return id ? `https://drive.google.com/file/d/${id}/view` : ''; };
+
 export function installProductImages(app, store, audit, pool) {
   const read = code => {
     const row = store.get('SELECT links_json, updated_at FROM product_images WHERE code=?', code);
@@ -177,6 +194,15 @@ export function installProductImages(app, store, audit, pool) {
     const images = {};
     for (const code of new Set(codes)) { const saved = read(code); if (saved) images[code] = saved.links; }
     const borrowed = await borrowedImages([...new Set(codes)].filter(code => !images[code]));
+    // No saved photos: use the product-sheet photos.
+    const missing = [...new Set(codes)].filter(code => !images[code] && !borrowed[code]);
+    if (missing.length) {
+      const sheet = await readSheetImages();
+      for (const code of missing) {
+        const links = [].concat(sheet[code.trim().toUpperCase()] || []).map(sheetLink).filter(Boolean).slice(0, MAX_IMAGES);
+        if (links.length) images[code] = links;
+      }
+    }
     res.json({ images, ...(Object.keys(borrowed).length ? { borrowed } : {}), canEdit: hasPermission(req.auth, 'product_images') });
   });
   // { consignmentCode: { from: regularCode, links } } for consignment codes without photos of their own.

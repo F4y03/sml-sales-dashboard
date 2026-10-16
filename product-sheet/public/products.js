@@ -16,6 +16,96 @@ const columns = [
   { name: "หมวดหมู่", source: "sheet", width: 200, kind: "tags" },
   { name: "ไฟล์รูปภาพ", source: "sheet", width: 150, kind: "images" },
 ];
+// ---------- รหัสที่ซ่อน (ไม่ลงเว็บ) ----------
+// allRows = ทุกแถวในไฟล์, rows = แถวที่แสดงในตารางหลัก (ไม่รวมที่ซ่อน และตัวเลือกของสินค้าแม่ที่ซ่อน)
+let allRows = [],
+  hiddenCodes = {},
+  hiddenError = "";
+const hiddenKey = (item) => {
+  if (item.code && hiddenCodes[item.code.toLocaleLowerCase()]) return item.code;
+  if (!item.parentKey) return "";
+  const parent = allRows.find(
+    (other) => other.type === "variable" && (other.code.toLocaleLowerCase() === item.parentKey || `id:${other.id}` === item.parentKey),
+  );
+  return parent && parent.code && hiddenCodes[parent.code.toLocaleLowerCase()] ? parent.code : "";
+};
+
+function applyHidden() {
+  rows = allRows.filter((item) => !hiddenKey(item));
+  buildCategoryTree();
+  renderHidden();
+}
+
+function renderHidden() {
+  const list = allRows.filter((item) => hiddenKey(item) && item.type !== "variation");
+  const missing = Object.values(hiddenCodes).filter(
+    (entry) => !allRows.some((item) => item.code.toLocaleLowerCase() === entry.code.toLocaleLowerCase()),
+  );
+  get("hidden-count").textContent = hiddenError
+    ? "โหลดไม่ได้"
+    : `${Object.keys(hiddenCodes).length} รหัส (ในไฟล์เว็บ ${list.length})`;
+  const body = get("hidden-rows");
+  body.replaceChildren();
+  for (const item of list) {
+    const tr = document.createElement("tr");
+    const kids = allRows.filter((other) => other.type === "variation" && hiddenKey(other) === item.code).length;
+    const badge = document.createElement("span");
+    badge.className = `type-badge ${item.type}`;
+    badge.textContent = kids ? `${item.type} +${kids} ตัวเลือก` : item.type;
+    const typeCell = document.createElement("td");
+    typeCell.append(badge);
+    const actionCell = document.createElement("td");
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.textContent = "นำกลับ";
+    restore.onclick = () => setHidden(item.code, false, restore);
+    actionCell.append(restore);
+    tr.append(cell("td", item.code), typeCell, cell("td", item.values[columns.findIndex((c) => c.kind === "name")]), cell("td", formatQty(item.stock)), actionCell);
+    tr.firstChild.className = "code";
+    body.append(tr);
+  }
+  for (const entry of missing) {
+    const tr = document.createElement("tr");
+    const actionCell = document.createElement("td");
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.textContent = "เอาออกจากรายการ";
+    restore.onclick = () => setHidden(entry.code, false, restore);
+    actionCell.append(restore);
+    tr.append(cell("td", entry.code), cell("td", "-"), cell("td", "ไม่อยู่ในไฟล์เว็บ (กันไว้ไม่ให้เพิ่มเข้าเว็บ)"), cell("td", "-"), actionCell);
+    tr.firstChild.className = "code";
+    body.append(tr);
+  }
+  if (!list.length && !missing.length) {
+    const tr = document.createElement("tr");
+    const td = cell("td", "ยังไม่มีสินค้าที่ซ่อน");
+    td.colSpan = 5;
+    tr.append(td);
+    body.append(tr);
+  }
+}
+
+async function setHidden(code, hidden, button) {
+  if (hidden && !confirm(`ซ่อน ${code} ไม่ให้ลงเว็บ?\n(ไม่ส่งออกไปใน CSV · ถ้ามีตัวเลือกย่อยจะซ่อนไปด้วย)`)) return;
+  if (button) button.disabled = true;
+  try {
+    const result = await json("api/hidden-codes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, hidden }),
+    });
+    const key = code.toLocaleLowerCase();
+    if (result.item) hiddenCodes[key] = result.item;
+    else delete hiddenCodes[key];
+    if (hidden) get("detail").close();
+    applyHidden();
+    search();
+  } catch (error) {
+    alert(`บันทึกไม่สำเร็จ: ${error.message}`);
+    if (button) button.disabled = false;
+  }
+}
+
 let rows = [],
   filteredRows = [],
   page = 0;
@@ -470,6 +560,10 @@ function openDetail(item) {
       return wrap;
     }),
   );
+  const hideButton = get("detail-hide");
+  hideButton.hidden = !item.code || item.type === "variation" || Boolean(hiddenError);
+  hideButton.onclick = () => setHidden(item.code, true, hideButton);
+  hideButton.disabled = false;
   get("detail-copy-all").onclick = () =>
     copyText(
       fields
@@ -968,6 +1062,12 @@ function applyNewCode(item, newCode, stock) {
       json("api/web-posted"),
       json("api/real-sizes"),
     ]);
+    try {
+      hiddenCodes = (await json("api/hidden-codes")).items || {};
+    } catch (error) {
+      hiddenError = error.message;
+      notes.push(`รายการที่ซ่อน: ${hiddenError}`);
+    }
     if (real.status === "fulfilled") realSizes = real.value.items || {};
     else {
       realError = real.reason.message;
@@ -1017,6 +1117,8 @@ function applyNewCode(item, newCode, stock) {
         stock,
         code: codes[r],
         type: String(row[headers.indexOf("ชนิด")] ?? "").trim(),
+        id: idColumn < 0 ? "" : String(row[idColumn] ?? "").trim(),
+        parentKey: parentColumn < 0 ? "" : String(row[parentColumn] ?? "").trim().toLocaleLowerCase(),
         // คลัง "มีข้อมูล" = พบใน SML และ balance_qty ไม่เป็น NULL (0 นับว่ามีข้อมูล)
         filled: columns.map((c, i) =>
           c.kind === "stock"
@@ -1042,7 +1144,8 @@ function applyNewCode(item, newCode, stock) {
       };
     });
     for (const item of rows) item.hash = productHash(item);
-    buildCategoryTree();
+    allRows = rows;
+    applyHidden();
     if (sml.status === "fulfilled") renderUnmatched();
     else get("unmatched-count").textContent = "ตรวจสอบไม่ได้ (โหลด SML ไม่สำเร็จ)";
     get("status").textContent = [...notes, "แสดงหน้าละ 10 รายการ"].join(" · ");
