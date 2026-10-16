@@ -14,7 +14,8 @@
   const RESULTS = {
     connected: ['ready', 'เชื่อมต่อร้าน TikTok สำเร็จ กด "ดึงข้อมูล" เพื่อดึงยอดขาย'],
     'not-configured': ['error', 'ยังไม่ได้ใส่ TIKTOK_APP_KEY / TIKTOK_APP_SECRET / TIKTOK_SERVICE_ID ใน .env ของเซิร์ฟเวอร์'],
-    'choose-shop': ['error', 'มีหลายร้านในระบบ กรุณาเลือกร้านก่อนกดเชื่อมต่อ'],
+    'no-dashboard-shop': ['error', 'ยังไม่มีร้านในระบบ กรุณาเพิ่มร้าน (เช่น "TikTok") ที่หน้า "อัปโหลดไฟล์ยอดขาย" › จัดการร้าน ก่อนกดเชื่อมต่อ'],
+    'choose-shop':['error', 'มีหลายร้านในระบบ กรุณาเลือกร้านก่อนกดเชื่อมต่อ'],
     expired: ['error', 'ลิงก์เชื่อมต่อหมดอายุหรือถูกใช้ไปแล้ว กรุณากดเชื่อมต่อใหม่'],
     denied: ['error', 'ไม่ได้รับอนุญาตจาก TikTok กรุณาลองใหม่'],
     'no-shop': ['error', 'บัญชี TikTok นี้ไม่มีร้านที่อนุญาตให้แอปเข้าถึง'],
@@ -52,7 +53,7 @@
       }));
       if (!data.configured) say('empty', 'ยังไม่ได้ตั้งค่า TikTok API ในเซิร์ฟเวอร์');
       else if (data.connections.length) { if (!status.dataset.state) say('ready', ''); }
-      else say('empty', data.canConnect ? 'ยังไม่ได้เชื่อมต่อ กด "เชื่อมต่อร้าน TikTok"' : 'ยังไม่ได้เชื่อมต่อ กรุณาให้ Super Admin เชื่อมต่อร้าน');
+      else if (!status.dataset.state) say('empty', data.canConnect ? 'ยังไม่ได้เชื่อมต่อ กด "เชื่อมต่อร้าน TikTok"' : 'ยังไม่ได้เชื่อมต่อ กรุณาให้ Super Admin เชื่อมต่อร้าน');
     } catch (error) {
       panel.hidden = false;
       say('error', offline(error));

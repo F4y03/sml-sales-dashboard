@@ -75,7 +75,13 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
   app.get('/api/tiktok/connect', requireSuperAdmin, (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (!configured()) return back(res, 'not-configured');
-    const active = store.all('SELECT id FROM marketplace_shops WHERE active=1');
+    let active = store.all('SELECT id FROM marketplace_shops WHERE active=1');
+    if (!active.length) { // first use from this page: create the dashboard shop the orders are saved under
+      if (store.get('SELECT 1 FROM marketplace_shops WHERE name=?', 'TikTok')) return back(res, 'no-dashboard-shop');
+      const id = Number(store.run('INSERT INTO marketplace_shops(name,active,created_at) VALUES(?,1,?)', 'TikTok', new Date().toISOString()).lastInsertRowid);
+      audit.record(req.auth, 'marketplace.shop_create', 'marketplace', { id, name: 'TikTok' }, null, req.socket.remoteAddress);
+      active = [{ id }];
+    }
     const shop = req.query.shop ? active.find(s => s.id === Number(req.query.shop)) : active.length === 1 ? active[0] : null;
     if (!shop) return back(res, 'choose-shop');
     const state = randomBytes(32).toString('hex');
