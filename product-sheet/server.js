@@ -456,7 +456,7 @@ function applyShippingSizes(tab) {
 // รายละเอียดที่ถอดจากข้อความบนรูปสินค้า (data/description-overrides.json)
 // ใช้เฉพาะแถวที่ยังไม่มีคำอธิบาย — ถ้าภายหลังมีคำอธิบายใน Excel แล้วจะใช้ของ Excel
 // แก้สเปคในคำอธิบายให้ตรงแค็ตตาล็อก PDF (data/spec-fixes.json) — แทนข้อความตรงตัว ใช้ตอนแสดง/ส่งออกเท่านั้น
-// เจ้าของร้านให้แก้เฉพาะคำอธิบาย ไม่แก้ชื่อสินค้า
+// replace = คำอธิบาย, nameReplace = ชื่อสินค้า (ยึด PDF ตามที่เจ้าของร้านสั่ง)
 function applySpecFixes(tab) {
   let items;
   try {
@@ -468,14 +468,19 @@ function applySpecFixes(tab) {
   const headers = workbookHeaders(tab);
   const skuColumn = headers.indexOf("รหัสสินค้า") + 1;
   const descriptionColumn = headers.indexOf("คำอธิบาย") + 1;
-  if (!skuColumn || !descriptionColumn) return 0;
+  const nameColumn = headers.indexOf("ชื่อ") + 1;
+  if (!skuColumn || !descriptionColumn || !nameColumn) return 0;
+  const fix = (cell, pairs) => {
+    if (!pairs?.length) return;
+    const fixed = pairs.reduce((text, [from, to]) => text.split(from).join(to), cell.text);
+    if (fixed !== cell.text) cell.value = fixed;
+  };
   let applied = 0;
   for (let row = 2; row <= tab.rowCount; row++) {
     const entry = items[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
-    if (!entry?.replace?.length) continue;
-    const cell = tab.getCell(row, descriptionColumn);
-    const fixed = entry.replace.reduce((text, [from, to]) => text.split(from).join(to), cell.text);
-    if (fixed !== cell.text) cell.value = fixed;
+    if (!entry) continue;
+    fix(tab.getCell(row, descriptionColumn), entry.replace);
+    fix(tab.getCell(row, nameColumn), entry.nameReplace);
     applied++;
   }
   return applied;
