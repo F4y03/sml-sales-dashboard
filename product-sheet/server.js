@@ -232,6 +232,7 @@ app.get("/api/sheet", async (req, res, next) => {
     applyWebFixes(tab);
     appendExtraProducts(tab);
     applyDescriptionOverrides(tab);
+    applySpecFixes(tab);
     applyPriceOverrides(tab);
     applyCategoryOverrides(tab);
     applyShippingSizes(tab);
@@ -454,6 +455,32 @@ function applyShippingSizes(tab) {
 
 // รายละเอียดที่ถอดจากข้อความบนรูปสินค้า (data/description-overrides.json)
 // ใช้เฉพาะแถวที่ยังไม่มีคำอธิบาย — ถ้าภายหลังมีคำอธิบายใน Excel แล้วจะใช้ของ Excel
+// แก้สเปคในคำอธิบายให้ตรงแค็ตตาล็อก PDF (data/spec-fixes.json) — แทนข้อความตรงตัว ใช้ตอนแสดง/ส่งออกเท่านั้น
+// เจ้าของร้านให้แก้เฉพาะคำอธิบาย ไม่แก้ชื่อสินค้า
+function applySpecFixes(tab) {
+  let items;
+  try {
+    items = JSON.parse(readFileSync(new URL("./data/spec-fixes.json", import.meta.url), "utf8")).items || {};
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Read spec-fixes failed:", error.message);
+    return 0;
+  }
+  const headers = workbookHeaders(tab);
+  const skuColumn = headers.indexOf("รหัสสินค้า") + 1;
+  const descriptionColumn = headers.indexOf("คำอธิบาย") + 1;
+  if (!skuColumn || !descriptionColumn) return 0;
+  let applied = 0;
+  for (let row = 2; row <= tab.rowCount; row++) {
+    const entry = items[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
+    if (!entry?.replace?.length) continue;
+    const cell = tab.getCell(row, descriptionColumn);
+    const fixed = entry.replace.reduce((text, [from, to]) => text.split(from).join(to), cell.text);
+    if (fixed !== cell.text) cell.value = fixed;
+    applied++;
+  }
+  return applied;
+}
+
 function applyDescriptionOverrides(tab) {
   let items;
   try {
@@ -1222,6 +1249,7 @@ app.get("/download.csv", async (req, res, next) => {
     if (webFixes.renamed || webFixes.split || webFixes.blankRemoved) console.log("CSV web fixes:", JSON.stringify(webFixes));
     const extraAdded = appendExtraProducts(tab);
     applyDescriptionOverrides(tab);
+    applySpecFixes(tab);
     applyPriceOverrides(tab);
     applyCategoryOverrides(tab);
     applyShippingSizes(tab);
@@ -1271,6 +1299,7 @@ app.get("/api/web-preview", async (req, res) => {
     applyWebFixes(tab);
     appendExtraProducts(tab);
     applyDescriptionOverrides(tab);
+    applySpecFixes(tab);
     applyPriceOverrides(tab);
     applyCategoryOverrides(tab);
     applyShippingSizes(tab);
