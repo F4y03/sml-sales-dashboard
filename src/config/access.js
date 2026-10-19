@@ -3,6 +3,7 @@ export const PERMISSIONS = {
   product_info: 'ข้อมูลสินค้า', best_sellers: 'ตัวกรองสินค้าขายดี / อันดับยอดขาย', product_images: 'แก้ไขลิงก์รูปสินค้า', customer_analysis: 'วิเคราะห์ลูกค้า', product_analysis: 'วิเคราะห์สินค้า', reports: 'รายงาน SML',
   marketplace_view: 'ดูยอดขายออนไลน์ Shopee / Lazada / TikTok', marketplace_upload: 'อัปโหลดไฟล์ยอดขายออนไลน์ (ไม่เห็นตัวเลข)',
   tiktok_sync: 'ดึงข้อมูล TikTok Shop API (ไม่เห็นตัวเลข)',
+  lazada_sync: 'ดึงข้อมูล Lazada API (ไม่เห็นตัวเลข)',
   users_manage: 'จัดการผู้ใช้', roles_manage: 'จัดการ Role / Permission', territories_manage: 'จัดการเขตการขาย',
   system_settings: 'ตั้งค่าระบบ', environment_settings: 'ตั้งค่า Environment (Super Admin เท่านั้น)', activity_logs: 'ดู Activity Log',
 };
@@ -37,5 +38,7 @@ export const MODULES = [
   { permissions:['marketplace_upload','marketplace_view'], pages:['/tiktok-sales.html','/tiktok-shop.html'], apis:[] },
   // TikTok Shop API: status/sync need tiktok_sync (Super Admin by default, grantable per role; no figures); connect/callback/disconnect are Super Admin only (route middleware).
   { permissions:['tiktok_sync'], pages:[], apis:['/api/tiktok'] },
+  // Lazada API: same rules as TikTok — status/sync need lazada_sync; connect/callback/disconnect are Super Admin only.
+  { permissions:['lazada_sync'], pages:[], apis:['/api/lazada'] },
 ];
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

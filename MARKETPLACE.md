@@ -67,3 +67,24 @@
 - เก็บแค่จังหวัด (`district_info` ระดับ L1) ไม่เก็บชื่อ เบอร์ ที่อยู่ อีเมลผู้ซื้อ
 - ยังไม่ดึงค่าธรรมเนียม/ยอดโอนจาก API — ใช้ไฟล์ การเงิน › รายละเอียดคำสั่งซื้อ ตามเดิม
 - **ก่อนเชื่อถือตัวเลข**: ชื่อฟิลด์ตามเอกสาร API 202309 ยังไม่ได้ทดสอบกับร้านจริง ให้ sync ช่วงที่เคยอัปไฟล์ไว้แล้วเทียบยอดก่อนใช้งาน
+
+## Lazada API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
+แอปใน Lazada Open Platform (open.lazada.com, ประเทศไทย) — โฟลว์เดียวกับ TikTok Shop API ด้านบน
+- ไฟล์: `src/services/lazadaApi.js` (เซ็นคำขอ HMAC-SHA256, token, ออเดอร์/รายการสินค้า/การเงิน, แปลงออเดอร์), `lazada-shop.js` (routes + sync), `migrations/010-lazada-api.sql`, `public/lazada-api-panel.js` (วิดเจ็ตบนแท็บ Lazada), `test-lazada-api.js` (Lazada ปลอม ไม่ต่อเน็ต)
+- `.env`: `LAZADA_APP_KEY`, `LAZADA_APP_SECRET`, `LAZADA_REDIRECT_URI` (ต้องตรงกับ Callback URL ในแอป เช่น `https://dashboard.sksales.app/api/lazada/callback`), ตัวเลือก `LAZADA_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ)
+- Permission ใหม่ `lazada_sync` (Super Admin เป็นค่าเริ่มต้น ให้ role อื่นได้ใน System Admin)
+
+| Route | สิทธิ์ | หน้าที่ |
+|---|---|---|
+| `GET /api/lazada/status` | `lazada_sync` | สถานะการเชื่อมต่อ (ไม่มีตัวเลขยอดขาย) |
+| `GET /api/lazada/connect?shop=` | Super Admin | ส่งไปหน้าอนุญาตของ Lazada พร้อม state (ใช้ครั้งเดียว 10 นาที ผูกกับผู้กด) |
+| `GET /api/lazada/callback` | Super Admin คนที่กด connect | แลก code เป็น token, อ่านชื่อร้าน (`/seller/get`), เก็บ token แบบเข้ารหัส |
+| `POST /api/lazada/sync {start,end}` | `lazada_sync` | ดึงออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน ตอบแค่ "สำเร็จ" |
+| `DELETE /api/lazada/connections/:id` | Super Admin | ลืม token (ข้อมูลที่ดึงแล้วยังอยู่) |
+
+- API ที่ใช้: `/orders/get` (created_after/created_before), `/orders/items/get` (ครั้งละ 50 ออเดอร์), `/finance/transaction/details/get` (วันที่เริ่มถึงวันนี้), `/seller/get`; ถูก rate limit จะรอแล้วลองใหม่ (1–16 วินาที)
+- **นิยามเท่ากับไฟล์ export**: 1 order item = 1 ชิ้น, ยอดขาย = Σ(item_price − |voucher_seller|) ของชิ้นที่ไม่ถูกยกเลิก (voucher แพลตฟอร์มไม่หัก), สถานะใช้ฟังก์ชันเดียวกับไฟล์ (`lazadaItemStatus`); API ไม่มียอดคืนเงินต่อชิ้น จึงเก็บ refund = 0 และจัดเป็นคืนสินค้าจากสถานะ returned/failed
+- ค่าธรรมเนียม/เงินที่ได้รับสุทธิ: เก็บรายการเงินทีละบรรทัด (`txn_id = api:<transaction_number>:<orderItem_no>`) ผลรวมต่อออเดอร์ = สูตรเดียวกับใบแจ้งยอด (net = Σ amount, fees = บรรทัดค่าสินค้า − net) บรรทัดไม่มีเลขออเดอร์ข้าม
+  - ⚠️ อย่าอัปไฟล์ใบแจ้งยอด (Income Overview) ช่วงเดียวกับที่ดึงจาก API — คีย์ต่างกัน ค่าธรรมเนียมจะนับซ้ำ (ออเดอร์ไม่ซ้ำ เพราะคีย์ `(platform, order_id)`)
+- เก็บแค่จังหวัด (`address_shipping.address3`, ถูกปิด `*` = ไม่เก็บ) ไม่เก็บชื่อ เบอร์ ที่อยู่ อีเมล; short_code ร้านถูกบันทึกใน `marketplace_shop_codes` เหมือนไฟล์
+- **ก่อนเชื่อถือตัวเลข**: ชื่อฟิลด์ตามเอกสาร Lazada Open Platform ยังไม่ได้ทดสอบกับร้านจริง (โดยเฉพาะ `voucher_seller` และ `fee_name` ของบรรทัดค่าสินค้า) ให้ sync ช่วงที่เคยอัปไฟล์ไว้แล้วเทียบยอดก่อนใช้งาน

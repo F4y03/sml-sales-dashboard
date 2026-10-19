@@ -16,6 +16,7 @@
     <style>
       /* TikTok sync widget in the page header, shown on the TikTok tab only (status chip + sync for the selected range). */
       body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
+      body:not([data-tab="lazada"]) #lazada-api { display: none; }
       #overview-top .ov-header-side { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
       #overview-top .tt-sync { display: grid; gap: 8px; justify-items: end; max-width: 100%; }
       #overview-top .tt-sync-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
@@ -39,8 +40,9 @@
     <script src="date-dmy.js" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
-    <script src="marketplace-ui.js?v=20261019-tiktok-tab" defer></script>
+    <script src="marketplace-ui.js?v=20261019-lazada-api" defer></script>
     <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
+    <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -56,7 +58,7 @@
             <div class="ov-title-block">
               <p class="ov-eyebrow">ONLINE MARKETPLACE</p>
               <h1>ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
-              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลดและ TikTok Shop API <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
+              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลด, Lazada API และ TikTok Shop API <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
             </div>
             <div class="ov-header-side">
               <div class="ov-actions">
@@ -75,6 +77,20 @@
                   </button>
                 </div>
                 <p id="tiktok-status" class="tt-sync-status" role="status"></p>
+              </div>
+              <div class="tt-sync" id="lazada-api" aria-label="เชื่อมต่อและดึงข้อมูล Lazada" hidden>
+                <div class="tt-sync-info">
+                  <span id="lazada-chip" class="ov-live">กำลังโหลด…</span>
+                  <small id="lazada-meta"></small>
+                </div>
+                <div class="tt-sync-actions">
+                  <select id="lazada-shop-select" class="mp-select tt-shop" aria-label="บันทึกออเดอร์ Lazada เข้าร้าน" hidden></select>
+                  <a id="lazada-connect" class="ov-btn ov-btn-ghost" href="/api/lazada/connect" hidden>เชื่อมต่อร้าน Lazada</a>
+                  <button type="button" id="lazada-sync-button" class="ov-btn ov-btn-ghost" title="ดึงออเดอร์และค่าธรรมเนียมตามช่วงวันที่ที่เลือกด้านล่าง (ไม่เกิน 92 วัน)" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.9M4 4v4h4M4 13a8 8 0 0 0 14.9 3.9M20 20v-4h-4"/></svg>ดึงข้อมูลช่วงนี้
+                  </button>
+                </div>
+                <p id="lazada-status" class="tt-sync-status" role="status"></p>
               </div>
             </div>
           </header>

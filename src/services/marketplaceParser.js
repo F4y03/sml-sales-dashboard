@@ -94,7 +94,7 @@ function tiktokStatus(status, substatus, cancelType, refund, returnQty) {
   if (/เสร็จสมบูรณ์|completed|delivered|จัดส่งสำเร็จ/.test(`${s} ${sub}`)) return 'completed';
   return 'pending';
 }
-function lazadaItemStatus(status, refund) {
+export function lazadaItemStatus(status, refund) {
   const s = norm(status);
   if (/cancel/.test(s)) return 'cancelled';
   if (refund > 0 || /return|refund|failed/.test(s)) return 'returned';
