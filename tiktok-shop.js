@@ -73,9 +73,9 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     })().finally(() => { running = null; });
     return running;
   };
-  const back = (res, result) => res.redirect(303, '/tiktok-sales.html?tiktok=' + result + '#tiktok-api');
+  const back = (res, result) => res.redirect(303, '/marketplace.html?tiktok=' + result + '#tiktok');
 
-  // Status only — never order counts or totals (marketplace_upload users must not see figures).
+  // Status only — never order counts or totals (tiktok_sync users may lack marketplace_view).
   app.get('/api/tiktok/status', (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json({ configured: configured(), canConnect: req.auth?.role === 'super_admin', autoSyncMinutes: autoMinutes >= 30 ? autoMinutes : 0,
@@ -134,7 +134,7 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     }
   });
 
-  app.post('/api/tiktok/sync', sameSite, requirePermission('marketplace_upload'), express.json({ limit: '2kb' }), async (req, res) => {
+  app.post('/api/tiktok/sync', sameSite, requirePermission('tiktok_sync'), express.json({ limit: '2kb' }), async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const { start, end } = req.body || {};
     if (!validDate(start) || !validDate(end) || start > end || (Date.parse(end) - Date.parse(start)) / DAY_MS >= MAX_SYNC_DAYS)

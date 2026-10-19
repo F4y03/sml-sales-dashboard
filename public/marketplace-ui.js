@@ -11,10 +11,7 @@
   const form = $('filters'), startInput = $('start'), endInput = $('end'), status = $('status'), shopFilter = $('shop-filter');
   const tabs = [...document.querySelectorAll('.mp-tabs [role=tab]')];
   const presets = [...document.querySelectorAll('.ov-presets [data-preset]')];
-  // tiktok-sales.html locks the page to one platform (<body data-platform>); TikTok has no tab on marketplace.html.
-  const locked = PLATFORMS.includes(document.body.dataset.platform) ? document.body.dataset.platform : null;
-  if (!locked && location.hash === '#tiktok') location.replace('tiktok-sales.html');
-  let platform = locked || (['shopee', 'lazada', 'all'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'all');
+  let platform = PLATFORMS.includes(location.hash.slice(1)) || location.hash === '#all' ? location.hash.slice(1) : 'all';
   let preset = 'latest', bounds = null, lastData = null, chart = null, request = 0;
 
   const pad = n => String(n).padStart(2, '0');
@@ -46,8 +43,9 @@
   function selectTab(name) {
     platform = name;
     tabs.forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.platform === name)));
-    if (!locked) $('mp-content').setAttribute('aria-labelledby', 'tab-' + name);
-    if (!locked) history.replaceState(null, '', '#' + name);
+    $('mp-content').setAttribute('aria-labelledby', 'tab-' + name);
+    history.replaceState(null, '', '#' + name);
+    document.body.dataset.tab = name; // the TikTok sync widget shows on the TikTok tab only
   }
 
   function setStatus(text, kind = '') {
@@ -68,7 +66,6 @@
       const response = await fetch('/api/marketplace/summary?' + query, { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (id !== request) return;
-      if (response.status === 403 && locked) throw new Error('บัญชีนี้ดูยอดขายไม่ได้ ใช้ได้เฉพาะการดึงข้อมูลด้านล่าง');
       if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
       const firstLoad = !bounds;
       bounds = data.bounds;
@@ -316,7 +313,7 @@
   }
 
   tabs.forEach(tab => tab.addEventListener('click', () => { selectTab(tab.dataset.platform); load(); }));
-  document.querySelector('.mp-tabs')?.addEventListener('keydown', event => {
+  document.querySelector('.mp-tabs').addEventListener('keydown', event => {
     const i = tabs.findIndex(tab => tab.dataset.platform === platform);
     const next = event.key === 'ArrowRight' ? i + 1 : event.key === 'ArrowLeft' ? i - 1 : null;
     if (next == null) return;
@@ -329,8 +326,7 @@
   shopFilter.addEventListener('change', load);
   window.addEventListener('hashchange', () => {
     const name = location.hash.slice(1);
-    if (name === 'tiktok' && !locked) return location.replace('tiktok-sales.html');
-    if (!locked && name !== platform && (name === 'all' || PLATFORMS.includes(name))) { selectTab(name); load(); }
+    if (name !== platform && (name === 'all' || PLATFORMS.includes(name))) { selectTab(name); load(); }
   });
   // tiktok-api-panel.js announces a finished sync: show the new orders right away.
   window.addEventListener('tiktok-synced', () => load());
@@ -339,7 +335,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   setInterval(() => { if (!document.hidden) load(); }, 120000);
   window.prplusUser?.then(user => {
-    if (user && (user.role === 'super_admin' || user.permissions?.includes('marketplace_upload'))) { const link = $('upload-link'); if (link) link.hidden = false; }
+    if (user && (user.role === 'super_admin' || user.permissions?.includes('marketplace_upload'))) $('upload-link').hidden = false;
   });
 
   selectTab(platform);

@@ -13,11 +13,34 @@
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="marketplace.css?v=202610092" />
+    <style>
+      /* TikTok sync widget in the page header, shown on the TikTok tab only (status chip + sync for the selected range). */
+      body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
+      #overview-top .ov-header-side { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
+      #overview-top .tt-sync { display: grid; gap: 8px; justify-items: end; max-width: 100%; }
+      #overview-top .tt-sync-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      #overview-top .tt-sync-info small { color: var(--ov-muted); font-size: 12px; }
+      #overview-top .tt-sync-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+      #overview-top .tt-sync-actions .ov-btn { min-height: 38px; }
+      #overview-top .tt-sync-actions .ov-btn[aria-busy="true"] svg { animation: tt-spin 1s linear infinite; }
+      #overview-top .tt-shop { min-height: 38px; }
+      #overview-top .tt-sync-status { margin: 0; font-size: 12px; color: var(--ov-muted); text-align: right; max-width: 460px; }
+      #overview-top .tt-sync-status:empty { display: none; }
+      #overview-top .tt-sync-status[data-state="error"] { color: var(--ov-down); }
+      #overview-top .tt-sync-status[data-state="ready"] { color: var(--ov-up); }
+      @keyframes tt-spin { to { transform: rotate(360deg); } }
+      @media (max-width: 720px) {
+        #overview-top .tt-sync { justify-items: start; width: 100%; }
+        #overview-top .tt-sync-info, #overview-top .tt-sync-actions { justify-content: flex-start; }
+        #overview-top .tt-sync-status { text-align: left; }
+      }
+    </style>
     <script src="/theme-mode.js"></script>
     <script src="date-dmy.js" defer></script>
     <script src="assets/chart.umd.js" defer></script>
-    <script src="workspace-nav.js?v=20261019-tiktok-merged" defer></script>
-    <script src="marketplace-ui.js?v=20261019-tiktok-header" defer></script>
+    <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
+    <script src="marketplace-ui.js?v=20261019-tiktok-tab" defer></script>
+    <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,16 +56,33 @@
             <div class="ov-title-block">
               <p class="ov-eyebrow">ONLINE MARKETPLACE</p>
               <h1>ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
-              <p class="ov-subtitle">Shopee · Lazada จากไฟล์ที่อัปโหลด (TikTok Shop แยกไปหน้า TikTok Shop) <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
+              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลดและ TikTok Shop API <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
             </div>
-            <div class="ov-actions">
-              <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
+            <div class="ov-header-side">
+              <div class="ov-actions">
+                <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
+              </div>
+              <div class="tt-sync" id="tiktok-api" aria-label="เชื่อมต่อและดึงข้อมูล TikTok" hidden>
+                <div class="tt-sync-info">
+                  <span id="tiktok-chip" class="ov-live">กำลังโหลด…</span>
+                  <small id="tiktok-meta"></small>
+                </div>
+                <div class="tt-sync-actions">
+                  <select id="shop-select" class="mp-select tt-shop" aria-label="บันทึกออเดอร์เข้าร้าน" hidden></select>
+                  <a id="tiktok-connect" class="ov-btn ov-btn-ghost" href="/api/tiktok/connect" hidden>เชื่อมต่อร้าน TikTok</a>
+                  <button type="button" id="tiktok-sync-button" class="ov-btn ov-btn-ghost" title="ดึงออเดอร์และค่าธรรมเนียมตามช่วงวันที่ที่เลือกด้านล่าง (ไม่เกิน 92 วัน)" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.9M4 4v4h4M4 13a8 8 0 0 0 14.9 3.9M20 20v-4h-4"/></svg>ดึงข้อมูลช่วงนี้
+                  </button>
+                </div>
+                <p id="tiktok-status" class="tt-sync-status" role="status"></p>
+              </div>
             </div>
           </header>
 
           <div class="mp-tabs" role="tablist" aria-label="เลือกช่องทาง">
             <button type="button" role="tab" id="tab-shopee" data-platform="shopee" aria-selected="false" aria-controls="mp-content">Shopee</button>
             <button type="button" role="tab" id="tab-lazada" data-platform="lazada" aria-selected="false" aria-controls="mp-content">Lazada</button>
+            <button type="button" role="tab" id="tab-tiktok" data-platform="tiktok" aria-selected="false" aria-controls="mp-content">TikTok Shop</button>
             <button type="button" role="tab" id="tab-all" data-platform="all" aria-selected="true" aria-controls="mp-content">รวมทุกช่องทาง</button>
           </div>
 

@@ -55,10 +55,10 @@
 
 | Route | สิทธิ์ | หน้าที่ |
 |---|---|---|
-| `GET /api/tiktok/status` | `marketplace_upload` | สถานะการเชื่อมต่อ (ไม่มีตัวเลขยอดขาย) |
+| `GET /api/tiktok/status` | `tiktok_sync` (Super Admin เป็นค่าเริ่มต้น ให้ role อื่นได้ใน System Admin) | สถานะการเชื่อมต่อ (ไม่มีตัวเลขยอดขาย) |
 | `GET /api/tiktok/connect?shop=` | Super Admin | ส่งไปหน้าอนุญาตของ TikTok พร้อม state (ใช้ครั้งเดียว 10 นาที ผูกกับผู้กด) |
 | `GET /api/tiktok/callback` | Super Admin คนที่กด connect | แลก code เป็น token, ดึงรายชื่อร้าน, เก็บ token แบบเข้ารหัส (vault เดียวกับ 2FA) |
-| `POST /api/tiktok/sync {start,end}` | `marketplace_upload` | ดึงออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน ตอบแค่ "สำเร็จ" |
+| `POST /api/tiktok/sync {start,end}` | `tiktok_sync` | ดึงออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน ตอบแค่ "สำเร็จ" |
 | `DELETE /api/tiktok/connections/:id` | Super Admin | ลืม token (ข้อมูลที่ดึงแล้วยังอยู่) |
 
 - ค่าธรรมเนียม/เงินที่ได้รับสุทธิ: sync ดึง statement (Finance API, scope `seller.finance.info`) ที่ statement_time ตั้งแต่วันเริ่มถึงตอนนี้ → ทุก transaction ที่มี order_id: fees = −fee_amount, net = settlement_amount (ตรงกับคอลัมน์ ค่าธรรมเนียมทั้งหมด / ยอดการชำระเงินทั้งหมด ในไฟล์) transaction ไม่มี order_id (ปรับยอดระดับร้าน) ข้าม

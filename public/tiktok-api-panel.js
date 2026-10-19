@@ -1,4 +1,4 @@
-// TikTok sync widget in the tiktok-sales.html header: connection chip, Super Admin connect, sync for the page's date range.
+// TikTok sync widget in the marketplace.html header (TikTok tab): connection chip, Super Admin connect, sync for the page's date range.
 // Sync answers carry no figures (uploaders may lack marketplace_view); a finished sync fires 'tiktok-synced' so the page reloads.
 (() => {
   const panel = document.getElementById('tiktok-api');
@@ -29,7 +29,7 @@
   async function load() {
     try {
       const response = await fetch('/api/tiktok/status', { cache: 'no-store' });
-      if (response.status === 403) return; // no marketplace_upload permission: keep the widget hidden
+      if (response.status === 403) return; // no tiktok_sync permission (Super Admin only by default): keep the widget hidden
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'โหลดสถานะ TikTok ไม่สำเร็จ');
       panel.hidden = false;

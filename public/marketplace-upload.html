@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="marketplace.css?v=202610092" />
     <script src="/theme-mode.js"></script>
-    <script src="workspace-nav.js?v=20261019-tiktok-merged" defer></script>
+    <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
     <script src="marketplace-upload.js?v=20261009" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
@@ -31,7 +31,7 @@
             <div class="ov-title-block">
               <p class="ov-eyebrow">MARKETPLACE UPLOAD</p>
               <h1>อัปโหลดไฟล์ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
-              <p class="ov-subtitle">ไฟล์ที่ export จาก Seller Center ของ Shopee, Lazada และ TikTok Shop</p>
+              <p class="ov-subtitle">ไฟล์ที่ export จาก Seller Center ของ Shopee และ Lazada · TikTok Shop ดึงอัตโนมัติผ่าน API (หน้ายอดขายออนไลน์ › แท็บ TikTok Shop)</p>
             </div>
           </header>
         </div>
@@ -57,7 +57,7 @@
 
           <fieldset class="mp-step">
             <legend><span class="mp-step-no">2</span>เลือกแพลตฟอร์ม</legend>
-            <div class="mp-platforms">
+            <div class="mp-platforms" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
               <label class="mp-platform" data-platform="shopee">
                 <input type="radio" name="platform" value="shopee" />
                 <span class="mp-platform-mark" aria-hidden="true">S</span>
@@ -67,11 +67,6 @@
                 <input type="radio" name="platform" value="lazada" />
                 <span class="mp-platform-mark" aria-hidden="true">L</span>
                 <span class="mp-platform-copy"><strong>Lazada</strong><small>คำสั่งซื้อ › Export และ/หรือ การเงิน › รายรับของฉัน</small></span>
-              </label>
-              <label class="mp-platform" data-platform="tiktok">
-                <input type="radio" name="platform" value="tiktok" />
-                <span class="mp-platform-mark" aria-hidden="true">T</span>
-                <span class="mp-platform-copy"><strong>TikTok Shop</strong><small>คำสั่งซื้อ › Export และ/หรือ การเงิน › รายละเอียดคำสั่งซื้อ</small></span>
               </label>
             </div>
           </fieldset>

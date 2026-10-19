@@ -241,7 +241,7 @@ test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; own
   assert.equal((await post(admin, `/api/marketplace/shops/${best.id}`, { active: false }, 'PATCH')).status, 200);
   assert.equal((await upload(admin, 'tiktok', tiktokCsv(), 'again.csv')).status, 200); // Best closed: Proplus is the only active shop
 
-  assert.equal((await get(exec, summaryPath)).status, 403); // not granted by default; owner can tick it per role
+  assert.equal((await get(exec, summaryPath)).status, 200); // Executive role sees online sales by default (owner can untick it per role)
   const summary = await get(owner, summaryPath);
   assert.equal(summary.status, 200);
   assert.equal((await summary.json()).platforms[0].sales, 935);

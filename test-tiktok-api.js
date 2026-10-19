@@ -100,7 +100,8 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   t.after(async () => { await new Promise(r => { server.close(r); server.closeAllConnections(); }); auth.close(); store.close(); });
   const base = 'http://127.0.0.1:' + server.address().port;
   const users = createUserService(store, auth.audit), root = loadUser(store, 1);
-  await users.save(root, null, { username: 'admin1', full_name: 'admin1 ชื่อเต็ม', role: 'admin', is_active: true, password: 'fixture-password-123', territoryIds: [], additionalPermissions: [] }, 'test');
+  await users.save(root, null, { username: 'admin1', full_name: 'admin1 ชื่อเต็ม', role: 'admin', is_active: true, password: 'fixture-password-123', territoryIds: [], additionalPermissions: ['tiktok_sync'] }, 'test');
+  await users.save(root, null, { username: 'admin2', full_name: 'admin2', role: 'admin', is_active: true, password: 'fixture-password-123', territoryIds: [], additionalPermissions: [] }, 'test');
   await users.save(root, null, { username: 'sales1', full_name: 'sales1', role: 'sales', is_active: true, password: 'fixture-password-123', territoryIds: [], additionalPermissions: [] }, 'test');
   const login = async username => {
     const r = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify({ username, password: 'fixture-password-123' }) });
@@ -109,7 +110,10 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   };
   const get = (cookie, path) => fetch(base + path, { headers: { cookie }, redirect: 'manual' });
   const post = (cookie, path, body) => fetch(base + path, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify(body) });
-  const owner = await login('root'), admin = await login('admin1'), sales = await login('sales1');
+  const owner = await login('root'), admin = await login('admin1'), sales = await login('sales1'), plainAdmin = await login('admin2');
+  // TikTok sync is Super Admin only unless tiktok_sync is granted (admin1 has it, admin2 does not).
+  assert.equal((await get(plainAdmin, '/api/tiktok/status')).status, 403);
+  assert.equal((await post(plainAdmin, '/api/tiktok/sync', { start: '2026-10-01', end: '2026-10-02' })).status, 403);
   store.run("INSERT INTO marketplace_shops(name,active,created_at) VALUES('Proplus',1,'2026-10-01')");
 
   assert.equal((await get(admin, '/api/tiktok/connect')).status, 403);
@@ -124,8 +128,8 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   const state = authorize.searchParams.get('state');
   assert.match((await get(admin, `/api/tiktok/callback?code=good-code&state=${state}`)).status.toString(), /403/); // other user cannot finish it
   const done = await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`);
-  assert.equal(done.headers.get('location'), '/tiktok-sales.html?tiktok=connected#tiktok-api');
-  assert.equal((await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`)).headers.get('location'), '/tiktok-sales.html?tiktok=expired#tiktok-api'); // single use
+  assert.equal(done.headers.get('location'), '/marketplace.html?tiktok=connected#tiktok');
+  assert.equal((await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`)).headers.get('location'), '/marketplace.html?tiktok=expired#tiktok'); // single use
 
   const conn = store.get('SELECT * FROM tiktok_connections');
   assert.equal(conn.shop_cipher, 'ROW_cipher');
