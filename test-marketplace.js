@@ -123,6 +123,27 @@ test('Shopee income: header below title rows, fees and net payout per order, ref
   assert.deepEqual(parsed.settlements.map(s => [s.fees, s.netPayout]), [[11, 49], [29, 121], [0, 0]]);
 });
 
+test('Shopee order export: lines grouped per order, ราคาขายสุทธิ as sales, statuses bucketed, only province kept', async () => {
+  const head = ['หมายเลขคำสั่งซื้อ', 'สถานะการสั่งซื้อ', 'สถานะการคืนเงินหรือคืนสินค้า', 'ชื่อผู้ใช้ (ผู้ซื้อ)', 'วันที่ทำการสั่งซื้อ', 'เลขอ้างอิง Parent SKU', 'ชื่อสินค้า',
+    'เลขอ้างอิง SKU (SKU Reference No.)', 'ชื่อตัวเลือก', 'ราคาตั้งต้น', 'ราคาขาย', 'จำนวน', 'จำนวนที่ส่งคืน', 'ราคาขายสุทธิ', 'ชื่อผู้รับ', 'หมายเลขโทรศัพท์', 'ที่อยู่ในการจัดส่ง', 'จังหวัด'];
+  const row = (id, status, ret, sku, qty, net, returned = 0) => [id, status, ret, 'buyer_x', '2026-08-19 11:29', 'P1', 'ลำโพง', sku, 'ดำ', '400.00', '350.00', qty, returned, net, PII[0], PII[1], PII[2], 'จังหวัดยโสธร'];
+  const buffer = await xlsx({ orders: [head,
+    row('260819AAAAAAA1', 'สำเร็จแล้ว', '', 'SKU-A', 2, '700.00'), row('260819AAAAAAA1', 'สำเร็จแล้ว', '', 'SKU-B', 1, '65.00'),
+    row('260819AAAAAAA2', 'ยกเลิกแล้ว', '', 'SKU-A', 1, '350.00'),
+    row('260819AAAAAAA3', 'สำเร็จแล้ว', 'คำขอได้รับการยอมรับแล้ว', 'SKU-A', 1, '350.00'),
+    row('260819AAAAAAA4', 'สำเร็จแล้ว', 'คำขอถูกปฏิเสธ', 'SKU-A', 1, '350.00'),
+    row('260819AAAAAAA5', 'ที่ต้องจัดส่ง', '', 'SKU-B', 1, '65.00')] });
+  const parsed = await parseMarketplaceFile({ buffer, fileName: 'Shopee.Order.all.xlsx', platform: 'shopee' });
+  assert.deepEqual(parsed.kinds, ['orders']);
+  assert.deepEqual(parsed.orders.map(o => [o.orderId, o.status, o.sales]), [['260819AAAAAAA1', 'completed', 765], ['260819AAAAAAA2', 'cancelled', 350],
+    ['260819AAAAAAA3', 'returned', 350], ['260819AAAAAAA4', 'completed', 350], ['260819AAAAAAA5', 'pending', 65]]);
+  assert.deepEqual(parsed.orders[0].items.map(i => [i.sku, i.quantity, i.sales]), [['SKU-A', 2, 700], ['SKU-B', 1, 65]]);
+  assert.equal(parsed.orders[0].province, 'ยโสธร');
+  assert.equal(parsed.orders[0].orderDate, '2026-08-19');
+  const json = JSON.stringify(parsed);
+  for (const value of [...PII.slice(0, 3), 'buyer_x']) assert.ok(!json.includes(value));
+});
+
 test('store: re-upload never double counts; summary totals, top products and fee coverage', async () => {
   const store = createAccessStore(':memory:');
   const { saveMarketplaceUpload } = await import('./marketplace.js');

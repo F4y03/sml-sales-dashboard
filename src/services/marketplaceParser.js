@@ -143,6 +143,16 @@ const SHEETS = [
     shopCode: (rows, headerRow, cols) => firstValue(rows.slice(headerRow + 1).map(row => row[cols.shortCode])),
   },
   {
+    // Shopee order export (คำสั่งซื้อของฉัน › Export, Order.all.*.xlsx): one row per product line of an order.
+    platform: 'shopee', kind: 'orders', required: ['orderId', 'status', 'orderDate', 'productName', 'quantity', 'netPrice'],
+    cols: {
+      orderId: ['หมายเลขคำสั่งซื้อ'], status: ['สถานะการสั่งซื้อ'], returnStatus: ['สถานะการคืนเงินหรือคืนสินค้า'], orderDate: ['วันที่ทำการสั่งซื้อ'],
+      parentSku: ['เลขอ้างอิง parent sku'], sku: ['เลขอ้างอิง sku (sku reference no.)'], productName: ['ชื่อสินค้า'], variation: ['ชื่อตัวเลือก'],
+      quantity: ['จำนวน'], returnQty: ['จำนวนที่ส่งคืน'], netPrice: ['ราคาขายสุทธิ'], province: ['จังหวัด'],
+    },
+    read: readShopeeOrders,
+  },
+  {
     platform: 'shopee', kind: 'income', required: ['orderId', 'orderDate', 'price', 'payout'],
     cols: {
       orderId: ['หมายเลขคำสั่งซื้อ'], returnId: ['รหัสคืนสินค้า'], orderDate: ['วันที่ทำการสั่งซื้อ'], price: ['สินค้าราคาปกติ'],
@@ -243,6 +253,40 @@ function readLazadaOrders(rows, start, cols) {
     return { ...order, status, source: 'orders', statusRaw: [...new Set(order.items.map(item => item.statusRaw))].join(', '),
       sales: round2(counted.reduce((sum, item) => sum + item.sales, 0)), refund: round2(order.items.reduce((sum, item) => sum + item.refund, 0)),
       items: order.items.map(({ refund, statusRaw, ...item }) => item) };
+  });
+}
+
+// Shopee order export: sales of a line = ราคาขายสุทธิ (ราคาขาย × จำนวน, i.e. normal price minus the seller's product
+// discount — the same definition as the income report). Order-level vouchers and Shopee discounts are not deducted.
+function shopeeStatus(status, returnStatus, returnQty) {
+  const s = norm(status), r = norm(returnStatus);
+  if (/ยกเลิก|cancel/.test(s)) return 'cancelled';
+  if (returnQty > 0 || (r && !/ปฏิเสธ|ยกเลิก|reject|cancel/.test(r))) return 'returned';
+  if (/สำเร็จ|completed/.test(s)) return 'completed';
+  return 'pending';
+}
+function readShopeeOrders(rows, start, cols) {
+  const orders = new Map();
+  for (const row of rows.slice(start)) {
+    const get = getter(row, cols), id = orderId(get('orderId'));
+    if (!id) continue;
+    let order = orders.get(id);
+    if (!order) {
+      order = { orderId: id, orderDate: orderDate(get('orderDate')), statusRaw: text(get('status')), returnStatus: text(get('returnStatus')), province: province(get('province')), returnQty: 0, items: [] };
+      orders.set(id, order);
+    }
+    order.returnStatus ||= text(get('returnStatus'));
+    order.returnQty += Math.max(0, amount(get('returnQty')));
+    const sku = text(get('sku')) || text(get('parentSku'));
+    const name = [text(get('productName')), text(get('variation'))].filter(Boolean).join(' · ') || sku || 'ไม่ระบุชื่อสินค้า';
+    let lineKey = `${sku}|${name}`;
+    if (order.items.some(item => item.lineKey === lineKey)) lineKey += `#${order.items.length}`;
+    order.items.push({ lineKey, sku, name, quantity: amount(get('quantity')), sales: round2(amount(get('netPrice'))) });
+  }
+  return [...orders.values()].map(({ returnStatus, returnQty, ...order }) => {
+    const status = shopeeStatus(order.statusRaw, returnStatus, returnQty);
+    const statusRaw = [order.statusRaw, returnStatus].filter(Boolean).join(' · ');
+    return { ...order, statusRaw, status, refund: 0, source: 'orders', sales: round2(order.items.reduce((sum, item) => sum + item.sales, 0)), items: order.items.map(item => ({ ...item, status })) };
   });
 }
 

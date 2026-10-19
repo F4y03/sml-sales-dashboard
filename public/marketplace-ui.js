@@ -242,7 +242,7 @@
     const missing = t.orders - t.ordersWithItems;
     note.hidden = !(missing > 0);
     note.textContent = platform === 'shopee'
-      ? 'ไฟล์ "รายงานรายรับ" ของ Shopee ไม่มีรายชื่อสินค้า จึงจัดอันดับสินค้าของ Shopee ไม่ได้'
+      ? `ไม่รวม ${count(missing)} ออเดอร์ที่มาจาก "รายงานรายรับ" ซึ่งไม่มีรายชื่อสินค้า — อัปโหลดไฟล์คำสั่งซื้อ Shopee (Order.all) ช่วงเดียวกันเพื่อให้ครบ`
       : `ไม่รวม ${count(missing)} ออเดอร์ที่ไฟล์ไม่มีรายชื่อสินค้า (Shopee รายงานรายรับ)`;
     if (!data.topProducts.length) {
       list.replaceChildren(el('li', 'mp-empty', missing > 0 && platform === 'shopee' ? 'ไม่มีข้อมูลสินค้า' : 'ไม่มีสินค้าที่ขายได้ในช่วงนี้'));
@@ -290,13 +290,13 @@
     }));
     const note = $('status-note');
     note.hidden = !(platform === 'shopee' || platform === 'all');
-    note.textContent = 'Shopee: รายงานรายรับมีเฉพาะออเดอร์ที่โอนเงินแล้ว จึงไม่มีออเดอร์ยกเลิกหรือกำลังจัดส่ง';
+    note.textContent = 'Shopee: ถ้าอัปโหลดแค่รายงานรายรับ จะเห็นเฉพาะออเดอร์ที่โอนเงินแล้ว — อัปโหลดไฟล์คำสั่งซื้อ (Order.all) เพื่อให้เห็นออเดอร์ยกเลิกและกำลังจัดส่ง';
   }
 
   function renderProvinces(data) {
     const list = $('province-list'), note = $('province-note');
     note.hidden = !(platform === 'shopee' || platform === 'all');
-    note.textContent = 'Shopee: รายงานรายรับไม่มีข้อมูลจังหวัด ระบบเก็บเฉพาะชื่อจังหวัด ไม่เก็บชื่อ เบอร์โทร หรือที่อยู่ลูกค้า';
+    note.textContent = 'Shopee: จังหวัดมาจากไฟล์คำสั่งซื้อ (Order.all) เท่านั้น รายงานรายรับไม่มี · ระบบเก็บเฉพาะชื่อจังหวัด ไม่เก็บชื่อ เบอร์โทร หรือที่อยู่ลูกค้า';
     if (!data.provinces.length) { list.replaceChildren(el('li', 'mp-empty', 'ไม่มีข้อมูลจังหวัด')); return; }
     const max = data.provinces[0].sales || 1;
     list.replaceChildren(...data.provinces.map((row, i) => {
