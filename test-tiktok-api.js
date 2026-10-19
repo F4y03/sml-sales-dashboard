@@ -73,6 +73,13 @@ function fakeTikTok() {
       const page = u.searchParams.get('page_token') === 'p2' ? inRange.slice(2) : inRange.slice(0, 2);
       return reply({ orders: page, next_page_token: u.searchParams.get('page_token') === 'p2' || inRange.length <= 2 ? '' : 'p2', total_count: inRange.length });
     }
+    // First Finance call is rate limited once: the client must back off and retry.
+    if (u.pathname === '/finance/202309/statements' && !calls.some((c, i) => i < calls.length - 1 && c.path === u.pathname))
+      return new Response(JSON.stringify({ code: 36009004, message: 'Too many requests. This API has exceeded its request rate limit.' }));
+    if (u.pathname === '/finance/202309/statements') return reply({ statements: [{ id: 'st1', statement_time: at('2026-10-05') }], next_page_token: '' });
+    if (u.pathname === '/finance/202309/statements/st1/statement_transactions') return reply({ statement_transactions: [
+      { id: 'tx1', type: 'ORDER', order_id: '580000000000000001', fee_amount: '-63.5', settlement_amount: '571.5' },
+      { id: 'tx2', type: 'ADJUSTMENT', order_id: '', fee_amount: '-10', settlement_amount: '-10' }], next_page_token: '' });
     if (u.pathname === '/return_refund/202309/returns/search') return reply({ return_orders: RETURNS.filter(r => body.order_ids.includes(r.order_id)) });
     return new Response(JSON.stringify({ code: 404, message: 'unknown' }));
   };
@@ -117,8 +124,8 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   const state = authorize.searchParams.get('state');
   assert.match((await get(admin, `/api/tiktok/callback?code=good-code&state=${state}`)).status.toString(), /403/); // other user cannot finish it
   const done = await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`);
-  assert.equal(done.headers.get('location'), '/tiktok-shop.html?tiktok=connected');
-  assert.equal((await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`)).headers.get('location'), '/tiktok-shop.html?tiktok=expired'); // single use
+  assert.equal(done.headers.get('location'), '/tiktok-sales.html?tiktok=connected#tiktok-api');
+  assert.equal((await get(owner, `/api/tiktok/callback?code=good-code&state=${state}`)).headers.get('location'), '/tiktok-sales.html?tiktok=expired#tiktok-api'); // single use
 
   const conn = store.get('SELECT * FROM tiktok_connections');
   assert.equal(conn.shop_cipher, 'ROW_cipher');
@@ -143,6 +150,10 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   assert.equal(s.platforms[0].sales, 935); // 635 + 300 (pending); cancelled and returned excluded
   assert.equal(s.platforms[0].orders, 2);
   assert.equal(s.platforms[0].allOrders, 4);
+  // Finance API: fee as a positive deduction, net payout as settled; the order-less adjustment is skipped.
+  assert.deepEqual(store.all("SELECT txn_id,order_id,fees,net_payout FROM marketplace_settlements WHERE platform='tiktok'").map(r => ({ ...r })),
+    [{ txn_id: 'tx1', order_id: '580000000000000001', fees: 63.5, net_payout: 571.5 }]);
+  assert.equal(tiktok.calls.find(c => c.path === '/finance/202309/statements').query.statement_time_ge, String(bangkokDayStart('2026-10-01') / 1000));
   assert.deepEqual(Object.fromEntries(s.statuses.map(x => [x.status, x.orders])), { cancelled: 1, completed: 1, pending: 1, returned: 1 });
   const history = await (await get(admin, '/api/marketplace/uploads')).json();
   assert.match(history.uploads[0].fileName, /^TikTok API 2026-10-01 ถึง 2026-10-02/);

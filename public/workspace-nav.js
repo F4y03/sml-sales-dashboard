@@ -44,8 +44,8 @@ workspace.innerHTML = `
     <a href="reports.html" data-page="reports">${workspaceIcon("reports")}รายงาน SML ทั้งหมด</a>
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
+    <a href="tiktok-sales.html" data-page="tiktok-sales">${workspaceIcon("tiktok")}TikTok Shop</a>
     <a href="marketplace-upload.html" data-page="marketplace-upload">${workspaceIcon("upload")}อัปโหลดไฟล์ยอดขาย</a>
-    <a href="tiktok-shop.html" data-page="tiktok-shop">${workspaceIcon("tiktok")}TikTok Shop API</a>
   </nav>
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
 document.body.classList.add("workspace-layout");
@@ -313,15 +313,15 @@ window.prplusUser
       products: ["price_stock", "product_info"],
       reports: ["reports"],
       marketplace: ["marketplace_view"],
+      "tiktok-sales": ["marketplace_view", "marketplace_upload"],
       "marketplace-upload": ["marketplace_upload"],
-      "tiktok-shop": ["marketplace_upload"],
     };
     workspace.querySelectorAll("nav a").forEach((link) => {
       link.hidden = Array.isArray(user.permissions)
         ? !policy[link.dataset.page]?.some(can)
         : false;
       if (
-        ["reports", "marketplace"].includes(link.dataset.page) &&
+        ["reports", "marketplace", "tiktok-sales"].includes(link.dataset.page) &&
         user.scope === "territory"
       )
         link.hidden = true;

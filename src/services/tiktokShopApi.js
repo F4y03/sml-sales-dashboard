@@ -18,12 +18,17 @@ export function signRequest(secret, path, query, body = '') {
   return createHmac('sha256', secret).update(secret + path + params + body + secret).digest('hex');
 }
 
-export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now = () => Date.now() }) {
+const RATE_LIMITED = /too many requests|rate limit/i;
+export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now = () => Date.now(), sleep = ms => new Promise(r => setTimeout(r, ms)) }) {
   if (!appKey || !appSecret) throw new TikTokApiError('ยังไม่ได้ตั้งค่า TIKTOK_APP_KEY / TIKTOK_APP_SECRET ใน .env');
   const unwrap = async response => {
     let json;
     try { json = await response.json(); } catch { throw new TikTokApiError(`TikTok ตอบกลับไม่ถูกต้อง (HTTP ${response.status})`); }
-    if (json.code !== 0) throw new TikTokApiError(`TikTok: ${json.message || 'ไม่ทราบสาเหตุ'}`, json.code ?? null);
+    if (json.code !== 0) {
+      const error = new TikTokApiError(`TikTok: ${json.message || 'ไม่ทราบสาเหตุ'}`, json.code ?? null);
+      error.rateLimited = response.status === 429 || RATE_LIMITED.test(String(json.message || ''));
+      throw error;
+    }
     return json.data || {};
   };
   // Token endpoints answer absolute unix-second expiry times.
@@ -39,7 +44,16 @@ export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now =
     if (!data.access_token || !data.refresh_token) throw new TikTokApiError('TikTok ไม่ได้ส่ง token กลับมา');
     return token(data);
   };
-  async function call(method, path, { accessToken, shopCipher, query = {}, body } = {}) {
+  // Finance endpoints share a small regional rate limit: back off and retry (1, 2, 4, 8, 16 s) before giving up.
+  async function call(method, path, options = {}) {
+    for (let attempt = 0; ; attempt++) {
+      try { return await callOnce(method, path, options); } catch (error) {
+        if (!error.rateLimited || attempt >= 5) throw error;
+        await sleep(1000 * 2 ** attempt);
+      }
+    }
+  }
+  async function callOnce(method, path, { accessToken, shopCipher, query = {}, body } = {}) {
     const json = body === undefined ? '' : JSON.stringify(body);
     const params = { ...query, app_key: appKey, timestamp: String(Math.floor(now() / 1000)) };
     if (shopCipher) params.shop_cipher = shopCipher;
@@ -89,12 +103,46 @@ export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now =
       }
       return byOrder;
     },
+    // Settled money (Finance API, scope seller.finance.info): every transaction of the daily statements
+    // whose statement_time is in [fromMs, toMs). Orders settle days after they are created, so callers pass toMs = now.
+    async statementTransactions({ accessToken, shopCipher, fromMs, toMs, maxPages = 400 }) {
+      const ids = [];
+      let pageToken = '', page = 0;
+      do {
+        const query = { page_size: '100', sort_field: 'statement_time', statement_time_ge: String(Math.floor(fromMs / 1000)),
+          statement_time_lt: String(Math.floor(toMs / 1000)), ...(pageToken && { page_token: pageToken }) };
+        const data = await call('GET', '/finance/202309/statements', { accessToken, shopCipher, query });
+        ids.push(...(data.statements || []).map(st => String(st.id)));
+        pageToken = data.next_page_token || '';
+      } while (pageToken && ++page < maxPages);
+      const transactions = [];
+      for (const id of ids) {
+        pageToken = ''; page = 0;
+        await sleep(300); // stay well under the shared Finance API limit
+        do {
+          const query = { page_size: '100', sort_field: 'order_create_time', ...(pageToken && { page_token: pageToken }) };
+          const data = await call('GET', `/finance/202309/statements/${encodeURIComponent(id)}/statement_transactions`, { accessToken, shopCipher, query });
+          transactions.push(...(data.statement_transactions || []));
+          pageToken = data.next_page_token || '';
+        } while (pageToken && ++page < maxPages);
+      }
+      return transactions;
+    },
   };
 }
 
 const money = value => { const n = Number(value); return Number.isFinite(n) ? n : 0; };
 const round2 = n => Math.round(n * 100) / 100;
 const clean = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+
+// One statement transaction -> the same settlement row the finance file gives (MARKETPLACE.md):
+// fees = ค่าธรรมเนียมทั้งหมด as a positive deduction (API fee_amount is negative), net = ยอดการชำระเงินทั้งหมด.
+// Transactions without an order (shop-level adjustments) are skipped, as in the file reader.
+export function mapTikTokSettlement(tx) {
+  const txnId = clean(tx?.id), orderId = clean(tx?.order_id);
+  if (!txnId || !orderId) return null;
+  return { txnId, orderId, fees: round2(-money(tx.fee_amount)), netPayout: round2(money(tx.settlement_amount)) };
+}
 
 // Order create_time (unix seconds) as the Thai calendar day, ค.ศ. YYYY-MM-DD — same day the Seller Center export shows.
 export const bangkokDate = seconds => new Date(Number(seconds) * 1000 + BANGKOK_OFFSET_MS).toISOString().slice(0, 10);

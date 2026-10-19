@@ -51,7 +51,7 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
     await page.route('https://**', route => route.abort());
     await page.route('**/api/**', route => route.fulfill(new URL(route.request().url()).pathname === '/api/auth/me' ? { json: fixtureIdentity } : { status: 503, json: { error: 'Test offline' } }));
     const base = `http://127.0.0.1:${server.address().port}`;
-    for (const [file, active] of [['index', 'overview'], ['executive', 'executive'], ['customers', 'customers'], ['reports', 'reports'], ['products', 'products'], ['consignment', 'consignment'], ['marketplace', 'marketplace'], ['marketplace-upload', 'marketplace-upload'], ['tiktok-shop', 'tiktok-shop']]) {
+    for (const [file, active] of [['index', 'overview'], ['executive', 'executive'], ['customers', 'customers'], ['reports', 'reports'], ['products', 'products'], ['consignment', 'consignment'], ['marketplace', 'marketplace'], ['marketplace-upload', 'marketplace-upload'], ['tiktok-sales', 'tiktok-sales']]) {
       await page.setViewportSize({ width: 1440, height: 960 });
       await page.goto(`${base}/${file}.html`, { waitUntil: 'domcontentloaded' });
       await page.locator('.workspace-sidebar').waitFor();

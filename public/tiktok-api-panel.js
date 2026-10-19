@@ -1,61 +1,55 @@
-// TikTok Shop API page (tiktok-shop.html): connection status, Super Admin connect, manual sync.
-// Like file uploads, the server answers sync with "สำเร็จ" only — no order counts or totals.
+// TikTok sync widget in the tiktok-sales.html header: connection chip, Super Admin connect, sync for the page's date range.
+// Sync answers carry no figures (uploaders may lack marketplace_view); a finished sync fires 'tiktok-synced' so the page reloads.
 (() => {
   const panel = document.getElementById('tiktok-api');
-  const list = document.getElementById('tiktok-connections');
+  const chip = document.getElementById('tiktok-chip');
+  const meta = document.getElementById('tiktok-meta');
   const connect = document.getElementById('tiktok-connect');
-  const syncBox = document.getElementById('tiktok-sync');
-  const start = document.getElementById('tiktok-start');
-  const end = document.getElementById('tiktok-end');
   const button = document.getElementById('tiktok-sync-button');
   const status = document.getElementById('tiktok-status');
-  const shopRow = document.getElementById('tiktok-shop-row');
   const shopSelect = document.getElementById('shop-select');
+  const start = document.getElementById('start');
+  const end = document.getElementById('end');
+  const MAX_DAYS = 92;
   const RESULTS = {
-    connected: ['ready', 'เชื่อมต่อร้าน TikTok สำเร็จ กด "ดึงข้อมูล" เพื่อดึงยอดขาย'],
+    connected: ['ready', 'เชื่อมต่อร้าน TikTok สำเร็จ กด "ดึงข้อมูลช่วงนี้" เพื่อดึงยอดขาย'],
     'not-configured': ['error', 'ยังไม่ได้ใส่ TIKTOK_APP_KEY / TIKTOK_APP_SECRET / TIKTOK_SERVICE_ID ใน .env ของเซิร์ฟเวอร์'],
     'no-dashboard-shop': ['error', 'ยังไม่มีร้านในระบบ กรุณาเพิ่มร้าน (เช่น "TikTok") ที่หน้า "อัปโหลดไฟล์ยอดขาย" › จัดการร้าน ก่อนกดเชื่อมต่อ'],
-    'choose-shop':['error', 'มีหลายร้านในระบบ กรุณาเลือกร้านก่อนกดเชื่อมต่อ'],
+    'choose-shop': ['error', 'มีหลายร้านในระบบ กรุณาเลือกร้านก่อนกดเชื่อมต่อ'],
     expired: ['error', 'ลิงก์เชื่อมต่อหมดอายุหรือถูกใช้ไปแล้ว กรุณากดเชื่อมต่อใหม่'],
     denied: ['error', 'ไม่ได้รับอนุญาตจาก TikTok กรุณาลองใหม่'],
     'no-shop': ['error', 'บัญชี TikTok นี้ไม่มีร้านที่อนุญาตให้แอปเข้าถึง'],
     failed: ['error', 'เชื่อมต่อ TikTok ไม่สำเร็จ กรุณาลองใหม่'],
   };
-  const pad = n => String(n).padStart(2, '0');
-  const day = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const when = iso => (iso ? new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ยังไม่เคยดึงข้อมูล');
+  const when = iso => new Date(iso).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const say = (state, text) => { status.dataset.state = state; status.textContent = text; };
   const offline = error => (error instanceof TypeError ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่' : error.message);
-
-  const today = new Date();
-  end.value = day(today);
-  start.value = day(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6));
+  const setChip = (state, text) => { chip.dataset.state = state; chip.textContent = text; };
 
   async function load() {
     try {
       const response = await fetch('/api/tiktok/status', { cache: 'no-store' });
-      if (response.status === 403) return; // no marketplace_upload permission: keep the panel hidden
+      if (response.status === 403) return; // no marketplace_upload permission: keep the widget hidden
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'โหลดสถานะ TikTok ไม่สำเร็จ');
       panel.hidden = false;
+      const conns = data.connections || [];
       connect.hidden = !data.canConnect || !data.configured;
-      if (data.connections.length) connect.textContent = 'เชื่อมต่อใหม่';
+      connect.textContent = conns.length ? 'เชื่อมต่อใหม่' : 'เชื่อมต่อร้าน TikTok';
       if (!connect.hidden) loadShops();
-      syncBox.hidden = !data.connections.length;
-      list.replaceChildren(...data.connections.map(c => {
-        const li = document.createElement('li');
-        li.className = 'mp-shop-item';
-        li.dataset.active = c.lastSyncError ? '0' : '1';
-        const name = document.createElement('span');
-        name.textContent = `${c.tiktokShop} → ร้าน ${c.shop} · ดึงล่าสุด: ${when(c.lastSyncAt)}` + (c.lastSyncError ? ` · ผิดพลาด: ${c.lastSyncError}` : '');
-        li.append(name);
-        return li;
-      }));
-      if (!data.configured) say('empty', 'ยังไม่ได้ตั้งค่า TikTok API ในเซิร์ฟเวอร์');
-      else if (data.connections.length) { if (!status.dataset.state) say('ready', ''); }
-      else if (!status.dataset.state) say('empty', data.canConnect ? 'ยังไม่ได้เชื่อมต่อ กด "เชื่อมต่อร้าน TikTok"' : 'ยังไม่ได้เชื่อมต่อ กรุณาให้ Super Admin เชื่อมต่อร้าน');
+      button.hidden = !conns.length;
+      const failed = conns.find(c => c.lastSyncError);
+      if (!data.configured) setChip('failed', 'ยังไม่ได้ตั้งค่า TikTok API');
+      else if (!conns.length) setChip('', 'ยังไม่ได้เชื่อมต่อร้าน');
+      else setChip(failed ? 'failed' : 'connected', `เชื่อมต่อแล้ว · ${conns.map(c => c.tiktokShop).join(', ')}`);
+      const last = conns.map(c => c.lastSyncAt).filter(Boolean).sort().pop();
+      meta.textContent = [last ? 'ดึงล่าสุด ' + when(last) : conns.length ? 'ยังไม่เคยดึงข้อมูล' : '',
+        conns.length && data.autoSyncMinutes ? `อัตโนมัติทุก ${data.autoSyncMinutes} นาที` : ''].filter(Boolean).join(' · ');
+      if (failed && !status.dataset.state) say('error', 'ครั้งล่าสุดผิดพลาด: ' + failed.lastSyncError);
+      else if (!conns.length && data.configured && !data.canConnect && !status.dataset.state) say('', 'กรุณาให้ Super Admin เชื่อมต่อร้าน');
     } catch (error) {
       panel.hidden = false;
+      setChip('failed', 'โหลดสถานะไม่สำเร็จ');
       say('error', offline(error));
     }
   }
@@ -67,7 +61,7 @@
       if (!response.ok) return;
       const active = ((await response.json()).shops || []).filter(shop => shop.active);
       shopSelect.replaceChildren(...active.map(shop => new Option(shop.name, shop.id)));
-      shopRow.hidden = active.length < 2;
+      shopSelect.hidden = active.length < 2;
     } catch { /* connect without a shop: the server asks to choose when it is ambiguous */ }
   }
 
@@ -76,9 +70,12 @@
     connect.href = '/api/tiktok/connect' + (shop ? '?shop=' + encodeURIComponent(shop) : '');
   });
 
+  // Syncs the range chosen in the page filter, so what is pulled is what is shown.
   button.addEventListener('click', async () => {
     if (!start.value || !end.value || start.value > end.value) return say('error', 'กรุณาเลือกช่วงวันที่ให้ถูกต้อง');
+    if ((Date.parse(end.value) - Date.parse(start.value)) / 86400000 >= MAX_DAYS) return say('error', `ดึงได้ครั้งละไม่เกิน ${MAX_DAYS} วัน กรุณาเลือกช่วงวันที่สั้นลง`);
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     say('loading', 'กำลังดึงข้อมูลจาก TikTok… อาจใช้เวลาสักครู่');
     try {
       const response = await fetch('/api/tiktok/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify({ start: start.value, end: end.value }) });
@@ -89,7 +86,9 @@
       say('error', offline(error));
     } finally {
       button.disabled = false;
+      button.removeAttribute('aria-busy');
       load();
+      window.dispatchEvent(new Event('tiktok-synced')); // orders may be saved even when fees failed
     }
   });
 

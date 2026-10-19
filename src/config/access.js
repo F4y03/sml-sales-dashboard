@@ -32,7 +32,9 @@ export const MODULES = [
   { permissions:['marketplace_view'], pages:['/marketplace.html'], apis:['/api/marketplace/summary'] },
   { permissions:['marketplace_upload'], pages:['/marketplace-upload.html'], apis:['/api/marketplace/upload'] },
   { permissions:['marketplace_upload','marketplace_view'], pages:[], apis:['/api/marketplace/uploads','/api/marketplace/shops'] },
+  // TikTok Shop page: viewers see figures (summary API above), uploaders use the connection panel; tiktok-shop.html redirects there.
+  { permissions:['marketplace_upload','marketplace_view'], pages:['/tiktok-sales.html','/tiktok-shop.html'], apis:[] },
   // TikTok Shop API: status/sync for uploaders (no figures); connect/callback/disconnect are Super Admin only (route middleware).
-  { permissions:['marketplace_upload'], pages:['/tiktok-shop.html'], apis:['/api/tiktok'] },
+  { permissions:['marketplace_upload'], pages:[], apis:['/api/tiktok'] },
 ];
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

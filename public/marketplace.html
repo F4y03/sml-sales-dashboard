@@ -16,8 +16,8 @@
     <script src="/theme-mode.js"></script>
     <script src="date-dmy.js" defer></script>
     <script src="assets/chart.umd.js" defer></script>
-    <script src="workspace-nav.js?v=20261014-tiktok" defer></script>
-    <script src="marketplace-ui.js?v=202610081" defer></script>
+    <script src="workspace-nav.js?v=20261019-tiktok-merged" defer></script>
+    <script src="marketplace-ui.js?v=20261019-tiktok-header" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,7 +33,7 @@
             <div class="ov-title-block">
               <p class="ov-eyebrow">ONLINE MARKETPLACE</p>
               <h1>ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
-              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลด <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
+              <p class="ov-subtitle">Shopee · Lazada จากไฟล์ที่อัปโหลด (TikTok Shop แยกไปหน้า TikTok Shop) <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
             </div>
             <div class="ov-actions">
               <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
@@ -43,7 +43,6 @@
           <div class="mp-tabs" role="tablist" aria-label="เลือกช่องทาง">
             <button type="button" role="tab" id="tab-shopee" data-platform="shopee" aria-selected="false" aria-controls="mp-content">Shopee</button>
             <button type="button" role="tab" id="tab-lazada" data-platform="lazada" aria-selected="false" aria-controls="mp-content">Lazada</button>
-            <button type="button" role="tab" id="tab-tiktok" data-platform="tiktok" aria-selected="false" aria-controls="mp-content">TikTok Shop</button>
             <button type="button" role="tab" id="tab-all" data-platform="all" aria-selected="true" aria-controls="mp-content">รวมทุกช่องทาง</button>
           </div>
 
@@ -53,7 +52,6 @@
                 <button type="button" data-preset="latest" aria-pressed="true">เดือนล่าสุดที่มีข้อมูล</button
                 ><button type="button" data-preset="7d" aria-pressed="false">7 วัน</button
                 ><button type="button" data-preset="30d" aria-pressed="false">30 วัน</button
-                ><button type="button" data-preset="month" aria-pressed="false">เดือนนี้</button
                 ><button type="button" data-preset="prev-month" aria-pressed="false">เดือนก่อน</button
                 ><button type="button" data-preset="year" aria-pressed="false">ปีนี้</button>
               </div>

@@ -8,7 +8,7 @@ import { sameSite } from './auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
 import { createSecretVault } from './src/services/totpService.js';
-import { TikTokApiError, bangkokDate, bangkokDayStart, createTikTokClient, mapTikTokOrder } from './src/services/tiktokShopApi.js';
+import { TikTokApiError, bangkokDate, bangkokDayStart, createTikTokClient, mapTikTokOrder, mapTikTokSettlement } from './src/services/tiktokShopApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 6 * 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -33,13 +33,24 @@ export async function syncTikTokShop(store, client, vault, { conn, start, end, u
     const ids = raw.filter(o => !/CANCEL/i.test(String(o.status || ''))).map(o => String(o.id));
     const returns = ids.length ? await client.returnsByOrder({ accessToken, shopCipher: conn.shop_cipher, orderIds: ids }) : new Map();
     const orders = raw.map(o => mapTikTokOrder(o, returns.get(String(o.id)) || [])).filter(Boolean);
-    if (orders.length) {
-      const sha256 = digest(JSON.stringify(orders));
+    // Fees/net payout from statements dated start..now (settlement comes after the order); same rows as the finance file.
+    // A Finance API failure (often its rate limit) must not lose the orders: save them, then report the fee problem.
+    let settlements = [], financeError = null;
+    try {
+      const txs = await client.statementTransactions({ accessToken, shopCipher: conn.shop_cipher, fromMs: bangkokDayStart(start), toMs: now });
+      settlements = txs.map(mapTikTokSettlement).filter(Boolean);
+    } catch (error) {
+      if (!(error instanceof TikTokApiError)) throw error;
+      financeError = new TikTokApiError(`ดึงออเดอร์สำเร็จ แต่ดึงค่าธรรมเนียมไม่สำเร็จ (${error.message}) กรุณากดดึงข้อมูลอีกครั้งภายหลัง`, error.code);
+    }
+    if (orders.length || settlements.length) {
+      const sha256 = digest(JSON.stringify([orders, settlements]));
       saveMarketplaceUpload(store, { platform: 'tiktok', fileName: `TikTok API ${start} ถึง ${end} · ${conn.shop_name}`.slice(0, 200), sha256,
-        user, parsed: { kinds: ['api'], orders, settlements: [], shopCode: null }, shopId: conn.shop_id });
+        user, parsed: { kinds: ['api'], orders, settlements, shopCode: null }, shopId: conn.shop_id });
     }
     store.run('UPDATE tiktok_connections SET last_sync_at=?,last_sync_error=NULL WHERE tiktok_shop_id=?', new Date(now).toISOString(), conn.tiktok_shop_id);
-    return { orders: orders.length };
+    if (financeError) throw financeError;
+    return { orders: orders.length, settlements: settlements.length };
   } catch (error) {
     const message = error instanceof TikTokApiError ? error.message : 'ดึงข้อมูลจาก TikTok ไม่สำเร็จ';
     store.run('UPDATE tiktok_connections SET last_sync_error=? WHERE tiktok_shop_id=?', message.slice(0, 300), conn.tiktok_shop_id);
@@ -49,6 +60,7 @@ export async function syncTikTokShop(store, client, vault, { conn, start, end, u
 
 export function installTikTokShop(app, store, audit, env = process.env, { fetchImpl } = {}) {
   const vault = createSecretVault(env, store.path);
+  const autoMinutes = Number(env.TIKTOK_AUTO_SYNC_MINUTES || 0);
   const configured = () => !!(env.TIKTOK_APP_KEY && env.TIKTOK_APP_SECRET && env.TIKTOK_SERVICE_ID);
   const client = () => createTikTokClient({ appKey: env.TIKTOK_APP_KEY, appSecret: env.TIKTOK_APP_SECRET, ...(fetchImpl && { fetchImpl }) });
   const connections = () => store.all('SELECT * FROM tiktok_connections ORDER BY shop_name');
@@ -61,12 +73,12 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     })().finally(() => { running = null; });
     return running;
   };
-  const back = (res, result) => res.redirect(303, '/tiktok-shop.html?tiktok=' + result);
+  const back = (res, result) => res.redirect(303, '/tiktok-sales.html?tiktok=' + result + '#tiktok-api');
 
   // Status only — never order counts or totals (marketplace_upload users must not see figures).
   app.get('/api/tiktok/status', (req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.json({ configured: configured(), canConnect: req.auth?.role === 'super_admin',
+    res.json({ configured: configured(), canConnect: req.auth?.role === 'super_admin', autoSyncMinutes: autoMinutes >= 30 ? autoMinutes : 0,
       connections: store.all(`SELECT c.tiktok_shop_id AS id,c.shop_name AS tiktokShop,s.name AS shop,c.connected_at AS connectedAt,
         c.last_sync_at AS lastSyncAt,c.last_sync_error AS lastSyncError,c.refresh_expires AS expiresAt
         FROM tiktok_connections c JOIN marketplace_shops s ON s.id=c.shop_id ORDER BY c.shop_name`) });
@@ -100,8 +112,11 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     if (saved) store.run('DELETE FROM tiktok_oauth_states WHERE state_hash=?', saved.state_hash);
     if (!saved || saved.expires <= Date.now() || saved.user_id !== req.auth.id) return back(res, 'expired');
     if (!code || code.length > 2048) return back(res, 'denied');
+    let step = 'client';
     try {
-      const c = client(), t = await c.exchangeCode(code), shops = await c.shops(t.accessToken);
+      const c = client();
+      step = 'token'; const t = await c.exchangeCode(code);
+      step = 'shops'; const shops = await c.shops(t.accessToken);
       if (!shops.length) return back(res, 'no-shop');
       const at = new Date().toISOString();
       store.transaction(() => {
@@ -114,7 +129,7 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
       audit.record(req.auth, 'tiktok.connect', 'marketplace', { shops: shops.map(s => s.name), shopId: saved.shop_id }, null, req.socket.remoteAddress);
       back(res, 'connected');
     } catch (error) {
-      console.error('TikTok connect failed:', error.code || error.name);
+      console.error(`TikTok connect failed at ${step}:`, error.code || error.name, String(error.message || '').slice(0, 200));
       back(res, 'failed');
     }
   });
@@ -147,7 +162,7 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
   });
 
   // Optional: TIKTOK_AUTO_SYNC_MINUTES (≥ 30) re-pulls the last 3 Bangkok days so status changes are picked up.
-  const minutes = Number(env.TIKTOK_AUTO_SYNC_MINUTES || 0);
+  const minutes = autoMinutes;
   if (minutes >= 30 && configured()) {
     const timer = setInterval(() => {
       if (running || !connections().length) return;
