@@ -127,17 +127,14 @@
   const isoOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
   const todayIso = () => { const t = new Date(); return isoOf(t.getFullYear(), t.getMonth(), t.getDate()); };
 
-  function enhanceRange(box) {
-    const [from, to] = box.querySelectorAll('input[type="date"]');
-    if (!from || !to || box.dataset.range) return;
-    box.dataset.range = "1";
+  function enhanceRange(box, from, to) {
+    if (!from || !to || from.dmyRangeOpen) return;
     const pop = document.createElement("div");
     pop.className = "date-range-pop";
     pop.hidden = true;
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-label", "เลือกช่วงวันที่");
-    box.style.position = "relative";
-    box.appendChild(pop);
+    document.body.appendChild(pop);
     let view, start, end, hover;
 
     const setValue = (input, iso) => {
@@ -146,9 +143,17 @@
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     };
-    const outside = (e) => { if (!box.contains(e.target)) close(); };
+    const outside = (e) => { if (!pop.contains(e.target) && !box.contains(e.target)) close(); };
+    const place = () => {
+      const r = (from.closest(".date-dmy") || from).getBoundingClientRect();
+      const w = pop.offsetWidth, h = pop.offsetHeight;
+      let top = r.bottom + 6;
+      if (top + h > window.innerHeight - 8 && r.top - h - 6 > 8) top = r.top - h - 6;
+      pop.style.left = Math.max(16, Math.min(r.left, window.innerWidth - w - 16)) + "px";
+      pop.style.top = Math.max(8, top) + "px";
+    };
     const esc = (e) => { if (e.key === "Escape") close(); };
-    function close() { pop.hidden = true; document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", esc); }
+    function close() { pop.hidden = true; document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", esc); window.removeEventListener("resize", close); window.removeEventListener("scroll", place, true); }
 
     function month(y, m) {
       const wrap = document.createElement("div");
@@ -225,6 +230,9 @@
       view = { y: anchor.getFullYear(), m: anchor.getMonth() };
       render();
       pop.hidden = false;
+      place();
+      window.addEventListener("resize", close);
+      window.addEventListener("scroll", place, true);
       document.addEventListener("pointerdown", outside, true);
       document.addEventListener("keydown", esc);
     };
@@ -244,7 +252,7 @@
     input.date-dmy-native { position: absolute !important; left: 0; bottom: 0; width: 100% !important;
       height: 1px !important; min-width: 0 !important; padding: 0 !important; border: 0 !important;
       opacity: 0 !important; pointer-events: none; }
-    .date-range-pop { position: absolute; z-index: 50; top: calc(100% + 6px); left: 0; padding: 12px;
+    .date-range-pop { position: fixed; z-index: 1000; padding: 12px;
       border: 1px solid var(--line, #ccc); border-radius: 12px; background: var(--surface, #fff); color: var(--ink, #222);
       box-shadow: 0 16px 40px rgba(0,0,0,.28); font-size: 13px; width: max-content; max-width: calc(100vw - 32px); }
     .date-range-pop[hidden] { display: none; }
@@ -275,7 +283,15 @@
 
   const run = () => {
     document.querySelectorAll('input[type="date"]').forEach(enhance);
-    document.querySelectorAll(".ov-dates").forEach(enhanceRange);
+    // จับคู่ช่อง จาก/ถึง ที่อยู่ในกล่องเดียวกัน (.ov-dates, form ตัวกรอง ฯลฯ) ให้ใช้ปฏิทินช่วงวันที่ร่วมกัน
+    const inputs = [...document.querySelectorAll('input[type="date"]')];
+    for (let i = 0; i + 1 < inputs.length; i++) {
+      const box = (inputs[i].closest("label") || inputs[i]).parentElement;
+      if (box && box.contains(inputs[i + 1]) && box.querySelectorAll('input[type="date"]').length === 2) {
+        enhanceRange(box, inputs[i], inputs[i + 1]);
+        i++;
+      }
+    }
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
   else run();
