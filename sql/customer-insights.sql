@@ -29,7 +29,9 @@ WITH customers AS (
   GROUP BY COALESCE(h.cust_code, '')
 )
 SELECT json_build_object(
-  'customers', COALESCE((SELECT json_agg(c ORDER BY net DESC, code) FROM (SELECT c.*, t.teams FROM consolidated c LEFT JOIN customer_teams t USING(code)) c), '[]'::json),
+  -- saleCode: the salesperson assigned in the customer master (used by the page's salesperson filter).
+  'customers', COALESCE((SELECT json_agg(c ORDER BY net DESC, code) FROM (SELECT c.*, t.teams, COALESCE(d.sale_code, '') AS "saleCode" FROM consolidated c LEFT JOIN customer_teams t USING(code)
+    LEFT JOIN (SELECT ar_code, MAX(BTRIM(sale_code)) AS sale_code FROM ar_customer_detail GROUP BY ar_code) d ON d.ar_code = c.code) c), '[]'::json),
   'nonBuyers', COALESCE((SELECT json_agg(c ORDER BY c.code) FROM (
     SELECT r.code, COALESCE(NULLIF(MAX(r.name_1), ''), r.code) AS name,
       TO_CHAR(MAX(s.last_purchased), 'YYYY-MM-DD') AS "lastPurchased",

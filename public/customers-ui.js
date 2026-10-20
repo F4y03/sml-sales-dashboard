@@ -154,6 +154,8 @@ const saleTeamNames = {
   "กท-ณ": "กรุงเทพ-บริษัท1",
   บอ: "กรุงเทพ-บริษัท2",
 };
+// Teams no longer in use (asked by the sales team): their customers are left out of this list.
+const hiddenSaleCodes = new Set(["กท-จ"]);
 function saleTeamLabel(code) {
   if (!code) return "ไม่ระบุพนักงานขาย";
   return saleTeamNames[code] ? `${saleTeamNames[code]} (${code})` : code;
@@ -174,9 +176,11 @@ function inferMissingSaleCodes(customers) {
   );
 }
 function fillNonBuyerTeams() {
-  const select = el("non-buyer-team"),
-    selected = select.value,
-    codes = [...new Set(nonBuyers.map((c) => c.saleCode || ""))].sort((a, b) =>
+  fillTeamSelect(el("non-buyer-team"), nonBuyers);
+}
+function fillTeamSelect(select, list) {
+  const selected = select.value,
+    codes = [...new Set(list.map((c) => c.saleCode || ""))].sort((a, b) =>
       saleTeamLabel(a).localeCompare(saleTeamLabel(b), "th"),
     );
   select.replaceChildren(node("option", "ทั้งหมด"));
@@ -238,7 +242,9 @@ async function loadNonBuyers() {
       controller.signal,
     );
     if (request !== nonBuyerRequest) return;
-    nonBuyers = inferMissingSaleCodes(data.nonBuyers);
+    nonBuyers = inferMissingSaleCodes(data.nonBuyers).filter(
+      (c) => !hiddenSaleCodes.has(c.saleCode),
+    );
     fillNonBuyerTeams();
     applyNonBuyerSearch();
     el("non-buyer-status").textContent =
@@ -292,6 +298,7 @@ function switchInsightsView(view) {
     String(view === "products"),
   );
   el("customer-search").closest("label").hidden = view !== "customers";
+  el("customer-team").closest("label").hidden = view !== "customers";
   el("performance-search-field").hidden = view !== "products";
   el("status").hidden = view !== "customers";
   productViewEvent("insights-view-change");
@@ -1029,11 +1036,14 @@ function renderSummaryCharts() {
 function applySearch(preservePage = false) {
   if (!period) return;
   if (el("customer-detail").open) closeCustomerDetail();
-  const query = el("customer-search").value.trim().toLocaleLowerCase("th-TH");
-  filtered = customers.filter((customer) =>
-    `${customer.code}\n${customer.name}`
-      .toLocaleLowerCase("th-TH")
-      .includes(query),
+  const query = el("customer-search").value.trim().toLocaleLowerCase("th-TH"),
+    team = el("customer-team").value;
+  filtered = customers.filter(
+    (customer) =>
+      (!team || (customer.saleCode || "-") === team) &&
+      `${customer.code}\n${customer.name}`
+        .toLocaleLowerCase("th-TH")
+        .includes(query),
   );
   if (preservePage !== true) customerPage = 0;
   el("total-net").textContent = money(
@@ -1049,9 +1059,11 @@ function applySearch(preservePage = false) {
   renderCustomers();
   message(
     filtered.length
-      ? `${dateLabel(period.start)} – ${dateLabel(period.end)} · พบลูกค้า ${number.format(filtered.length)} ราย${query ? ` จากทั้งหมด ${number.format(customers.length)} ราย` : ""}`
+      ? `${dateLabel(period.start)} – ${dateLabel(period.end)} · พบลูกค้า ${number.format(filtered.length)} ราย${query || team ? ` จากทั้งหมด ${number.format(customers.length)} ราย` : ""}`
       : customers.length
-        ? "ไม่พบลูกค้าที่ตรงกับคำค้นหา ลองค้นหาด้วยรหัสหรือชื่ออื่น"
+        ? team && !query
+          ? "ไม่พบลูกค้าของพนักงานขายนี้ในช่วงวันที่เลือก"
+          : "ไม่พบลูกค้าที่ตรงกับคำค้นหา ลองค้นหาด้วยรหัสหรือชื่ออื่น"
         : "ไม่พบรายการลูกค้าในช่วงวันที่เลือก",
   );
   if (!filtered.some((customer) => customer.code === selectedCode)) {
@@ -1418,7 +1430,7 @@ async function loadCustomers(silent = false) {
       controller.signal,
     );
     if (request !== masterRequest) return;
-    customers = data.customers
+    customers = inferMissingSaleCodes(data.customers)
       .map((customer) => ({
         ...customer,
         net: Number(customer.net),
@@ -1427,6 +1439,7 @@ async function loadCustomers(silent = false) {
       .sort((a, b) => b.net - a.net || a.code.localeCompare(b.code, "th"));
     period = requestedPeriod;
     masterUpdatedAt = data.updatedAt;
+    fillTeamSelect(el("customer-team"), customers);
     selectedCode = null;
     // Keep a selected customer across date changes only if it still matches both filters.
     const query = el("customer-search").value.trim().toLocaleLowerCase("th-TH");
@@ -1471,6 +1484,7 @@ el("products-view-button").addEventListener("click", () =>
   switchInsightsView("products"),
 );
 el("customer-search").addEventListener("input", applySearch);
+el("customer-team").addEventListener("change", () => applySearch());
 el("non-buyer-search").addEventListener("input", applyNonBuyerSearch);
 el("non-buyer-team").addEventListener("change", applyNonBuyerSearch);
 el("non-buyer-filters").addEventListener("submit", (event) => {

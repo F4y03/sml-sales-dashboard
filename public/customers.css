@@ -103,9 +103,9 @@ h1 span {
 .filters {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(
-      200px,
-      1.8fr
-    ) auto;
+      160px,
+      1fr
+    ) minmax(200px, 1.8fr) auto;
   gap: 16px;
   align-items: end;
   border: 1px solid #e8e2de;
@@ -121,7 +121,8 @@ h1 span {
   font-size: 16px;
   min-width: 0;
 }
-.filters input {
+.filters input,
+.filters select {
   height: 44px;
   width: 100%;
   min-width: 0;
@@ -1880,4 +1881,10 @@ body.customer-dialog-open {
 @media (hover: none) and (pointer: coarse) and (max-width: 700px) {
   #customer-detail.cbx.cbx { width: calc(100vw - 24px); }
 
+}
+/* Product view hides the salesperson filter: fall back to the original 4-column layout. */
+@media (min-width: 801px) {
+  .filters:has(> label[for="customer-team"][hidden]) {
+    grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(200px, 1.8fr) auto;
+  }
 }

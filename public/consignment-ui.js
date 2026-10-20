@@ -1,5 +1,5 @@
 import { regionFor } from "./consignment-data.js?v=20261020-team2";
-import { renderRegionalChart } from "./consignment-region-chart.js";
+import { renderRegionalChart } from "./consignment-region-chart.js?v=20261020-region-hl";
 import { setHelpData } from "./consignment-help.js";
 import { exportConsignment } from "./consignment-export.js";
 import {
@@ -78,8 +78,8 @@ function readFilters() {
   };
 }
 let criteria = readFilters();
-function matches(p) {
-  const f = criteria;
+function matches(p, ignoreRegion = false) {
+  const f = ignoreRegion ? { ...criteria, region: "" } : criteria;
   return (
     (!f.q ||
       [p.product, p.code, p.customer, p.customerCode]
@@ -164,10 +164,12 @@ function renderChips() {
     box.append(note);
   }
   $("reset").disabled = !active;
-  // While searching/filtering, bring the product table up right under the KPI cards.
+  // While searching/filtering, bring the product table up right under the KPI cards —
+  // except with a region filter, where the region chart (which highlights it) stays in place.
   const movement = $("movement"),
     regional = $("regional"),
-    anchor = active ? regional : regional.nextElementSibling;
+    anchor =
+      active && !criteria.region ? regional : regional.nextElementSibling;
   if (movement !== anchor && movement.nextElementSibling !== anchor)
     regional.parentNode.insertBefore(movement, anchor);
 }
@@ -231,7 +233,7 @@ function options(id, values) {
 }
 function render() {
   criteria = readFilters();
-  visible = products.filter(matches);
+  visible = products.filter((p) => matches(p));
   renderChips();
   renderCards();
   renderTable();
@@ -580,7 +582,14 @@ function renderTable() {
   });
   updateSummarySortHeaders();
   $("export-excel").disabled = exporting || !loaded || !visible.length;
-  renderRegionalChart(visible, unit, loaded);
+  // The region filter highlights its row instead of removing the other regions,
+  // so the chart keeps every region in place; all other filters still apply.
+  renderRegionalChart(
+    criteria.region ? products.filter((p) => matches(p, true)) : visible,
+    unit,
+    loaded,
+    criteria.region,
+  );
   page = Math.min(page, Math.max(0, Math.ceil(visible.length / size) - 1));
   $("context").textContent = loaded
     ? `${fmt(visible.length)} รหัสสินค้า · คลิกแถวสินค้าเพื่อดูว่าเบิกอะไร เมื่อไร`

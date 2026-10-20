@@ -47,8 +47,8 @@ function roundStep(range, parts) {
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
 }
 
-export function renderRegionalChart(products, unit, loaded) {
-  regionArgs = { products, unit, loaded };
+export function renderRegionalChart(products, unit, loaded, selected = "") {
+  regionArgs = { products, unit, loaded, selected };
   const groups = new Map();
   for (const p of products) {
     if (!groups.has(p.region)) groups.set(p.region, { out: 0, balance: 0 });
@@ -155,15 +155,20 @@ function drawRegionChart(animate = false) {
   regionRows.forEach((r, i) => {
     const rowTop = padTop + i * rowH,
       barTop = rowTop + (rowH - (barH * 2 + barGap)) / 2,
-      label = svgNode("text", { x: left - 12, y: rowTop + rowH / 2 + 4.5, "text-anchor": "end", class: "rg-name" }, svg);
+      dim = regionArgs.selected && r.region !== regionArgs.selected ? " rg-dim" : "",
+      label = svgNode(
+        "text",
+        { x: left - 12, y: rowTop + rowH / 2 + 4.5, "text-anchor": "end", class: "rg-name" + dim + (regionArgs.selected === r.region ? " rg-selected" : "") },
+        svg,
+      );
     label.textContent = fitText(r.region, nameWidth, nameFont);
     if (label.textContent !== r.region) svgNode("title", {}, label).textContent = r.region;
     [
       ["out", r.out, barTop],
       ["balance", r.balance, barTop + barH + barGap],
     ].forEach(([kind, v, y]) => {
-      const rect = svgNode("rect", { y, height: barH, rx: 3.5, fill: kind === "out" ? OUT_FILL : BALANCE_FILL, class: `rg-bar ${kind}` }, svg),
-        text = svgNode("text", { y: y + barH / 2 + 4.2, class: `rg-value ${kind}` }, svg);
+      const rect = svgNode("rect", { y, height: barH, rx: 3.5, fill: kind === "out" ? OUT_FILL : BALANCE_FILL, class: `rg-bar ${kind}${dim}` }, svg),
+        text = svgNode("text", { y: y + barH / 2 + 4.2, class: `rg-value ${kind}${dim}` }, svg);
       text.textContent = fmtQty(v);
       bars.push({ v, rect, text });
     });

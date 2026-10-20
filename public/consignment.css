@@ -1270,3 +1270,14 @@ html[data-theme] .regional-table tfoot :is(th, td):not(:first-child) {
   color: #ef312b;
 }
 #export-status:empty { display: none; }
+/* Region filter: other regions stay in place but fade; the selected one stands out. */
+.regional-plot .rg-bar.rg-dim {
+  opacity: 0.25;
+}
+.regional-plot .rg-name.rg-dim,
+.regional-plot .rg-value.rg-dim {
+  fill-opacity: 0.35;
+}
+.regional-plot .rg-name.rg-selected {
+  font-weight: 800;
+}
