@@ -1120,9 +1120,9 @@ body.customer-dialog-open {
 .non-buyer-filters {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(
-      200px,
-      1.8fr
-    ) auto;
+      160px,
+      1.1fr
+    ) minmax(200px, 1.8fr) auto;
   gap: 12px;
   align-items: end;
   margin: 18px 0;
@@ -1133,7 +1133,8 @@ body.customer-dialog-open {
   color: #716b68;
   font-size: 14px;
 }
-.non-buyer-filters input {
+.non-buyer-filters input,
+.non-buyer-filters select {
   height: 42px;
   min-width: 0;
   width: 100%;

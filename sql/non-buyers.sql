@@ -13,9 +13,11 @@ SELECT json_build_object('nonBuyers', COALESCE((
   SELECT json_agg(customer ORDER BY customer.code) FROM (
     SELECT r.code, COALESCE(NULLIF(MAX(r.name_1), ''), r.code) AS name,
       TO_CHAR(MAX(s.last_purchased), 'YYYY-MM-DD') AS "lastPurchased",
-      CASE WHEN MAX(s.last_purchased) IS NULL THEN NULL ELSE ($2::date - MAX(s.last_purchased))::integer END AS "daysSincePurchase"
+      CASE WHEN MAX(s.last_purchased) IS NULL THEN NULL ELSE ($2::date - MAX(s.last_purchased))::integer END AS "daysSincePurchase",
+      COALESCE(MAX(BTRIM(d.sale_code)), '') AS "saleCode"
     FROM ar_customer r
     LEFT JOIN last_sales s ON s.code = r.code
+    LEFT JOIN ar_customer_detail d ON d.ar_code = r.code
     WHERE NULLIF(BTRIM(r.code), '') IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM period_sales p WHERE p.code = r.code)
     GROUP BY r.code

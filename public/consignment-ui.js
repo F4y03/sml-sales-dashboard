@@ -1,4 +1,4 @@
-import { regionFor } from "./consignment-data.js";
+import { regionFor } from "./consignment-data.js?v=20261020-team2";
 import { renderRegionalChart } from "./consignment-region-chart.js";
 import { setHelpData } from "./consignment-help.js";
 import { exportConsignment } from "./consignment-export.js";

@@ -99,13 +99,14 @@ function renderNonBuyers() {
     row.append(
       node("td", customer.code),
       node("td", customer.name),
+      node("td", saleTeamLabel(customer.saleCode)),
       node("td", lastPurchased),
       node("td", days, "numeric"),
     );
     body.append(row);
   }
   if (!filteredNonBuyers.length)
-    emptyRow(body, 4, "ไม่พบลูกค้าที่ไม่ได้ซื้อตามเงื่อนไขที่เลือก");
+    emptyRow(body, 5, "ไม่พบลูกค้าที่ไม่ได้ซื้อตามเงื่อนไขที่เลือก");
   el("non-buyer-count").textContent =
     `${number.format(filteredNonBuyers.length)} ราย`;
   pagination(
@@ -139,12 +140,66 @@ function syncNonBuyerPeriodToMaster() {
   el("non-buyer-end").value = el("end").value;
 }
 
+// Salesperson codes (ar_customer_detail.sale_code) → team names given by the sales team.
+// Same labels as executive-ui.js; codes not listed here are shown as-is.
+const saleTeamNames = {
+  หย: "เหนือ",
+  วย: "ตะวันออก",
+  "กท-ต": "กรุงเทพ-ติ้ก",
+  อย: "อีสาน",
+  กภ: "กรุงเทพ",
+  ลภ: "กลาง",
+  ตช: "ใต้",
+  "กท-ร": "กรุงเทพ-รุ่ง",
+  "กท-ณ": "กรุงเทพ-บริษัท1",
+  บอ: "กรุงเทพ-บริษัท2",
+};
+function saleTeamLabel(code) {
+  if (!code) return "ไม่ระบุพนักงานขาย";
+  return saleTeamNames[code] ? `${saleTeamNames[code]} (${code})` : code;
+}
+// A few customers have no sale_code in SML. Their customer code starts with the team code
+// (e.g. บอ-155, กท-ณ102), so use the longest known team code the customer code starts with.
+function inferMissingSaleCodes(customers) {
+  const known = [
+    ...new Set([
+      ...Object.keys(saleTeamNames),
+      ...customers.map((c) => c.saleCode).filter(Boolean),
+    ]),
+  ].sort((a, b) => b.length - a.length);
+  return customers.map((c) =>
+    c.saleCode
+      ? c
+      : { ...c, saleCode: known.find((t) => String(c.code).startsWith(t)) || "" },
+  );
+}
+function fillNonBuyerTeams() {
+  const select = el("non-buyer-team"),
+    selected = select.value,
+    codes = [...new Set(nonBuyers.map((c) => c.saleCode || ""))].sort((a, b) =>
+      saleTeamLabel(a).localeCompare(saleTeamLabel(b), "th"),
+    );
+  select.replaceChildren(node("option", "ทั้งหมด"));
+  select.firstChild.value = "";
+  for (const code of codes) {
+    const option = node("option", saleTeamLabel(code));
+    option.value = code || "-";
+    select.append(option);
+  }
+  select.value = [...select.options].some((o) => o.value === selected)
+    ? selected
+    : "";
+}
+
 function applyNonBuyerSearch() {
-  const query = el("non-buyer-search").value.trim().toLocaleLowerCase("th-TH");
-  filteredNonBuyers = nonBuyers.filter((customer) =>
-    `${customer.code}\n${customer.name}`
-      .toLocaleLowerCase("th-TH")
-      .includes(query),
+  const query = el("non-buyer-search").value.trim().toLocaleLowerCase("th-TH"),
+    team = el("non-buyer-team").value;
+  filteredNonBuyers = nonBuyers.filter(
+    (customer) =>
+      (!team || (customer.saleCode || "-") === team) &&
+      `${customer.code}\n${customer.name}`
+        .toLocaleLowerCase("th-TH")
+        .includes(query),
   );
   filteredNonBuyers.sort((a, b) => {
     const av = Number.isInteger(a.daysSincePurchase) ? a.daysSincePurchase : -1;
@@ -183,7 +238,8 @@ async function loadNonBuyers() {
       controller.signal,
     );
     if (request !== nonBuyerRequest) return;
-    nonBuyers = data.nonBuyers;
+    nonBuyers = inferMissingSaleCodes(data.nonBuyers);
+    fillNonBuyerTeams();
     applyNonBuyerSearch();
     el("non-buyer-status").textContent =
       `${dateLabel(selectedPeriod.start)} – ${dateLabel(selectedPeriod.end)} · พบ ${number.format(nonBuyers.length)} ราย`;
@@ -1416,6 +1472,7 @@ el("products-view-button").addEventListener("click", () =>
 );
 el("customer-search").addEventListener("input", applySearch);
 el("non-buyer-search").addEventListener("input", applyNonBuyerSearch);
+el("non-buyer-team").addEventListener("change", applyNonBuyerSearch);
 el("non-buyer-filters").addEventListener("submit", (event) => {
   event.preventDefault();
   loadNonBuyers();

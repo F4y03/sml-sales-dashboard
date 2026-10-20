@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dashboard PROPLUS</title>
     <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
-    <link rel="stylesheet" href="customers.css?v=20261020-ipad3" />
+    <link rel="stylesheet" href="customers.css?v=20261020-team" />
     <link rel="stylesheet" href="product-insights.css" />
     <link rel="stylesheet" href="workspace-nav.css" />
     <script src="date-dmy.js?v=20261020-range4" defer></script>
-    <script src="customers-ui.js?v=20261020-pager" defer></script>
+    <script src="customers-ui.js?v=20261020-team3" defer></script>
     <script src="product-insights-ui.js" defer></script>
     <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
     <script src="insights-help.js" defer></script>
@@ -270,6 +270,11 @@
             <label for="non-buyer-end"
               >ถึงวันที่<input id="non-buyer-end" type="date" required
             /></label>
+            <label for="non-buyer-team"
+              >พนักงานขาย<select id="non-buyer-team">
+                <option value="">ทั้งหมด</option>
+              </select></label
+            >
             <label for="non-buyer-search"
               >ค้นหาลูกค้า<input
                 id="non-buyer-search"
@@ -301,6 +306,7 @@
                 <tr>
                   <th scope="col">รหัสลูกค้า</th>
                   <th scope="col">ชื่อลูกค้า</th>
+                  <th scope="col">พนักงานขาย</th>
                   <th scope="col">ซื้อครั้งล่าสุด</th>
                   <th scope="col" class="numeric">ไม่ได้ซื้อมานาน</th>
                 </tr>
