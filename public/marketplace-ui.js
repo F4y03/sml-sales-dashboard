@@ -268,6 +268,62 @@
     }));
   }
 
+  function renderStatusDonut(all, total) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+    const colors = { completed: 'var(--positive)', pending: 'var(--muted)', cancelled: 'var(--negative)', returned: 'var(--warning)' };
+    const box = $('status-donut');
+    const svg = svgEl('svg', { viewBox: '0 0 140 140', role: 'group', 'aria-label': 'สัดส่วนสถานะออเดอร์' });
+    svg.append(svgEl('circle', { cx: 70, cy: 70, r: 52, class: 'mp-ring-track' }));
+    const arcs = [];
+    let start = 0;
+    all.forEach((r, index) => {
+      const share = total ? r.orders / total * 100 : 0;
+      if (!share) { arcs.push(null); return; }
+      const length = share > 2 ? share - 1 : share;
+      const aria = `${r.label}: ${count(r.orders)} ออเดอร์ (${share.toFixed(1)}%)`;
+      const arc = svgEl('circle', { cx: 70, cy: 70, r: 52, pathLength: 100, stroke: colors[r.key], 'stroke-dasharray': `${length} 100`, 'stroke-dashoffset': -start, transform: 'rotate(-90 70 70)', class: 'mp-ring-arc', tabindex: 0, role: 'img', 'aria-label': aria });
+      const title = svgEl('title', {}); title.textContent = aria; arc.append(title);
+      for (const [type, on] of [['pointerenter', true], ['pointerleave', false], ['focus', true], ['blur', false]])
+        arc.addEventListener(type, () => activate(on ? index : null));
+      arcs.push(arc);
+      svg.append(arc);
+      start += share;
+    });
+    const mid = el('div', 'mp-donut-center');
+    const value = el('b'), label = el('span'), sub = el('small');
+    mid.append(value, label, sub);
+    box.replaceChildren(svg, mid);
+    const rows = [...$('status-list').children];
+    function activate(index) {
+      arcs.forEach(a => a && a.classList.remove('is-active'));
+      rows.forEach((row, i) => row.classList.toggle('is-active', i === index));
+      if (index == null) {
+        delete box.dataset.active;
+        $('status-list').removeAttribute('data-active');
+        value.textContent = count(total);
+        label.textContent = total ? 'ออเดอร์ทั้งหมด' : 'ไม่มีออเดอร์';
+        sub.textContent = '';
+        return;
+      }
+      const r = all[index];
+      box.dataset.active = index;
+      $('status-list').dataset.active = index;
+      if (arcs[index]) arcs[index].classList.add('is-active');
+      value.textContent = (total ? (r.orders / total * 100).toFixed(1) : '0') + '%';
+      label.textContent = r.label;
+      sub.textContent = `${count(r.orders)} ออเดอร์`;
+    }
+    rows.forEach((row, index) => {
+      row.tabIndex = 0;
+      row.addEventListener('pointerenter', () => activate(index));
+      row.addEventListener('pointerleave', () => activate(null));
+      row.addEventListener('focus', () => activate(index));
+      row.addEventListener('blur', () => activate(null));
+    });
+    activate(null);
+  }
+
   function renderStatuses(data) {
     const all = STATUS.map(([key, label, icon]) => {
       const rows = data.statuses.filter(r => r.status === key);
@@ -288,17 +344,7 @@
       li.append(head, bar, el('small', 'mp-status-foot', `${total ? pct.toFixed(1) : '0'}% · ${amount}`));
       return li;
     }));
-    const colors = { completed: 'var(--positive)', pending: 'var(--muted)', cancelled: 'var(--negative)', returned: 'var(--warning)' };
-    let acc = 0;
-    const stops = total ? all.filter(r => r.orders).map(r => {
-      const from = acc;
-      acc += r.orders / total * 100;
-      return `${colors[r.key]} ${from.toFixed(2)}% ${acc.toFixed(2)}%`;
-    }) : [];
-    const donut = $('status-donut');
-    donut.style.background = stops.length ? `conic-gradient(${stops.join(', ')})` : '';
-    donut.setAttribute('aria-label', 'สัดส่วนสถานะออเดอร์: ' + all.map(r => `${r.label} ${total ? (r.orders / total * 100).toFixed(1) : 0}%`).join(', '));
-    $('status-donut-total').textContent = count(total);
+    renderStatusDonut(all, total);
     const note = $('status-note');
     note.hidden = !(platform === 'shopee' || platform === 'all');
     note.textContent = 'Shopee: ถ้าอัปโหลดแค่รายงานรายรับ จะเห็นเฉพาะออเดอร์ที่โอนเงินแล้ว — อัปโหลดไฟล์คำสั่งซื้อ (Order.all) เพื่อให้เห็นออเดอร์ยกเลิกและกำลังจัดส่ง';
