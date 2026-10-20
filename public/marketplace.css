@@ -43,6 +43,15 @@
   cursor: pointer;
   white-space: nowrap;
 }
+#overview-top .mp-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.mp-tab-icon {
+  flex: none;
+}
 #overview-top .mp-tabs button:hover {
   color: var(--ov-ink);
 }
