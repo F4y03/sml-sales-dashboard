@@ -15,8 +15,8 @@ export const ROLES = [
 ];
 // Same explicit assignments as executive-ui.js / consignment-data.js. Unknown teams are not assigned.
 export const INITIAL_TERRITORIES = [
-  ['CENTRAL','ภาคกลาง',['กจ','กณ','กต','กร','กภ','บอ']], ['NORTH','ภาคเหนือ',['หย']],
-  ['SOUTH','ภาคใต้',['ตช']], ['EAST','ภาคตะวันออก',['ลภ']], ['NORTHEAST','ภาคตะวันออกเฉียงเหนือ',['อย']],
+  ['CENTRAL','ภาคกลาง',['กจ','กณ','กต','กร','กภ','บอ','ลภ']], ['NORTH','ภาคเหนือ',['หย']],
+  ['SOUTH','ภาคใต้',['ตช']], ['EAST','ภาคตะวันออก',['วย']], ['NORTHEAST','ภาคตะวันออกเฉียงเหนือ',['อย']],
 ];
 export const MODULES = [
   { permissions:['dashboard'], pages:['/','/index.html','/executive.html'], apis:['/api/dashboard','/api/invoices','/api/executive','/api/sales-trend'] },

@@ -48,10 +48,10 @@ Seeded assignments come from the existing executive/consignment mapping:
 
 | Code | Name | Team codes | Consignment prefixes |
 |---|---|---|---|
-| CENTRAL | ภาคกลาง | กจ, กณ, กต, กร, กภ, บอ | ฝกจ, ฝกณ, ฝกต, ฝกร, ฝกภ, ฝบอ |
+| CENTRAL | ภาคกลาง | กจ, กณ, กต, กร, กภ, บอ, ลภ | ฝกจ, ฝกณ, ฝกต, ฝกร, ฝกภ, ฝบอ, ฝลภ |
 | NORTH | ภาคเหนือ | หย | ฝหย |
 | SOUTH | ภาคใต้ | ตช | ฝตช |
-| EAST | ภาคตะวันออก | ลภ | ฝลภ |
+| EAST | ภาคตะวันออก | วย | ฝวย |
 | NORTHEAST | ภาคตะวันออกเฉียงเหนือ | อย | ฝอย |
 
 Bangkok or other territories can be added once their mapping is defined; unknown codes are not guessed. Existing `กท-` / `ฝ` team normalization is preserved. Different territories may intentionally share mappings; administrators must review overlaps before assigning accounts.

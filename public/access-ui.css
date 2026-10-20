@@ -1728,6 +1728,61 @@
   height: 42px;
   min-height: 42px;
 }
+.usage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.usage-controls select {
+  min-height: 38px;
+  max-width: 100%;
+}
+.activity-filters {
+  align-items: end;
+  margin: 4px 0 14px;
+}
+.activity-filter-date {
+  display: grid;
+  gap: 4px;
+  color: var(--muted, #b0b1b8);
+  font-size: 12px;
+}
+.activity-filter-date input {
+  min-height: 38px;
+}
+@media (max-width: 640px) {
+  .activity-filters > * {
+    flex: 1 1 100%;
+  }
+}
+.usage-user {
+  display: grid;
+  gap: 2px;
+}
+.usage-user span,
+.usage-table .activity-stamp span + span {
+  color: var(--muted, #b0b1b8);
+  font-size: 12px;
+}
+.usage-frequency {
+  display: grid;
+  gap: 6px;
+  min-width: 120px;
+}
+.usage-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line, #303035);
+  overflow: hidden;
+}
+.usage-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone-green-soft-text, #34c27a);
+}
 .admin-pagination {
   display: flex;
   align-items: center;

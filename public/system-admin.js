@@ -5,7 +5,10 @@ let me,
   catalog,
   current = "users",
   auditPage = 0,
-  auditCursors = [null];
+  auditCursors = [null],
+  auditFilter = { user: "", action: "", from: "", to: "" },
+  usageDays = 30,
+  usageSalesOnly = true;
 const has = (p) => me.role === "super_admin" || me.permissions.includes(p);
 const node = (tag, value, cls) => {
   const n = document.createElement(tag);
@@ -861,8 +864,7 @@ function activityStamp(value) {
   if (time) stamp.append(node("span", date));
   return stamp;
 }
-function activityBadge(action) {
-  const labels = {
+const activityLabels = {
       login: "เข้าสู่ระบบ",
       logout: "ออกจากระบบ",
       "login.failed": "เข้าสู่ระบบไม่สำเร็จ",
@@ -894,7 +896,9 @@ function activityBadge(action) {
       "trusted_device.add": "เชื่อถืออุปกรณ์",
       "trusted_device.revoke": "ยกเลิกอุปกรณ์ที่เชื่อถือ",
       "auth.logout_all": "ออกจากระบบทุกอุปกรณ์",
-    },
+};
+function activityBadge(action) {
+  const labels = activityLabels,
     kind =
       action === "login"
         ? "login"
@@ -1039,12 +1043,172 @@ function activityDetail(log) {
     return add(`บังคับออกจากระบบทุกอุปกรณ์ของ ${user(details.userId)}`);
   return add("มีการเปลี่ยนแปลงข้อมูลในระบบ");
 }
+function daysAgo(value) {
+  const date = new Date(value.replace(" ", "T") + "Z"),
+    days = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (!Number.isFinite(days)) return "";
+  return days <= 0 ? "วันนี้" : `${days} วันก่อน`;
+}
+async function usageView() {
+  const { days, users } = await api("activity/usage?days=" + usageDays),
+    panel = card("ความถี่การเข้าใช้งาน"),
+    controls = node("div", undefined, "usage-controls"),
+    period = node("select"),
+    scope = node("select");
+  for (const d of [7, 30, 90]) {
+    const o = node("option", `${d} วันล่าสุด`);
+    o.value = d;
+    period.append(o);
+  }
+  period.value = days;
+  period.setAttribute("aria-label", "ช่วงเวลา");
+  period.onchange = () => {
+    usageDays = Number(period.value);
+    show("activity");
+  };
+  for (const [value, label] of [
+    ["sales", "เฉพาะ Sales (บัญชีจำกัดเขต)"],
+    ["all", "ผู้ใช้ทั้งหมด"],
+  ]) {
+    const o = node("option", label);
+    o.value = value;
+    scope.append(o);
+  }
+  scope.value = usageSalesOnly ? "sales" : "all";
+  scope.setAttribute("aria-label", "กลุ่มผู้ใช้");
+  scope.onchange = () => {
+    usageSalesOnly = scope.value === "sales";
+    show("activity");
+  };
+  controls.append(period, scope);
+  panel.append(controls);
+  const rows = users.filter(
+      (u) => u.is_active && (!usageSalesOnly || u.scope === "territory"),
+    ),
+    active = rows.filter((u) => u.active_days > 0),
+    average = active.length
+      ? active.reduce((n, u) => n + u.active_days, 0) / active.length
+      : 0,
+    summary = node("div", undefined, "security-summary"),
+    stat = (label, value, detail) => {
+      const box = node("div", undefined, "security-stat");
+      box.append(
+        node("span", label),
+        node("strong", String(value)),
+        node("small", detail),
+      );
+      summary.append(box);
+    };
+  stat("เข้าใช้งานในช่วงนี้", `${active.length} / ${rows.length} คน`, `ใน ${days} วันล่าสุด`);
+  stat("ไม่ได้เข้าเลย", `${rows.length - active.length} คน`, "ไม่มีการเข้าสู่ระบบสำเร็จในช่วงนี้");
+  stat("เฉลี่ยวันที่เข้าใช้", `${average.toFixed(1)} วัน`, "เฉพาะคนที่เข้าใช้งาน");
+  panel.append(summary);
+  table(
+    panel,
+    ["ผู้ใช้", "เขต / Role", "วันที่เข้าใช้", "ครั้งที่เข้าสู่ระบบ", "เข้าล่าสุด", "เข้าไม่สำเร็จ"],
+    rows.map((u) => {
+      const who = node("div", undefined, "usage-user");
+      who.append(node("strong", u.full_name), node("span", u.username));
+      const freq = node("div", undefined, "usage-frequency"),
+        bar = node("span", undefined, "usage-bar"),
+        fill = node("span");
+      fill.style.width = `${Math.min(100, (u.active_days / days) * 100)}%`;
+      bar.append(fill);
+      freq.append(node("strong", `${u.active_days} / ${days} วัน`), bar);
+      const last = u.last_login ? activityStamp(u.last_login) : node("span", "ไม่เคยเข้าสู่ระบบ", "muted");
+      if (u.last_login) last.append(node("span", daysAgo(u.last_login)));
+      return [
+        who,
+        u.territories || u.role_name,
+        freq,
+        String(u.logins),
+        last,
+        String(u.failed),
+      ];
+    }),
+  );
+  panel.querySelector(".table-scroll")?.classList.add("usage-table");
+  usageView.users = users;
+  panel.append(
+    node(
+      "p",
+      "นับจากการเข้าสู่ระบบสำเร็จใน Activity Log · 1 ครั้งใช้งานได้ 8 ชั่วโมง จึงนับ \"วันที่เข้าใช้\" ตามวันที่ไทยที่มีการเข้าสู่ระบบ · ยังไม่ได้นับว่าเปิดหน้าไหนบ้าง",
+      "muted",
+    ),
+  );
+}
+function activityFilters() {
+  const bar = node("div", undefined, "usage-controls activity-filters"),
+    apply = () => {
+      auditPage = 0;
+      auditCursors = [null];
+      show("activity");
+    },
+    pick = (label, key, options) => {
+      const s = node("select");
+      s.setAttribute("aria-label", label);
+      for (const [value, text] of [["", label + "ทั้งหมด"], ...options]) {
+        const o = node("option", text);
+        o.value = value;
+        s.append(o);
+      }
+      s.value = auditFilter[key];
+      s.onchange = () => {
+        auditFilter[key] = s.value;
+        apply();
+      };
+      bar.append(s);
+    },
+    day = (label, key) => {
+      const l = node("label", label, "activity-filter-date"),
+        input = node("input");
+      input.type = "date";
+      input.value = auditFilter[key];
+      input.onchange = () => {
+        auditFilter[key] = input.value;
+        apply();
+      };
+      l.append(input);
+      bar.append(l);
+    };
+  pick(
+    "ผู้ใช้",
+    "user",
+    (usageView.users || []).map((u) => [
+      String(u.id),
+      `${u.full_name} (${u.username})`,
+    ]),
+  );
+  pick("กิจกรรม", "action", Object.entries(activityLabels));
+  day("ตั้งแต่", "from");
+  day("ถึง", "to");
+  if (Object.values(auditFilter).some(Boolean))
+    bar.append(
+      button("ล้างตัวกรอง", () => {
+        auditFilter = { user: "", action: "", from: "", to: "" };
+        apply();
+      }),
+    );
+  return bar;
+}
 async function activityView() {
+  try {
+    await usageView();
+  } catch (e) {
+    card("ความถี่การเข้าใช้งาน").append(
+      node("p", "โหลดสรุปการเข้าใช้งานไม่สำเร็จ: " + e.message, "muted"),
+    );
+  }
   const before = auditCursors[auditPage],
-    { logs } = await api("activity" + (before ? "?before=" + before : "")),
+    query = new URLSearchParams(
+      Object.entries(auditFilter).filter(([, v]) => v),
+    );
+  if (before) query.set("before", before);
+  const { logs } = await api("activity?" + query),
     panel = card("Activity Log"),
     pageLogs = logs.slice(0, 10),
     hasNext = logs.length > 10;
+  panel.append(activityFilters());
   table(
     panel,
     ["เวลาไทย (UTC+7)", "ผู้ใช้", "กิจกรรม", "รายละเอียด"],

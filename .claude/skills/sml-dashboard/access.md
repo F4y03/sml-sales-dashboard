@@ -11,7 +11,7 @@
 - Team codes (`teams`): raw SML `sale_code` (e.g. `กท-ต`) or normalized (`กต`); `กท-X` also matches `กX`. Also matches customers whose code prefix before `-` equals the team.
 - Customer codes: full codes, documents of that customer join the territory.
 - Consignment prefixes: must start with `ฝ`, ≥3 chars, matched as item-code prefix (`ฝกต042LCD22` → `ฝกต`). `ฝกท-ต` matches nothing.
-- Known region map (`public/consignment-data.js`): ภาคกลาง กจ กณ กต กร กภ บอ · เหนือ หย · ใต้ ตช · ตะวันออก ลภ · อีสาน อย. Others (ฝวย, ฝลอ…) are unmapped — never guess a region.
+- Known region map (`public/consignment-data.js`): กจ ภาคกลาง · กภ กรุงเทพ · กต (กท-ต) กรุงเทพ-ติ้ก · กร (กท-ร) กรุงเทพ-รุ่ง · กณ (กท-ณ) / บอ กรุงเทพ-บริษัท · ลภ กลาง · หย เหนือ · ตช ใต้ · วย ตะวันออก · อย อีสาน (same labels in `public/executive-ui.js`). Others (ฝลอ…) are unmapped — never guess a region.
 - All three lists empty → territory shows no data.
 - Lists are split on comma, space or newline in `public/system-admin.js` (server stores an array).
 
