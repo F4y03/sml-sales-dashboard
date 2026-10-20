@@ -178,6 +178,12 @@ export function installLazadaShop(app, store, audit, env = process.env, { fetchI
     }, autoMinutes * 60000);
     timer.unref();
   }
+  // Orders imported before provinces came from the postcode have none: re-run the backfill once so they are re-pulled
+  // (orders are replaced by (platform, order_id), never duplicated).
+  if (!store.get('SELECT 1 FROM system_settings WHERE key=?', 'lazada_province_refill_v1')) {
+    store.run('DELETE FROM system_settings WHERE key=?', 'lazada_backfill_done');
+    store.run('INSERT INTO system_settings(key,value) VALUES(?,?)', 'lazada_province_refill_v1', 'true');
+  }
   // Optional: LAZADA_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
   if (configured()) startBackfill({ store, name: 'lazada', from: env.LAZADA_BACKFILL_FROM, today: () => bangkokToday(),
     runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER });

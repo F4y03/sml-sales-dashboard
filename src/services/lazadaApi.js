@@ -1,8 +1,9 @@
 // Lazada Open Platform (Thailand) for the in-house seller app. See MARKETPLACE.md › Lazada API.
 // Only the order fields the marketplace tables already store are read: no buyer name, phone, address or email —
-// address_shipping is reduced to the province (address3), like the Seller Center export.
+// address_shipping is reduced to the province (address3, or from the postcode when Lazada masks it), like the Seller Center export.
 import { createHmac } from 'node:crypto';
 import { lazadaItemStatus } from './marketplaceParser.js';
+import { provinceFromPostcode } from './thaiPostcode.js';
 
 export const API_BASE = 'https://api.lazada.co.th/rest';
 export const AUTH_BASE = 'https://auth.lazada.com/rest';
@@ -140,7 +141,10 @@ export function mapLazadaOrder(order, items = []) {
   const status = !active.length ? 'cancelled' : active.some(l => l.status === 'returned') ? 'returned'
     : active.every(l => l.status === 'completed') ? 'completed' : 'pending';
   const counted = active.length ? active : lines;
-  const province = clean(order.address_shipping?.address3 || order.address_billing?.address3).split('/')[0].replace(/^จังหวัด\s*/, '').trim();
+  // address3 is the province, but the API masks it ("เ**i"); the postcode comes in full, so fall back to it.
+  const address = order.address_shipping || order.address_billing || {};
+  const named = clean(address.address3).split('/')[0].replace(/^จังหวัด\s*/, '').trim();
+  const province = named && !named.includes('*') ? named : provinceFromPostcode(address.post_code);
   return { orderId: id, orderDate, status, statusRaw: [...new Set(lines.map(l => l.statusRaw))].join(', ').slice(0, 120),
     sales: round2(counted.reduce((sum, l) => sum + l.sales, 0)), refund: 0,
     province: !province || province.includes('*') ? null : province.slice(0, 60), source: 'api',

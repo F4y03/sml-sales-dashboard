@@ -23,6 +23,38 @@
       #overview-top .gs-note:empty { display: none; }
       #overview-top .gs-note[data-state="error"] { color: var(--ov-down); }
       #overview-top .ov-actions { justify-content: flex-end; }
+      /* KPI cards open an explanation dialog (marketplace-ui.js › openKpi). */
+      #overview-top .mp-kpis .ov-card[data-kpi] { cursor: pointer; transition: border-color .15s, transform .15s; }
+      #overview-top .mp-kpis .ov-card[data-kpi]:hover { border-color: color-mix(in srgb, var(--ov-red) 55%, var(--ov-line)); transform: translateY(-1px); }
+      #overview-top .mp-kpis .ov-card[data-kpi]:focus-visible { outline: 2px solid var(--ov-red); outline-offset: 2px; }
+      .kpi-dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line, #333);
+        border-radius: 16px; background: var(--surface, #18181b); color: var(--ink, #fff); box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+      .kpi-dialog::backdrop { background: rgba(0,0,0,.55); }
+      .kpi-dialog-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 16px 20px; border-bottom: 1px solid var(--line, #333); background: inherit; }
+      .kpi-dialog-head h2 { margin: 0; font-size: 18px; }
+      .kpi-dialog .kpi-dialog-close { all: unset; cursor: pointer; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--muted, #999) !important; background: transparent !important; }
+      .kpi-dialog .kpi-dialog-close:hover { background: color-mix(in srgb, currentColor 12%, transparent) !important; }
+      #kpi-dialog-body { padding: 16px 20px 20px; display: grid; gap: 16px; font-size: 14px; line-height: 1.6; }
+      #kpi-dialog-body > * { min-width: 0; } /* long text wraps instead of widening the grid */
+      .kpi-dialog { overflow-x: hidden; }
+      .kpi-table { table-layout: fixed; }
+      .kpi-table th:first-child { width: 96px; }
+      .kpi-table th.num { width: 96px; }
+      .kpi-table td { overflow-wrap: anywhere; white-space: normal !important; }
+      .kpi-table td:last-child { color: var(--muted, #999); font-size: 12px; }
+      .kpi-big { font-size: 30px; font-weight: 800; line-height: 1.1; }
+      .kpi-sub { color: var(--muted, #999); font-size: 13px; }
+      .kpi-section h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: .4px; color: var(--muted, #999); font-weight: 700; }
+      .kpi-section p, .kpi-section ul { margin: 0; }
+      .kpi-section ul { padding-left: 18px; }
+      .kpi-formula { padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ink, #fff) 6%, transparent); font-weight: 600; }
+      .kpi-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .kpi-table th, .kpi-table td { padding: 7px 8px; border-bottom: 1px solid var(--line, #333); text-align: left; vertical-align: top; }
+      .kpi-table th { color: var(--muted, #999); font-weight: 600; font-size: 12px; }
+      .kpi-table .num { text-align: right; white-space: nowrap; }
+      .kpi-table tfoot td { font-weight: 700; border-bottom: 0; }
+      .kpi-note { padding: 10px 12px; border-left: 3px solid #f5a524; border-radius: 6px; background: color-mix(in srgb, #f5a524 10%, transparent); font-size: 13px; }
       #overview-top .ov-header-side { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
       #overview-top .tt-sync { display: grid; gap: 8px; justify-items: end; max-width: 100%; }
       #overview-top .tt-sync-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
@@ -43,10 +75,10 @@
       }
     </style>
     <script src="/theme-mode.js"></script>
-    <script src="date-dmy.js" defer></script>
+    <script src="date-dmy.js?v=20261020-range3" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
-    <script src="marketplace-ui.js?v=20261019-lazada-api" defer></script>
+    <script src="marketplace-ui.js?v=20261020-kpi" defer></script>
     <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
     <script src="google-sheets-ui.js?v=20261020-5h" defer></script>
@@ -141,27 +173,27 @@
           </section>
 
           <section class="ov-kpis mp-kpis" aria-label="สรุปยอดขาย">
-            <article class="ov-card ov-featured">
+            <article class="ov-card ov-featured" data-kpi="sales" tabindex="0" role="button" aria-haspopup="dialog" aria-label="ยอดขายรวม — ดูที่มาและคำอธิบาย">
               <div class="ov-head"><span class="ov-name">ยอดขายรวม</span><span class="ov-icon" tabindex="0" data-tip="ขายได้เท่าไรในช่วงนี้ — ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง นับเฉพาะออเดอร์สำเร็จและกำลังดำเนินการ ไม่รวมยกเลิก/คืนสินค้า">ⓘ</span></div>
               <div class="ov-value" id="kpi-sales">—</div>
               <div class="ov-foot"><span id="kpi-sales-foot">สำเร็จ + กำลังดำเนินการ</span></div>
             </article>
-            <article class="ov-card">
+            <article class="ov-card" data-kpi="orders" tabindex="0" role="button" aria-haspopup="dialog" aria-label="จำนวนออเดอร์ — ดูที่มาและคำอธิบาย">
               <div class="ov-head"><span class="ov-name">จำนวนออเดอร์</span><span class="ov-icon" tabindex="0" data-tip="ลูกค้าซื้อกี่ครั้ง — นับออเดอร์ชุดเดียวกับยอดขายรวม (สำเร็จ + กำลังดำเนินการ) ไม่นับยกเลิก/คืนสินค้า">ⓘ</span></div>
               <div class="ov-value" id="kpi-orders">—</div>
               <div class="ov-foot"><span>ไม่นับยกเลิก/คืนสินค้า</span></div>
             </article>
-            <article class="ov-card">
+            <article class="ov-card" data-kpi="aov" tabindex="0" role="button" aria-haspopup="dialog" aria-label="ยอดเฉลี่ยต่อออเดอร์ — ดูที่มาและคำอธิบาย">
               <div class="ov-head"><span class="ov-name">ยอดเฉลี่ยต่อออเดอร์</span><span class="ov-icon" tabindex="0" data-tip="ลูกค้าซื้อเฉลี่ยครั้งละเท่าไร = ยอดขายรวม ÷ จำนวนออเดอร์ ถ้าทำโปรซื้อคู่/ของแถมได้ผล ตัวนี้ควรสูงขึ้น">ⓘ</span></div>
               <div class="ov-value" id="kpi-aov">—</div>
               <div class="ov-foot"><span>ยอดขายรวม ÷ จำนวนออเดอร์</span></div>
             </article>
-            <article class="ov-card">
+            <article class="ov-card" data-kpi="fees" tabindex="0" role="button" aria-haspopup="dialog" aria-label="ค่าธรรมเนียมแพลตฟอร์ม — ดูที่มาและคำอธิบาย">
               <div class="ov-head"><span class="ov-name">ค่าธรรมเนียมแพลตฟอร์ม</span><span class="ov-icon" tabindex="0" data-tip="เงินที่แพลตฟอร์มหักไป เช่น ค่าธรรมเนียมการขาย ค่าธรรมเนียมการชำระเงิน ค่าส่งคืน คิดเฉพาะออเดอร์ที่อัปไฟล์การเงินแล้ว (Shopee: รายรับของฉัน, Lazada: รายรับของฉัน/ใบแจ้งยอด, TikTok: การเงิน › ธุรกรรม) ถ้ายังไม่ครบทุกออเดอร์ ตัวเลขจะต่ำกว่าจริง">ⓘ</span></div>
               <div class="ov-value" id="kpi-fees">—</div>
               <div class="ov-foot"><span id="kpi-fees-foot">—</span></div>
             </article>
-            <article class="ov-card">
+            <article class="ov-card" data-kpi="net" tabindex="0" role="button" aria-haspopup="dialog" aria-label="เงินที่ได้รับสุทธิ — ดูที่มาและคำอธิบาย">
               <div class="ov-head"><span class="ov-name">เงินที่ได้รับสุทธิ</span><span class="ov-icon" tabindex="0" data-tip="เงินที่แพลตฟอร์มโอนเข้าร้านจริงหลังหักค่าธรรมเนียม ของออเดอร์ที่มีข้อมูลการเงิน ยังไม่หักต้นทุนสินค้า จึงยังไม่ใช่กำไร ถ้าเขียนว่ามีข้อมูลไม่ครบทุกออเดอร์ อย่าเทียบตรงๆ กับยอดขายรวม">ⓘ</span></div>
               <div class="ov-value" id="kpi-net">—</div>
               <div class="ov-foot"><span id="kpi-net-foot">ยังไม่หักต้นทุนสินค้า</span></div>
@@ -206,6 +238,13 @@
             <ol id="province-list" class="mp-rank mp-rank-compact"></ol>
           </section>
         </div>
+        <dialog id="kpi-dialog" class="kpi-dialog" aria-labelledby="kpi-dialog-title">
+          <div class="kpi-dialog-head">
+            <h2 id="kpi-dialog-title"></h2>
+            <button type="button" class="kpi-dialog-close" aria-label="ปิด">✕</button>
+          </div>
+          <div id="kpi-dialog-body"></div>
+        </dialog>
       </main>
     </div>
   </body>

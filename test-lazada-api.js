@@ -55,6 +55,12 @@ test('mapping: units grouped per order, seller voucher deducted, platform vouche
   const json = JSON.stringify(ORDERS.map(x => mapLazadaOrder(x, ITEMS[x.order_id])));
   for (const value of Object.values(PII)) assert.ok(!json.includes(value));
   assert.equal(mapLazadaOrder({ order_number: 'bad id!', created_at: '2026-10-01 10:00:00 +0700' }), null);
+  // Real API: the province text is masked, the postcode is not -> province from the postcode.
+  const masked = { ...ORDERS[0], address_shipping: { ...ship('ช**i'), address3: 'ช**i', post_code: '20000' } };
+  assert.equal(mapLazadaOrder(masked, ITEMS[1001001001]).province, 'ชลบุรี');
+  assert.equal(mapLazadaOrder({ ...masked, address_shipping: { address3: 'ส**n', post_code: '10270' } }, ITEMS[1001001001]).province, 'สมุทรปราการ');
+  assert.equal(mapLazadaOrder({ ...masked, address_shipping: { address3: 'ก**k', post_code: '10500' } }, ITEMS[1001001001]).province, 'กรุงเทพมหานคร');
+  assert.equal(mapLazadaOrder({ ...masked, address_shipping: { address3: 'x**x', post_code: '99999' } }, ITEMS[1001001001]).province, null); // unknown -> no province, not a guess
 });
 
 test('finance lines: per order, net = Σ amount and fees = product lines − net (same as the statement file)', () => {

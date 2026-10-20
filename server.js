@@ -19,6 +19,7 @@ import { installTikTokShop } from './tiktok-shop.js';
 import { installLazadaShop } from './lazada-shop.js';
 import { installGoogleSheets } from './google-sheets.js';
 import { createAccessStore } from './src/models/accessStore.js';
+import { startDailyBackup } from './src/services/backup.js';
 import { createScopedPool } from './src/services/territoryService.js';
 import { installAccess } from './src/middleware/access.js';
 import { installProductSheetProxy } from './src/routes/productSheetProxy.js';
@@ -39,6 +40,7 @@ app.disable('x-powered-by');
 const jsonBody = express.json({ limit: '32kb' });
 app.use((req, res, next) => /^\/product-sheet(\/|$)/i.test(req.path) ? next() : jsonBody(req, res, next));
 const accessStore = createAccessStore(fileURLToPath(new URL('./data/access.sqlite', import.meta.url)), process.env);
+startDailyBackup(accessStore); // data/access.sqlite + 2fa.key -> ../backups/<day>/, 30 days kept
 const auth = installAuth(app, process.env, accessStore);
 installAccess(app);
 installProductSheetProxy(app, { store: accessStore });

@@ -312,6 +312,97 @@
     }));
   }
 
+  // ---- KPI explanation dialog: what the card means, how it is computed, the numbers behind it, per platform. ----
+  const SOURCES = {
+    shopee: { orders: 'ไฟล์คำสั่งซื้อ (Order.all) ที่อัปโหลด', money: 'ไฟล์ "รายงานรายรับ" (การเงิน › รายรับของฉัน) ที่อัปโหลด — มีเฉพาะออเดอร์ที่โอนเงินแล้ว', sales: 'ราคาสินค้าปกติ − ส่วนลดสินค้าจากผู้ขาย' },
+    lazada: { orders: 'Lazada API (ดึงอัตโนมัติทุก 60 นาที) และไฟล์ที่อัปโหลด', money: 'Lazada Finance API: Item Price Credit, Commission, Payment Fee ฯลฯ ของแต่ละชิ้น', sales: 'Σ(ราคาต่อชิ้น − voucher ของร้าน) ของชิ้นที่ไม่ถูกยกเลิก' },
+    tiktok: { orders: 'TikTok Shop API (ดึงอัตโนมัติทุก 60 นาที) และไฟล์ที่อัปโหลด', money: 'TikTok Finance API: ใบแจ้งยอดรายวัน (fee_amount / settlement_amount)', sales: 'Σ(ยอดก่อนส่วนลด − ส่วนลดจากร้าน) ของ SKU' },
+  };
+  const KPI = {
+    sales: { title: 'ยอดขายรวม', value: t => money(t.sales),
+      what: 'ขายได้เท่าไรในช่วงวันที่ที่เลือก คิดจากราคาสินค้าหลังหักส่วนลดที่ร้านออกเอง ไม่รวมค่าส่ง และไม่หักส่วนลดที่แพลตฟอร์มออกให้',
+      formula: 'Σ ยอดขายของออเดอร์ที่ สำเร็จ + กำลังดำเนินการ',
+      cols: ['ยอดขาย', r => money(r.sales)],
+      notes: ['ไม่รวมออเดอร์ยกเลิกและคืนสินค้า', 'ออเดอร์ "กำลังดำเนินการ" อาจถูกยกเลิกหรือคืนภายหลัง ตัวเลขจึงเปลี่ยนได้'] },
+    orders: { title: 'จำนวนออเดอร์', value: t => count(t.orders),
+      what: 'ลูกค้าซื้อกี่ครั้ง นับออเดอร์ชุดเดียวกับยอดขายรวม',
+      formula: 'จำนวนออเดอร์ที่ สำเร็จ + กำลังดำเนินการ',
+      cols: ['ออเดอร์', r => count(r.orders)], extra: t => `ออเดอร์ทั้งหมดในช่วงนี้ (รวมยกเลิก/คืน) ${count(t.allOrders)} ออเดอร์`,
+      notes: ['1 ออเดอร์อาจมีหลายชิ้น', 'ดูจำนวนยกเลิกและคืนสินค้าได้ที่การ์ด "สถานะออเดอร์" ด้านล่าง'] },
+    aov: { title: 'ยอดเฉลี่ยต่อออเดอร์', value: t => (t.orders ? money(t.sales / t.orders) : '—'),
+      what: 'ลูกค้าซื้อเฉลี่ยครั้งละเท่าไร ถ้าทำโปรซื้อคู่ ของแถม หรือส่งฟรีขั้นต่ำได้ผล ตัวเลขนี้ควรสูงขึ้น',
+      formula: 'ยอดขายรวม ÷ จำนวนออเดอร์',
+      calc: t => (t.orders ? `${money(t.sales)} ÷ ${count(t.orders)} = ${money(t.sales / t.orders)}` : 'ยังไม่มีออเดอร์ในช่วงนี้'),
+      cols: ['เฉลี่ย/ออเดอร์', r => (r.orders ? money(r.sales / r.orders) : '—')],
+      notes: ['ออเดอร์ราคาสูงไม่กี่ออเดอร์ทำให้ค่าเฉลี่ยกระโดดได้ ควรดูคู่กับจำนวนออเดอร์'] },
+    fees: { title: 'ค่าธรรมเนียมแพลตฟอร์ม', money: true, value: t => (t.ordersWithFees ? money(t.fees) : '—'),
+      what: 'เงินที่แพลตฟอร์มหักไป เช่น ค่าคอมมิชชัน ค่าธุรกรรมการชำระเงิน ค่าบริการ ค่าส่ง/ค่าส่งคืนที่ร้านต้องจ่าย',
+      formula: 'Σ ค่าธรรมเนียมจากข้อมูลการเงิน ของออเดอร์ที่แพลตฟอร์มโอนเงินแล้ว',
+      cols: ['ค่าธรรมเนียม', r => (r.ordersWithFees ? money(r.fees) : 'ไม่มีข้อมูล')],
+      notes: ['คิดเฉพาะออเดอร์ที่มีข้อมูลการเงิน (โอนเงินแล้ว) จึงเอาไปลบจากยอดขายรวมตรงๆ ไม่ได้', 'ไม่มีข้อมูล = ยังไม่รู้ ไม่ใช่ 0'] },
+    net: { title: 'เงินที่ได้รับสุทธิ', money: true, value: t => (t.ordersWithFees ? money(t.netPayout) : '—'),
+      what: 'เงินที่แพลตฟอร์มโอนเข้าร้านจริง หลังหักค่าธรรมเนียมและรายการปรับยอดทั้งหมด',
+      formula: 'Σ ยอดที่แพลตฟอร์มโอน ของออเดอร์ที่โอนเงินแล้ว',
+      cols: ['สุทธิ', r => (r.ordersWithFees ? money(r.netPayout) : 'ไม่มีข้อมูล')],
+      notes: ['ยังไม่หักต้นทุนสินค้า จึงไม่ใช่กำไร', 'คิดเฉพาะออเดอร์ที่โอนเงินแล้ว ออเดอร์ที่ยังไม่โอนจะเพิ่มเข้ามาเมื่อแพลตฟอร์มโอนเงิน'] },
+  };
+  const kpiDialog = $('kpi-dialog');
+  function section(title, ...children) {
+    const box = el('div', 'kpi-section');
+    box.append(el('h3', '', title), ...children);
+    return box;
+  }
+  function openKpi(key) {
+    const k = KPI[key];
+    if (!k || !kpiDialog) return;
+    $('kpi-dialog-title').textContent = k.title;
+    const body = $('kpi-dialog-body');
+    body.replaceChildren();
+    if (!lastData) {
+      body.append(el('p', '', k.what), el('p', 'kpi-sub', 'ยังโหลดข้อมูลไม่สำเร็จ จึงยังไม่มีตัวเลขให้แสดง'));
+      return kpiDialog.showModal();
+    }
+    const t = totals(lastData.platforms);
+    const shopLabel = shopFilter.value === 'all' ? 'ทุกร้าน' : shopFilter.selectedOptions[0].textContent;
+    const head = el('div');
+    head.append(el('div', 'kpi-big', k.value(t)), el('div', 'kpi-sub', `${NAMES[platform]} · ${shopLabel} · ${thaiDate(lastData.start)} – ${thaiDate(lastData.end)}`));
+    body.append(head, section('หมายถึง', el('p', '', k.what)), section('วิธีคำนวณ', el('div', 'kpi-formula', k.formula)));
+    if (k.calc) body.append(section('คำนวณจากตัวเลขจริง', el('p', '', k.calc(t))));
+    if (k.extra) body.append(el('p', 'kpi-sub', k.extra(t)));
+    if (k.money) body.append(section('ความครอบคลุม', el('p', '', t.ordersWithFees
+      ? `มีข้อมูลการเงิน ${count(t.ordersWithFees)} จาก ${count(t.feeBase)} ออเดอร์ (${(t.ordersWithFees / t.feeBase * 100).toFixed(0)}%) — ออเดอร์ที่ไม่ยกเลิกในช่วงนี้`
+      : 'ยังไม่มีข้อมูลการเงินของออเดอร์ในช่วงนี้')));
+    // Per platform: the numbers behind the card and where they come from.
+    const rows = (platform === 'all' ? PLATFORMS : [platform]).map(p => ({ p, ...(lastData.platforms.find(r => r.platform === p) || {}) }));
+    const table = el('table', 'kpi-table');
+    const thead = el('tr');
+    thead.append(el('th', '', 'แพลตฟอร์ม'), el('th', 'num', k.cols[0]), ...(k.money ? [el('th', 'num', 'ครอบคลุม')] : []), el('th', '', 'ข้อมูลมาจาก'));
+    table.append(el('thead'));
+    table.tHead.append(thead);
+    const tbody = el('tbody');
+    for (const r of rows) {
+      const tr = el('tr');
+      const src = SOURCES[r.p];
+      tr.append(el('td', '', NAMES[r.p]), el('td', 'num', k.cols[1](r)),
+        ...(k.money ? [el('td', 'num', r.ordersWithFees ? `${count(r.ordersWithFees)}/${count(r.feeBase)}` : '—')] : []),
+        el('td', '', k.money ? src.money : key === 'sales' ? `${src.orders} · ${src.sales}` : src.orders));
+      tbody.append(tr);
+    }
+    table.append(tbody);
+    body.append(section(platform === 'all' ? 'ข้อมูลที่ใช้ แยกตามแพลตฟอร์ม' : 'ข้อมูลที่ใช้', table));
+    const list = el('ul');
+    list.append(...k.notes.map(n => el('li', '', n)));
+    body.append(section('ข้อควรรู้', list));
+    if (shopFilter.value !== 'all' || platform !== 'all') body.append(el('p', 'kpi-sub', 'ตัวเลขนี้ตามตัวกรองแพลตฟอร์ม/ร้าน/ช่วงวันที่ที่เลือกอยู่'));
+    kpiDialog.showModal();
+  }
+  document.querySelectorAll('.mp-kpis [data-kpi]').forEach(card => {
+    card.addEventListener('click', () => openKpi(card.dataset.kpi));
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openKpi(card.dataset.kpi); } });
+  });
+  kpiDialog?.querySelector('.kpi-dialog-close').addEventListener('click', () => kpiDialog.close());
+  kpiDialog?.addEventListener('click', e => { if (e.target === kpiDialog) kpiDialog.close(); }); // click on the backdrop
+
   tabs.forEach(tab => tab.addEventListener('click', () => { selectTab(tab.dataset.platform); load(); }));
   document.querySelector('.mp-tabs').addEventListener('keydown', event => {
     const i = tabs.findIndex(tab => tab.dataset.platform === platform);
