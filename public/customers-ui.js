@@ -24,7 +24,8 @@ const palette = [
   "#7a1a16",
 ];
 const customerPageSize = 10;
-const cbx = { query: "", cat: null, sort: "amount", colors: new Map(), searchTimer: 0, toastTimer: 0, hover: null };
+const CBX_PAGE_SIZE = 10;
+const cbx = { query: "", cat: null, sort: "amount", page: 0, colors: new Map(), searchTimer: 0, toastTimer: 0, hover: null };
 let customers = [],
   filtered = [],
   selectedCode = null,
@@ -1062,19 +1063,24 @@ function catColor(category) {
   return cbx.colors.get(category) || "#6f6f6f";
 }
 
-function renderProducts() {
+function renderProducts(page = 0) {
   if (!detail) return;
   const body = el("product-rows");
   body.replaceChildren();
   const list = visibleProducts();
+  const pageCount = Math.max(1, Math.ceil(list.length / CBX_PAGE_SIZE));
+  cbx.page = Math.min(Math.max(0, page), pageCount - 1);
+  const start = cbx.page * CBX_PAGE_SIZE;
+  body.scrollTop = 0;
   const itemNet = safeNum(detail.itemNet);
   const maxTotal = Math.max(0, ...list.map((p) => safeNum(p.total)));
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  list.forEach((product, index) => {
+  list.slice(start, start + CBX_PAGE_SIZE).forEach((product, i) => {
+    const index = start + i;
     const total = safeNum(product.total);
     const row = node("div", "", "cbx-row");
     row.setAttribute("role", "listitem");
-    if (!reduce && index < 30) row.style.animationDelay = `${index * 25}ms`;
+    if (!reduce) row.style.animationDelay = `${i * 25}ms`;
 
     const rank = node("span", String(index + 1), "cbx-rank");
     if (index === 0 && cbx.sort === "amount" && total > 0) rank.classList.add("is-top");
@@ -1125,11 +1131,37 @@ function renderProducts() {
   empty.textContent = detail.products.length
     ? "ไม่พบสินค้าที่ตรงกับการค้นหา"
     : "ไม่พบรายการสินค้าในช่วงวันที่เลือก";
+  renderProductPager(list.length, pageCount);
   const sum = list.reduce((s, p) => s + safeNum(p.total), 0);
   el("item-total").textContent =
     `${number.format(list.length)} จาก ${number.format(detail.products.length)} รายการ` +
     (cbx.cat ? ` · หมวด ${cbx.cat}` : "") +
     ` · รวม ${money(sum)}`;
+}
+
+function renderProductPager(total, pageCount) {
+  const pager = el("cbx-pager");
+  pager.replaceChildren();
+  pager.hidden = pageCount <= 1;
+  if (pager.hidden) return;
+  const start = cbx.page * CBX_PAGE_SIZE;
+  const go = (label, page, aria) => {
+    const button = node("button", label, "cbx-page-btn");
+    button.type = "button";
+    button.setAttribute("aria-label", aria);
+    button.disabled = page < 0 || page >= pageCount;
+    button.onclick = () => renderProducts(page);
+    return button;
+  };
+  pager.append(
+    go("‹", cbx.page - 1, "หน้าก่อนหน้า"),
+    node(
+      "span",
+      `${number.format(start + 1)}–${number.format(Math.min(start + CBX_PAGE_SIZE, total))} จาก ${number.format(total)} · หน้า ${number.format(cbx.page + 1)}/${number.format(pageCount)}`,
+      "cbx-page-info",
+    ),
+    go("›", cbx.page + 1, "หน้าถัดไป"),
+  );
 }
 
 function renderCategories() {

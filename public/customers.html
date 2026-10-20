@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dashboard PROPLUS</title>
     <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
-    <link rel="stylesheet" href="customers.css" />
+    <link rel="stylesheet" href="customers.css?v=20261020-ipad3" />
     <link rel="stylesheet" href="product-insights.css" />
     <link rel="stylesheet" href="workspace-nav.css" />
     <script src="date-dmy.js?v=20261020-range4" defer></script>
-    <script src="customers-ui.js" defer></script>
+    <script src="customers-ui.js?v=20261020-pager" defer></script>
     <script src="product-insights-ui.js" defer></script>
     <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
     <script src="insights-help.js" defer></script>
@@ -817,6 +817,7 @@
             </div>
           </div>
           <div class="cbx-list" id="product-rows" role="list" aria-label="สินค้าที่ลูกค้าซื้อ"></div>
+          <nav class="cbx-pager" id="cbx-pager" aria-label="แบ่งหน้ารายการสินค้า" hidden></nav>
           <p class="cbx-empty" id="cbx-empty" hidden></p>
         </div>
         <footer class="cbx-foot" id="cbx-foot" hidden>

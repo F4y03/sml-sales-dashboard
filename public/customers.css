@@ -1246,6 +1246,7 @@ body.customer-dialog-open {
   margin: auto;
   width: min(860px, calc(100vw - 48px));
   max-width: 860px;
+  max-height: calc(100vh - 48px);
   max-height: calc(100dvh - 48px);
   padding: 0;
   border: 1px solid #333;
@@ -1366,7 +1367,8 @@ body.customer-dialog-open {
   cursor: pointer;
 }
 #customer-detail .cbx-body {
-  flex: 1;
+  /* flex-basis auto (ไม่ใช่ 0%) — Safari/iPad ยุบ body เหลือ 0 เมื่อ dialog มีแค่ max-height */
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1787,7 +1789,37 @@ body.customer-dialog-open {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
-@media (max-height: 760px), (max-width: 700px) {
+/* จอสัมผัส (iPad): vh/dvh ของ Safari นับรวมแถบเครื่องมือ ทำให้ popup ล้นจอด้านล่าง
+   ใช้ top/bottom ยึดกับขอบจอจริงแทน แล้วให้ทั้ง popup เลื่อนได้ */
+@media (hover: none) and (pointer: coarse) {
+  #customer-detail.cbx.cbx {
+    inset: max(16px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+    margin: 0 auto;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  #customer-detail .cbx-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #1f1f1f;
+  }
+  #customer-detail.cbx .cbx-body { flex: none; overflow: visible; }
+  /* ปุ่มปิดค้างไว้มุมขวาบนขณะเลื่อน popup */
+  #customer-detail.cbx #detail-close {
+    position: sticky;
+    top: 16px;
+    right: auto;
+    flex: none;
+    align-self: flex-end;
+    margin: 16px 16px -48px 0;
+  }
+  #customer-detail .cbx-foot { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+}
+@media (max-height: 760px), (max-width: 700px), (hover: none) and (pointer: coarse) {
   #customer-detail .cbx-body { overflow: auto; overscroll-behavior: contain; }
   #customer-detail .cbx-list { flex: none; overflow: visible; min-height: 0; }
 }
@@ -1820,4 +1852,31 @@ body.customer-dialog-open {
   #customer-detail .cbx-row,
   #customer-detail .cbx-toast.is-shown { animation: none; }
   #customer-detail .cbx-seg-arc { transition: none; }
+}
+
+#customer-detail .cbx-pager {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 24px 4px;
+}
+#customer-detail .cbx-pager[hidden] { display: none; }
+#customer-detail .cbx-page-info { font-size: 12px; color: #a8a8a8; font-variant-numeric: tabular-nums; }
+#customer-detail .cbx-page-btn {
+  min-width: 36px;
+  height: 32px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #181818;
+  color: #f2f2f2;
+  font-size: 16px;
+  cursor: pointer;
+}
+#customer-detail .cbx-page-btn:hover:not(:disabled) { border-color: #ff3b30; }
+#customer-detail .cbx-page-btn:disabled { opacity: 0.35; cursor: default; }
+@media (hover: none) and (pointer: coarse) and (max-width: 700px) {
+  #customer-detail.cbx.cbx { width: calc(100vw - 24px); }
+
 }
