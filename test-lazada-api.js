@@ -59,12 +59,14 @@ test('mapping: units grouped per order, seller voucher deducted, platform vouche
 
 test('finance lines: per order, net = Σ amount and fees = product lines − net (same as the statement file)', () => {
   const rows = [
-    { order_no: '1001001001', transaction_number: 't1', orderItem_no: '1', fee_name: 'Item Price Credit', amount: '635.00' },
-    { order_no: '1001001001', transaction_number: 't2', orderItem_no: '1', fee_name: 'Commission', amount: '-40.50' },
-    { order_no: '1001001001', transaction_number: 't3', orderItem_no: '1', fee_name: 'Payment Fee', amount: '-20' },
+    // Real API shape: every line of one item shares transaction_number and orderItem_no; fee_type tells them apart.
+    { order_no: '1001001001', transaction_number: 'i1', orderItem_no: 'i1', fee_type: '3', fee_name: 'Item Price Credit', transaction_date: '19 Oct 2026', amount: '635.00' },
+    { order_no: '1001001001', transaction_number: 'i1', orderItem_no: 'i1', fee_type: '16', fee_name: 'Commission', transaction_date: '19 Oct 2026', amount: '-40.50' },
+    { order_no: '1001001001', transaction_number: 'i1', orderItem_no: 'i1', fee_type: '17', fee_name: 'Payment Fee', transaction_date: '19 Oct 2026', amount: '-20' },
     { order_no: '', transaction_number: 't4', fee_name: 'Adjustment', amount: '-10' },
   ].map(mapLazadaTransaction).filter(Boolean);
   assert.equal(rows.length, 3);
+  assert.equal(new Set(rows.map(r => r.txnId)).size, 3); // distinct keys, so saving never overwrites a line
   const sum = key => Math.round(rows.reduce((s, r) => s + r[key], 0) * 100) / 100;
   assert.equal(sum('netPayout'), 574.5);
   assert.equal(sum('fees'), 60.5);
@@ -98,8 +100,8 @@ function fakeLazada() {
     if (path === '/finance/transaction/details/get') {
       if (++financeCalls === 1) return raw(JSON.stringify({ code: 'ApiCallLimit', message: 'The request has exceeded the limit' })); // retried
       return reply([
-        { order_no: 1001001001, transaction_number: 't1', orderItem_no: 1, fee_name: 'Item Price Credit', amount: '635.00' },
-        { order_no: 1001001001, transaction_number: 't2', orderItem_no: 1, fee_name: 'Commission', amount: '-63.50' },
+        { order_no: 1001001001, transaction_number: 1001, orderItem_no: 1001, fee_type: 3, fee_name: 'Item Price Credit', transaction_date: '05 Oct 2026', amount: '635.00' },
+        { order_no: 1001001001, transaction_number: 1001, orderItem_no: 1001, fee_type: 16, fee_name: 'Commission', transaction_date: '05 Oct 2026', amount: '-63.50' },
         { order_no: '', transaction_number: 't9', fee_name: 'Adjustment', amount: '-10' }]);
     }
     return raw(JSON.stringify({ code: 'InvalidApi', message: 'unknown' }));
@@ -140,7 +142,7 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   const connect = await get(owner, '/api/lazada/connect');
   assert.equal(connect.status, 303);
   const authorize = new URL(connect.headers.get('location'));
-  assert.equal(authorize.origin + authorize.pathname, 'https://auth.lazada.com/oauth/authorize');
+  assert.equal(authorize.origin + authorize.pathname, 'https://api.lazada.co.th/oauth/authorize');
   assert.equal(authorize.searchParams.get('client_id'), 'appkey');
   assert.equal(authorize.searchParams.get('redirect_uri'), env.LAZADA_REDIRECT_URI);
   const state = authorize.searchParams.get('state');

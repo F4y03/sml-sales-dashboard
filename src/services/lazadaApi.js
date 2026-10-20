@@ -6,7 +6,8 @@ import { lazadaItemStatus } from './marketplaceParser.js';
 
 export const API_BASE = 'https://api.lazada.co.th/rest';
 export const AUTH_BASE = 'https://auth.lazada.com/rest';
-export const AUTHORIZE_URL = 'https://auth.lazada.com/oauth/authorize';
+// Thai login page directly: auth.lazada.com defaults to Malaysia and loses the query when the seller switches country.
+export const AUTHORIZE_URL = 'https://api.lazada.co.th/oauth/authorize';
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 export class LazadaApiError extends Error {
@@ -153,5 +154,7 @@ export function mapLazadaTransaction(tx) {
   const orderId = clean(tx?.order_no), txn = clean(tx?.transaction_number);
   if (!/^[A-Za-z0-9_-]{5,40}$/.test(orderId) || !txn) return null;
   const amount = money(tx.amount), product = PRODUCT_LINES.test(clean(tx.fee_name)) ? amount : 0;
-  return { txnId: `api:${txn}:${clean(tx.orderItem_no)}`.slice(0, 120), orderId, fees: round2(product - amount), netPayout: round2(amount) };
+  // Lazada gives every line of one item (price credit, commission, payment fee…) the same transaction_number and
+  // orderItem_no, so the fee type and date are needed to keep each line as its own row.
+  return { txnId: `api:${txn}:${clean(tx.orderItem_no)}:${clean(tx.fee_type || tx.fee_name)}:${clean(tx.transaction_date)}`.slice(0, 120), orderId, fees: round2(product - amount), netPayout: round2(amount) };
 }

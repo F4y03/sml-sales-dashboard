@@ -7,10 +7,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { sameSite } from './auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
+import { startBackfill } from './src/services/marketplaceBackfill.js';
 import { createSecretVault } from './src/services/totpService.js';
 import { LazadaApiError, bangkokDayStart, bangkokToday, createLazadaClient, mapLazadaOrder, mapLazadaTransaction } from './src/services/lazadaApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 24 * 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
+const SETTLE_DAYS = 60, FINANCE_WINDOW_DAYS = 90;
 const digest = value => createHash('sha256').update(value).digest('hex');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const SYSTEM_USER = { id: null, full_name: 'ระบบ (Lazada API)' };
@@ -36,7 +38,13 @@ export async function syncLazadaShop(store, client, vault, { conn, start, end, u
     // A Finance API failure must not lose the orders: save them, then report the fee problem.
     let settlements = [], financeError = null;
     try {
-      const txs = await client.transactions({ accessToken, startDay: start, endDay: bangkokToday(now) });
+      // Money lines dated start .. end + 60 days (orders settle after delivery; capped at today), asked in ≤ 90-day
+      // windows because the finance API refuses ranges of 180 days or more. Later days come with the next syncs.
+      const txs = [], until = bangkokToday(Math.min(bangkokDayStart(end) + SETTLE_DAYS * DAY_MS, now));
+      for (let from = start; from <= until; from = bangkokToday(bangkokDayStart(from) + FINANCE_WINDOW_DAYS * DAY_MS)) {
+        const to = bangkokToday(Math.min(bangkokDayStart(from) + (FINANCE_WINDOW_DAYS - 1) * DAY_MS, bangkokDayStart(until)));
+        txs.push(...await client.transactions({ accessToken, startDay: from, endDay: to }));
+      }
       settlements = txs.map(mapLazadaTransaction).filter(Boolean);
     } catch (error) {
       if (!(error instanceof LazadaApiError)) throw error;
@@ -170,4 +178,7 @@ export function installLazadaShop(app, store, audit, env = process.env, { fetchI
     }, autoMinutes * 60000);
     timer.unref();
   }
+  // Optional: LAZADA_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
+  if (configured()) startBackfill({ store, name: 'lazada', from: env.LAZADA_BACKFILL_FROM, today: () => bangkokToday(),
+    runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER });
 }

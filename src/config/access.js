@@ -38,6 +38,8 @@ export const MODULES = [
   { permissions:['marketplace_upload','marketplace_view'], pages:['/tiktok-sales.html','/tiktok-shop.html'], apis:[] },
   // TikTok Shop API: status/sync need tiktok_sync (Super Admin by default, grantable per role; no figures); connect/callback/disconnect are Super Admin only (route middleware).
   { permissions:['tiktok_sync'], pages:[], apis:['/api/tiktok'] },
+  // Google Sheets copy of the online-sales data: Super Admin only (route middleware).
+  { permissions:['marketplace_view'], pages:[], apis:['/api/google-sheets'] },
   // Lazada API: same rules as TikTok — status/sync need lazada_sync; connect/callback/disconnect are Super Admin only.
   { permissions:['lazada_sync'], pages:[], apis:['/api/lazada'] },
 ];

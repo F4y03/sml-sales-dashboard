@@ -17,6 +17,12 @@
       /* TikTok sync widget in the page header, shown on the TikTok tab only (status chip + sync for the selected range). */
       body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
       body:not([data-tab="lazada"]) #lazada-api { display: none; }
+      #overview-top .gs-box { display: contents; }
+      #overview-top .gs-box[hidden] { display: none; }
+      #overview-top .gs-note { flex-basis: 100%; text-align: right; font-size: 12px; color: var(--ov-muted); }
+      #overview-top .gs-note:empty { display: none; }
+      #overview-top .gs-note[data-state="error"] { color: var(--ov-down); }
+      #overview-top .ov-actions { justify-content: flex-end; }
       #overview-top .ov-header-side { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
       #overview-top .tt-sync { display: grid; gap: 8px; justify-items: end; max-width: 100%; }
       #overview-top .tt-sync-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
@@ -43,6 +49,7 @@
     <script src="marketplace-ui.js?v=20261019-lazada-api" defer></script>
     <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
+    <script src="google-sheets-ui.js?v=20261020-5h" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -63,6 +70,11 @@
             <div class="ov-header-side">
               <div class="ov-actions">
                 <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
+                <span id="gsheets" class="gs-box" hidden>
+                  <a id="gsheets-open" class="ov-btn ov-btn-ghost" target="_blank" rel="noopener">เปิด Google Sheets</a>
+                  <button type="button" id="gsheets-export" class="ov-btn ov-btn-ghost">ส่งไป Sheets ตอนนี้</button>
+                  <small id="gsheets-note" class="gs-note" role="status"></small>
+                </span>
               </div>
               <div class="tt-sync" id="tiktok-api" aria-label="เชื่อมต่อและดึงข้อมูล TikTok" hidden>
                 <div class="tt-sync-info">

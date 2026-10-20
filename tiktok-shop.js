@@ -7,6 +7,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { sameSite } from './auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
+import { startBackfill } from './src/services/marketplaceBackfill.js';
 import { createSecretVault } from './src/services/totpService.js';
 import { TikTokApiError, bangkokDate, bangkokDayStart, createTikTokClient, mapTikTokOrder, mapTikTokSettlement } from './src/services/tiktokShopApi.js';
 
@@ -37,7 +38,8 @@ export async function syncTikTokShop(store, client, vault, { conn, start, end, u
     // A Finance API failure (often its rate limit) must not lose the orders: save them, then report the fee problem.
     let settlements = [], financeError = null;
     try {
-      const txs = await client.statementTransactions({ accessToken, shopCipher: conn.shop_cipher, fromMs: bangkokDayStart(start), toMs: now });
+      // Statements dated start .. end + 60 days (settlement comes after the order; capped at now). Later days come with the next syncs.
+      const txs = await client.statementTransactions({ accessToken, shopCipher: conn.shop_cipher, fromMs: bangkokDayStart(start), toMs: Math.min(bangkokDayStart(end) + 61 * DAY_MS, now) });
       settlements = txs.map(mapTikTokSettlement).filter(Boolean);
     } catch (error) {
       if (!(error instanceof TikTokApiError)) throw error;
@@ -171,4 +173,7 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     }, minutes * 60000);
     timer.unref();
   }
+  // Optional: TIKTOK_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
+  if (configured()) startBackfill({ store, name: 'tiktok', from: env.TIKTOK_BACKFILL_FROM, today: () => bangkokDate(Date.now() / 1000),
+    runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER });
 }

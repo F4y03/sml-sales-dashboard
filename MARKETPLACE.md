@@ -51,7 +51,7 @@
 ## TikTok Shop API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอป in-house "Proplus SML Analytics" ใน TikTok Shop Partner Center (หมวด นักพัฒนาผู้ขายภายในองค์กร, ตลาดไทย, ผู้ขายท้องถิ่น)
 - ไฟล์: `src/services/tiktokShopApi.js` (เซ็นคำขอ, token, ค้นออเดอร์/คืนสินค้า, แปลงออเดอร์), `tiktok-shop.js` (routes + sync), `migrations/009-tiktok-api.sql`, `public/tiktok-api-panel.js` (การ์ดในหน้าอัปโหลด), `test-tiktok-api.js` (TikTok ปลอม ไม่ต่อเน็ต)
-- `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ)
+- `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `TIKTOK_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `tiktok_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `test-marketplace-backfill.js`)
 - Redirect URL ใน Partner Center: `https://dashboard.sksales.app/api/tiktok/callback`
 - Scopes ที่ขอ: `seller.order.info`, `seller.product.basic`, `seller.finance.info`, `seller.return_refund.basic`
 
@@ -73,7 +73,7 @@
 ## Lazada API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอปใน Lazada Open Platform (open.lazada.com, ประเทศไทย) — โฟลว์เดียวกับ TikTok Shop API ด้านบน
 - ไฟล์: `src/services/lazadaApi.js` (เซ็นคำขอ HMAC-SHA256, token, ออเดอร์/รายการสินค้า/การเงิน, แปลงออเดอร์), `lazada-shop.js` (routes + sync), `migrations/010-lazada-api.sql`, `public/lazada-api-panel.js` (วิดเจ็ตบนแท็บ Lazada), `test-lazada-api.js` (Lazada ปลอม ไม่ต่อเน็ต)
-- `.env`: `LAZADA_APP_KEY`, `LAZADA_APP_SECRET`, `LAZADA_REDIRECT_URI` (ต้องตรงกับ Callback URL ในแอป เช่น `https://dashboard.sksales.app/api/lazada/callback`), ตัวเลือก `LAZADA_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ)
+- `.env`: `LAZADA_APP_KEY`, `LAZADA_APP_SECRET`, `LAZADA_REDIRECT_URI` (ต้องตรงกับ Callback URL ในแอป เช่น `https://dashboard.sksales.app/api/lazada/callback`), ตัวเลือก `LAZADA_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `LAZADA_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `lazada_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `test-marketplace-backfill.js`)
 - Permission ใหม่ `lazada_sync` (Super Admin เป็นค่าเริ่มต้น ให้ role อื่นได้ใน System Admin)
 
 | Route | สิทธิ์ | หน้าที่ |
@@ -90,3 +90,15 @@
   - ⚠️ อย่าอัปไฟล์ใบแจ้งยอด (Income Overview) ช่วงเดียวกับที่ดึงจาก API — คีย์ต่างกัน ค่าธรรมเนียมจะนับซ้ำ (ออเดอร์ไม่ซ้ำ เพราะคีย์ `(platform, order_id)`)
 - เก็บแค่จังหวัด (`address_shipping.address3`, ถูกปิด `*` = ไม่เก็บ) ไม่เก็บชื่อ เบอร์ ที่อยู่ อีเมล; short_code ร้านถูกบันทึกใน `marketplace_shop_codes` เหมือนไฟล์
 - **ก่อนเชื่อถือตัวเลข**: ชื่อฟิลด์ตามเอกสาร Lazada Open Platform ยังไม่ได้ทดสอบกับร้านจริง (โดยเฉพาะ `voucher_seller` และ `fee_name` ของบรรทัดค่าสินค้า) ให้ sync ช่วงที่เคยอัปไฟล์ไว้แล้วเทียบยอดก่อนใช้งาน
+
+## Google Sheets (สำเนาข้อมูลยอดขายออนไลน์)
+- ไฟล์: `src/services/googleSheets.js` (เซ็น JWT ของ Service Account ด้วย node:crypto, เขียนชีตผ่าน Sheets API v4, สร้างแถวจากตาราง marketplace_*), `google-sheets.js` (routes + ส่งทุกคืน), `public/google-sheets-ui.js` (ปุ่มบนหน้ายอดขายออนไลน์), `test-google-sheets.js` (Google ปลอม ไม่ต่อเน็ต)
+- `.env`: `GOOGLE_SHEETS_KEY_FILE` (ไฟล์ key JSON ของ Service Account ใน `data/` ห้ามขึ้น Git), `GOOGLE_SHEETS_ID` (ส่วนระหว่าง /d/ กับ /edit ของ URL ชีต), ตัวเลือก `GOOGLE_SHEETS_EVERY_HOURS` (ส่งทุกกี่ชั่วโมง ค่าเริ่มต้น 5 ต่ำสุด 1)
+- ต้องแชร์ชีตให้อีเมล Service Account เป็น Editor
+- แท็บ: ออเดอร์ / สินค้า / สรุปรายวัน / ข้อมูล — **เขียนทับทั้งแท็บทุกครั้ง** (ตรงกับแดชบอร์ดเสมอ ห้ามแก้ข้อมูลในแท็บเหล่านี้ ให้คำนวณในแท็บอื่น) เขียนแบบ RAW (ข้อความไม่ถูกตีความเป็นสูตร)
+- นิยามเท่าแดชบอร์ด: สรุปรายวันนับเฉพาะ สำเร็จ + กำลังดำเนินการ; ไม่มีข้อมูลการเงิน/จังหวัด = ช่องว่าง ไม่ใช่ 0; ไม่มีข้อมูลส่วนตัวลูกค้า
+| Route | สิทธิ์ | ทำอะไร |
+|---|---|---|
+| `GET /api/google-sheets/status` | Super Admin | ตั้งค่าแล้วไหม, ส่งล่าสุด, error ล่าสุด, ลิงก์ชีต |
+| `POST /api/google-sheets/export` | Super Admin | ส่งตอนนี้ |
+- ส่งอัตโนมัติเมื่อครบ GOOGLE_SHEETS_EVERY_HOURS นับจากการส่งสำเร็จครั้งล่าสุด (เช็กทุก 10 นาที ถ้า server ปิดไปจะส่งเมื่อเปิดกลับมา ส่งไม่สำเร็จจะลองใหม่รอบเช็กถัดไป) เก็บเวลา/ข้อผิดพลาดใน system_settings `google_sheets_last_at` / `google_sheets_last_error`
