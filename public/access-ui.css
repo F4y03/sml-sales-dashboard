@@ -1738,24 +1738,6 @@
   min-height: 38px;
   max-width: 100%;
 }
-.activity-filters {
-  align-items: end;
-  margin: 4px 0 14px;
-}
-.activity-filter-date {
-  display: grid;
-  gap: 4px;
-  color: var(--muted, #b0b1b8);
-  font-size: 12px;
-}
-.activity-filter-date input {
-  min-height: 38px;
-}
-@media (max-width: 640px) {
-  .activity-filters > * {
-    flex: 1 1 100%;
-  }
-}
 .usage-user {
   display: grid;
   gap: 2px;

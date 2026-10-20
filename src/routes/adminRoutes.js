@@ -47,12 +47,7 @@ export function installAdminRoutes(app,store,audit,envPath,twofa=createTwoFactor
   app.put('/api/admin/settings',requirePermission('system_settings'),handle((req,res)=>{settings.save(req.auth,req.body,req.socket.remoteAddress);res.json({ok:true});}));
   app.get('/api/admin/environment',requireSuperAdmin,handle((req,res)=>res.json(settings.environment())));
   app.put('/api/admin/environment',requireSuperAdmin,handle((req,res)=>res.json(settings.saveEnvironment(req.auth,req.body,req.socket.remoteAddress))));
-  app.get('/api/admin/activity',requirePermission('activity_logs'),handle((req,res)=>{
-    const q=req.query,day=v=>{if(!v)return null;if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))throw bad('วันที่ไม่ถูกต้อง');return v;};
-    if(q.action&&(typeof q.action!=='string'||!/^[a-z0-9_.]{1,60}$/.test(q.action)))throw bad('กิจกรรมไม่ถูกต้อง');
-    const filters={userId:q.user?positiveId(q.user):null,action:q.action||null,from:day(q.from),to:day(q.to)};
-    res.json({logs:audit.list(q.before?positiveId(q.before):Number.MAX_SAFE_INTEGER,filters)});
-  }));
+  app.get('/api/admin/activity',requirePermission('activity_logs'),handle((req,res)=>res.json({logs:audit.list(req.query.before?positiveId(req.query.before):Number.MAX_SAFE_INTEGER,req.query.sales==='1')})));
   app.get('/api/admin/activity/usage',requirePermission('activity_logs'),handle((req,res)=>{const days=[7,30,90].includes(Number(req.query.days))?Number(req.query.days):30;res.json({days,users:audit.usage(days)});}));
   app.get('/api/admin/security',requireSuperAdmin,handle((req,res)=>res.json({sessions:store.all('SELECT u.id,u.username,COUNT(s.token_hash) AS sessions FROM users u LEFT JOIN sessions s ON s.user_id=u.id AND s.expires>? GROUP BY u.id',Date.now()),passwordAlgorithm:'bcrypt (legacy scrypt/plain-text upgrade at login)',cookieHttpOnly:true,localBypass:false,smlReadOnly:true})));
   app.post('/api/admin/security/revoke/:id',requireSuperAdmin,handle((req,res)=>{const id=positiveId(req.params.id);store.transaction(()=>{store.run('DELETE FROM sessions WHERE user_id=?',id);const n=twofa.revokeTrusted(id);audit.record(req.auth,'sessions.revoke','security',{userId:id},null,req.socket.remoteAddress);if(n)audit.record(req.auth,'trusted_device.revoke','auth',{userId:id,count:n,reason:'admin_revoke'},null,req.socket.remoteAddress);});res.json({ok:true});}));

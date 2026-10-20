@@ -6,7 +6,7 @@ let me,
   current = "users",
   auditPage = 0,
   auditCursors = [null],
-  auditFilter = { user: "", action: "", from: "", to: "" },
+  auditSalesOnly = false,
   usageDays = 30,
   usageSalesOnly = true;
 const has = (p) => me.role === "super_admin" || me.permissions.includes(p);
@@ -1128,7 +1128,6 @@ async function usageView() {
     }),
   );
   panel.querySelector(".table-scroll")?.classList.add("usage-table");
-  usageView.users = users;
   panel.append(
     node(
       "p",
@@ -1136,60 +1135,6 @@ async function usageView() {
       "muted",
     ),
   );
-}
-function activityFilters() {
-  const bar = node("div", undefined, "usage-controls activity-filters"),
-    apply = () => {
-      auditPage = 0;
-      auditCursors = [null];
-      show("activity");
-    },
-    pick = (label, key, options) => {
-      const s = node("select");
-      s.setAttribute("aria-label", label);
-      for (const [value, text] of [["", label + "ทั้งหมด"], ...options]) {
-        const o = node("option", text);
-        o.value = value;
-        s.append(o);
-      }
-      s.value = auditFilter[key];
-      s.onchange = () => {
-        auditFilter[key] = s.value;
-        apply();
-      };
-      bar.append(s);
-    },
-    day = (label, key) => {
-      const l = node("label", label, "activity-filter-date"),
-        input = node("input");
-      input.type = "date";
-      input.value = auditFilter[key];
-      input.onchange = () => {
-        auditFilter[key] = input.value;
-        apply();
-      };
-      l.append(input);
-      bar.append(l);
-    };
-  pick(
-    "ผู้ใช้",
-    "user",
-    (usageView.users || []).map((u) => [
-      String(u.id),
-      `${u.full_name} (${u.username})`,
-    ]),
-  );
-  pick("กิจกรรม", "action", Object.entries(activityLabels));
-  day("ตั้งแต่", "from");
-  day("ถึง", "to");
-  if (Object.values(auditFilter).some(Boolean))
-    bar.append(
-      button("ล้างตัวกรอง", () => {
-        auditFilter = { user: "", action: "", from: "", to: "" };
-        apply();
-      }),
-    );
-  return bar;
 }
 async function activityView() {
   try {
@@ -1200,15 +1145,33 @@ async function activityView() {
     );
   }
   const before = auditCursors[auditPage],
-    query = new URLSearchParams(
-      Object.entries(auditFilter).filter(([, v]) => v),
-    );
-  if (before) query.set("before", before);
-  const { logs } = await api("activity?" + query),
+    { logs } = await api(
+      "activity?sales=" + (auditSalesOnly ? 1 : 0) + (before ? "&before=" + before : ""),
+    ),
     panel = card("Activity Log"),
+    who = node("select");
+  for (const [value, label] of [
+    ["all", "ทุกคน"],
+    ["sales", "เฉพาะ Sales"],
+  ]) {
+    const o = node("option", label);
+    o.value = value;
+    who.append(o);
+  }
+  who.value = auditSalesOnly ? "sales" : "all";
+  who.setAttribute("aria-label", "แสดง log ของ");
+  who.onchange = () => {
+    auditSalesOnly = who.value === "sales";
+    auditPage = 0;
+    auditCursors = [null];
+    show("activity");
+  };
+  const controls = node("div", undefined, "usage-controls");
+  controls.append(who);
+  panel.append(controls);
+  const
     pageLogs = logs.slice(0, 10),
     hasNext = logs.length > 10;
-  panel.append(activityFilters());
   table(
     panel,
     ["เวลาไทย (UTC+7)", "ผู้ใช้", "กิจกรรม", "รายละเอียด"],

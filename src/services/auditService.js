@@ -4,15 +4,11 @@ const redact=(key,value)=>key&&SENSITIVE.test(key)?undefined:value;
 export function createAuditService(store) {
   return { record(actor,action,module,details={},territoryId=null,ip=null) {
     store.run('INSERT INTO activity_logs(user_id,action,module,territory_id,ip_address,details) VALUES(?,?,?,?,?,?)',actor?.id ?? null,action,module,territoryId,ip,JSON.stringify(details,redact));
-  }, list(before=Number.MAX_SAFE_INTEGER,filters={}) {
+  }, list(before=Number.MAX_SAFE_INTEGER,salesOnly=false) {
     const users=new Map(store.all('SELECT id,username,full_name FROM users').map(user=>[Number(user.id),user]));
-    // Filters are validated by the route; dates are Thai calendar days (created_at is UTC).
-    const where=['l.id<?'],params=[before];
-    if(filters.userId){where.push('l.user_id=?');params.push(filters.userId);}
-    if(filters.action){where.push('l.action=?');params.push(filters.action);}
-    if(filters.from){where.push("date(l.created_at,'+7 hours')>=?");params.push(filters.from);}
-    if(filters.to){where.push("date(l.created_at,'+7 hours')<=?");params.push(filters.to);}
-    return store.all(`SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id WHERE ${where.join(' AND ')} ORDER BY l.id DESC LIMIT 100`,...params).map(row=>{
+    // Sales = accounts whose role is territory-scoped.
+    const sales=salesOnly?" AND u.role_id IN (SELECT id FROM roles WHERE scope='territory')":'';
+    return store.all(`SELECT l.*,u.username FROM activity_logs l LEFT JOIN users u ON u.id=l.user_id WHERE l.id<?${sales} ORDER BY l.id DESC LIMIT 100`,before).map(row=>{
       const details=JSON.parse(row.details),targetUser=Number.isInteger(Number(details.userId))?users.get(Number(details.userId))||null:null;
       return {...row,details,targetUser};
     });
