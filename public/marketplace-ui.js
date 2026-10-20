@@ -288,6 +288,17 @@
       li.append(head, bar, el('small', 'mp-status-foot', `${total ? pct.toFixed(1) : '0'}% · ${amount}`));
       return li;
     }));
+    const colors = { completed: 'var(--positive)', pending: 'var(--muted)', cancelled: 'var(--negative)', returned: 'var(--warning)' };
+    let acc = 0;
+    const stops = total ? all.filter(r => r.orders).map(r => {
+      const from = acc;
+      acc += r.orders / total * 100;
+      return `${colors[r.key]} ${from.toFixed(2)}% ${acc.toFixed(2)}%`;
+    }) : [];
+    const donut = $('status-donut');
+    donut.style.background = stops.length ? `conic-gradient(${stops.join(', ')})` : '';
+    donut.setAttribute('aria-label', 'สัดส่วนสถานะออเดอร์: ' + all.map(r => `${r.label} ${total ? (r.orders / total * 100).toFixed(1) : 0}%`).join(', '));
+    $('status-donut-total').textContent = count(total);
     const note = $('status-note');
     note.hidden = !(platform === 'shopee' || platform === 'all');
     note.textContent = 'Shopee: ถ้าอัปโหลดแค่รายงานรายรับ จะเห็นเฉพาะออเดอร์ที่โอนเงินแล้ว — อัปโหลดไฟล์คำสั่งซื้อ (Order.all) เพื่อให้เห็นออเดอร์ยกเลิกและกำลังจัดส่ง';

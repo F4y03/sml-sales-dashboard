@@ -280,6 +280,30 @@
 }
 
 /* ---------- order status */
+.mp-donut {
+  position: relative;
+  width: min(200px, 60%);
+  aspect-ratio: 1;
+  margin: 4px auto 18px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+.mp-donut-hole {
+  position: absolute;
+  inset: 22%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.mp-donut-hole strong {
+  font-size: 24px;
+}
+.mp-donut-hole small {
+  color: var(--muted);
+  font-size: 12px;
+}
 .mp-status-list {
   display: grid;
   gap: 14px;
