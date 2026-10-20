@@ -1738,6 +1738,16 @@
   min-height: 38px;
   max-width: 100%;
 }
+.usage-row {
+  cursor: pointer;
+}
+.usage-row:hover td {
+  background: color-mix(in srgb, var(--line, #303035) 45%, transparent);
+}
+.usage-row:focus-visible {
+  outline: 2px solid var(--tone-green-soft-text, #34c27a);
+  outline-offset: -2px;
+}
 .usage-user {
   display: grid;
   gap: 2px;

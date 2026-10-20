@@ -7,6 +7,7 @@ let me,
   auditPage = 0,
   auditCursors = [null],
   auditSalesOnly = false,
+  auditUser = null,
   usageDays = 30,
   usageSalesOnly = true;
 const has = (p) => me.role === "super_admin" || me.permissions.includes(p);
@@ -1128,6 +1129,28 @@ async function usageView() {
     }),
   );
   panel.querySelector(".table-scroll")?.classList.add("usage-table");
+  // Click a row to see that user's full activity in the log below.
+  panel.querySelectorAll(".usage-table tbody tr").forEach((tr, i) => {
+    const u = rows[i],
+      open = async () => {
+        auditUser = { id: u.id, name: `${u.full_name} (${u.username})` };
+        auditPage = 0;
+        auditCursors = [null];
+        await show("activity");
+        document.getElementById("activity-log")?.scrollIntoView({ behavior: "smooth" });
+      };
+    tr.classList.add("usage-row");
+    tr.tabIndex = 0;
+    tr.setAttribute("role", "button");
+    tr.setAttribute("aria-label", `ดูการใช้งานทั้งหมดของ ${u.full_name}`);
+    tr.onclick = open;
+    tr.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    };
+  });
   panel.append(
     node(
       "p",
@@ -1146,10 +1169,13 @@ async function activityView() {
   }
   const before = auditCursors[auditPage],
     { logs } = await api(
-      "activity?sales=" + (auditSalesOnly ? 1 : 0) + (before ? "&before=" + before : ""),
+      "activity?sales=" + (auditSalesOnly ? 1 : 0) +
+        (auditUser ? "&user=" + auditUser.id : "") +
+        (before ? "&before=" + before : ""),
     ),
-    panel = card("Activity Log"),
+    panel = card(auditUser ? `Activity Log · ${auditUser.name}` : "Activity Log"),
     who = node("select");
+  panel.id = "activity-log";
   for (const [value, label] of [
     ["all", "ทุกคน"],
     ["sales", "เฉพาะ Sales"],
@@ -1167,7 +1193,16 @@ async function activityView() {
     show("activity");
   };
   const controls = node("div", undefined, "usage-controls");
-  controls.append(who);
+  if (auditUser)
+    controls.append(
+      button("← ดูทุกคน", () => {
+        auditUser = null;
+        auditPage = 0;
+        auditCursors = [null];
+        show("activity");
+      }),
+    );
+  else controls.append(who);
   panel.append(controls);
   const
     pageLogs = logs.slice(0, 10),
