@@ -1258,3 +1258,25 @@ body {
 .cs2 .cs2-tabs button[aria-selected="false"]:hover {
   color: var(--ink, #f4f4f5);
 }
+/* Clickable stock cards → detail popup */
+.cs2-kpi-click {
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.cs2-kpi-click:hover {
+  border-color: var(--brand, #ff3b30);
+  transform: translateY(-1px);
+}
+.cs2-kpi-click:focus-visible {
+  outline: 2px solid var(--brand, #ff3b30);
+  outline-offset: 2px;
+}
+.cs2-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.cs2-dialog-actions .cs2-more {
+  margin: 12px 0 0;
+}

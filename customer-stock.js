@@ -113,7 +113,8 @@ WITH inventory AS (
 ), matching AS (
   SELECT * FROM valued
   WHERE ($1::text = '' OR strpos(lower(code), lower($1)) > 0 OR strpos(lower(COALESCE(name, '')), lower($1)) > 0)
-    AND ($2::text = 'all' OR ($2 = 'in' AND quantity > 0) OR ($2 = 'out' AND quantity <= 0) OR ($2 = 'nodata' AND quantity IS NULL))
+    AND ($2::text = 'all' OR ($2 = 'in' AND quantity > 0) OR ($2 = 'out' AND quantity <= 0) OR ($2 = 'nodata' AND quantity IS NULL)
+      OR ($2 = 'noprice' AND quantity > 0 AND price IS NULL) OR ($2 = 'negative' AND quantity < 0))
 )
 SELECT json_build_object(
   'summary', (SELECT json_build_object(
@@ -288,7 +289,7 @@ export function installCustomerStock(app, pool) {
   app.get('/api/customer-stock/stock', async (req, res) => {
     const q = text(req.query.q ?? '', 100), page = pageOf(req.query.page);
     const filter = req.query.filter ?? 'all', sort = req.query.sort ?? 'value';
-    if (q == null || page == null || !['all', 'in', 'out', 'nodata'].includes(filter) || !['value', 'quantity', 'name', 'code'].includes(sort)) {
+    if (q == null || page == null || !['all', 'in', 'out', 'nodata', 'noprice', 'negative'].includes(filter) || !['value', 'quantity', 'name', 'code'].includes(sort)) {
       return res.status(400).json({ error: 'ตัวกรองสต็อกไม่ถูกต้อง' });
     }
     try {

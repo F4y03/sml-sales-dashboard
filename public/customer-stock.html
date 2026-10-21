@@ -7,10 +7,10 @@
     <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
     <link rel="stylesheet" href="workspace-nav.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
-    <link rel="stylesheet" href="customer-stock.css?v=20261021-28" />
+    <link rel="stylesheet" href="customer-stock.css?v=20261021-29" />
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261021-customer-stock" defer></script>
-    <script src="customer-stock.js?v=20261021-15" defer></script>
+    <script src="customer-stock.js?v=20261021-16" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -139,11 +139,11 @@
       <!-- Tab 2: whole stock -->
       <section id="panel-stock" class="cs2-panel" role="tabpanel" aria-labelledby="tab-stock" hidden>
         <div class="cs2-kpis">
-          <article class="cs2-kpi featured"><span>มูลค่าสต็อกทั้งหมด</span><strong id="stock-value">—</strong><small>ราคาขายในทะเบียน × คงเหลือ · เฉพาะสินค้าที่คงเหลือมากกว่า 0 · ไม่รวมสินค้าฝาก (ฝ)</small></article>
-          <article class="cs2-kpi"><span>สินค้าที่มีของ</span><strong id="stock-in">—</strong><small id="stock-total"></small></article>
-          <article class="cs2-kpi"><span>มีของแต่ไม่มีราคาขาย</span><strong id="stock-noprice">—</strong><small>ไม่นับในมูลค่า</small></article>
-          <article class="cs2-kpi"><span>จำนวนคงเหลือรวม</span><strong id="stock-quantity">—</strong><small id="stock-units">รวมทุกหน่วย</small></article>
-          <article class="cs2-kpi"><span>ติดลบ / ไม่มีข้อมูลคงเหลือ (รายการ)</span><strong id="stock-problem">—</strong><small>ไม่มีข้อมูล ≠ 0 · ไม่นับในมูลค่า</small></article>
+          <article class="cs2-kpi featured cs2-kpi-click" data-kpi="value" role="button" tabindex="0" aria-haspopup="dialog" aria-label="มูลค่าสต็อกทั้งหมด · ดูรายละเอียด"><span>มูลค่าสต็อกทั้งหมด</span><strong id="stock-value">—</strong><small>ราคาขายในทะเบียน × คงเหลือ · เฉพาะสินค้าที่คงเหลือมากกว่า 0 · ไม่รวมสินค้าฝาก (ฝ)</small></article>
+          <article class="cs2-kpi cs2-kpi-click" data-kpi="in" role="button" tabindex="0" aria-haspopup="dialog" aria-label="สินค้าที่มีของ · ดูรายละเอียด"><span>สินค้าที่มีของ</span><strong id="stock-in">—</strong><small id="stock-total"></small></article>
+          <article class="cs2-kpi cs2-kpi-click" data-kpi="noprice" role="button" tabindex="0" aria-haspopup="dialog" aria-label="มีของแต่ไม่มีราคาขาย · ดูรายละเอียด"><span>มีของแต่ไม่มีราคาขาย</span><strong id="stock-noprice">—</strong><small>ไม่นับในมูลค่า</small></article>
+          <article class="cs2-kpi cs2-kpi-click" data-kpi="quantity" role="button" tabindex="0" aria-haspopup="dialog" aria-label="จำนวนคงเหลือรวม · ดูรายละเอียด"><span>จำนวนคงเหลือรวม</span><strong id="stock-quantity">—</strong><small id="stock-units">รวมทุกหน่วย</small></article>
+          <article class="cs2-kpi cs2-kpi-click" data-kpi="problem" role="button" tabindex="0" aria-haspopup="dialog" aria-label="ติดลบ / ไม่มีข้อมูลคงเหลือ (รายการ) · ดูรายละเอียด"><span>ติดลบ / ไม่มีข้อมูลคงเหลือ (รายการ)</span><strong id="stock-problem">—</strong><small>ไม่มีข้อมูล ≠ 0 · ไม่นับในมูลค่า</small></article>
         </div>
         <form id="stock-filters" class="cs2-filters">
           <label>ค้นหาสินค้า<input id="stock-search" type="search" maxlength="100" placeholder="รหัสหรือชื่อสินค้า" /></label>
@@ -152,6 +152,8 @@
             <option value="all">ทั้งหมด</option>
             <option value="out">หมด / ติดลบ</option>
             <option value="nodata">ไม่มีข้อมูลคงเหลือ</option>
+            <option value="noprice">มีของแต่ไม่มีราคาขาย</option>
+            <option value="negative">คงเหลือติดลบ</option>
           </select></label>
           <label>เรียงตาม<select id="stock-sort">
             <option value="value">มูลค่าสูงสุด</option>
@@ -240,6 +242,17 @@
         </div>
         </div>
       </section>
+      <dialog id="kpi-dialog" class="cs2-dialog" aria-labelledby="kpi-dialog-title">
+        <header class="cs2-dialog-head">
+          <div>
+            <p class="cs2-dialog-kicker">สต็อกทั้งหมด</p>
+            <h3 id="kpi-dialog-title"></h3>
+            <p id="kpi-dialog-meta" class="cs2-muted"></p>
+          </div>
+          <button id="kpi-dialog-close" type="button" class="cs2-dialog-close" aria-label="ปิด">✕</button>
+        </header>
+        <div id="kpi-dialog-body" class="cs2-dialog-body"></div>
+      </dialog>
     </main>
   </body>
 </html>

@@ -391,6 +391,7 @@
       const params = { q: el("stock-search").value.trim(), filter: el("stock-filter").value, sort: el("stock-sort").value, page: stockPage };
       const data = await getJSON(`/api/customer-stock/stock?${new URLSearchParams(params)}`, stockController.signal);
       const s = data.summary;
+      stockSummary = { ...s, matching: data.matching };
       el("stock-value").textContent = baht(s.value);
       el("stock-in").textContent = `${num(s.inStock)} รายการ`;
       el("stock-total").textContent = `จากสินค้าในทะเบียน ${num(s.products)} รายการ`;
@@ -427,6 +428,74 @@
     }
   }
   const restartStock = () => { stockPage = 0; loadStock(); };
+  // Stock cards open a popup with the full breakdown, and can jump the table to the matching items.
+  let stockSummary = null, kpiOpener = null;
+  const kpiDialog = el("kpi-dialog");
+  kpiDialog.addEventListener("close", () => kpiOpener?.focus());
+  el("kpi-dialog-close").addEventListener("click", () => kpiDialog.close());
+  kpiDialog.addEventListener("click", (e) => {
+    if (e.target !== kpiDialog) return;
+    const r = kpiDialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) kpiDialog.close();
+  });
+  const showList = (filter, sort = "value") => {
+    el("stock-filter").value = filter; el("stock-sort").value = sort; el("stock-search").value = "";
+    kpiDialog.close(); restartStock();
+    el("stock-filters").scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+  function openKpi(card) {
+    const s = stockSummary;
+    if (!s) return;
+    kpiOpener = card;
+    const items = (n) => `${num(n)} รายการ`;
+    const products = Number(s.products) || 0, inStock = Number(s.inStock) || 0, nodata = Number(s.noStockData) || 0, neg = Number(s.negative) || 0;
+    const zero = Math.max(0, products - inStock - nodata - neg);
+    const rows = (pairs) => {
+      const dl = node("dl", "", "cs2-dialog-totals");
+      for (const [label, value, strong] of pairs) { const r = node("div", "", strong ? "strong" : ""); r.append(node("dt", label), node("dd", value)); dl.append(r); }
+      return dl;
+    };
+    const button = (text, filter, sort) => { const b = node("button", text, "cs2-more"); b.type = "button"; b.addEventListener("click", () => showList(filter, sort)); return b; };
+    const body = [], kind = card.dataset.kpi;
+    let title = "", meta = "";
+    if (kind === "value") {
+      title = `มูลค่าสต็อก ${baht(s.value)}`; meta = "ราคาขายในทะเบียน (price_0 หน่วยมาตรฐาน) × คงเหลือ";
+      body.push(rows([["สินค้าที่คิดมูลค่า (มีของ + มีราคา)", items(inStock - (Number(s.inStockNoPrice) || 0))], ["มีของแต่ไม่มีราคาขาย (ไม่นับ)", items(s.inStockNoPrice)], ["คงเหลือติดลบ (ไม่นับ)", items(neg)], ["ไม่มีข้อมูลคงเหลือ (ไม่นับ)", items(nodata)], ["มูลค่ารวม", baht(s.value), true]]),
+        node("p", "ไม่รวมสินค้าฝาก (รหัสขึ้นต้น ฝ) · เป็นมูลค่าตามราคาขาย ไม่ใช่ต้นทุน · ใช้คงเหลือในทะเบียนปัจจุบัน", "cs2-status"), button("ดูสินค้าเรียงตามมูลค่าสูงสุด", "in", "value"));
+    } else if (kind === "in") {
+      title = `สินค้าที่มีของ ${items(inStock)}`; meta = `จากสินค้าในทะเบียน ${items(products)} (ไม่รวมสินค้าฝาก)`;
+      body.push(rows([["มีของ (คงเหลือ > 0)", items(inStock)], ["หมด (คงเหลือ = 0)", items(zero)], ["ติดลบ", items(neg)], ["ไม่มีข้อมูลคงเหลือ", items(nodata)], ["รวมในทะเบียน", items(products), true]]),
+        button("ดูสินค้าที่มีของ", "in", "quantity"));
+    } else if (kind === "noprice") {
+      title = `มีของแต่ไม่มีราคาขาย ${items(s.inStockNoPrice)}`; meta = "คงเหลือมากกว่า 0 แต่ไม่มีราคาขายที่เป็นตัวเลขในทะเบียน";
+      body.push(node("p", "สินค้ากลุ่มนี้ไม่ถูกนับในมูลค่าสต็อก ถ้าตั้งราคาขายใน SML แล้ว มูลค่าจะเพิ่มขึ้นในการโหลดครั้งถัดไป", "cs2-status"), button("ดูรายการสินค้ากลุ่มนี้", "noprice", "quantity"));
+    } else if (kind === "quantity") {
+      title = `จำนวนคงเหลือรวม ${num(s.quantity)}`; meta = "รวมทุกหน่วย · เฉพาะสินค้าที่คงเหลือมากกว่า 0 · แยกตามหน่วยด้านล่าง";
+      const table = node("table", "", "cs2-lines"), head = node("tr");
+      ["หน่วย", "จำนวนคงเหลือ", "สัดส่วน"].forEach((h, i) => head.append(node("th", h, i ? "num" : "")));
+      table.append(node("thead")); table.tHead.append(head);
+      const tb = node("tbody"), total = Number(s.quantity) || 0;
+      for (const u of s.units || []) { const r = node("tr"); r.append(node("td", u.unit || "ไม่ระบุหน่วย"), node("td", num(u.quantity), "num"), node("td", total ? `${num((u.quantity / total) * 100)}%` : "—", "num")); tb.append(r); }
+      table.append(tb);
+      const wrap = node("div", "", "cs2-dialog-table"); wrap.append(table);
+      body.push(wrap, node("p", "หน่วยต่างกันจึงไม่ควรเทียบตัวเลขรวมตรง ๆ ระหว่างสินค้าคนละชนิด", "cs2-status"), button("ดูสินค้าเรียงตามคงเหลือมากสุด", "in", "quantity"));
+    } else if (kind === "problem") {
+      title = `ติดลบ ${num(neg)} / ไม่มีข้อมูล ${num(nodata)}`; meta = "ไม่นับในมูลค่าสต็อก";
+      body.push(rows([["คงเหลือติดลบ", items(neg)], ["ไม่มีข้อมูลคงเหลือ (ไม่ใช่ 0)", items(nodata)]]),
+        node("p", "ติดลบมักเกิดจากตัดขายก่อนรับเข้า ส่วนไม่มีข้อมูลคือทะเบียนไม่มีค่าคงเหลือ ระบบไม่ถือว่าเป็น 0", "cs2-status"));
+      const actions = node("div", "", "cs2-dialog-actions");
+      actions.append(button("ดูรายการติดลบ", "negative", "quantity"), button("ดูรายการไม่มีข้อมูล", "nodata", "code"));
+      body.push(actions);
+    }
+    el("kpi-dialog-title").textContent = title;
+    el("kpi-dialog-meta").textContent = meta;
+    el("kpi-dialog-body").replaceChildren(...body);
+    kpiDialog.showModal();
+  }
+  document.querySelectorAll(".cs2-kpi-click").forEach((card) => {
+    card.addEventListener("click", () => openKpi(card));
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openKpi(card); } });
+  });
   el("stock-search").addEventListener("input", () => { clearTimeout(stockTimer); stockTimer = setTimeout(restartStock, 300); });
   el("stock-filter").addEventListener("change", restartStock);
   el("stock-sort").addEventListener("change", restartStock);
