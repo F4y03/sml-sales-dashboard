@@ -68,6 +68,7 @@
       ],
       snapshot: "#total-net",
       breakdown: "#net-summary-chart .summary-chart-label",
+      compareSellers: true,
     },
     customers: {
       title: "ลูกค้าที่มีรายการ",
@@ -106,6 +107,26 @@
       ],
       snapshot: "#invoice-count",
       breakdown: "#invoice-summary-chart .summary-chart-label",
+    },
+    sellers: {
+      title: "ยอดขายตามพนักงานขาย",
+      tag: "พนักงานขาย",
+      intro:
+        "ยอดรายการสินค้าในบิลขาย แยกตามพนักงานขายที่ระบุในบิล ตัวเลขเดียวกับกราฟ «ยอดขายแยกตามพนักงานขาย» ในหน้าภาพรวม",
+      formula: "รวมยอดรายการสินค้าในบิลขาย ตามผู้ขายในบิล (ไม่หักรับคืน)",
+      notes: [
+        [
+          "ใครเห็นการ์ดนี้",
+          "Super Admin และผู้บริหารเห็นพนักงานขายทุกคน บัญชีที่จำกัดเขต (Sales) เห็นเฉพาะทีมในเขตการขายของตัวเอง",
+        ],
+        [
+          "ตัวกรองที่มีผล",
+          "ใช้ช่วงวันที่และพนักงานขายที่เลือก ไม่ขึ้นกับคำค้นหาลูกค้า เมื่อเลือก «ทั้งหมด» จะแสดงยอดรวมของทุกพนักงานขาย",
+        ],
+      ],
+      snapshot: "#seller-sales",
+      breakdown: "#seller-summary-chart .summary-chart-label",
+      compareSellers: true,
     },
     top: {
       title: "10 ลูกค้าที่มียอดซื้อสูงสุด",
@@ -365,6 +386,67 @@
         body.append(comparison);
       }
     }
+    // ยอดซื้อสุทธิรวม vs ยอดขายตามพนักงานขาย: two definitions on one page, explained side by side.
+    const sellerCard = document.getElementById("seller-summary-card");
+    if (topic.compareSellers && sellerCard && !sellerCard.hidden) {
+      const net = document.getElementById("total-net")?.textContent.trim();
+      const sales = document.getElementById("seller-sales")?.textContent.trim();
+      const team = document.getElementById("customer-team");
+      const teamLabel = team?.value ? team.selectedOptions[0]?.textContent.trim() : "";
+      const amount = (text) => Number(String(text).replace(/[฿,\s]/g, ""));
+      const wrap = make("section", "", "insight-help-compare");
+      wrap.append(
+        make(
+          "h3",
+          teamLabel
+            ? `ทำไมสองการ์ดไม่เท่ากัน · ${teamLabel}`
+            : "ทำไมสองการ์ดไม่เท่ากัน",
+        ),
+      );
+      const scroll = make("div", "", "insight-help-compare-scroll");
+      const table = make("table");
+      const head = make("tr");
+      head.append(
+        make("th", ""),
+        make("th", "ยอดซื้อสุทธิรวม"),
+        make("th", "ยอดขายตามพนักงานขาย"),
+      );
+      table.append(head);
+      const rows = [
+        ["ตัวเลขตอนนี้", net || "—", sales || "—"],
+        ["ยอดมาจาก", "ยอดสุทธิท้ายบิล", "ผลรวมรายการสินค้าในบิล"],
+        ["เอกสารที่นับ", "ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้", "บิลขายอย่างเดียว ไม่หักรับคืน"],
+        ["แบ่งพนักงานขายตาม", "ทะเบียนลูกค้า (ลูกค้าอยู่ในความดูแลของใคร)", "คนที่ออกบิล"],
+        ["บิลสำเนา", "ไม่นับ", "นับรวมอยู่"],
+        ["รายการไม่มีรหัสสินค้า", "อยู่ในยอดท้ายบิล", "ไม่นับ"],
+        ["คำค้นหาลูกค้า", "มีผล", "ไม่มีผล"],
+      ];
+      for (const [index, [label, left, right]] of rows.entries()) {
+        const tr = make("tr", "", index === 0 ? "is-value" : "");
+        tr.append(make("th", label), make("td", left), make("td", right));
+        table.append(tr);
+      }
+      scroll.append(table);
+      wrap.append(scroll);
+      if (Number.isFinite(amount(net)) && Number.isFinite(amount(sales)) && net !== "—" && sales !== "—") {
+        const diff = amount(sales) - amount(net);
+        wrap.append(
+          make(
+            "p",
+            `ส่วนต่าง (ยอดขายตามพนักงานขาย − ยอดซื้อสุทธิรวม) = ฿${new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(diff)}`,
+            "insight-help-compare-diff",
+          ),
+        );
+      }
+      wrap.append(
+        make(
+          "p",
+          "ทั้งสองตัวเลขถูกต้องตามนิยามของตัวเอง ระบบไม่ปรับให้เท่ากัน ส่วนต่างมักมาจากส่วนลด/VAT ท้ายบิล รับคืน และลูกค้าที่ซื้อผ่านพนักงานขายคนอื่น",
+          "insight-help-compare-note",
+        ),
+      );
+      body.append(wrap);
+    }
     if (topic.rows?.length) {
       const breakdown = make("div", "", "insight-help-breakdown");
       for (const [label, value] of topic.rows) {
@@ -443,7 +525,7 @@
   document
     .querySelectorAll("#customer-dashboard .summary-icon")
     .forEach((target, index) =>
-      wire(target, ["net", "customers", "invoices"][index], true),
+      wire(target, ["net", "customers", "invoices", "sellers"][index], true),
     );
   wire(document.querySelector(".chart-panel .pill"), "top", true);
   wire(document.getElementById("matching-count"), "ranking", true);

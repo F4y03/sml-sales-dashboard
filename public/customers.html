@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dashboard PROPLUS</title>
     <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
-    <link rel="stylesheet" href="customers.css?v=20261020-team5" />
+    <link rel="stylesheet" href="customers.css?v=20261021-seller9" />
     <link rel="stylesheet" href="product-insights.css" />
     <link rel="stylesheet" href="workspace-nav.css" />
     <script src="date-dmy.js?v=20261020-range4" defer></script>
-    <script src="customers-ui.js?v=20261020-team5" defer></script>
+    <script src="customers-ui.js?v=20261021-seller9" defer></script>
     <script src="product-insights-ui.js" defer></script>
     <script src="workspace-nav.js?v=20261019-tiktok-tab" defer></script>
-    <script src="insights-help.js" defer></script>
-    <link rel="stylesheet" href="insights-help.css" />
+    <script src="insights-help.js?v=20261021-seller9" defer></script>
+    <link rel="stylesheet" href="insights-help.css?v=20261021-seller9" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="product-highlights.css" />
@@ -180,6 +180,24 @@
               class="summary-breakdown"
               role="group"
               aria-label="กราฟจำนวนบิลของลูกค้า 5 อันดับแรกเทียบกับลูกค้าที่เหลือ"
+            ></div>
+          </article>
+          <article
+            id="seller-summary-card"
+            class="summary-card seller-summary-card"
+            hidden
+          >
+            <div>
+              <p>ยอดขายตามพนักงานขาย</p>
+              <strong id="seller-sales">—</strong
+              ><small id="seller-sales-note">ตามผู้ขายในบิล</small>
+            </div>
+            <span class="summary-icon" aria-hidden="true">◔</span>
+            <div
+              id="seller-summary-chart"
+              class="summary-breakdown"
+              role="group"
+              aria-label="ยอดขายแยกตามพนักงานขายในบิล"
             ></div>
           </article>
         </section>

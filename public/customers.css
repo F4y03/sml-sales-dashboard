@@ -1091,6 +1091,62 @@ body.customer-dialog-open {
   color: #716b68;
   line-height: 1.8;
 }
+/* Four summary cards in one row, same proportions as the product view (product-insights.css).
+   Doubled id beats theme.css's 3-column #customer-dashboard rules, which load later. */
+#customer-dashboard#customer-dashboard .summary-grid {
+  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+}
+#customer-dashboard#customer-dashboard .summary-card {
+  padding: 22px 20px;
+}
+#customer-dashboard .summary-card strong {
+  font-size: clamp(22px, 2.2vw, 31px);
+}
+/* Baht amounts never break mid-number in the narrower 4-column cards. */
+#customer-dashboard#customer-dashboard .seller-summary-card strong {
+  font-size: clamp(20px, 1.7vw, 31px);
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* The salesperson card is only for Super Admin / ผู้บริหาร / own territory: without it, keep the 3-card layout. */
+#customer-dashboard .seller-summary-card[hidden] {
+  display: none;
+}
+@media (min-width: 1251px) {
+  #customer-dashboard#customer-dashboard .summary-grid:has(> .seller-summary-card[hidden]) {
+    grid-template-columns: 1.25fr 1fr 1fr;
+  }
+}
+@media (min-width: 651px) and (max-width: 1250px) {
+  #customer-dashboard#customer-dashboard .summary-grid:has(> .seller-summary-card[hidden]) .summary-card.featured {
+    grid-column: 1 / -1;
+  }
+}
+/* All salespeople are listed; about five rows show, the rest scroll inside the card. */
+#customer-dashboard .seller-legend {
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-width: thin;
+}
+#customer-dashboard .seller-legend .is-selected {
+  font-weight: 700;
+}
+@media (max-width: 1250px) {
+  #customer-dashboard#customer-dashboard .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* 2 × 2 instead of a full-width featured card, so no card is left alone on a row. */
+  #customer-dashboard#customer-dashboard .summary-card.featured {
+    grid-column: auto;
+  }
+}
+@media (max-width: 650px) {
+  #customer-dashboard#customer-dashboard .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 480px) {
   #customer-dashboard .summary-grid {
     grid-template-columns: 1fr;

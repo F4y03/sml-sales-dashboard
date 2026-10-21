@@ -60,7 +60,9 @@
       subgroup: "กลุ่มย่อย",
     };
   let donutFrame = 0,
-    donutSlices = [];
+    donutSlices = [],
+    donutDraw = 0,
+    pinnedKey = null;
   const reduceMotion = () =>
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const compact = (v, qty) => {
@@ -81,9 +83,16 @@
     el("donut-value").textContent = valueText;
     el("donut-sub").textContent = subText;
   }
+  const money = new Intl.NumberFormat("th-TH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   function clearDonut() {
+    donutDraw++; // before removing rows, so their blur events see a stale chart
     cancelAnimationFrame(donutFrame);
     donutSlices = [];
+    el("analysis-hover").hidden = true;
+    el("analysis-hover").replaceChildren();
     el("donut-svg").replaceChildren();
     el("donut-legend").replaceChildren();
     el("analysis-donut").removeAttribute("data-active");
@@ -162,14 +171,89 @@
       el("donut-legend").append(li);
     });
     svg.append(g);
+    // Hover summary box under the chart: built only from the rows already loaded (no extra SML query).
+    const full = (v, unit) =>
+      isQty
+        ? `${format.format(v)}${unit ? ` ${unit}` : ""}`
+        : `฿${money.format(v)}`;
+    let pinned = items.findIndex((it) => `${d.mode}|${it.name}` === pinnedKey);
+    if (pinned < 0) pinned = null;
+    const hoverBox = el("analysis-hover");
+    hoverBox.hidden = !d.rows.length;
+    const hint = () => {
+      const p = document.createElement("p");
+      p.className = "analysis-hover-hint";
+      p.textContent = `ชี้ที่${noun}ในกราฟหรือรายการเพื่อดูยอด สัดส่วน และอันดับ · คลิกเพื่อปักค้างไว้`;
+      hoverBox.replaceChildren(p);
+    };
+    hint();
+    const showHover = (i) => {
+      const it = items[i],
+        h = document.createElement("h3"),
+        dot = document.createElement("i"),
+        dl = document.createElement("dl");
+      dot.style.background = it.color;
+      h.append(dot, it.name);
+      if (pinned === i) {
+        const pin = document.createElement("small");
+        pin.className = "analysis-hover-pin";
+        pin.textContent = "ปักไว้ · คลิกอีกครั้งเพื่อยกเลิก";
+        h.append(pin);
+      }
+      const add = (term, value) => {
+        const dt = document.createElement("dt"),
+          dd = document.createElement("dd");
+        dt.textContent = term;
+        dd.textContent = value;
+        dl.append(dt, dd);
+      };
+      const isOther = i >= top.length;
+      add(isQty ? "จำนวน" : "ยอดขาย", full(it.value, it.unit));
+      add("สัดส่วนจากทั้งหมด", pct(it.value, total));
+      if (isOther) {
+        add("รวม", `${rest.length} ${noun} (อันดับ ${top.length + 1}–${d.rows.length})`);
+        hoverBox.replaceChildren(h, dl);
+        const list = document.createElement("dl");
+        list.className = "analysis-hover-list";
+        list.setAttribute("aria-label", `รายการใน ${it.name}`);
+        rest.forEach((r) => {
+          const dt = document.createElement("dt"),
+            dd = document.createElement("dd");
+          dt.textContent = label(r);
+          dd.textContent = full(Number(r.value) || 0, isQty ? r.unit : "");
+          list.append(dt, dd);
+        });
+        hoverBox.append(list);
+        return;
+      }
+      add("อันดับ", `${i + 1} จาก ${d.rows.length} ${noun}`);
+      const upTo = d.rows
+        .slice(0, i + 1)
+        .reduce((s, r) => s + (Number(r.value) || 0), 0);
+      add(`สะสมอันดับ 1–${i + 1}`, pct(upTo, total));
+      // Gaps only compare like with like: skip when quantity rows use different units.
+      const sameUnit = (r) => !isQty || r.unit === d.rows[i].unit;
+      const prev = d.rows[i - 1],
+        next = d.rows[i + 1];
+      if (prev && sameUnit(prev))
+        add(`ห่างจากอันดับ ${i} (${label({ ...prev, unit: "" })})`, full((Number(prev.value) || 0) - it.value, it.unit));
+      if (next && sameUnit(next))
+        add(`นำอันดับ ${i + 2} (${label({ ...next, unit: "" })})`, full(it.value - (Number(next.value) || 0), it.unit));
+      hoverBox.replaceChildren(h, dl);
+    };
+    const drawId = donutDraw;
     const activate = (i) => {
+      // Rows removed by a redraw can still fire blur/pointerleave: ignore the old chart's handlers.
+      if (drawId !== donutDraw) return;
       const box = el("analysis-donut");
       box.querySelectorAll(".is-active").forEach((n) => n.classList.remove("is-active"));
       if (i == null || !items[i]) {
         box.removeAttribute("data-active");
         donutCenter(totalLabel, totalText(total), totalSub);
+        hint();
         return;
       }
+      showHover(i);
       box.dataset.active = i;
       donutSlices[i].el.classList.add("is-active");
       el("donut-legend").children[i].classList.add("is-active");
@@ -180,19 +264,39 @@
         pct(it.value, total),
       );
     };
+    // Click (or tap / Enter) pins an item so its summary stays; hovering others previews them,
+    // leaving returns to the pinned one. Click it again or press Esc to unpin.
+    const markPinned = () =>
+      el("donut-legend")
+        .querySelectorAll("li")
+        .forEach((li, n) => {
+          li.classList.toggle("is-pinned", n === pinned);
+          li.setAttribute("aria-pressed", String(n === pinned));
+        });
+    const togglePin = (i, touch = false) => {
+      pinned = pinned === i ? null : i;
+      // Remember by view + name so the 60-second auto refresh keeps the same item pinned.
+      pinnedKey = pinned == null ? null : `${d.mode}|${items[pinned].name}`;
+      markPinned();
+      activate(pinned ?? (touch ? null : i));
+    };
+    markPinned();
     for (const node of [...g.querySelectorAll(".donut-slice"), ...el("donut-legend").children]) {
       const i = Number(node.dataset.index);
       node.addEventListener("pointerenter", (e) => {
         if (e.pointerType !== "touch") activate(i);
       });
       node.addEventListener("pointerleave", (e) => {
-        if (e.pointerType !== "touch") activate(null);
+        if (e.pointerType !== "touch") activate(pinned);
       });
       node.addEventListener("focus", () => activate(i));
-      node.addEventListener("blur", () => activate(null));
-      node.addEventListener("pointerup", (e) => {
-        if (e.pointerType === "touch")
-          activate(el("analysis-donut").dataset.active === String(i) ? null : i);
+      node.addEventListener("blur", () => activate(pinned));
+      node.addEventListener("click", (e) => togglePin(i, e.pointerType === "touch"));
+      node.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          togglePin(i);
+        } else if (e.key === "Escape" && pinned != null) togglePin(pinned);
       });
     }
     if (!d.rows.length) {
@@ -208,7 +312,7 @@
     };
     if (!animate || reduceMotion()) {
       paint(1);
-      activate(null);
+      activate(pinned);
       return;
     }
     const began = performance.now(),
@@ -221,7 +325,7 @@
       if (!el("analysis-donut").dataset.active)
         donutCenter(totalLabel, totalText(total * p), totalSub);
       if (t < 1) donutFrame = requestAnimationFrame(frame);
-      else if (!el("analysis-donut").dataset.active) activate(null);
+      else if (!el("analysis-donut").dataset.active) activate(pinned);
     };
     paint(0);
     donutFrame = requestAnimationFrame(frame);
@@ -233,8 +337,6 @@
     data = null;
     clearDonut();
     el("analysis-rows").replaceChildren();
-    el("analysis-export").disabled = true;
-    el("analysis-summary").textContent = "";
     el("analysis-note").textContent = "";
   }
   function draw(d, animate = false) {
@@ -251,11 +353,6 @@
     el("analysis-note").textContent = d.note;
     el("analysis-status").textContent =
       `${d.start} ถึง ${d.end} · อัปเดต ${new Date(d.updatedAt).toLocaleTimeString("th-TH")}`;
-    el("analysis-summary").textContent = d.rows.length
-      ? timeline
-        ? `ทั้งหมด ${d.rows.length} ช่วงเวลา`
-        : `แสดง ${Math.min(10, d.rows.length)} อันดับแรก จาก ${d.rows.length} รายการ`
-      : "ไม่พบข้อมูลในช่วงที่เลือก";
     document.querySelector(".analysis-scroll").hidden = !timeline;
     el("analysis-donut").hidden = timeline;
     if (!timeline) drawDonut(d, animate);
@@ -347,7 +444,6 @@
       }
       el("analysis-rows").append(tr);
     }
-    el("analysis-export").disabled = false;
   }
   async function load(silent = false) {
     silent = silent === true;
@@ -398,38 +494,4 @@
   };
   el("analysis-mode").addEventListener("change", load);
   el("analysis-grain").addEventListener("change", load);
-  el("analysis-export").addEventListener("click", () => {
-    if (!data) return;
-    const rows = [
-      [data.title],
-      ["ช่วงวันที่", data.start, data.end],
-      [data.note],
-      ["รหัส", "ชื่อ", "ยอด / จำนวน", "หน่วย"],
-      ...data.rows.map((r) => [r.code, r.name, r.value, r.unit || "บาท"]),
-    ];
-    const csv =
-      "\ufeff" +
-      rows
-        .map((row) =>
-          row
-            .map(
-              (v) =>
-                '"' +
-                String(v ?? "")
-                  .replace(/^[\s]*[=+@\-]/, (m) => "'" + m)
-                  .replaceAll('"', '""') +
-                '"',
-            )
-            .join(","),
-        )
-        .join("\r\n");
-    const url = URL.createObjectURL(
-        new Blob([csv], { type: "text/csv;charset=utf-8" }),
-      ),
-      a = document.createElement("a");
-    a.href = url;
-    a.download = `sales-${data.mode}-${data.start}-${data.end}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
 })();

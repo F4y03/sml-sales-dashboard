@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { analyticsQuery } from './analytics.js';
 
 const customersSql = await readFile(new URL('./sql/customer-insights.sql', import.meta.url), 'utf8');
 const productsSql = await readFile(new URL('./sql/customer-products.sql', import.meta.url), 'utf8');
@@ -23,7 +24,37 @@ function customerQueryError(error) {
   return 'ดึงข้อมูลลูกค้าจาก SML ไม่สำเร็จ กรุณาลองใหม่';
 }
 
+// Same definition as the overview chart "ยอดขายแยกตามพนักงานขาย" (sale_code on sales lines, flag 44, no returns).
+const sellersSql = analyticsQuery('salesperson');
+// Territory users only see their own teams. Team codes accept the raw SML sale_code (กท-ต) or the normalized one (กต),
+// matching scopeQuery in src/services/territoryService.js.
+const ownSellersSql = `SELECT * FROM (${sellersSql}) s
+  WHERE regexp_replace(regexp_replace(btrim(s.code), '^ฝ', ''), '^กท-', 'ก') = ANY($3::text[]) OR btrim(s.code) = ANY($3::text[])
+  ORDER BY s."value" DESC, s.code`;
+export const SELLER_VIEW_ROLES = ['super_admin', 'executive'];
+export function sellerView(auth) {
+  if (auth?.scope === 'territory') return 'own';
+  return SELLER_VIEW_ROLES.includes(auth?.role) ? 'all' : null;
+}
+
 export function installCustomerInsights(app, pool, accessStore) {
+  app.get('/api/customer-insights/sellers', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const view = sellerView(req.auth);
+    if (!view) return res.status(403).json({ error: 'ไม่มีสิทธิ์ดูยอดขายตามพนักงานขาย' });
+    const { start, end } = req.query;
+    if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาเลือกช่วงวันที่ให้ถูกต้องและไม่เกิน 366 วัน' });
+    try {
+      const teams = req.territory?.mapping?.teams ?? [];
+      const { rows } = view === 'own'
+        ? await pool.query(ownSellersSql, [start, end, teams])
+        : await pool.query(sellersSql, [start, end]);
+      res.json({ view, rows: rows.map(r => ({ code: r.code, name: r.name, value: Number(r.value) })), start, end, updatedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error('Sellers query failed:', error.code);
+      res.status(503).json({ error: customerQueryError(error) });
+    }
+  });
   app.get('/api/customer-insights/non-buyers', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const { start, end } = req.query;

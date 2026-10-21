@@ -55,6 +55,44 @@ test('customer API validates dates and codes, binds exact customer codes, and re
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test('sellers API: Super Admin / executive see all, territory users only their own teams, others are refused', async () => {
+  const app = express();
+  let auth = null, territory = null;
+  app.use((req, res, next) => { req.auth = auth; req.territory = territory; next(); });
+  const calls = [];
+  installCustomerInsights(app, { query: async (sql, params) => { calls.push({ sql, params }); return { rows: [{ code: 'อย', name: 'กิญโญ', value: '100.50' }] }; } });
+  const { server, base } = await listen(app);
+  const get = () => fetch(`${base}/api/customer-insights/sellers?start=2026-10-01&end=2026-10-21`);
+  try {
+    for (const role of ['admin', 'custom_role', undefined]) {
+      auth = role ? { role, scope: 'all' } : null;
+      assert.equal((await get()).status, 403, String(role));
+    }
+    assert.equal(calls.length, 0, 'refused roles never query SML');
+    for (const role of ['super_admin', 'executive']) {
+      auth = { role, scope: 'all' };
+      const body = await (await get()).json();
+      assert.equal(body.view, 'all');
+      assert.deepEqual(body.rows, [{ code: 'อย', name: 'กิญโญ', value: 100.5 }]);
+      assert.deepEqual(calls.at(-1).params, ['2026-10-01', '2026-10-21']);
+      assert.ok(!calls.at(-1).sql.includes('$3'));
+    }
+    // An executive limited to a territory is treated like Sales: own teams only, bound as a parameter.
+    for (const role of ['sales', 'executive']) {
+      auth = { role, scope: 'territory' }; territory = { mapping: { teams: ['อย', "x' OR 1=1 --"] } };
+      const response = await get();
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).view, 'own');
+      assert.deepEqual(calls.at(-1).params, ['2026-10-01', '2026-10-21', ['อย', "x' OR 1=1 --"]]);
+      assert.ok(calls.at(-1).sql.includes('ANY($3::text[])') && !calls.at(-1).sql.includes('OR 1=1'));
+    }
+    territory = null;
+    assert.deepEqual(calls.at(-1).params.length, 3);
+    assert.deepEqual((await get().then(r => r.json())).rows.length, 1);
+    assert.deepEqual(calls.at(-1).params[2], [], 'no territory selected -> empty team list, no rows widen');
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test('customer API distinguishes connection, configuration and query timeout failures without exposing database details', async () => {
   const app = express();
   let failure;

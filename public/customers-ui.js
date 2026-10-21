@@ -1033,6 +1033,140 @@ function renderSummaryCharts() {
   }
 }
 
+// ยอดขายตามพนักงานขาย: นิยามเดียวกับกราฟ "ยอดขายแยกตามพนักงานขาย" หน้าภาพรวม (/api/analytics mode=salesperson)
+// = ยอดรายการในบิลขาย 44 ตาม sale_code ในบิล ไม่หักรับคืน จึงไม่เท่ากับยอดซื้อสุทธิของลูกค้าตามทะเบียน
+let sellers = { status: "idle", rows: [], error: "" },
+  sellerController,
+  sellerRequest = 0,
+  sellerAnimate = false;
+const sellerColors = [
+  "#e10600", "#2f7fe0", "#f2a600", "#14a37f", "#8e5bd6",
+  "#ff7a1a", "#18a8c4", "#e0479e", "#7fb83a", "#a0703c",
+];
+async function loadSellers(requestedPeriod, silent = false) {
+  sellerController?.abort();
+  // Super Admin / ผู้บริหาร see everyone, territory users their own teams; the server enforces the same rule.
+  if (!window.prplusAccess?.sellers) return;
+  const controller = new AbortController(),
+    request = ++sellerRequest;
+  sellerController = controller;
+  if (!silent) sellers = { status: "loading", rows: [], error: "" };
+  renderSellerCard();
+  try {
+    const data = await requestJSON(
+      `/api/customer-insights/sellers?${new URLSearchParams(requestedPeriod)}`,
+      controller.signal,
+    );
+    if (request !== sellerRequest) return;
+    sellers = {
+      status: "ready",
+      rows: data.rows.map((r) => ({ ...r, value: Number(r.value) })),
+      error: "",
+    };
+    sellerAnimate = !silent;
+  } catch (error) {
+    if (controller.signal.aborted || request !== sellerRequest) return;
+    sellers = {
+      status: "error",
+      rows: [],
+      error:
+        error.message === "Failed to fetch"
+          ? "โหลดยอดขายตามพนักงานขายไม่สำเร็จ"
+          : error.message,
+    };
+  }
+  renderSellerCard();
+}
+function renderSellerCard() {
+  if (!window.prplusAccess?.sellers) return;
+  const team = el("customer-team").value,
+    chart = el("seller-summary-chart"),
+    code = team === "-" ? "" : team;
+  chart.replaceChildren(
+    node("p", "ตามผู้ขายในบิล · ไม่ขึ้นกับคำค้นหาลูกค้า", "summary-chart-caption"),
+  );
+  chart.setAttribute(
+    "aria-label",
+    team ? "สัดส่วนยอดขายของพนักงานขายที่เลือก" : "สัดส่วนยอดขายของพนักงานขาย 5 อันดับแรก",
+  );
+  if (sellers.status !== "ready") {
+    el("seller-sales").textContent = "—";
+    el("seller-sales-note").textContent =
+      sellers.status === "error" ? sellers.error : "กำลังโหลด…";
+    if (sellers.status === "error")
+      chart.append(node("span", sellers.error, "summary-chart-empty"));
+    return;
+  }
+  const total = sellers.rows.reduce((sum, r) => sum + r.value, 0),
+    selected = team ? sellers.rows.find((r) => r.code === code) : null;
+  el("seller-sales").textContent = money(team ? (selected?.value ?? 0) : total);
+  el("seller-sales-note").textContent = team
+    ? selected
+      ? `${selected.name} · ${number.format(total ? (selected.value / total) * 100 : 0)}% ของยอดขายรวม`
+      : "ไม่มีบิลขายที่ออกโดยพนักงานขายนี้ในช่วงที่เลือก"
+    : `ไม่หักรับคืน · ${number.format(sellers.rows.length)} พนักงานขาย${window.prplusAccess.sellers === "own" ? "ในเขตของคุณ" : ""}`;
+  if (!total) {
+    chart.append(node("span", "ไม่มีบิลขายในช่วงวันที่เลือก", "summary-chart-empty"));
+    return;
+  }
+  // Every salesperson is its own segment; colours follow the overview chart (analytics-ui.js) by rank.
+  const values = sellers.rows.map((r) => [
+    r.code ? `${r.name} · ${r.code}` : r.name,
+    r.value,
+  ]);
+  const selectedIndex = selected ? sellers.rows.indexOf(selected) : -1;
+  const colors = sellers.rows.map((_, i) => sellerColors[i % sellerColors.length]);
+  const topValue = selected ? selected.value : sellers.rows[0].value,
+    animate = sellerAnimate;
+  sellerAnimate = false;
+  const layout = node("div", "", "summary-donut-layout");
+  const donut = summaryRing({
+    className: "summary-donut",
+    centerClass: "summary-donut-center",
+    box: 140,
+    r: 52,
+    ariaLabel: "ยอดขายตามพนักงานขาย",
+    segments: values.map(([label, value], index) => ({
+      share: (value / total) * 100,
+      color: colors[index],
+      value: number.format((value / total) * 100) + "%",
+      label,
+      sub: money(value),
+      aria: `${label}: ${money(value)} (${number.format((value / total) * 100)}%)`,
+    })),
+    center: {
+      value: (topValue / total) * 100,
+      text: (v) => number.format(v) + "%",
+      label: team ? "ของยอดขายรวม" : "อันดับ 1",
+    },
+    animate,
+  });
+  layout.append(donut.ring);
+  const legend = node("div", "", "summary-chart-legend seller-legend");
+  legend.tabIndex = 0;
+  legend.setAttribute("aria-label", "รายชื่อพนักงานขายทั้งหมด เลื่อนดูได้");
+  for (const [index, [label, value]] of values.entries()) {
+    const row = node("div", "", "summary-chart-label");
+    row.classList.toggle("is-selected", index === selectedIndex);
+    const dot = node("i", "", "summary-legend-dot");
+    dot.style.background = colors[index];
+    dot.setAttribute("aria-hidden", "true");
+    row.append(dot, node("span", label), node("b", money(value)));
+    legend.append(row);
+  }
+  linkLegend(legend, donut.activate);
+  donut.ring.addEventListener("ring-activate", ({ detail }) =>
+    [...legend.children].forEach((row, index) =>
+      row.classList.toggle("is-active", index === detail),
+    ),
+  );
+  layout.append(legend);
+  chart.append(layout);
+  // Bring the selected salesperson into view inside the scrolling list (not the page).
+  const pick = legend.children[selectedIndex];
+  if (pick) legend.scrollTop = pick.offsetTop - legend.offsetTop - 8;
+}
+
 function applySearch(preservePage = false) {
   if (!period) return;
   if (el("customer-detail").open) closeCustomerDetail();
@@ -1055,6 +1189,7 @@ function applySearch(preservePage = false) {
   );
   el("matching-count").textContent = `${number.format(filtered.length)} ราย`;
   renderSummaryCharts();
+  renderSellerCard();
   renderChart();
   renderCustomers();
   message(
@@ -1400,6 +1535,9 @@ function invalidateMaster() {
   if (el("customer-detail").open) closeCustomerDetail();
   masterController?.abort();
   masterRequest++;
+  sellerController?.abort();
+  sellerRequest++;
+  sellers = { status: "idle", rows: [], error: "" };
   period = null;
   customers = [];
   filtered = [];
@@ -1439,6 +1577,7 @@ async function loadCustomers(silent = false) {
       .sort((a, b) => b.net - a.net || a.code.localeCompare(b.code, "th"));
     period = requestedPeriod;
     masterUpdatedAt = data.updatedAt;
+    loadSellers(requestedPeriod, silent);
     fillTeamSelect(el("customer-team"), customers);
     selectedCode = null;
     // Keep a selected customer across date changes only if it still matches both filters.
@@ -1629,7 +1768,15 @@ async function startInsightsAccess() {
     window.prplusAccess = {
       customer: has("customer_analysis"),
       product: has("product_analysis"),
+      // Same rule as sellerView() in customer-insights.js.
+      sellers:
+        user.scope === "territory"
+          ? "own"
+          : ["super_admin", "executive"].includes(user.role)
+            ? "all"
+            : null,
     };
+    el("seller-summary-card").hidden = !window.prplusAccess.sellers;
     el("customers-view-button").hidden = !window.prplusAccess.customer;
     el("products-view-button").hidden = !window.prplusAccess.product;
     if (window.prplusAccess.customer) {
