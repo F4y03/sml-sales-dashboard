@@ -61,7 +61,7 @@
           <div>
             <p>
               ส่งออกสินค้าครบทุกแถวตามขอบเขตที่เลือก
-              พร้อมทุกคอลัมน์ในทะเบียนสินค้า
+              เลือกได้ทั้งแบบสรุปหรือทุกคอลัมน์ในทะเบียนสินค้า
             </p>
           </div>
           <div class="export-controls">
@@ -71,6 +71,13 @@
                 <option value="active">มีการเคลื่อนไหวปี 2568–2569</option>
                 <option value="inactive">ไม่มีการเคลื่อนไหวปี 2568–2569</option>
                 <option value="filtered">ตามตัวกรองที่แสดง</option>
+              </select></label
+            ><label
+              >คอลัมน์<select id="export-columns">
+                <option value="summary">
+                  สรุป (รหัส ชื่อ คงเหลือ หน่วย ราคาขาย)
+                </option>
+                <option value="all">ทุกคอลัมน์ในทะเบียน</option>
               </select></label
             ><label
               >รูปแบบไฟล์<select id="export-format">

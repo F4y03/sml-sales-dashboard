@@ -27,7 +27,8 @@ export function installAccess(app) {
     if(path==='/product-sheet'||path.startsWith('/product-sheet/'))return isProductSheetPublicRead(req)||req.auth.role==='super_admin'?next():forbidden();
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
-    if(path==='/api/products/export'&&req.auth.role!=='super_admin')return forbidden();
+    // ดาวน์โหลดข้อมูลสินค้าเป็นสิทธิ์แยก (Super Admin มีเสมอ) ต้องกันที่ API ด้วย ไม่ใช่แค่ซ่อนปุ่ม
+    if(path==='/api/products/export'&&!hasPermission(req.auth,'product_export'))return forbidden();
     // สินค้าขายดีเป็นสิทธิ์แยก Super Admin มอบให้เป็นรายบุคคล ซ่อนปุ่มอย่างเดียวไม่พอ ต้องกันที่ API ด้วย
     const wantsBestSellers=path==='/api/products/best-seller'
       ||((path==='/api/products'||path==='/api/products/export')&&typeof req.query.best==='string'&&req.query.best!==''&&req.query.best!=='off');

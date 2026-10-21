@@ -54,14 +54,23 @@ function productOrder(query,best='off'){
   return {sort,direction,sql:`${productSorts[sort]} ${direction.toUpperCase()} NULLS LAST, code ASC, roworder ASC`};
 }
 const fieldsOf=result=>result.fields.map(f=>({key:f.name,label:productLabels[f.name]||f.name}));
+// ไฟล์แบบสรุป: คอลัมน์เดียวกับตารางหน้าเช็คราคา/สต๊อก (คงเหลือว่าง = ไม่มีข้อมูล ไม่ใช่ 0)
+export const summaryFields=[
+  {key:'code',label:'รหัสสินค้า',width:22},{key:'name_1',label:'ชื่อสินค้า',width:60},
+  {key:'balance_qty',label:'คงเหลือ',width:12,number:true},{key:'unit_standard',label:'หน่วย',width:10},
+  {key:'catalog_sale_price',label:'ราคาขายในทะเบียน (บาท)',width:24,number:true,numFmt:'#,##0.00'},
+];
+const numericText=/^[+-]?[0-9]+([.][0-9]+)?$/;
+// ตัวเลขเป็น number ใน Excel เฉพาะค่าที่เป็นตัวเลขจริง ค่าอื่นคงข้อความเดิม ค่า NULL คงว่าง
+export const summaryValue=(field,value)=>field.number&&value!=null&&numericText.test(String(value).trim())?Number(value):value??null;
 export function csvValue(value){let s=String(value??'');if(/^[\s]*[=+@\-]/.test(s)||/^[\t\r\n]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
-export async function excelBuffer(rows,fields,metadata){
+export async function excelBuffer(rows,fields,metadata,summary=false){
   const output=new PassThrough(),chunks=[];output.on('data',c=>chunks.push(c));
   const workbook=new ExcelJS.stream.xlsx.WorkbookWriter({stream:output,useStyles:true,useSharedStrings:false});
-  const sheet=workbook.addWorksheet('สินค้าทั้งหมด',{views:[{state:'frozen',ySplit:1,xSplit:2}]});
-  sheet.columns=fields.map(f=>({key:f.key,width:f.key==='name_1'?48:22}));
-  const header=sheet.addRow(fields.map(f=>`${f.label} [${f.key}]`));header.font={bold:true,color:{argb:'FFFFFFFF'}};header.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF198263'}};header.commit();
-  for(const row of rows)sheet.addRow(fields.map(f=>row[f.key]??null)).commit();
+  const sheet=workbook.addWorksheet('สินค้าทั้งหมด',{views:[{state:'frozen',ySplit:1,xSplit:summary?1:2}]});
+  sheet.columns=fields.map(f=>({key:f.key,width:f.width??(f.key==='name_1'?48:22),...(f.numFmt?{style:{numFmt:f.numFmt}}:{})}));
+  const header=sheet.addRow(fields.map(f=>summary?f.label:`${f.label} [${f.key}]`));header.font={bold:true,color:{argb:'FFFFFFFF'}};header.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF198263'}};header.commit();
+  for(const row of rows)sheet.addRow(fields.map(f=>summary?summaryValue(f,row[f.key]):row[f.key]??null)).commit();
   sheet.autoFilter={from:{row:1,column:1},to:{row:rows.length+1,column:fields.length}};sheet.commit();
   const info=workbook.addWorksheet('ข้อมูลการส่งออก');for(const pair of Object.entries(metadata))info.addRow(pair).commit();info.commit();
   await workbook.commit();return Buffer.concat(chunks);
@@ -142,23 +151,25 @@ export function installProducts(app,pool){
     if(exporting)return res.status(429).json({error:'กำลังสร้างไฟล์อยู่ กรุณารอสักครู่แล้วลองใหม่'});
     let client;
     try{
-      const format=req.query.format??'xlsx',scope=req.query.scope??'all';
-      if(!['xlsx','csv','json'].includes(format)||!['all','filtered','active','inactive'].includes(scope))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
+      const format=req.query.format??'xlsx',scope=req.query.scope??'all',columns=req.query.columns??'all';
+      if(!['xlsx','csv','json'].includes(format)||!['all','filtered','active','inactive'].includes(scope)||!['all','summary'].includes(columns))throw new Error('รูปแบบไฟล์หรือขอบเขตไม่ถูกต้อง');
+      const summary=columns==='summary';
       const f=filters(scope==='filtered'?req.query:{q:'',group:'',activity:scope,stock:'all'});exporting=true;
       const cte=bestSellerCte(f.best);
       const exportOrder=f.best==='off'?'code ASC, roworder ASC':'best_seller_rank ASC NULLS LAST, code ASC';
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       const result=await client.query({text:`WITH ${cte} SELECT * FROM (${ranked}) ranked_rows ORDER BY ${exportOrder}`,values:[f.q,f.group,f.activity,f.stock,f.best,f.subgroup],types});
       await client.query('COMMIT');client.release();client=null;
-      const fields=fieldsOf(result),updatedAt=new Date().toISOString();
+      const fields=summary?summaryFields:fieldsOf(result),updatedAt=new Date().toISOString();
       const bestSellerNote={off:'ไม่ใช้ตัวกรองสินค้าขายดี',all:'เฉพาะสินค้าขายดี (ยอดขายสุทธิทั้งหมด) เรียงอันดับ 1 ก่อน','3m':'เฉพาะสินค้าขายดีช่วง 3 เดือนก่อน เรียงอันดับ 1 ก่อน'}[f.best];
       const metadata={source:'SML ski / ic_inventory',exportedAt:updatedAt,scope,search:f.q,group:f.group,count:result.rows.length,activityStart:'2025-01-01',activityEnd:'2026-12-31',bestSellers:bestSellerNote,bestSellerBasis:'ยอดขายสุทธิ = trans_flag 44 + 46 - 48 เฉพาะเอกสารไม่ยกเลิกและไม่ใช่สำเนา ไม่รวมสินค้าฝากขาย',note:'สินค้าทั้งทะเบียน รวมมีและไม่มีการเคลื่อนไหว; สถานะการเคลื่อนไหวอ้างอิงรายการไม่ยกเลิกในปี 2568–2569 ชื่อและราคาเป็นค่าปัจจุบัน; ทะเบียนสินค้าทุกคอลัมน์ ไม่ใช่รายงานคงเหลือคำนวณตามวันที่; numeric ทศนิยมเก็บเป็นข้อความเพื่อรักษาค่าต้นฉบับ'};
       let body,contentType;
-      metadata.subgroup=f.subgroup;
-      if(format==='xlsx'){body=await excelBuffer(result.rows,fields,metadata);contentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';}
-      else if(format==='csv'){body='\ufeff'+[fields.map(f=>csvValue(`${f.label} [${f.key}]`)).join(','),...result.rows.map(row=>fields.map(f=>csvValue(row[f.key])).join(','))].join('\r\n');contentType='text/csv; charset=utf-8';}
-      else{body=JSON.stringify({metadata,fields,products:result.rows},null,2);contentType='application/json; charset=utf-8';}
-      res.set({'Content-Type':contentType,'Content-Disposition':`attachment; filename="sml-products-${scope}-${updatedAt.slice(0,10)}.${format}"`,'X-Product-Count':String(result.rows.length)}).send(body);
+      metadata.subgroup=f.subgroup;metadata.columns=summary?'\u0e2a\u0e23\u0e38\u0e1b: \u0e23\u0e2b\u0e31\u0e2a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d \u0e2b\u0e19\u0e48\u0e27\u0e22 \u0e23\u0e32\u0e04\u0e32\u0e02\u0e32\u0e22\u0e43\u0e19\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19':'\u0e17\u0e38\u0e01\u0e04\u0e2d\u0e25\u0e31\u0e21\u0e19\u0e4c\u0e43\u0e19\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19';
+      const rows=summary?result.rows.map(row=>Object.fromEntries(fields.map(f=>[f.key,row[f.key]??null]))):result.rows;
+      if(format==='xlsx'){body=await excelBuffer(rows,fields,metadata,summary);contentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';}
+      else if(format==='csv'){body='\ufeff'+[fields.map(f=>csvValue(summary?f.label:`${f.label} [${f.key}]`)).join(','),...rows.map(row=>fields.map(f=>csvValue(row[f.key])).join(','))].join('\r\n');contentType='text/csv; charset=utf-8';}
+      else{body=JSON.stringify({metadata,fields:fields.map(({key,label})=>({key,label})),products:rows},null,2);contentType='application/json; charset=utf-8';}
+      res.set({'Content-Type':contentType,'Content-Disposition':`attachment; filename="sml-products-${summary?'summary-':''}${scope}-${updatedAt.slice(0,10)}.${format}"`,'X-Product-Count':String(result.rows.length)}).send(body);
     }catch(e){if(client)await client.query('ROLLBACK').catch(()=>{});res.status(e.code?503:400).json({error:e.code?'ส่งออกข้อมูลไม่สำเร็จ กรุณาลองใหม่':e.message});}finally{client?.release();exporting=false;}
   });
 }

@@ -4,9 +4,11 @@ const exportDialog = $("product-export-dialog");
 let canRankBestSellers = false;
 window.addEventListener("prplus-access", (event) => {
   const allowed = event.detail?.role === "super_admin";
-  $("open-export").hidden = !allowed;
-  exportDialog.hidden = !allowed;
-  if (!allowed && exportDialog.open) exportDialog.close();
+  const canExport =
+    allowed || !!event.detail?.permissions?.includes("product_export");
+  $("open-export").hidden = !canExport;
+  exportDialog.hidden = !canExport;
+  if (!canExport && exportDialog.open) exportDialog.close();
   canRankBestSellers =
     allowed || !!event.detail?.permissions?.includes("best_sellers");
   $("product-best-field").hidden = !canRankBestSellers;
@@ -374,11 +376,12 @@ $("download-products").onclick = async () => {
   $("download-status").textContent =
     "กำลังสร้างไฟล์สินค้าทุกแถวตามขอบเขตที่เลือก…";
   const format = $("export-format").value,
+    columns = $("export-columns").value,
     scope = "filtered";
   try {
     const r = await fetch(
       "/api/products/export?" +
-        new URLSearchParams({ ...applied, format, scope }),
+        new URLSearchParams({ ...applied, format, scope, columns }),
       { cache: "no-store", signal: AbortSignal.timeout(120000) },
     );
     if (!r.ok) {

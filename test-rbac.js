@@ -48,6 +48,8 @@ test('all four roles enforce pages/APIs; unknown routes and encoded URLs fail cl
   const f=await fixture(t);await f.create('boss','executive');await f.create('office','admin');await f.create('rep','sales',[1]);
   const matrix={root:[200,200,200,200,200],boss:[200,200,200,200,403],office:[403,200,403,403,403],rep:[403,200,200,403,403]};
   for(const [user,statuses] of Object.entries(matrix)){const {cookie,r}=await f.login(user);assert.equal(r.status,200);for(const [i,path] of ['/api/dashboard','/api/products','/api/customer-insights','/api/reports','/system-admin.html'].entries())assert.equal((await f.request(path,cookie)).status,statuses[i],user+' '+path);for(const path of ['/api/products/export','/api/products/Export','/API/PRODUCTS/EXPORT'])assert.equal((await f.request(path,cookie)).status,user==='root'?200:403,user+' product export '+path);assert.equal((await f.request('/api/new-module',cookie)).status,403);assert.equal((await f.request('/unregistered.html',cookie)).status,403);}
+  f.store.run("INSERT INTO user_permissions SELECT u.id,p.id FROM users u,permissions p WHERE u.username='office' AND p.code='product_export'");
+  {const {cookie}=await f.login('office');assert.equal((await f.request('/api/products/export',cookie)).status,200,'granted product_export');}
   const {cookie}=await f.login('office');assert.equal((await f.request('/%65xecutive.html',cookie)).status,403);assert.equal((await f.request('/api/customer-insights/catalog',cookie)).status,403);assert.equal((await f.request('/login.html')).status,200);
 });
 test('territory zero/one/multiple selection; forged IDs; assignment removal and disabled territories',async t=>{
