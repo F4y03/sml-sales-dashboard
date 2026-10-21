@@ -1242,3 +1242,19 @@ body {
     border-radius: 14px;
   }
 }
+/* Active tab: same solid red as the active sidebar item, so the current tab is obvious. */
+.cs2 .cs2-tabs button[aria-selected="true"] {
+  background: linear-gradient(135deg, #d80600, #8a0000);
+  border-color: #e10600;
+  color: #fff;
+  box-shadow: 0 6px 18px #d8060040;
+}
+.cs2 .cs2-tabs button[aria-selected="true"]:hover {
+  background: linear-gradient(135deg, #e10600, #9a0000);
+}
+.cs2 .cs2-tabs button[aria-selected="false"] {
+  color: var(--muted, #b0b1b8);
+}
+.cs2 .cs2-tabs button[aria-selected="false"]:hover {
+  color: var(--ink, #f4f4f5);
+}

@@ -3,7 +3,7 @@
 // is enforced in src/middleware/access.js before these routes run.
 import { stockAffectingSQL } from './consignment.js';
 
-const PAGE = 50;
+const STOCK_PAGE = 10; // stock tab: 10 products per page
 const BILL_PAGE = 10; // customer history: 10 documents per page
 const DOC_FLAGS = '(44, 46, 48)'; // ขาย + เพิ่มหนี้ + รับคืน/ลดหนี้, same as Customer Insights
 const numericText = "'^[+-]?[0-9]+([.][0-9]+)?$'";
@@ -136,7 +136,7 @@ SELECT json_build_object(
       CASE WHEN $3 = 'quantity' THEN quantity END DESC NULLS LAST,
       CASE WHEN $3 = 'name' THEN name END ASC,
       code ASC
-    LIMIT ${PAGE} OFFSET $4) r), '[]'::json)
+    LIMIT ${STOCK_PAGE} OFFSET $4) r), '[]'::json)
 ) AS stock`;
 
 const productSearchSql = `
@@ -292,8 +292,8 @@ export function installCustomerStock(app, pool) {
       return res.status(400).json({ error: 'ตัวกรองสต็อกไม่ถูกต้อง' });
     }
     try {
-      const data = (await pool.query(stockSql, [q, filter, sort, page * PAGE])).rows[0].stock;
-      res.json({ ...data, page, pageSize: PAGE, updatedAt: new Date().toISOString() });
+      const data = (await pool.query(stockSql, [q, filter, sort, page * STOCK_PAGE])).rows[0].stock;
+      res.json({ ...data, page, pageSize: STOCK_PAGE, updatedAt: new Date().toISOString() });
     } catch (error) { queryError(res, error, 'stock'); }
   });
 

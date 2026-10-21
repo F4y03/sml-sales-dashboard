@@ -469,7 +469,13 @@
     tab.focus(); selectTab(tab.dataset.platform); load();
   });
   presets.forEach(button => button.addEventListener('click', () => { applyPreset(button.dataset.preset); load(); }));
-  for (const input of [startInput, endInput]) input.addEventListener('change', () => { preset = ''; presets.forEach(b => b.setAttribute('aria-pressed', 'false')); });
+  // Picking a date reloads by itself (debounced so typing a date does not fire a request per keystroke).
+  let dateTimer;
+  for (const input of [startInput, endInput]) input.addEventListener('change', () => {
+    preset = ''; presets.forEach(b => b.setAttribute('aria-pressed', 'false'));
+    clearTimeout(dateTimer);
+    if (startInput.value && endInput.value && startInput.value <= endInput.value) dateTimer = setTimeout(load, 400);
+  });
   form.addEventListener('submit', event => { event.preventDefault(); load(); });
   shopFilter.addEventListener('change', load);
   window.addEventListener('hashchange', () => {
