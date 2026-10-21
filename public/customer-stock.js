@@ -125,7 +125,7 @@
 
   // Browse by salesperson (ar_customer_detail.sale_code — same source and labels as Customer Insights).
   const TEAM_NAMES = {
-    หย: "เหนือ", วย: "ตะวันออก", "กท-ต": "กรุงเทพ-ติ้ก", อย: "อีสาน", กภ: "กรุงเทพ",
+    หย: "เหนือ", วย: "ตะวันออก", "กท-ต": "กรุงเทพ-ติ้ก", อย: "อีสาน", กภ: "กรุงเทพ-โย",
     ลภ: "กลาง", ตช: "ใต้", "กท-ร": "กรุงเทพ-รุ่ง", "กท-ณ": "กรุงเทพ-บริษัท1", บอ: "กรุงเทพ-บริษัท2",
   };
   const teamLabel = (code) => (!code ? "ไม่ระบุพนักงานขาย" : TEAM_NAMES[code] ? `${TEAM_NAMES[code]} (${code})` : code);

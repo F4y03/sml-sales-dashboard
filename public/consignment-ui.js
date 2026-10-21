@@ -1,4 +1,7 @@
-import { regionFor } from "./consignment-data.js?v=20261020-team2";
+import { regionFor, regionMap } from "./consignment-data.js?v=20261021-kpyo2";
+// Region dropdown shows the team code too, e.g. "กรุงเทพ-โย (กภ)" — same style as the salesperson filter.
+const regionCode = Object.fromEntries(Object.entries(regionMap).map(([prefix, name]) => [name, prefix.replace(/^ฝ/, "")]));
+const regionLabel = (name) => (regionCode[name] ? `${name} (${regionCode[name]})` : name);
 import { renderRegionalChart } from "./consignment-region-chart.js?v=20261020-region-hl";
 import { setHelpData } from "./consignment-help.js";
 import { exportConsignment } from "./consignment-export.js";
@@ -220,14 +223,14 @@ function cell(tr, text, className = "") {
   tr.append(td);
   return td;
 }
-function options(id, values) {
+function options(id, values, label = (v) => v) {
   const old = $(id).value;
   $(id).replaceChildren(
     new Option("ทั้งหมด", ""),
     ...[...new Set(values)]
       .filter(Boolean)
-      .sort()
-      .map((v) => new Option(v, v)),
+      .sort((a, b) => label(a).localeCompare(label(b), "th"))
+      .map((v) => new Option(label(v), v)),
   );
   if ([...$(id).options].some((o) => o.value === old)) $(id).value = old;
 }
@@ -1012,6 +1015,7 @@ async function load(silent = false) {
     options(
       "region",
       products.map((p) => p.region),
+      regionLabel,
     );
     options(
       "customer",
