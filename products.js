@@ -31,7 +31,9 @@ const bestSellerCte=mode=>mode==='off'
           AND (NULLIF(btrim(h.branch_code),'') IS NULL OR h.branch_code=d.branch_code))
       GROUP BY d.item_code HAVING ${bestSellerNet} > 0)`;
 const activityScope = "EXISTS (SELECT 1 FROM ic_trans_detail d WHERE d.item_code=i.code AND d.doc_date >= DATE '2025-01-01' AND d.doc_date < DATE '2027-01-01' AND d.last_status=0)";
-const where=`($1::text='' OR strpos(lower(COALESCE(i.code,'')),lower($1))>0 OR strpos(lower(COALESCE(i.name_1,'')),lower($1))>0) AND ($2::text='' OR i.group_main=$2) AND ($3::text='all' OR ($3='active' AND ${activityScope}) OR ($3='inactive' AND NOT ${activityScope})) AND ($4::text='all' OR ($4='in' AND i.balance_qty>0) OR ($4='out' AND i.balance_qty<=0)) AND ($5::text='off' OR bs.code IS NOT NULL) AND ($6::text='' OR i.group_sub=$6)`;
+// เลิกผลิต / หยุดขาย / หยุดซื้อ (SML แท็บ 8.สถานะ → ic_inventory_detail) ไม่แสดงในเช็คราคา/สต๊อก และไม่อยู่ในไฟล์ดาวน์โหลด
+export const sellable="NOT EXISTS (SELECT 1 FROM ic_inventory_detail x WHERE x.ic_code=i.code AND (x.is_end=1 OR x.is_hold_sale=1 OR x.is_hold_purchase=1))";
+const where=`${sellable} AND ($1::text='' OR strpos(lower(COALESCE(i.code,'')),lower($1))>0 OR strpos(lower(COALESCE(i.name_1,'')),lower($1))>0) AND ($2::text='' OR i.group_main=$2) AND ($3::text='all' OR ($3='active' AND ${activityScope}) OR ($3='inactive' AND NOT ${activityScope})) AND ($4::text='all' OR ($4='in' AND i.balance_qty>0) OR ($4='out' AND i.balance_qty<=0)) AND ($5::text='off' OR bs.code IS NOT NULL) AND ($6::text='' OR i.group_sub=$6)`;
 productLabels.activity_2568_2569 = 'การเคลื่อนไหวปี 2568–2569';
 productLabels.catalog_sale_price = 'ราคาขายในทะเบียน (price_0 ตามหน่วยมาตรฐาน)';
 productLabels.best_seller_net = 'ยอดขายสุทธิที่ใช้จัดอันดับ (บาท)';
@@ -133,13 +135,13 @@ export function installProducts(app,pool){
       if(!Number.isInteger(page)||page<0||page>100000)throw new Error('หน้าข้อมูลไม่ถูกต้อง');
       const cte=bestSellerCte(f.best),base=[f.q,f.group,f.activity,f.stock,f.best,f.subgroup];
       client=await pool.connect();await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const counts=(await client.query(`WITH ${cte} SELECT COUNT(*) AS total,COUNT(*) FILTER(WHERE ${activityScope}) AS active_count,COUNT(*) FILTER(WHERE ${where}) AS matching FROM ic_inventory i LEFT JOIN best_sellers bs ON bs.code=i.code`,base)).rows[0];
+      const counts=(await client.query(`WITH ${cte} SELECT COUNT(*) AS total,COUNT(*) FILTER(WHERE ${activityScope}) AS active_count,COUNT(*) FILTER(WHERE ${where}) AS matching FROM ic_inventory i LEFT JOIN best_sellers bs ON bs.code=i.code WHERE ${sellable}`,base)).rows[0];
       const result=await client.query({text:`WITH ${cte} SELECT * FROM (${ranked}) ranked_rows ORDER BY ${order.sql} LIMIT 50 OFFSET $7`,values:[...base,page*50],types});
-      const groups=(await client.query(`SELECT i.group_main AS code,COALESCE(MAX(g.name_1),i.group_main) AS name,COUNT(*) AS count FROM ic_inventory i LEFT JOIN (SELECT code,MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main WHERE COALESCE(i.group_main,'')<>'' GROUP BY i.group_main ORDER BY i.group_main`)).rows;
+      const groups=(await client.query(`SELECT i.group_main AS code,COALESCE(MAX(g.name_1),i.group_main) AS name,COUNT(*) AS count FROM ic_inventory i LEFT JOIN (SELECT code,MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code=i.group_main WHERE COALESCE(i.group_main,'')<>'' AND ${sellable} GROUP BY i.group_main ORDER BY i.group_main`)).rows;
       const subgroups=(await client.query(`SELECT i.group_sub AS code,COALESCE(MAX(g.name_1),i.group_sub) AS name,COUNT(*) AS count
         FROM ic_inventory i LEFT JOIN (SELECT main_group,code,MAX(name_1) AS name_1 FROM ic_group_sub GROUP BY main_group,code) g
           ON g.main_group=i.group_main AND g.code=i.group_sub
-        WHERE COALESCE(i.group_sub,'')<>'' AND ($1::text='' OR i.group_main=$1)
+        WHERE COALESCE(i.group_sub,'')<>'' AND ${sellable} AND ($1::text='' OR i.group_main=$1)
         GROUP BY i.group_sub ORDER BY i.group_sub`,[f.group])).rows;
       await client.query('COMMIT');
       res.json({rows:result.rows,fields:fieldsOf(result),total:Number(counts.total),activeCount:Number(counts.active_count),inactiveCount:Number(counts.total)-Number(counts.active_count),matching:Number(counts.matching),page,pageSize:50,groups,subgroups,sort:order.sort,direction:order.direction,best:f.best,updatedAt:new Date().toISOString()});
