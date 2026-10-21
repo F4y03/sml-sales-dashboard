@@ -10,10 +10,6 @@
     value == null || value === "" || String(value).trim() === "-"
       ? "-"
       : String(value).trim();
-  const safeNumber = (value) => {
-    const num = Number(value);
-    return Number.isFinite(num) ? format.format(num) : "-";
-  };
   const label = (r) => {
     const name = safeText(r?.name);
     const code =
@@ -336,7 +332,6 @@
     chart = null;
     data = null;
     clearDonut();
-    el("analysis-rows").replaceChildren();
     el("analysis-note").textContent = "";
   }
   function draw(d, animate = false) {
@@ -431,18 +426,6 @@
         },
       });
       el("analysis-chart").setAttribute("aria-label", d.title);
-    }
-    el("analysis-rows").replaceChildren();
-    for (const row of d.rows) {
-      const tr = document.createElement("tr");
-      const valueText = safeNumber(row.value);
-      const unitText = safeText(row.unit ?? "บาท");
-      for (const text of [label({ ...row, unit: "" }), valueText, unitText]) {
-        const td = document.createElement("td");
-        td.textContent = text;
-        tr.append(td);
-      }
-      el("analysis-rows").append(tr);
     }
   }
   async function load(silent = false) {
