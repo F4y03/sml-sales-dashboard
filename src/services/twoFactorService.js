@@ -9,11 +9,12 @@ const digest=value=>createHash('sha256').update(value).digest('hex');
 const normalizeRecovery=code=>String(code).replace(/[\s-]/g,'').toUpperCase();
 const formatRecovery=raw=>raw.match(/.{4}/g).join('-');
 // 2FA is mandatory for every account. AUTH_REQUIRE_2FA=false is a development/test escape hatch, never for production.
+// users.two_factor_exempt=1 exempts one account (set by hand for a marketplace app-review login; keep it least-privilege and deactivate after the review).
 export function createTwoFactorService(store,audit,env=process.env) {
   const vault=createSecretVault(env,store.path),enforced=env.AUTH_REQUIRE_2FA!=='false';
   const isEnrolled=id=>!!store.get('SELECT 1 FROM user_totp WHERE user_id=?',id);
   const service={
-    required:()=>enforced,
+    required:user=>enforced&&!user?.two_factor_exempt,
     isEnrolled,
     // ---- challenge: password accepted, second step pending ----
     startChallenge(user) {
