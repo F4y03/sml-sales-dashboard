@@ -1,0 +1,499 @@
+/* ลูกค้า & สต็อก — uses the shared theme tokens from theme-modes.css (light + dark). */
+body {
+  margin: 0;
+  background: var(--canvas, #0b0b0d);
+  color: var(--ink, #f4f4f5);
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+}
+.cs2 {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px clamp(16px, 3vw, 40px) 64px;
+  min-width: 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.cs2-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-heading h1 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.25;
+}
+.cs2-heading h1 span {
+  color: var(--brand, #ff3b30);
+}
+.cs2-subtitle,
+.cs2-muted {
+  margin: 8px 0 0;
+  color: var(--muted, #b0b1b8);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Tabs */
+.cs2-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 24px 0;
+  padding: 6px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 14px;
+  background: var(--surface, #141416);
+}
+.cs2-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cs2-tabs button:hover {
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-tabs button[aria-selected="true"] {
+  background: var(--brand-soft, #311416);
+  border-color: var(--brand-border, #632124);
+  color: var(--brand, #ff3b30);
+}
+.cs2-tabs button:focus-visible,
+.cs2 :is(button, input, select, summary, tr[tabindex]):focus-visible {
+  outline: 2px solid var(--brand, #ff3b30);
+  outline-offset: 2px;
+}
+
+/* Pickers and filters */
+.cs2-picker {
+  position: relative;
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+.cs2-picker label,
+.cs2-filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted, #b0b1b8);
+}
+.cs2 input,
+.cs2 select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface, #141416);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 15px;
+}
+.cs2-picker input {
+  margin-top: 6px;
+}
+.cs2-results {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 6px 0 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--line, #303035);
+  border-radius: 12px;
+  background: var(--surface, #141416);
+  box-shadow: 0 16px 40px #0006;
+}
+.cs2-results button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cs2-results button:hover,
+.cs2-results button:focus-visible {
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-results small {
+  color: var(--muted, #b0b1b8);
+  white-space: nowrap;
+}
+.cs2-filters {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  gap: 12px;
+  margin: 20px 0 8px;
+}
+.cs2-status {
+  min-height: 1.6em;
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-status.error {
+  color: var(--negative, #ff6b6b);
+}
+
+/* Empty state */
+.cs2-empty {
+  display: grid;
+  gap: 6px;
+  padding: 40px 24px;
+  border: 1px dashed var(--line, #303035);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-empty strong {
+  color: var(--ink, #f4f4f5);
+  font-size: 17px;
+}
+
+/* Title + KPI cards */
+.cs2-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: 16px;
+}
+.cs2-title-row h2 {
+  margin: 0;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.cs2-title-row p {
+  margin: 4px 0 0;
+}
+.cs2-kpis {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (min-width: 1201px) {
+  .cs2-kpis:has(> :nth-child(4):last-child) {
+    grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr));
+  }
+}
+.cs2-kpi {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 14px;
+  background: var(--surface, #141416);
+}
+.cs2-kpi span {
+  font-size: 14px;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-kpi strong {
+  font-size: clamp(20px, 1.8vw, 28px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs2-kpi small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-kpi.featured {
+  border-color: #7a0a0a;
+  background: linear-gradient(135deg, #8a0000, #4a0b0c);
+  color: #fff;
+}
+.cs2-kpi.featured :is(span, small) {
+  color: #f5dcd7;
+}
+
+/* Tables */
+.cs2-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line, #303035);
+  border-radius: 14px;
+  background: var(--surface, #141416);
+}
+.cs2-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.cs2-table :is(th, td) {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line, #303035);
+  text-align: left;
+  vertical-align: top;
+}
+.cs2-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #b0b1b8);
+  background: var(--surface-raised, #1c1c20);
+  white-space: nowrap;
+}
+.cs2-table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+.cs2-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cs2-table .muted {
+  color: var(--muted, #b0b1b8);
+}
+.cs2-table .neg {
+  color: var(--negative, #ff6b6b);
+}
+.cs2-table .pos {
+  color: var(--positive, #66d699);
+}
+.cs2-table tr.bill-row {
+  cursor: pointer;
+}
+.cs2-table tr.bill-row:hover > td {
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-table tr.bill-row[aria-expanded="true"] > td {
+  background: var(--surface-raised, #1c1c20);
+  border-bottom-color: transparent;
+}
+.cs2-table .toggle {
+  width: 28px;
+  text-align: center;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-table tr.bill-lines > td {
+  padding: 0 14px 14px;
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.cs2-lines :is(th, td) {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line, #303035);
+}
+.cs2-lines th {
+  background: transparent;
+}
+.cs2-lines tfoot td {
+  border-bottom: 0;
+  font-weight: 600;
+}
+.cs2-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--line, #303035);
+  white-space: nowrap;
+}
+.cs2-badge.sale {
+  color: var(--tone-green-soft-text, #66d699);
+  border-color: var(--tone-green-soft-border, #1f5a3a);
+}
+.cs2-badge.added {
+  color: var(--tone-blue-soft-text, #7cb7ff);
+  border-color: var(--tone-blue-soft-border, #23426b);
+}
+.cs2-badge.return {
+  color: var(--tone-red-soft-text, #ff8a8a);
+  border-color: var(--tone-red-soft-border, #632124);
+}
+.cs2-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-pager button,
+.cs2-more {
+  padding: 8px 14px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface, #141416);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cs2-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.cs2-more {
+  display: block;
+  margin: 12px auto 0;
+}
+
+/* Product journey: วันเข้า → ใครซื้อ → วันหมด */
+.cs2-section-title {
+  margin: 8px 0 12px;
+  font-size: 16px;
+}
+.cs2-cycles {
+  display: grid;
+  gap: 12px;
+}
+.cs2-cycle {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 2.4fr) minmax(150px, 1fr);
+  gap: 0;
+  border: 1px solid var(--line, #303035);
+  border-radius: 14px;
+  background: var(--surface, #141416);
+  overflow: hidden;
+}
+.cs2-step {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+.cs2-step + .cs2-step {
+  border-left: 1px solid var(--line, #303035);
+}
+.cs2-step > span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-step > strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.cs2-step > small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted, #b0b1b8);
+  overflow-wrap: anywhere;
+}
+.cs2-step.in > strong {
+  color: var(--positive, #66d699);
+}
+.cs2-step.out > strong {
+  color: var(--brand, #ff3b30);
+}
+.cs2-step.open > strong {
+  color: var(--warning, #f2c14e);
+}
+.cs2-buyers {
+  display: grid;
+  gap: 2px;
+  max-height: 210px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cs2-buyers li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line, #303035);
+  font-size: 13px;
+}
+.cs2-buyers li:last-child {
+  border-bottom: 0;
+}
+.cs2-buyers b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cs2-buyers small {
+  display: block;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-details {
+  margin-top: 20px;
+}
+.cs2-details summary {
+  margin-bottom: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+  .cs2-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cs2-kpi.featured {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 800px) {
+  .cs2-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cs2-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+  .cs2-cycle {
+    grid-template-columns: 1fr;
+  }
+  .cs2-step + .cs2-step {
+    border-left: 0;
+    border-top: 1px solid var(--line, #303035);
+  }
+}
+@media (max-width: 480px) {
+  .cs2-tabs {
+    display: grid;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .cs2-kpis {
+    grid-template-columns: 1fr;
+  }
+  .cs2-table {
+    font-size: 13px;
+  }
+  .cs2-table :is(th, td) {
+    padding: 9px 10px;
+  }
+}

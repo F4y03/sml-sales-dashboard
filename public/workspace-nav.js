@@ -26,6 +26,8 @@ const workspaceIcons = {
     '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.4 2.6 2.2 4.4 5 4.7"/>',
   upload:
     '<path d="M12 15V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  "customer-stock":
+    '<circle cx="7" cy="7" r="3"/><path d="M2 19v-2a5 5 0 0 1 8-4"/><path d="m13 12 4-2 4 2-4 2-4-2Zm0 0v5l4 2 4-2v-5m-4 2v5"/>',
 };
 const workspaceIcon = (name) =>
   `<svg class="workspace-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${workspaceIcons[name]}</svg>`;
@@ -41,6 +43,7 @@ workspace.innerHTML = `
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon("customers")}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
     <a href="consignment.html" data-page="consignment">${workspaceIcon("consignment")}รับ–เบิกสินค้าฝาก</a>
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
+    <a href="customer-stock.html" data-page="customer-stock">${workspaceIcon("customer-stock")}ลูกค้า &amp; สต็อก</a>
     <a href="reports.html" data-page="reports">${workspaceIcon("reports")}รายงาน SML ทั้งหมด</a>
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
@@ -323,6 +326,12 @@ window.prplusUser
         user.scope === "territory"
       )
         link.hidden = true;
+      // Role-locked like the server (src/middleware/access.js CUSTOMER_STOCK_ROLES).
+      if (link.dataset.page === "customer-stock")
+        link.hidden = !(
+          ["super_admin", "executive"].includes(user.role) &&
+          user.scope !== "territory"
+        );
     });
     workspace.querySelector(".workspace-brand").href = user.landing || "/";
     workspace.querySelector(".workspace-profile small").textContent =

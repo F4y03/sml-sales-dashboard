@@ -1,6 +1,14 @@
 // Report 2060 / key 1132: stock-affecting movements, native unit conversion
 // and POS exclusion. Deposits in this installation are inventory codes ฝ…,
 // not ar_customer codes or the unused ic_wms_trans_detail module.
+// Stock-affecting lines of report 2060 (shared with the product movement tab in customer-stock.js).
+export const stockAffectingSQL = `(d.trans_flag IN (70,54,60,58,310,12,56,68,72,44)
+      OR (d.trans_flag=66 AND d.qty<>0)
+      OR (d.trans_flag=14 AND d.inquiry_type=0)
+      OR (d.trans_flag=48 AND d.inquiry_type<2)
+      OR (d.trans_flag IN (46,16) AND d.inquiry_type IN (0,2))
+      OR (d.trans_flag=311 AND d.inquiry_type=0))
+    AND NOT (d.doc_ref<>'' AND d.is_pos=1)`;
 export const movementsSQL = `
  WITH movements AS (
   SELECT to_char(d.doc_date, 'YYYY-MM-DD') AS date, d.doc_no AS "docNo", d.trans_flag AS flag,
@@ -13,13 +21,7 @@ export const movementsSQL = `
     ROW_NUMBER() OVER (ORDER BY d.doc_date,d.doc_time,d.doc_no,d.line_number,d.roworder) AS index
   FROM ic_trans_detail d LEFT JOIN ic_inventory i ON i.code=d.item_code
   WHERE d.item_code LIKE $1 AND d.last_status=0 AND d.doc_date <= CURRENT_DATE
-    AND (d.trans_flag IN (70,54,60,58,310,12,56,68,72,44)
-      OR (d.trans_flag=66 AND d.qty<>0)
-      OR (d.trans_flag=14 AND d.inquiry_type=0)
-      OR (d.trans_flag=48 AND d.inquiry_type<2)
-      OR (d.trans_flag IN (46,16) AND d.inquiry_type IN (0,2))
-      OR (d.trans_flag=311 AND d.inquiry_type=0))
-    AND NOT (d.doc_ref<>'' AND d.is_pos=1)
+    AND ${stockAffectingSQL}
  )
  SELECT date,"docNo",flag,customer,"productCode",product,unit,type,quantity,index,
    SUM(change) OVER (PARTITION BY "productCode" ORDER BY index ROWS UNBOUNDED PRECEDING) AS balance

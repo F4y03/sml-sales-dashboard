@@ -10,6 +10,7 @@ import { installProducts } from './products.js';
 import { installAnalytics } from './analytics.js';
 import { installExecutive } from './executive.js';
 import { installCustomerInsights } from './customer-insights.js';
+import { installCustomerStock } from './customer-stock.js';
 import { installProductPerformance } from './product-performance.js';
 import { installSalesTrend } from './sales-trend.js';
 import { installSalesTarget } from './sales-target.js';
@@ -65,6 +66,7 @@ installAnalytics(app, pool);
 installSalesTarget(app, accessStore, auth.audit);
 installExecutive(app, pool);
 installCustomerInsights(app, pool, accessStore);
+installCustomerStock(app, pool);
 installProductPerformance(app, pool);
 installSalesTrend(app, pool);
 app.get('/api/dashboard', async (req, res) => {
