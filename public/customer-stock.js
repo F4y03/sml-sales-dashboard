@@ -226,8 +226,9 @@
       // Recency chip: a plain-language reading of the last sales bill, not a business rule.
       const recency = el("history-recency");
       recency.hidden = false;
-      recency.className = `cs2-chip ${ago == null ? "cold" : ago <= 30 ? "good" : ago <= 90 ? "warn" : "cold"}`;
-      recency.textContent = ago == null ? "ยังไม่เคยซื้อ" : ago <= 30 ? "ซื้อภายใน 30 วัน" : ago <= 90 ? "ห่างไป 1–3 เดือน" : "ไม่ได้ซื้อเกิน 3 เดือน";
+      // This customer's own data period: first to latest sale bill.
+      recency.className = "cs2-chip";
+      recency.textContent = s.first ? `ข้อมูล ${day(s.first)} – ${day(s.last)}` : "ยังไม่มีบิลขาย";
       renderTrend(data.monthly || []);
       renderBills(data.bills);
       billPages = Math.max(1, Math.ceil(s.documents / data.pageSize));
@@ -452,23 +453,23 @@
     const zero = Math.max(0, products - inStock - nodata - neg);
     const rows = (pairs) => {
       const dl = node("dl", "", "cs2-dialog-totals");
-      for (const [label, value, strong] of pairs) { const r = node("div", "", strong ? "strong" : ""); r.append(node("dt", label), node("dd", value)); dl.append(r); }
+      for (const [label, value, strong, tone] of pairs) { const r = node("div", "", strong ? "strong" : ""); const dt = node("dt"); if (tone) dt.append(node("i", "", `dot ${tone}`)); dt.append(label); r.append(dt, node("dd", value)); dl.append(r); }
       return dl;
     };
-    const button = (text, filter, sort) => { const b = node("button", text, "cs2-more"); b.type = "button"; b.addEventListener("click", () => showList(filter, sort)); return b; };
+    const button = (text, filter, sort, count = 1) => { if (!(Number(count) > 0)) return node("span"); const b = node("button", text, "cs2-more"); b.type = "button"; b.addEventListener("click", () => showList(filter, sort)); return b; };
     const body = [], kind = card.dataset.kpi;
     let title = "", meta = "";
     if (kind === "value") {
       title = `มูลค่าสต็อก ${baht(s.value)}`; meta = "ราคาขายในทะเบียน (price_0 หน่วยมาตรฐาน) × คงเหลือ";
-      body.push(rows([["สินค้าที่คิดมูลค่า (มีของ + มีราคา)", items(inStock - (Number(s.inStockNoPrice) || 0))], ["มีของแต่ไม่มีราคาขาย (ไม่นับ)", items(s.inStockNoPrice)], ["คงเหลือติดลบ (ไม่นับ)", items(neg)], ["ไม่มีข้อมูลคงเหลือ (ไม่นับ)", items(nodata)], ["มูลค่ารวม", baht(s.value), true]]),
+      body.push(rows([["สินค้าที่คิดมูลค่า (มีของ + มีราคา)", items(inStock - (Number(s.inStockNoPrice) || 0)), false, "good"], ["มีของแต่ไม่มีราคาขาย (ไม่นับ)", items(s.inStockNoPrice), false, "warn"], ["คงเหลือติดลบ (ไม่นับ)", items(neg), false, "bad"], ["ไม่มีข้อมูลคงเหลือ (ไม่นับ)", items(nodata), false, "none"], ["มูลค่ารวม", baht(s.value), true]]),
         node("p", "ไม่รวมสินค้าฝาก (รหัสขึ้นต้น ฝ) · เป็นมูลค่าตามราคาขาย ไม่ใช่ต้นทุน · ใช้คงเหลือในทะเบียนปัจจุบัน", "cs2-status"), button("ดูสินค้าเรียงตามมูลค่าสูงสุด", "in", "value"));
     } else if (kind === "in") {
       title = `สินค้าที่มีของ ${items(inStock)}`; meta = `จากสินค้าในทะเบียน ${items(products)} (ไม่รวมสินค้าฝาก)`;
-      body.push(rows([["มีของ (คงเหลือ > 0)", items(inStock)], ["หมด (คงเหลือ = 0)", items(zero)], ["ติดลบ", items(neg)], ["ไม่มีข้อมูลคงเหลือ", items(nodata)], ["รวมในทะเบียน", items(products), true]]),
+      body.push(rows([["มีของ (คงเหลือ > 0)", items(inStock), false, "good"], ["หมด (คงเหลือ = 0)", items(zero), false, "warn"], ["ติดลบ", items(neg), false, "bad"], ["ไม่มีข้อมูลคงเหลือ", items(nodata), false, "none"], ["รวมในทะเบียน", items(products), true]]),
         button("ดูสินค้าที่มีของ", "in", "quantity"));
     } else if (kind === "noprice") {
       title = `มีของแต่ไม่มีราคาขาย ${items(s.inStockNoPrice)}`; meta = "คงเหลือมากกว่า 0 แต่ไม่มีราคาขายที่เป็นตัวเลขในทะเบียน";
-      body.push(node("p", "สินค้ากลุ่มนี้ไม่ถูกนับในมูลค่าสต็อก ถ้าตั้งราคาขายใน SML แล้ว มูลค่าจะเพิ่มขึ้นในการโหลดครั้งถัดไป", "cs2-status"), button("ดูรายการสินค้ากลุ่มนี้", "noprice", "quantity"));
+      body.push(node("p", "สินค้ากลุ่มนี้ไม่ถูกนับในมูลค่าสต็อก ถ้าตั้งราคาขายใน SML แล้ว มูลค่าจะเพิ่มขึ้นในการโหลดครั้งถัดไป", "cs2-status"), button("ดูรายการสินค้ากลุ่มนี้", "noprice", "quantity", s.inStockNoPrice));
     } else if (kind === "quantity") {
       title = `จำนวนคงเหลือรวม ${num(s.quantity)}`; meta = "รวมทุกหน่วย · เฉพาะสินค้าที่คงเหลือมากกว่า 0 · แยกตามหน่วยด้านล่าง";
       const table = node("table", "", "cs2-lines"), head = node("tr");
@@ -481,10 +482,10 @@
       body.push(wrap, node("p", "หน่วยต่างกันจึงไม่ควรเทียบตัวเลขรวมตรง ๆ ระหว่างสินค้าคนละชนิด", "cs2-status"), button("ดูสินค้าเรียงตามคงเหลือมากสุด", "in", "quantity"));
     } else if (kind === "problem") {
       title = `ติดลบ ${num(neg)} / ไม่มีข้อมูล ${num(nodata)}`; meta = "ไม่นับในมูลค่าสต็อก";
-      body.push(rows([["คงเหลือติดลบ", items(neg)], ["ไม่มีข้อมูลคงเหลือ (ไม่ใช่ 0)", items(nodata)]]),
-        node("p", "ติดลบมักเกิดจากตัดขายก่อนรับเข้า ส่วนไม่มีข้อมูลคือทะเบียนไม่มีค่าคงเหลือ ระบบไม่ถือว่าเป็น 0", "cs2-status"));
+      body.push(rows([["คงเหลือติดลบ", items(neg), false, "bad"], ["ไม่มีข้อมูลคงเหลือ (ไม่ใช่ 0)", items(nodata), false, "none"]]),
+        node("p", neg + nodata ? "ติดลบมักเกิดจากตัดขายก่อนรับเข้า ส่วนไม่มีข้อมูลคือทะเบียนไม่มีค่าคงเหลือ ระบบไม่ถือว่าเป็น 0" : "ตอนนี้ไม่มีสินค้าคงเหลือติดลบ และไม่มีสินค้าที่ไม่มีข้อมูลคงเหลือ ✓", "cs2-status"));
       const actions = node("div", "", "cs2-dialog-actions");
-      actions.append(button("ดูรายการติดลบ", "negative", "quantity"), button("ดูรายการไม่มีข้อมูล", "nodata", "code"));
+      actions.append(button("ดูรายการติดลบ", "negative", "quantity", neg), button("ดูรายการไม่มีข้อมูล", "nodata", "code", nodata));
       body.push(actions);
     }
     el("kpi-dialog-title").textContent = title;
@@ -527,7 +528,7 @@
     for (const s of list) select.append(new Option(`${s.name}${s.name !== s.code ? ` · ${s.code}` : ""} (${num(s.count)})`, s.code));
     select.disabled = !list.length;
   }
-  // 5 products per page; keepPage=false (a filter changed) goes back to page 1.
+  // 10 products per page (server pageSize); keepPage=false (a filter changed) goes back to page 1.
   async function loadProducts(keepPage = false) {
     productController?.abort();
     productController = new AbortController();
@@ -694,6 +695,47 @@
   }
   el("cycles-more").addEventListener("click", () => renderCycles(movement.product.unit || ""));
   el("moves-more").addEventListener("click", () => renderMoves(movement.product.unit || ""));
+
+  // ⓘ explanations on every card (hover / focus / tap). Text only — the numbers come from the API.
+  const HELP = {
+    "history-net": "ยอดท้ายบิลของลูกค้ารายนี้ทุกช่วงเวลา: บิลขาย + เพิ่มหนี้ − รับคืน/ลดหนี้ ไม่นับเอกสารยกเลิกและสำเนา",
+    "history-invoices": "จำนวนบิลขาย (เอกสารขาย) ที่ไม่ยกเลิก ไม่นับเพิ่มหนี้และรับคืน ตัวเลขด้านล่างคือเอกสารทุกประเภทรวมกัน",
+    "history-avg": "ยอดขาย ÷ จำนวนบิลขาย ใช้ยอดก่อนหักรับคืน",
+    "history-first": "วันที่ของบิลขายใบแรกที่พบใน SML และระยะเวลาที่เป็นลูกค้าจนถึงวันนี้",
+    "history-last": "วันที่ของบิลขายใบล่าสุด และผ่านมากี่วันแล้ว",
+    "trend-title": "ยอดสุทธิ (ขาย + เพิ่มหนี้ − รับคืน) ของแต่ละเดือนย้อนหลัง 24 เดือน แท่งเทาคือเดือนที่ไม่มีเอกสาร ชี้ที่แท่งเพื่อดูยอดและจำนวนบิล",
+    "stock-value": "ราคาขายในทะเบียน × คงเหลือ นับเฉพาะสินค้าที่คงเหลือมากกว่า 0 และมีราคาขาย ไม่รวมสินค้าฝาก (ฝ) เป็นมูลค่าตามราคาขาย ไม่ใช่ต้นทุน กดการ์ดเพื่อดูรายละเอียด",
+    "stock-in": "จำนวนรหัสสินค้าที่คงเหลือในทะเบียนมากกว่า 0 จากสินค้าทั้งหมดในทะเบียน (ไม่รวมสินค้าฝาก) กดการ์ดเพื่อดูการแบ่งกลุ่ม",
+    "stock-noprice": "สินค้าที่มีคงเหลือแต่ไม่มีราคาขายที่เป็นตัวเลขในทะเบียน จึงไม่ถูกนับในมูลค่าสต็อก กดการ์ดเพื่อดูรายการ",
+    "stock-quantity": "คงเหลือของสินค้าทุกตัวรวมกัน (เฉพาะที่มากกว่า 0) เป็นการบวกข้ามหน่วย เช่น ตัว + ใบ + ชุด กดการ์ดเพื่อดูยอดแยกทุกหน่วย",
+    "stock-problem": "ซ้าย: สินค้าที่คงเหลือติดลบ · ขวา: สินค้าที่ไม่มีข้อมูลคงเหลือ (ไม่ใช่ 0) ทั้งสองกลุ่มไม่นับในมูลค่า",
+    "movement-balance": "คงเหลือในทะเบียนสินค้าปัจจุบัน และเทียบกับยอดที่คำนวณจากความเคลื่อนไหวทั้งหมด ถ้าไม่ตรงจะแจ้งเตือน",
+    "movement-cycles": "จำนวนครั้งที่คงเหลือขึ้นจาก 0 (หรือติดลบ) เป็นมากกว่า 0 แต่ละรอบเริ่มที่ของเข้า และจบเมื่อขายหมด",
+    "movement-avg": "จำนวนวันเฉลี่ยตั้งแต่ของเข้าจนคงเหลือกลับเป็น 0 นับเฉพาะรอบที่หมดแล้ว",
+    "movement-count": "จำนวนรายการรับเข้า/เบิกออกทั้งหมดของสินค้านี้ ตามเงื่อนไขรายงาน 2060 (เคลื่อนไหวสินค้าตามคลัง)",
+    "journey-title": "① วันเข้า = วันที่คงเหลือขึ้นจาก 0 · ② ใครซื้อ = ลูกค้าที่มีบิลขายในรอบนั้น · ③ วันหมด = วันที่คงเหลือกลับเป็น 0 หรือยังไม่หมด",
+  };
+  for (const [id, text] of Object.entries(HELP)) {
+    const target = el(id);
+    if (!target) continue;
+    const host = target.closest(".cs2-kpi") || target;
+    const label = host.matches(".cs2-kpi") ? host.querySelector("span").textContent : target.textContent;
+    const wrap = node("span", "", "cs2-help");
+    const btn = node("button", "ⓘ", "cs2-help-btn");
+    btn.type = "button";
+    btn.setAttribute("aria-label", `คำอธิบาย ${label}`);
+    const tip = node("span", text, "cs2-help-tip");
+    tip.setAttribute("role", "tooltip");
+    tip.id = `help-${id}`;
+    btn.setAttribute("aria-describedby", tip.id);
+    // Keep the card's own popup closed; a tap toggles the tip on touch screens.
+    btn.addEventListener("click", (e) => { e.stopPropagation(); wrap.classList.toggle("open"); });
+    btn.addEventListener("keydown", (e) => e.stopPropagation());
+    btn.addEventListener("blur", () => wrap.classList.remove("open"));
+    wrap.append(btn, tip);
+    if (host.matches(".cs2-kpi")) host.append(wrap); else target.append(wrap);
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".cs2-help.open").forEach((w) => w.classList.remove("open")); });
 
   showTab(location.hash.slice(1));
 })();

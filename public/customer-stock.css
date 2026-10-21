@@ -1280,3 +1280,161 @@ body {
 .cs2-dialog-actions .cs2-more {
   margin: 12px 0 0;
 }
+/* ⓘ explanation on cards */
+.cs2-kpi {
+  position: relative;
+}
+.cs2-kpi > .cs2-help {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.cs2-kpi > span:first-child {
+  padding-right: 30px;
+}
+.cs2-help {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.cs2-help-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line, #303035);
+  border-radius: 7px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--muted, #b0b1b8);
+  font-size: 13px;
+  line-height: 1;
+  cursor: help;
+}
+.cs2-kpi.featured .cs2-help-btn {
+  border-color: #ffffff40;
+  background: #ffffff1a;
+  color: #fff;
+}
+.cs2-help-btn:hover,
+.cs2-help-btn:focus-visible {
+  color: var(--ink, #f4f4f5);
+  border-color: var(--brand, #ff3b30);
+}
+.cs2-help-tip {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: min(280px, 70vw);
+  padding: 10px 12px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  box-shadow: 0 12px 30px #0006;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+  display: none;
+}
+.cs2-help:hover .cs2-help-tip,
+.cs2-help-btn:focus-visible + .cs2-help-tip,
+.cs2-help.open .cs2-help-tip {
+  display: block;
+}
+h3 > .cs2-help .cs2-help-tip {
+  left: 0;
+  right: auto;
+}
+/* Inline product journey (wide screens): a padded card so text doesn't touch its edge. */
+.cs2-sheet[open]:not(:modal) {
+  box-sizing: border-box;
+  padding: 22px 24px 24px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 16px;
+  background: var(--surface, #141416);
+}
+.cs2-sheet[open]:not(:modal) .cs2-title-row {
+  margin-bottom: 18px;
+}
+.cs2-sheet[open]:not(:modal) .cs2-cycle,
+.cs2-sheet[open]:not(:modal) .cs2-kpi:not(.featured) {
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-sheet[open]:not(:modal) .cs2-details {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, #303035);
+}
+.cs2-sheet[open]:not(:modal) .cs2-details summary {
+  margin-bottom: 0;
+}
+.cs2-sheet[open]:not(:modal) .cs2-details[open] summary {
+  margin-bottom: 12px;
+}
+/* Buyer list: keep names/amounts off the scrollbar */
+.cs2-buyers {
+  padding-right: 10px;
+}
+/* KPI detail popup: full-width breakdown, normal title font, coloured row markers */
+#kpi-dialog .cs2-dialog-head h3 {
+  font-family: inherit;
+  font-size: 22px;
+}
+#kpi-dialog .cs2-dialog-totals {
+  max-width: none;
+  margin: 0;
+  gap: 0;
+  border: 1px solid var(--line, #303035);
+  border-radius: 12px;
+  overflow: hidden;
+}
+#kpi-dialog .cs2-dialog-totals > div {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line, #303035);
+  font-size: 14px;
+}
+#kpi-dialog .cs2-dialog-totals > div:last-child {
+  border-bottom: 0;
+}
+#kpi-dialog .cs2-dialog-totals > .strong {
+  padding-top: 12px;
+  border-top: 0;
+  background: var(--surface-raised, #1c1c20);
+  font-size: 16px;
+}
+#kpi-dialog .cs2-dialog-totals dt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#kpi-dialog .cs2-dialog-totals dd {
+  font-weight: 600;
+}
+#kpi-dialog .dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+#kpi-dialog .dot.good { background: var(--positive, #66d699); }
+#kpi-dialog .dot.warn { background: var(--warning, #f2c14e); }
+#kpi-dialog .dot.bad { background: var(--negative, #ff6b6b); }
+#kpi-dialog .dot.none { background: var(--muted, #b0b1b8); }
+#kpi-dialog .cs2-dialog-body > .cs2-status {
+  margin: 14px 0 0;
+  line-height: 1.7;
+}
+#kpi-dialog .cs2-dialog-body > .cs2-more,
+#kpi-dialog .cs2-dialog-actions {
+  margin-top: 16px;
+}
+#kpi-dialog .cs2-dialog-actions:empty,
+#kpi-dialog .cs2-dialog-actions:not(:has(button)) {
+  display: none;
+}

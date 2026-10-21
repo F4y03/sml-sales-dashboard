@@ -164,7 +164,7 @@ SELECT json_build_object(
     WHERE COALESCE(i.group_sub, '') <> '' AND left(i.code, 1) <> 'ฝ'
     GROUP BY i.group_main, i.group_sub) x), '[]'::json)
 ) AS filters`;
-const PRODUCT_LIST = 5; // movement tab product list: 5 per page
+const PRODUCT_LIST = 10; // movement tab product list: 10 per page
 // สถานะสินค้า: in = คงเหลือ > 0, out = คงเหลือ ≤ 0 (same as เช็คราคา/สต๊อก); NULL stock matches neither.
 const productListSql = `
 WITH inventory AS (
