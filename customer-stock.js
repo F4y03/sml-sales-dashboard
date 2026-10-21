@@ -4,6 +4,7 @@
 import { stockAffectingSQL } from './consignment.js';
 
 const PAGE = 50;
+const BILL_PAGE = 10; // customer history: 10 documents per page
 const DOC_FLAGS = '(44, 46, 48)'; // ขาย + เพิ่มหนี้ + รับคืน/ลดหนี้, same as Customer Insights
 const numericText = "'^[+-]?[0-9]+([.][0-9]+)?$'";
 const text = (value, max = 200) => typeof value === 'string' && value.length <= max ? value.trim() : null;
@@ -22,6 +23,26 @@ WHERE NULLIF(btrim(c.code), '') IS NOT NULL
 GROUP BY c.code
 ORDER BY (lower(c.code) = lower($1)) DESC, c.code
 LIMIT 30`;
+
+// Every customer with its salesperson (ar_customer_detail.sale_code, same source as Customer Insights)
+// and sales-bill activity, so the page can browse customers by salesperson without typing.
+const customerListSql = `
+SELECT c.code, COALESCE(NULLIF(MAX(c.name_1), ''), c.code) AS name,
+  COALESCE(MAX(d.sale_code), '') AS "saleCode",
+  to_char(MAX(s.last_day), 'YYYY-MM-DD') AS "lastPurchase", COALESCE(MAX(s.invoices), 0) AS invoices
+FROM ar_customer c
+LEFT JOIN (SELECT ar_code, MAX(btrim(sale_code)) AS sale_code FROM ar_customer_detail GROUP BY ar_code) d ON d.ar_code = c.code
+LEFT JOIN (SELECT cust_code, MAX(doc_date::date) AS last_day, COUNT(*) AS invoices FROM ic_trans
+  WHERE trans_flag = 44 AND last_status = 0 AND is_doc_copy = 0 GROUP BY cust_code) s ON s.cust_code = c.code
+WHERE NULLIF(btrim(c.code), '') IS NOT NULL
+GROUP BY c.code`;
+
+// A few customers have no sale_code; like Customer Insights, use the longest known team code
+// their customer code starts with (บอ-155 → บอ). Unmatched stay unassigned — never guessed further.
+export function withInferredSaleCodes(customers) {
+  const known = [...new Set(customers.map(c => c.saleCode).filter(Boolean))].sort((a, b) => b.length - a.length);
+  return customers.map(c => c.saleCode ? c : { ...c, saleCode: known.find(t => String(c.code).startsWith(t)) || '' });
+}
 
 const customerBillsSql = `
 WITH bills AS (
@@ -42,9 +63,16 @@ SELECT json_build_object(
     'net', COALESCE(SUM(CASE WHEN flag = 48 THEN -amount ELSE amount END), 0),
     'first', to_char(MIN(day) FILTER (WHERE flag = 44), 'YYYY-MM-DD'),
     'last', to_char(MAX(day) FILTER (WHERE flag = 44), 'YYYY-MM-DD')) FROM bills),
+  -- Net per calendar month for the last 24 months (empty months included as 0 documents).
+  'monthly', (SELECT json_agg(json_build_object('month', to_char(m.month, 'YYYY-MM'),
+      'net', COALESCE(b.net, 0), 'invoices', COALESCE(b.invoices, 0)) ORDER BY m.month)
+    FROM generate_series(date_trunc('month', CURRENT_DATE) - INTERVAL '23 months', date_trunc('month', CURRENT_DATE), INTERVAL '1 month') m(month)
+    LEFT JOIN (SELECT date_trunc('month', day) AS month,
+        SUM(CASE WHEN flag = 48 THEN -amount ELSE amount END) AS net, COUNT(*) FILTER (WHERE flag = 44) AS invoices
+      FROM bills GROUP BY 1) b ON b.month = m.month),
   'bills', COALESCE((SELECT json_agg(b) FROM (
     SELECT doc_no AS "docNo", to_char(day, 'YYYY-MM-DD') AS date, flag, amount, sale_code AS "saleCode", branch
-    FROM bills ORDER BY day DESC, doc_no DESC LIMIT ${PAGE} OFFSET $2) b), '[]'::json)
+    FROM bills ORDER BY day DESC, doc_no DESC LIMIT ${BILL_PAGE} OFFSET $2) b), '[]'::json)
 ) AS history`;
 
 // Lines of one document; the header EXISTS keeps cancelled/copy documents out and copes with
@@ -92,6 +120,11 @@ SELECT json_build_object(
     'products', COUNT(*),
     'inStock', COUNT(*) FILTER (WHERE quantity > 0),
     'value', COALESCE(SUM(value), 0),
+    -- Positive balances only, added across units (ใบ + ตัว + ชุด …); the page also shows the per-unit split.
+    'quantity', COALESCE(SUM(quantity) FILTER (WHERE quantity > 0), 0),
+    'units', (SELECT COALESCE(json_agg(u ORDER BY u.quantity DESC), '[]'::json) FROM (
+      SELECT COALESCE(NULLIF(btrim(unit), ''), 'ไม่ระบุหน่วย') AS unit, SUM(quantity) AS quantity
+      FROM valued WHERE quantity > 0 GROUP BY 1) u),
     'inStockNoPrice', COUNT(*) FILTER (WHERE quantity > 0 AND price IS NULL),
     'negative', COUNT(*) FILTER (WHERE quantity < 0),
     'noStockData', COUNT(*) FILTER (WHERE quantity IS NULL)) FROM valued),
@@ -114,6 +147,40 @@ WHERE NULLIF(btrim(i.code), '') IS NOT NULL AND left(i.code, 1) <> 'ฝ'
 GROUP BY i.code
 ORDER BY (lower(i.code) = lower($1)) DESC, i.code
 LIMIT 30`;
+
+// Filter lists for the movement tab (same group / sub-group sources as เช็คราคา/สต๊อก), consignment ฝ… excluded.
+const productGroupsSql = `
+SELECT json_build_object(
+  'groups', COALESCE((SELECT json_agg(x ORDER BY x.code) FROM (
+    SELECT i.group_main AS code, COALESCE(MAX(g.name_1), i.group_main) AS name, COUNT(DISTINCT i.code) AS count
+    FROM ic_inventory i LEFT JOIN (SELECT code, MAX(name_1) AS name_1 FROM ic_group GROUP BY code) g ON g.code = i.group_main
+    WHERE COALESCE(i.group_main, '') <> '' AND left(i.code, 1) <> 'ฝ'
+    GROUP BY i.group_main) x), '[]'::json),
+  'subgroups', COALESCE((SELECT json_agg(x ORDER BY x.main, x.code) FROM (
+    SELECT i.group_main AS main, i.group_sub AS code, COALESCE(MAX(g.name_1), i.group_sub) AS name, COUNT(DISTINCT i.code) AS count
+    FROM ic_inventory i LEFT JOIN (SELECT main_group, code, MAX(name_1) AS name_1 FROM ic_group_sub GROUP BY main_group, code) g
+      ON g.main_group = i.group_main AND g.code = i.group_sub
+    WHERE COALESCE(i.group_sub, '') <> '' AND left(i.code, 1) <> 'ฝ'
+    GROUP BY i.group_main, i.group_sub) x), '[]'::json)
+) AS filters`;
+const PRODUCT_LIST = 5; // movement tab product list: 5 per page
+// สถานะสินค้า: in = คงเหลือ > 0, out = คงเหลือ ≤ 0 (same as เช็คราคา/สต๊อก); NULL stock matches neither.
+const productListSql = `
+WITH inventory AS (
+  SELECT i.code, COALESCE(NULLIF(MAX(i.name_1), ''), i.code) AS name, MAX(i.unit_standard) AS unit,
+    MAX(i.balance_qty) AS quantity, MAX(i.group_main) AS group_code, MAX(i.group_sub) AS subgroup_code
+  FROM ic_inventory i
+  WHERE NULLIF(btrim(i.code), '') IS NOT NULL AND left(i.code, 1) <> 'ฝ'
+  GROUP BY i.code
+), matching AS (
+  SELECT * FROM inventory
+  WHERE ($1::text = '' OR strpos(lower(code), lower($1)) > 0 OR strpos(lower(name), lower($1)) > 0)
+    AND ($2::text = '' OR group_code = $2) AND ($3::text = '' OR subgroup_code = $3)
+    AND ($4::text = 'all' OR ($4 = 'in' AND quantity > 0) OR ($4 = 'out' AND quantity <= 0))
+)
+SELECT json_build_object('total', (SELECT COUNT(*) FROM matching),
+  'rows', COALESCE((SELECT json_agg(r) FROM (SELECT code, name, unit, quantity FROM matching
+    ORDER BY code LIMIT ${PRODUCT_LIST} OFFSET $5) r), '[]'::json)) AS list`;
 
 // Report 2060 movement of one product (same rule and unit conversion as the consignment page),
 // with a running balance in the standard unit.
@@ -192,13 +259,20 @@ export function installCustomerStock(app, pool) {
     catch (error) { queryError(res, error, 'customer search'); }
   });
 
+  app.get('/api/customer-stock/customer-list', async (req, res) => {
+    try {
+      const rows = (await pool.query(customerListSql)).rows.map(r => ({ ...r, invoices: Number(r.invoices) }));
+      res.json({ customers: withInferredSaleCodes(rows), updatedAt: new Date().toISOString() });
+    } catch (error) { queryError(res, error, 'customer list'); }
+  });
+
   app.get('/api/customer-stock/customer', async (req, res) => {
     const code = text(req.query.code), page = pageOf(req.query.page);
     if (!code || page == null) return res.status(400).json({ error: 'กรุณาเลือกลูกค้าให้ถูกต้อง' });
     try {
-      const data = (await pool.query(customerBillsSql, [code, page * PAGE])).rows[0].history;
+      const data = (await pool.query(customerBillsSql, [code, page * BILL_PAGE])).rows[0].history;
       if (!data.customer && !data.summary.documents) return res.status(404).json({ error: 'ไม่พบลูกค้ารหัสนี้' });
-      res.json({ ...data, page, pageSize: PAGE, updatedAt: new Date().toISOString() });
+      res.json({ ...data, page, pageSize: BILL_PAGE, updatedAt: new Date().toISOString() });
     } catch (error) { queryError(res, error, 'customer history'); }
   });
 
@@ -221,6 +295,23 @@ export function installCustomerStock(app, pool) {
       const data = (await pool.query(stockSql, [q, filter, sort, page * PAGE])).rows[0].stock;
       res.json({ ...data, page, pageSize: PAGE, updatedAt: new Date().toISOString() });
     } catch (error) { queryError(res, error, 'stock'); }
+  });
+
+  app.get('/api/customer-stock/product-groups', async (req, res) => {
+    try { res.json((await pool.query(productGroupsSql)).rows[0].filters); }
+    catch (error) { queryError(res, error, 'product groups'); }
+  });
+
+  app.get('/api/customer-stock/product-list', async (req, res) => {
+    const q = text(req.query.q ?? '', 100), group = text(req.query.group ?? '', 100), subgroup = text(req.query.subgroup ?? '', 100);
+    const stock = req.query.stock ?? 'all', offset = Number(req.query.offset ?? 0);
+    if (q == null || group == null || subgroup == null || !['all', 'in', 'out'].includes(stock) || !Number.isInteger(offset) || offset < 0 || offset > 100000) {
+      return res.status(400).json({ error: 'ตัวกรองสินค้าไม่ถูกต้อง' });
+    }
+    try {
+      const data = (await pool.query(productListSql, [q, group, subgroup, stock, offset])).rows[0].list;
+      res.json({ ...data, total: Number(data.total), offset, pageSize: PRODUCT_LIST });
+    } catch (error) { queryError(res, error, 'product list'); }
   });
 
   app.get('/api/customer-stock/products', async (req, res) => {

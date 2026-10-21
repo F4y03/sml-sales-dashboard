@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installCustomerStock, stockCycles } from './customer-stock.js';
+import { installCustomerStock, stockCycles, withInferredSaleCodes } from './customer-stock.js';
 import { installAccess } from './src/middleware/access.js';
 
 async function listen(app) {
@@ -29,6 +29,14 @@ test('stock cycles: วันเข้า when the balance rises above 0, buyers
   assert.deepEqual([closed.start, closed.end, closed.days, closed.received, closed.sold], ['2026-01-01', '2026-01-09', 8, 11, 9]);
   assert.deepEqual(closed.buyers.map(b => [b.code, b.quantity, b.bills]), [['A', 7, 2], ['B', 2, 1]]);
   assert.deepEqual([open.start, open.end, open.days, open.sold], ['2026-02-01', null, null, 1]);
+});
+
+test('customers without a salesperson take the longest matching team prefix, otherwise stay unassigned', () => {
+  const result = withInferredSaleCodes([
+    { code: 'A1', saleCode: 'กท-ต' }, { code: 'A2', saleCode: 'กท' }, { code: 'A3', saleCode: 'บอ' },
+    { code: 'กท-ต102', saleCode: '' }, { code: 'กท-001', saleCode: '' }, { code: 'บอ-155', saleCode: '' }, { code: 'ZZ-9', saleCode: '' },
+  ]);
+  assert.deepEqual(result.slice(3).map(c => c.saleCode), ['กท-ต', 'กท', 'บอ', '']);
 });
 
 test('stock cycles: negative or unknown balances never start a cycle', () => {

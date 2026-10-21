@@ -7,10 +7,10 @@
     <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
     <link rel="stylesheet" href="workspace-nav.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
-    <link rel="stylesheet" href="customer-stock.css?v=20261021-1" />
+    <link rel="stylesheet" href="customer-stock.css?v=20261021-27" />
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261021-customer-stock" defer></script>
-    <script src="customer-stock.js?v=20261021-1" defer></script>
+    <script src="customer-stock.js?v=20261021-15" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -43,43 +43,96 @@
 
       <!-- Tab 1: customer history -->
       <section id="panel-history" class="cs2-panel" role="tabpanel" aria-labelledby="tab-history">
-        <div class="cs2-picker">
-          <label for="customer-search">ค้นหาลูกค้า</label>
-          <input id="customer-search" type="search" autocomplete="off" maxlength="100"
-            placeholder="พิมพ์รหัสหรือชื่อลูกค้า เช่น อย-012 หรือ ร้านเสียง" aria-controls="customer-results" />
-          <ul id="customer-results" class="cs2-results" role="listbox" aria-label="ผลการค้นหาลูกค้า" hidden></ul>
-          <p id="customer-search-status" class="cs2-status" role="status"></p>
+        <div class="cs2-picker-row">
+          <label class="cs2-team">พนักงานขาย<select id="team-select" disabled>
+            <option value="">กำลังโหลดรายชื่อ…</option>
+          </select></label>
+          <div class="cs2-picker">
+            <label for="customer-search">หรือค้นหาลูกค้า</label>
+            <input id="customer-search" type="search" autocomplete="off" maxlength="100"
+              placeholder="พิมพ์รหัสหรือชื่อลูกค้า เช่น อย-012 หรือ ร้านเสียง" aria-controls="customer-results" />
+            <ul id="customer-results" class="cs2-results" role="listbox" aria-label="ผลการค้นหาลูกค้า" hidden></ul>
+            <p id="customer-search-status" class="cs2-status" role="status"></p>
+          </div>
         </div>
+        <div class="cs2-history-layout">
+        <aside id="team-panel" class="cs2-team-panel" aria-label="ลูกค้าของพนักงานขายที่เลือก" hidden>
+          <div class="cs2-team-head">
+            <strong id="team-title"></strong>
+            <input id="team-filter" type="search" maxlength="100" placeholder="กรองชื่อหรือรหัสในรายการนี้" aria-label="กรองลูกค้าในรายการ" />
+          </div>
+          <ul id="team-customers" class="cs2-team-list"></ul>
+        </aside>
+        <div class="cs2-history-main">
         <div id="history-empty" class="cs2-empty">
-          <strong>เลือกลูกค้าเพื่อดูประวัติ</strong>
+          <strong>เลือกพนักงานขาย หรือค้นหาลูกค้าเพื่อดูประวัติ</strong>
           <span>เห็นทุกบิลขาย เพิ่มหนี้ และรับคืน ที่ไม่ยกเลิก เรียงจากล่าสุด กดบิลเพื่อดูรายการสินค้า</span>
         </div>
         <div id="history-view" hidden>
-          <div class="cs2-title-row">
-            <div>
+          <header class="cs2-customer-head">
+            <div class="cs2-avatar" id="history-avatar" aria-hidden="true"></div>
+            <div class="cs2-customer-id">
               <h2 id="history-name"></h2>
-              <p id="history-code" class="cs2-muted"></p>
+              <div class="cs2-chips">
+                <span class="cs2-chip" id="history-code"></span>
+                <span class="cs2-chip" id="history-team" hidden></span>
+                <span class="cs2-chip" id="history-recency" hidden></span>
+              </div>
             </div>
             <p id="history-status" class="cs2-status" role="status"></p>
-          </div>
-          <div class="cs2-kpis">
-            <article class="cs2-kpi featured"><span>ยอดซื้อสุทธิทั้งหมด</span><strong id="history-net">—</strong><small>ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้ (ยอดท้ายบิล)</small></article>
+          </header>
+          <div class="cs2-summary">
+            <article class="cs2-kpi featured cs2-summary-net">
+              <span>ยอดซื้อสุทธิทั้งหมด</span><strong id="history-net">—</strong>
+              <small>ขาย + เพิ่มหนี้ − รับคืน / ลดหนี้ (ยอดท้ายบิล) ทุกช่วงเวลา</small>
+              <dl class="cs2-net-split">
+                <div><dt>ขาย</dt><dd id="history-sales">—</dd></div>
+                <div><dt>เพิ่มหนี้</dt><dd id="history-added">—</dd></div>
+                <div><dt>รับคืน / ลดหนี้</dt><dd id="history-returns">—</dd></div>
+              </dl>
+            </article>
             <article class="cs2-kpi"><span>บิลขาย</span><strong id="history-invoices">—</strong><small id="history-docs"></small></article>
-            <article class="cs2-kpi"><span>ซื้อครั้งแรก</span><strong id="history-first">—</strong><small>บิลขายใบแรก</small></article>
+            <article class="cs2-kpi"><span>เฉลี่ยต่อบิล</span><strong id="history-avg">—</strong><small>ยอดขาย ÷ บิลขาย</small></article>
+            <article class="cs2-kpi"><span>ซื้อครั้งแรก</span><strong id="history-first">—</strong><small id="history-tenure"></small></article>
             <article class="cs2-kpi"><span>ซื้อล่าสุด</span><strong id="history-last">—</strong><small id="history-last-ago"></small></article>
-            <article class="cs2-kpi"><span>รับคืน / ลดหนี้</span><strong id="history-returns">—</strong><small id="history-added"></small></article>
           </div>
-          <div class="cs2-table-wrap">
-            <table class="cs2-table">
-              <thead><tr><th scope="col">วันที่</th><th scope="col">เลขที่เอกสาร</th><th scope="col">ประเภท</th><th scope="col">พนักงานขาย</th><th scope="col" class="num">ยอดท้ายบิล</th><th scope="col"><span class="sr-only">รายการ</span></th></tr></thead>
+          <section class="cs2-card cs2-trend" aria-labelledby="trend-title">
+            <div class="cs2-card-head">
+              <h3 id="trend-title">ยอดซื้อรายเดือน · 24 เดือนล่าสุด</h3>
+              <p id="trend-note" class="cs2-muted"></p>
+            </div>
+            <div id="history-trend" class="cs2-trend-chart"></div>
+          </section>
+          <section class="cs2-card cs2-bills-card" aria-labelledby="bills-title">
+            <div class="cs2-card-head">
+              <h3 id="bills-title">บิลทั้งหมด · ล่าสุดก่อน</h3>
+              <p id="bills-range" class="cs2-muted"></p>
+            </div>
+            <table class="cs2-bills">
+              <thead class="sr-only"><tr><th scope="col">วันที่</th><th scope="col">เอกสาร</th><th scope="col">ยอดท้ายบิล</th><th scope="col">รายการสินค้า</th></tr></thead>
               <tbody id="bill-rows"></tbody>
             </table>
-          </div>
-          <div class="cs2-pager" aria-label="เปลี่ยนหน้าบิล">
-            <button id="bills-prev" type="button">‹ ใหม่กว่า</button>
-            <span id="bills-page"></span>
-            <button id="bills-next" type="button">เก่ากว่า ›</button>
-          </div>
+            <nav class="cs2-pager" aria-label="เปลี่ยนหน้าบิล">
+              <button id="bills-first" type="button" aria-label="หน้าแรก (ล่าสุด)">«</button>
+              <button id="bills-prev" type="button">‹ ใหม่กว่า</button>
+              <span id="bills-page" aria-live="polite"></span>
+              <button id="bills-next" type="button">เก่ากว่า ›</button>
+              <button id="bills-last" type="button" aria-label="หน้าสุดท้าย (เก่าสุด)">»</button>
+            </nav>
+          </section>
+          <dialog id="bill-dialog" class="cs2-dialog" aria-labelledby="bill-dialog-title">
+            <header class="cs2-dialog-head">
+              <div>
+                <p id="bill-dialog-kicker" class="cs2-dialog-kicker"></p>
+                <h3 id="bill-dialog-title"></h3>
+                <p id="bill-dialog-meta" class="cs2-muted"></p>
+              </div>
+              <button id="bill-dialog-close" type="button" class="cs2-dialog-close" aria-label="ปิด">✕</button>
+            </header>
+            <div id="bill-dialog-body" class="cs2-dialog-body"></div>
+          </dialog>
+        </div>
+        </div>
         </div>
       </section>
 
@@ -89,8 +142,8 @@
           <article class="cs2-kpi featured"><span>มูลค่าสต็อกทั้งหมด</span><strong id="stock-value">—</strong><small>ราคาขายในทะเบียน × คงเหลือ · เฉพาะสินค้าที่คงเหลือมากกว่า 0 · ไม่รวมสินค้าฝาก (ฝ)</small></article>
           <article class="cs2-kpi"><span>สินค้าที่มีของ</span><strong id="stock-in">—</strong><small id="stock-total"></small></article>
           <article class="cs2-kpi"><span>มีของแต่ไม่มีราคาขาย</span><strong id="stock-noprice">—</strong><small>ไม่นับในมูลค่า</small></article>
-          <article class="cs2-kpi"><span>คงเหลือติดลบ</span><strong id="stock-negative">—</strong><small>ไม่นับในมูลค่า</small></article>
-          <article class="cs2-kpi"><span>ไม่มีข้อมูลคงเหลือ</span><strong id="stock-nodata">—</strong><small>ไม่ใช่ 0 · ไม่นับในมูลค่า</small></article>
+          <article class="cs2-kpi"><span>จำนวนคงเหลือรวม</span><strong id="stock-quantity">—</strong><small id="stock-units">รวมทุกหน่วย</small></article>
+          <article class="cs2-kpi"><span>ติดลบ / ไม่มีข้อมูลคงเหลือ (รายการ)</span><strong id="stock-problem">—</strong><small>ไม่มีข้อมูล ≠ 0 · ไม่นับในมูลค่า</small></article>
         </div>
         <form id="stock-filters" class="cs2-filters">
           <label>ค้นหาสินค้า<input id="stock-search" type="search" maxlength="100" placeholder="รหัสหรือชื่อสินค้า" /></label>
@@ -123,17 +176,38 @@
 
       <!-- Tab 3: product movement -->
       <section id="panel-movement" class="cs2-panel" role="tabpanel" aria-labelledby="tab-movement" hidden>
-        <div class="cs2-picker">
-          <label for="product-search">เลือกสินค้า</label>
-          <input id="product-search" type="search" autocomplete="off" maxlength="100"
-            placeholder="พิมพ์รหัสหรือชื่อสินค้า เช่น 971CMPE12U หรือ ไมโครโฟน" aria-controls="product-results" />
-          <ul id="product-results" class="cs2-results" role="listbox" aria-label="ผลการค้นหาสินค้า" hidden></ul>
-          <p id="product-search-status" class="cs2-status" role="status"></p>
-        </div>
+        <form id="product-filters" class="cs2-card cs2-product-filters" aria-label="ตัวกรองสินค้า">
+          <label>ค้นหาสินค้า<input id="product-search" type="search" autocomplete="off" maxlength="100"
+            placeholder="รหัสหรือชื่อสินค้า เช่น ลำโพง" /></label>
+          <label>กลุ่มสินค้า<select id="product-group" disabled><option value="">ทุกกลุ่มสินค้า</option></select></label>
+          <label>กลุ่มสินค้าย่อย<select id="product-subgroup" disabled><option value="">ทุกกลุ่มสินค้าย่อย</option></select></label>
+          <label>สถานะสินค้า<select id="product-stock">
+            <option value="all">ทั้งหมด</option>
+            <option value="in">มีสินค้า</option>
+            <option value="out">ไม่มีสินค้า</option>
+          </select></label>
+        </form>
+        <div class="cs2-history-layout cs2-movement-layout">
+        <aside id="product-panel" class="cs2-team-panel" aria-label="สินค้าตามตัวกรอง">
+          <div class="cs2-team-head">
+            <strong id="product-list-title">กำลังโหลดสินค้า…</strong>
+            <p id="product-search-status" class="cs2-status" role="status"></p>
+          </div>
+          <ul id="product-list" class="cs2-team-list"></ul>
+          <nav class="cs2-pager cs2-list-pager" aria-label="เปลี่ยนหน้าสินค้า">
+            <button id="product-prev" type="button" disabled>‹ ก่อนหน้า</button>
+            <span id="product-page" aria-live="polite"></span>
+            <button id="product-next" type="button" disabled>ถัดไป ›</button>
+          </nav>
+        </aside>
+        <div class="cs2-history-main">
         <div id="movement-empty" class="cs2-empty">
-          <strong>เลือกสินค้าเพื่อดูเส้นทาง</strong>
+          <strong>เลือกสินค้าจากรายการเพื่อดูเส้นทาง</strong>
           <span>วันเข้า → ใครซื้อ → วันหมด แยกเป็นรอบ ตั้งแต่คงเหลือขึ้นจาก 0 จนกลับเป็น 0 อีกครั้ง</span>
         </div>
+        <!-- iPad / narrow screens: shown as a modal popup; wide screens: inline beside the list (non-modal). -->
+        <dialog id="movement-dialog" class="cs2-sheet" aria-labelledby="movement-name">
+        <button id="movement-close" type="button" class="cs2-dialog-close cs2-sheet-close" aria-label="ปิด">✕</button>
         <div id="movement-view" hidden>
           <div class="cs2-title-row">
             <div>
@@ -161,6 +235,9 @@
             </div>
             <button id="moves-more" class="cs2-more" type="button" hidden>แสดงเพิ่ม</button>
           </details>
+        </div>
+        </dialog>
+        </div>
         </div>
       </section>
     </main>

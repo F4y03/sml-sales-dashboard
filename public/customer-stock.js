@@ -46,6 +46,8 @@
     if (focus) el(tabs[name]).focus();
     if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
     if (name === "stock" && !loaded.has("stock")) { loaded.add("stock"); loadStock(); }
+    if (name === "movement") startMovementTab();
+    if (name === "history") fitTeamList();
   }
   Object.entries(tabs).forEach(([key, id], index, all) => {
     el(id).addEventListener("click", () => showTab(key));
@@ -108,12 +110,88 @@
 
   // ---------- Tab 1: customer history ----------
   let customer = null, billPage = 0, billController;
+  const pickCustomer = (c) => {
+    customer = c.code;
+    billPage = 0;
+    markTeamCustomer();
+    loadHistory();
+  };
   picker({
     input: el("customer-search"), list: el("customer-results"), statusId: "customer-search-status",
     url: "/api/customer-stock/customers", key: "customers",
     render: (c) => [c.name, c.code],
-    onPick: (c) => { el("customer-search").value = `${c.name} · ${c.code}`; customer = c.code; billPage = 0; loadHistory(); },
+    onPick: (c) => { el("customer-search").value = `${c.name} · ${c.code}`; pickCustomer(c); },
   });
+
+  // Browse by salesperson (ar_customer_detail.sale_code — same source and labels as Customer Insights).
+  const TEAM_NAMES = {
+    หย: "เหนือ", วย: "ตะวันออก", "กท-ต": "กรุงเทพ-ติ้ก", อย: "อีสาน", กภ: "กรุงเทพ",
+    ลภ: "กลาง", ตช: "ใต้", "กท-ร": "กรุงเทพ-รุ่ง", "กท-ณ": "กรุงเทพ-บริษัท1", บอ: "กรุงเทพ-บริษัท2",
+  };
+  const teamLabel = (code) => (!code ? "ไม่ระบุพนักงานขาย" : TEAM_NAMES[code] ? `${TEAM_NAMES[code]} (${code})` : code);
+  let allCustomers = [];
+  async function loadTeams() {
+    const select = el("team-select");
+    try {
+      allCustomers = (await getJSON("/api/customer-stock/customer-list")).customers;
+      const counts = new Map();
+      for (const c of allCustomers) counts.set(c.saleCode, (counts.get(c.saleCode) || 0) + 1);
+      const codes = [...counts.keys()].sort((a, b) => (!a) - (!b) || teamLabel(a).localeCompare(teamLabel(b), "th"));
+      select.replaceChildren(new Option("เลือกพนักงานขาย", ""));
+      for (const code of codes) select.append(new Option(`${teamLabel(code)} · ${num(counts.get(code))} ราย`, code || "-"));
+      select.disabled = false;
+    } catch (e) {
+      select.replaceChildren(new Option("โหลดรายชื่อไม่สำเร็จ", ""));
+      status("customer-search-status", `${errorText(e)} · ยังค้นหาลูกค้าด้วยชื่อหรือรหัสได้`, true);
+    }
+  }
+  function renderTeam() {
+    const value = el("team-select").value;
+    el("team-panel").hidden = !value;
+    if (!value) return;
+    const code = value === "-" ? "" : value;
+    const q = el("team-filter").value.trim().toLocaleLowerCase("th-TH");
+    const members = allCustomers
+      .filter((c) => c.saleCode === code && `${c.code}\n${c.name}`.toLocaleLowerCase("th-TH").includes(q))
+      // Most recent buyers first; customers who never bought go last.
+      .sort((a, b) => (b.lastPurchase || "").localeCompare(a.lastPurchase || "") || a.code.localeCompare(b.code, "th"));
+    el("team-title").textContent = `${teamLabel(code)} · ${num(members.length)} ราย`;
+    const list = el("team-customers");
+    list.replaceChildren();
+    if (!members.length) list.append(node("li", q ? "ไม่พบลูกค้าที่ตรงกับคำกรอง" : "ไม่มีลูกค้าในกลุ่มนี้", "cs2-status"));
+    for (const c of members) {
+      const li = node("li"), button = node("button");
+      button.type = "button";
+      button.dataset.code = c.code;
+      button.append(node("span", c.name),
+        node("small", `${c.code} · ${c.lastPurchase ? `ซื้อล่าสุด ${day(c.lastPurchase)} · ${num(c.invoices)} บิล` : "ยังไม่เคยมีบิลขาย"}`));
+      button.addEventListener("click", () => { el("customer-search").value = ""; pickCustomer(c); });
+      li.append(button);
+      list.append(li);
+    }
+    fitTeamList();
+    markTeamCustomer();
+  }
+  // Show exactly 8 customers; the rest scroll inside the list.
+  const TEAM_ROWS = 8;
+  const fitTeamList = () => fitRows(el("team-customers"));
+  // Cap a list at TEAM_ROWS visible rows; skipped while the list is hidden (it has no size to measure).
+  function fitRows(list) {
+    if (!list.offsetParent) return;
+    const rows = list.children;
+    list.style.maxHeight = "";
+    if (rows.length <= TEAM_ROWS) return;
+    const first = rows[0].getBoundingClientRect(), last = rows[TEAM_ROWS - 1].getBoundingClientRect();
+    const pad = parseFloat(getComputedStyle(list).paddingTop) || 0;
+    list.style.maxHeight = `${Math.ceil(last.bottom - first.top + pad * 2)}px`;
+  }
+  window.addEventListener("resize", () => { if (!el("team-panel").hidden) fitTeamList(); });
+  function markTeamCustomer() {
+    el("team-customers").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.code === customer)));
+  }
+  el("team-select").addEventListener("change", () => { el("team-filter").value = ""; renderTeam(); });
+  el("team-filter").addEventListener("input", renderTeam);
+  loadTeams();
   async function loadHistory() {
     billController?.abort();
     billController = new AbortController();
@@ -124,67 +202,143 @@
     try {
       const data = await getJSON(`/api/customer-stock/customer?${new URLSearchParams({ code: customer, page: billPage })}`, billController.signal);
       const s = data.summary;
-      el("history-name").textContent = data.customer?.name || customer;
-      el("history-code").textContent = `รหัสลูกค้า ${customer}`;
+      const name = data.customer?.name || customer;
+      el("history-name").textContent = name;
+      // First consonant/letter of the name (skip prefixes like ร้าน/บริษัท and leading Thai vowels เ แ โ ใ ไ).
+      el("history-avatar").textContent = (name.replace(/^(ร้าน|บริษัท|หจก\.?|บจก\.?)\s*/, "").match(/[ก-ฮA-Za-z0-9]/) || ["?"])[0].toUpperCase();
+      el("history-code").textContent = `รหัส ${customer}`;
+      const team = allCustomers.find((c) => c.code === customer)?.saleCode;
+      el("history-team").hidden = team == null;
+      el("history-team").textContent = team == null ? "" : `พนักงานขาย ${teamLabel(team)}`;
       el("history-net").textContent = baht(s.net);
+      el("history-sales").textContent = baht(s.sales);
+      el("history-added").textContent = baht(s.added);
+      el("history-returns").textContent = s.returns ? baht(-s.returns) : baht(0);
       el("history-invoices").textContent = `${num(s.invoices)} บิล`;
       el("history-docs").textContent = `เอกสารทั้งหมด ${num(s.documents)} ใบ`;
+      el("history-avg").textContent = s.invoices ? baht(s.sales / s.invoices) : "—";
       el("history-first").textContent = day(s.first);
+      const tenure = daysSince(s.first);
+      el("history-tenure").textContent = tenure == null ? "ยังไม่เคยมีบิลขาย" : `เป็นลูกค้ามา ${tenure >= 365 ? `${num(Math.floor(tenure / 365))} ปี ${num(Math.floor((tenure % 365) / 30))} เดือน` : `${num(tenure)} วัน`}`;
       el("history-last").textContent = day(s.last);
       const ago = daysSince(s.last);
       el("history-last-ago").textContent = ago == null ? "ยังไม่เคยมีบิลขาย" : ago === 0 ? "วันนี้" : `${num(ago)} วันที่แล้ว`;
-      el("history-returns").textContent = baht(s.returns);
-      el("history-added").textContent = `เพิ่มหนี้ ${baht(s.added)}`;
+      // Recency chip: a plain-language reading of the last sales bill, not a business rule.
+      const recency = el("history-recency");
+      recency.hidden = false;
+      recency.className = `cs2-chip ${ago == null ? "cold" : ago <= 30 ? "good" : ago <= 90 ? "warn" : "cold"}`;
+      recency.textContent = ago == null ? "ยังไม่เคยซื้อ" : ago <= 30 ? "ซื้อภายใน 30 วัน" : ago <= 90 ? "ห่างไป 1–3 เดือน" : "ไม่ได้ซื้อเกิน 3 เดือน";
+      renderTrend(data.monthly || []);
       renderBills(data.bills);
-      const pages = Math.max(1, Math.ceil(s.documents / data.pageSize));
-      el("bills-page").textContent = `หน้า ${billPage + 1} / ${pages}`;
-      el("bills-prev").disabled = billPage === 0;
-      el("bills-next").disabled = billPage + 1 >= pages;
+      billPages = Math.max(1, Math.ceil(s.documents / data.pageSize));
+      const from = s.documents ? billPage * data.pageSize + 1 : 0, to = Math.min(s.documents, (billPage + 1) * data.pageSize);
+      el("bills-range").textContent = s.documents ? `${num(from)}–${num(to)} จาก ${num(s.documents)} เอกสาร · กดบิลเพื่อดูรายการสินค้า` : "";
+      el("bills-page").textContent = `หน้า ${num(billPage + 1)} / ${num(billPages)}`;
+      el("bills-first").disabled = el("bills-prev").disabled = billPage === 0;
+      el("bills-last").disabled = el("bills-next").disabled = billPage + 1 >= billPages;
       status("history-status", s.documents ? `อัปเดต ${new Date(data.updatedAt).toLocaleTimeString("th-TH")}` : "ลูกค้ารายนี้ยังไม่มีบิลขาย เพิ่มหนี้ หรือรับคืน");
     } catch (e) {
       if (e.name === "AbortError") return;
       status("history-status", errorText(e), true);
-      el("bills-prev").disabled = el("bills-next").disabled = true;
+      el("bills-first").disabled = el("bills-prev").disabled = el("bills-next").disabled = el("bills-last").disabled = true;
     }
   }
+  const monthName = new Intl.DateTimeFormat("th-TH", { month: "short" });
+  const monthYear = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" });
+  function renderTrend(months) {
+    const chart = el("history-trend");
+    chart.replaceChildren();
+    const max = Math.max(0, ...months.map((m) => Math.abs(Number(m.net) || 0)));
+    const active = months.filter((m) => m.invoices > 0).length;
+    el("trend-note").textContent = months.length ? `มีบิลขาย ${num(active)} จาก ${num(months.length)} เดือน` : "";
+    chart.setAttribute("role", "img");
+    chart.setAttribute("aria-label", `ยอดซื้อรายเดือน มีบิลขาย ${active} จาก ${months.length} เดือน`);
+    months.forEach((m, i) => {
+      const value = Number(m.net) || 0, date = new Date(`${m.month}-15T12:00:00`);
+      const bar = node("div", "", `cs2-bar${!value ? " empty" : value < 0 ? " negative" : ""}`);
+      bar.tabIndex = 0;
+      const fill = node("i");
+      fill.style.height = `${max ? Math.max(2, (Math.abs(value) / max) * 100) : 2}%`;
+      bar.append(fill, node("span", `${monthYear.format(date)} · ${baht(value)} · ${num(m.invoices)} บิล`, "tip"));
+      // Label every 3rd month (always including the current one); January also shows the year.
+      if (i % 3 === (months.length - 1) % 3)
+        bar.append(node("small", date.getMonth() === 0 ? `${monthName.format(date)} ${String(date.getFullYear() + 543).slice(2)}` : monthName.format(date)));
+      chart.append(bar);
+    });
+  }
+  const COLS = 4; // date | document | amount | chevron
+  const shortMonth = new Intl.DateTimeFormat("th-TH", { month: "short", year: "2-digit" });
   function renderBills(bills) {
     const body = el("bill-rows");
     body.replaceChildren();
     if (!bills.length) {
-      const tr = node("tr"), td = node("td", "ไม่มีเอกสารในหน้านี้", "muted");
-      td.colSpan = 6; tr.append(td); body.append(tr);
+      const tr = node("tr"), td = node("td", "ไม่มีเอกสารในหน้านี้", "cs2-status");
+      td.colSpan = COLS; tr.append(td); body.append(tr);
       return;
     }
+    let month = null;
     for (const bill of bills) {
-      const tr = node("tr", "", "bill-row");
-      tr.tabIndex = 0;
-      tr.setAttribute("aria-expanded", "false");
-      const amount = node("td", baht(bill.flag === 48 ? -bill.amount : bill.amount), `num${bill.flag === 48 ? " neg" : ""}`);
-      const type = node("td"); type.append(badge(bill.flag));
-      tr.append(node("td", day(bill.date)), node("td", bill.docNo), type, node("td", bill.saleCode || "—", bill.saleCode ? "" : "muted"), amount, node("td", "▸", "toggle"));
-      const toggle = () => toggleBill(tr, bill);
-      tr.addEventListener("click", toggle);
-      tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
-      body.append(tr);
+      // A thin month divider whenever the month changes (no repeated totals).
+      if (bill.date.slice(0, 7) !== month) {
+        month = bill.date.slice(0, 7);
+        const tr = node("tr", "", "month-row"), td = node("td", monthYear.format(new Date(`${month}-15T12:00:00`)));
+        td.colSpan = COLS;
+        tr.append(td);
+        body.append(tr);
+      }
+      appendBill(body, bill);
     }
   }
-  async function toggleBill(tr, bill) {
-    const open = tr.getAttribute("aria-expanded") === "true";
-    if (open) { tr.nextElementSibling?.remove(); tr.setAttribute("aria-expanded", "false"); tr.lastChild.textContent = "▸"; return; }
-    tr.setAttribute("aria-expanded", "true");
-    tr.lastChild.textContent = "▾";
-    const detail = node("tr", "", "bill-lines"), cell = node("td");
-    cell.colSpan = 6;
-    cell.append(node("p", "กำลังโหลดรายการสินค้า…", "cs2-status"));
-    detail.append(cell);
-    tr.after(detail);
+  function appendBill(body, bill) {
+    const signed = bill.flag === 48 ? -bill.amount : Number(bill.amount);
+    const tr = node("tr", "", `bill-row${signed === 0 ? " zero" : ""}`);
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-haspopup", "dialog");
+    const date = new Date(`${bill.date}T12:00:00`);
+    const when = node("td", "", "when"), box = node("div", "", "date-box");
+    box.append(node("b", String(date.getDate())), node("small", shortMonth.format(date)));
+    when.append(box);
+    const doc = node("td", "", "doc-cell"), top = node("div", "", "doc-top"), meta = node("div", "", "doc-meta");
+    top.append(node("span", bill.docNo, "doc"), badge(bill.flag));
+    meta.textContent = `${day(bill.date)} · ${bill.saleCode ? teamLabel(bill.saleCode) : "ไม่ระบุพนักงานขาย"}`;
+    doc.append(top, meta);
+    const amount = node("td", baht(signed), `amount${signed < 0 ? " neg" : ""}`);
+    const chevron = node("td", "", "toggle");
+    chevron.append(node("span", "›", "chev"));
+    tr.append(when, doc, amount, chevron);
+    tr.setAttribute("aria-label", `${bill.docNo} ${day(bill.date)} ${baht(signed)} กดเพื่อดูรายการสินค้า`);
+    const open = () => openBill(tr, bill);
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    body.append(tr);
+  }
+  // Bill lines open in a modal popup; closing returns focus to the bill row.
+  const billDialog = el("bill-dialog");
+  let billOpener = null, billRequest = 0;
+  billDialog.addEventListener("close", () => { billRequest++; billOpener?.focus(); });
+  el("bill-dialog-close").addEventListener("click", () => billDialog.close());
+  billDialog.addEventListener("click", (e) => {
+    if (e.target !== billDialog) return; // clicks on the backdrop land on the <dialog> itself
+    const r = billDialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) billDialog.close();
+  });
+  async function openBill(tr, bill) {
+    billOpener = tr;
+    const request = ++billRequest;
+    const signed = bill.flag === 48 ? -bill.amount : Number(bill.amount);
+    el("bill-dialog-kicker").replaceChildren(badge(bill.flag));
+    el("bill-dialog-title").textContent = bill.docNo;
+    el("bill-dialog-meta").textContent = `${day(bill.date)} · ${bill.saleCode ? teamLabel(bill.saleCode) : "ไม่ระบุพนักงานขาย"} · ${el("history-name").textContent} (${customer})`;
+    const cell = el("bill-dialog-body");
+    cell.replaceChildren(node("p", "กำลังโหลดรายการสินค้า…", "cs2-status"));
+    if (!billDialog.open) billDialog.showModal();
     try {
       const { lines } = await getJSON(`/api/customer-stock/bill?${new URLSearchParams({ docNo: bill.docNo, date: bill.date, flag: bill.flag, customer })}`);
-      if (!detail.isConnected) return;
+      if (request !== billRequest) return;
       if (!lines.length) { cell.replaceChildren(node("p", "ไม่พบรายการสินค้าในเอกสารนี้", "cs2-status")); return; }
       const table = node("table", "", "cs2-lines");
       const head = node("tr");
-      ["รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "หน่วย", "ยอด"].forEach((h, i) => head.append(node("th", h, i === 2 || i === 4 ? "num" : "")));
+      ["รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "ยอด"].forEach((h, i) => head.append(node("th", h, i >= 2 ? "num" : "")));
       table.append(node("thead"));
       table.tHead.append(head);
       const tbody = node("tbody");
@@ -192,22 +346,39 @@
       for (const line of lines) {
         total += Number(line.amount) || 0;
         const row = node("tr");
-        row.append(node("td", line.code), node("td", line.name), node("td", num(line.quantity), "num"), node("td", line.unit || "—"), node("td", baht(line.amount), "num"));
+        row.append(node("td", line.code, "doc"), node("td", line.name), node("td", `${num(line.quantity)} ${line.unit || ""}`.trim(), "num"), node("td", baht(line.amount), "num"));
         tbody.append(row);
       }
       table.append(tbody);
-      const foot = node("tfoot"), sum = node("tr"), label = node("td", `รวมรายการ ${lines.length} บรรทัด (ยอดท้ายบิล ${baht(bill.amount)} อาจต่างจากผลรวมรายการเพราะส่วนลด/VAT)`);
-      label.colSpan = 4;
-      sum.append(label, node("td", baht(total), "num"));
-      foot.append(sum);
-      table.append(foot);
-      cell.replaceChildren(table);
+      const scroll = node("div", "", "cs2-dialog-table");
+      scroll.append(table);
+      const totals = node("dl", "", "cs2-dialog-totals");
+      const pair = (label, value, strong = false) => {
+        const row = node("div", "", strong ? "strong" : "");
+        row.append(node("dt", label), node("dd", value));
+        totals.append(row);
+      };
+      pair(`ผลรวมรายการ (${num(lines.length)} บรรทัด)`, baht(bill.flag === 48 ? -total : total));
+      pair("ยอดท้ายบิล", baht(signed), true);
+      const parts = [scroll, totals];
+      // Only explain a difference when there is one (discount / VAT on the document total).
+      if (Math.abs(total - Number(bill.amount)) >= 0.005)
+        parts.push(node("p", `ต่างกัน ${baht(Number(bill.amount) - total)} — ยอดท้ายบิลอาจรวมส่วนลดหรือ VAT จึงไม่เท่ากับผลรวมรายการ`, "cs2-status"));
+      cell.replaceChildren(...parts);
     } catch (e) {
-      if (detail.isConnected) cell.replaceChildren(node("p", errorText(e), "cs2-status error"));
+      if (request === billRequest) cell.replaceChildren(node("p", errorText(e), "cs2-status error"));
     }
   }
-  el("bills-prev").addEventListener("click", () => { billPage = Math.max(0, billPage - 1); loadHistory(); });
-  el("bills-next").addEventListener("click", () => { billPage += 1; loadHistory(); });
+  let billPages = 1;
+  const goBills = (page) => {
+    billPage = Math.min(Math.max(0, page), billPages - 1);
+    loadHistory();
+    el("bills-title").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
+  el("bills-first").addEventListener("click", () => goBills(0));
+  el("bills-prev").addEventListener("click", () => goBills(billPage - 1));
+  el("bills-next").addEventListener("click", () => goBills(billPage + 1));
+  el("bills-last").addEventListener("click", () => goBills(billPages - 1));
 
   // ---------- Tab 2: whole stock ----------
   let stockPage = 0, stockController, stockTimer;
@@ -224,8 +395,13 @@
       el("stock-in").textContent = `${num(s.inStock)} รายการ`;
       el("stock-total").textContent = `จากสินค้าในทะเบียน ${num(s.products)} รายการ`;
       el("stock-noprice").textContent = `${num(s.inStockNoPrice)} รายการ`;
-      el("stock-negative").textContent = `${num(s.negative)} รายการ`;
-      el("stock-nodata").textContent = `${num(s.noStockData)} รายการ`;
+      el("stock-quantity").textContent = num(s.quantity);
+      const units = s.units || [];
+      el("stock-units").textContent = units.length
+        ? `รวมทุกหน่วย · ${units.slice(0, 3).map((u) => `${u.unit} ${num(u.quantity)}`).join(" · ")}${units.length > 3 ? ` · อื่น ๆ ${units.length - 3} หน่วย` : ""}`
+        : "ไม่มีสินค้าคงเหลือ";
+      el("stock-units").title = units.map((u) => `${u.unit} ${num(u.quantity)}`).join("\n");
+      el("stock-problem").textContent = `${num(s.negative)} / ${num(s.noStockData)}`;
       const body = el("stock-rows");
       body.replaceChildren();
       if (!data.rows.length) {
@@ -260,17 +436,115 @@
 
   // ---------- Tab 3: product movement ----------
   let movement = null, movementController, cyclesShown = 0, movesShown = 0;
-  picker({
-    input: el("product-search"), list: el("product-results"), statusId: "product-search-status",
-    url: "/api/customer-stock/products", key: "products",
-    render: (p) => [p.name, `${p.code} · คงเหลือ ${p.quantity == null ? "ไม่มีข้อมูล" : num(p.quantity)} ${p.unit || ""}`],
-    onPick: (p) => { el("product-search").value = `${p.name} · ${p.code}`; loadMovement(p.code); },
+  // Product filters (same definitions as เช็คราคา/สต๊อก) → list on the left → movement on the right.
+  let productGroups = null, productController, productTimer, productOffset = 0, productTotal = 0, currentProduct = null;
+  let allSubgroups = [];
+  async function loadProductGroups() {
+    try {
+      const data = await getJSON("/api/customer-stock/product-groups");
+      allSubgroups = data.subgroups;
+      const group = el("product-group");
+      for (const g of data.groups) group.append(new Option(`${g.name}${g.name !== g.code ? ` · ${g.code}` : ""} (${num(g.count)})`, g.code));
+      group.disabled = false;
+      fillSubgroups();
+    } catch (e) {
+      status("product-search-status", `โหลดกลุ่มสินค้าไม่สำเร็จ · ${errorText(e)}`, true);
+    }
+  }
+  function fillSubgroups() {
+    const select = el("product-subgroup"), group = el("product-group").value;
+    const list = allSubgroups.filter((s) => !group || s.main === group);
+    select.replaceChildren(new Option("ทุกกลุ่มสินค้าย่อย", ""));
+    for (const s of list) select.append(new Option(`${s.name}${s.name !== s.code ? ` · ${s.code}` : ""} (${num(s.count)})`, s.code));
+    select.disabled = !list.length;
+  }
+  // 5 products per page; keepPage=false (a filter changed) goes back to page 1.
+  async function loadProducts(keepPage = false) {
+    productController?.abort();
+    productController = new AbortController();
+    if (!keepPage) productOffset = 0;
+    const list = el("product-list");
+    list.replaceChildren();
+    el("product-list-title").textContent = "กำลังโหลดสินค้า…";
+    status("product-search-status", "");
+    el("product-prev").disabled = el("product-next").disabled = true;
+    try {
+      const params = { q: el("product-search").value.trim(), group: el("product-group").value, subgroup: el("product-subgroup").value, stock: el("product-stock").value, offset: productOffset };
+      const data = await getJSON(`/api/customer-stock/product-list?${new URLSearchParams(params)}`, productController.signal);
+      productTotal = data.total;
+      el("product-list-title").textContent = `สินค้าตามตัวกรอง · ${num(data.total)} รายการ`;
+      if (!data.total) list.append(node("li", "ไม่พบสินค้าตามตัวกรอง", "cs2-status"));
+      for (const p of data.rows) {
+        const li = node("li"), button = node("button");
+        button.type = "button";
+        button.dataset.code = p.code;
+        const stock = p.quantity == null ? "ไม่มีข้อมูลคงเหลือ" : `คงเหลือ ${num(p.quantity)} ${p.unit || ""}`.trim();
+        button.append(node("span", p.name), node("small", `${p.code} · ${stock}`));
+        button.addEventListener("click", () => loadMovement(p.code));
+        li.append(button);
+        list.append(li);
+      }
+      productPageSize = data.pageSize;
+      const pages = Math.max(1, Math.ceil(data.total / data.pageSize)), page = Math.floor(productOffset / data.pageSize) + 1;
+      el("product-page").textContent = `หน้า ${num(page)} / ${num(pages)}`;
+      el("product-prev").disabled = page <= 1;
+      el("product-next").disabled = page >= pages;
+      markProduct();
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      el("product-list-title").textContent = "โหลดรายการสินค้าไม่สำเร็จ";
+      status("product-search-status", errorText(e), true);
+    }
+  }
+  function markProduct() {
+    el("product-list").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.code === currentProduct)));
+  }
+  el("product-search").addEventListener("input", () => { clearTimeout(productTimer); productTimer = setTimeout(() => loadProducts(), 300); });
+  el("product-group").addEventListener("change", () => { fillSubgroups(); loadProducts(); });
+  el("product-subgroup").addEventListener("change", () => loadProducts());
+  el("product-stock").addEventListener("change", () => loadProducts());
+  el("product-filters").addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(productTimer); loadProducts(); });
+  let productPageSize = 5;
+  el("product-prev").addEventListener("click", () => { productOffset = Math.max(0, productOffset - productPageSize); loadProducts(true); });
+  el("product-next").addEventListener("click", () => { productOffset += productPageSize; loadProducts(true); });
+  function startMovementTab() {
+    if (productGroups) return;
+    productGroups = true;
+    loadProductGroups();
+    loadProducts();
+  }
+  // Below 1280px (iPad, phones) the product journey opens as a modal popup; wider screens keep it inline.
+  const narrow = window.matchMedia("(max-width: 1280px)");
+  const sheet = el("movement-dialog");
+  let sheetOpener = null;
+  function showMovementSheet() {
+    sheetOpener = document.activeElement;
+    if (narrow.matches) {
+      if (!sheet.matches(":modal")) { if (sheet.open) sheet.close(); sheet.showModal(); }
+      sheet.scrollTop = 0;
+    } else if (!sheet.open) sheet.show();
+  }
+  el("movement-close").addEventListener("click", () => sheet.close());
+  sheet.addEventListener("close", () => { if (narrow.matches) sheetOpener?.focus?.(); });
+  sheet.addEventListener("click", (e) => {
+    if (e.target !== sheet || !sheet.matches(":modal")) return;
+    const r = sheet.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) sheet.close();
+  });
+  // Rotating / resizing across 1280px switches between popup and inline without losing the product.
+  narrow.addEventListener("change", () => {
+    if (!sheet.open || el("movement-view").hidden) return;
+    sheet.close();
+    if (narrow.matches) el("movement-empty").hidden = false; else showMovementSheet();
   });
   async function loadMovement(code) {
+    currentProduct = code;
+    markProduct();
     movementController?.abort();
     movementController = new AbortController();
-    el("movement-empty").hidden = true;
+    el("movement-empty").hidden = !narrow.matches; // popup mode keeps the hint under the list
     el("movement-view").hidden = false;
+    showMovementSheet();
     el("cycle-list").replaceChildren();
     el("move-rows").replaceChildren();
     el("cycles-more").hidden = el("moves-more").hidden = true;
