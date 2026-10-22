@@ -1438,3 +1438,141 @@ h3 > .cs2-help .cs2-help-tip {
 #kpi-dialog .cs2-dialog-actions:not(:has(button)) {
   display: none;
 }
+
+/* Movement tab: last 5 received products */
+.cs2-recent {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cs2-recent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+.cs2-recent-head strong {
+  color: var(--ink, #f4f4f5);
+}
+.cs2-recent-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 240px);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding-bottom: 8px;
+  gap: 10px;
+}
+.cs2-recent-card {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 12px;
+  background: var(--surface, #141417);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cs2-recent-card:hover,
+.cs2-recent-card:focus-visible {
+  border-color: var(--brand-border, #632124);
+  background: var(--surface-raised, #1c1c20);
+}
+.cs2-recent-card strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.cs2-recent .cs2-recent-card span {
+  color: var(--positive, #66d699);
+  font-weight: 600;
+}
+.cs2-recent-card small {
+  font-size: 12px;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-recent-card {
+  scroll-snap-align: start;
+}
+.cs2-recent .cs2-recent-rank {
+  justify-self: start;
+  padding: 2px 8px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #b0b1b8);
+}
+.cs2-recent .cs2-recent-card:first-child .cs2-recent-rank {
+  border-color: var(--brand-border, #632124);
+  color: var(--ink, #f4f4f5);
+}
+/* Scroll stays (drag / swipe / wheel), the bar itself is hidden. */
+.cs2-recent-list {
+  scrollbar-width: none;
+}
+.cs2-recent-list::-webkit-scrollbar {
+  display: none;
+}
+.cs2-recent-track {
+  position: relative;
+  min-width: 0;
+}
+.cs2-recent-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 999px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+}
+.cs2-recent-nav[hidden] {
+  display: none;
+}
+.cs2-recent-nav:hover,
+.cs2-recent-nav:focus-visible {
+  border-color: var(--brand-border, #632124);
+}
+.cs2-recent-nav.prev { left: -12px; }
+.cs2-recent-nav.next { right: -12px; }
+@media (max-width: 640px) {
+  .cs2-recent-nav.prev { left: 4px; }
+  .cs2-recent-nav.next { right: 4px; }
+}
+/* วันเข้า step: received total of the cycle with its ใบซื้อ / other split. */
+.cs2-step > small { font-size: 13px; }
+.cs2-receipt {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.cs2-receipt > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+.cs2-receipt dt { color: var(--muted, #b0b1b8); }
+.cs2-receipt dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, #f4f4f5);
+}
+.cs2-receipt > div:first-child dd { color: var(--positive, #66d699); }
+.cs2-receipt > div + div { font-size: 13px; }

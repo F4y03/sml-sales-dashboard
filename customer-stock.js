@@ -205,6 +205,27 @@ const productInfoSql = `
 SELECT i.code, COALESCE(NULLIF(MAX(i.name_1), ''), i.code) AS name, MAX(i.unit_standard) AS unit, MAX(i.balance_qty) AS quantity
 FROM ic_inventory i WHERE i.code = $1 GROUP BY i.code`;
 
+// Last 10 products bought in: purchase receipts only (trans_flag 12, PU/PA documents; stock adjustments 58,
+// transfers etc. excluded), ฝ… excluded. One card per product = its latest purchase document within
+// 180 days, quantity summed over that document's lines in the standard unit.
+const recentReceiptsSql = `
+SELECT r.date, r."docNo", r.code, r.quantity, COALESCE(NULLIF(i.name, ''), r.name, r.code) AS name, i.unit, i.balance
+FROM (
+  SELECT DISTINCT ON (x.code) * FROM (
+    SELECT to_char(d.doc_date, 'YYYY-MM-DD') AS date, d.doc_no AS "docNo", d.item_code AS code,
+      MAX(NULLIF(d.item_name, '')) AS name, SUM(d.qty * d.stand_value / NULLIF(d.divide_value, 0)) AS quantity,
+      d.doc_date, MAX(d.doc_time) AS doc_time
+    FROM ic_trans_detail d
+    WHERE d.trans_flag = 12 AND d.calc_flag = 1 AND d.last_status = 0 AND d.doc_date <= CURRENT_DATE AND d.doc_date >= CURRENT_DATE - 180
+      AND left(d.item_code, 1) <> 'ฝ' AND d.qty <> 0 AND ${stockAffectingSQL}
+    GROUP BY d.doc_date, d.doc_no, d.item_code
+  ) x
+  ORDER BY x.code, x.doc_date DESC, x.doc_time DESC, x."docNo" DESC
+) r
+LEFT JOIN (SELECT code, MAX(name_1) AS name, MAX(unit_standard) AS unit, MAX(balance_qty) AS balance FROM ic_inventory GROUP BY code) i ON i.code = r.code
+ORDER BY r.doc_date DESC, r.doc_time DESC, r."docNo" DESC
+LIMIT 10`;
+
 // Split the running balance into stock cycles: a cycle starts when the balance rises above 0
 // (วันเข้า) and ends on the first movement that brings it back to 0 or below (วันหมด).
 // Buyers are sales documents (flag 44) inside the cycle, grouped by customer.
@@ -215,11 +236,14 @@ export function stockCycles(moves) {
     const balance = move.balance == null ? null : Number(move.balance);
     if (balance == null) continue;
     if (!current && previous <= 0 && balance > 0) {
-      current = { start: move.date, startDoc: move.docNo, received: 0, receipts: 0, sold: 0, buyers: new Map(), end: null, endDoc: null };
+      current = { start: move.date, startDoc: move.docNo, received: 0, receipts: 0, purchased: 0, sold: 0, buyers: new Map(), end: null, endDoc: null };
     }
     if (current) {
       const quantity = Number(move.quantity) || 0;
-      if (Number(move.direction) === 1) { current.received += quantity; current.receipts += 1; }
+      if (Number(move.direction) === 1) {
+        current.received += quantity; current.receipts += 1;
+        if (Number(move.flag) === 12) current.purchased += quantity; // ใบซื้อ/รับสินค้า; the rest = ปรับปรุง/โอน/รับคืน
+      }
       if (Number(move.direction) === -1 && Number(move.flag) === 44) {
         current.sold += quantity;
         const key = move.customer;
@@ -313,6 +337,11 @@ export function installCustomerStock(app, pool) {
       const data = (await pool.query(productListSql, [q, group, subgroup, stock, offset])).rows[0].list;
       res.json({ ...data, total: Number(data.total), offset, pageSize: PRODUCT_LIST });
     } catch (error) { queryError(res, error, 'product list'); }
+  });
+
+  app.get('/api/customer-stock/recent-receipts', async (req, res) => {
+    try { res.json({ rows: (await pool.query(recentReceiptsSql)).rows }); }
+    catch (error) { queryError(res, error, 'recent receipts'); }
   });
 
   app.get('/api/customer-stock/products', async (req, res) => {

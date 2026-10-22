@@ -582,6 +582,52 @@
     productGroups = true;
     loadProductGroups();
     loadProducts();
+    loadRecentReceipts();
+  }
+  // The recent row hides its scrollbar: a vertical mouse wheel scrolls it sideways until either end.
+  el("recent-list").addEventListener("wheel", (e) => {
+    const list = e.currentTarget;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || list.scrollWidth <= list.clientWidth) return;
+    const atEnd = e.deltaY > 0 ? list.scrollLeft + list.clientWidth >= list.scrollWidth - 1 : list.scrollLeft <= 0;
+    if (atEnd) return;
+    e.preventDefault();
+    list.scrollLeft += e.deltaY;
+  }, { passive: false });
+  // ‹ › buttons: shown only when there is more to scroll in that direction; one click ≈ two cards.
+  function updateRecentNav() {
+    const list = el("recent-list");
+    el("recent-prev").hidden = list.scrollLeft <= 1;
+    el("recent-next").hidden = list.scrollLeft + list.clientWidth >= list.scrollWidth - 1;
+  }
+  el("recent-list").addEventListener("scroll", updateRecentNav, { passive: true });
+  new ResizeObserver(updateRecentNav).observe(el("recent-list")); // also fires when cards render or the tab opens
+  for (const [id, dir] of [["recent-prev", -1], ["recent-next", 1]]) {
+    el(id).addEventListener("click", () => {
+      const list = el("recent-list"), card = list.firstElementChild;
+      const step = card ? (card.getBoundingClientRect().width + 10) * 2 : list.clientWidth * 0.8;
+      list.scrollBy({ left: dir * step, behavior: "smooth" });
+    });
+  }
+  async function loadRecentReceipts() {
+    const list = el("recent-list");
+    status("recent-status", "กำลังโหลด…");
+    try {
+      const { rows } = await getJSON("/api/customer-stock/recent-receipts");
+      list.replaceChildren();
+      status("recent-status", rows.length ? "" : "ไม่มีใบซื้อ/รับสินค้าใน 180 วันที่ผ่านมา");
+      for (const [i, r] of rows.entries()) {
+        const button = node("button", "", "cs2-recent-card");
+        button.type = "button";
+        const stock = r.balance == null ? "ไม่มีข้อมูลคงเหลือ" : `คงเหลือ ${num(r.balance)} ${r.unit || ""}`.trim();
+        button.append(node("b", i ? `ลำดับ ${i + 1}` : "ล่าสุด #1", "cs2-recent-rank"), node("small", `${day(r.date)} · ${r.docNo}`), node("strong", r.name),
+          node("span", `สินค้าเข้า ${num(r.quantity)} ${r.unit || ""}`.trim()), node("small", `${r.code} · ${stock}`));
+        button.addEventListener("click", () => loadMovement(r.code));
+        list.append(button);
+      }
+      updateRecentNav();
+    } catch (e) {
+      status("recent-status", `โหลดรายการรับเข้าล่าสุดไม่สำเร็จ · ${errorText(e)}`, true);
+    }
   }
   // Below 1280px (iPad, phones) the product journey opens as a modal popup; wider screens keep it inline.
   const narrow = window.matchMedia("(max-width: 1280px)");
@@ -653,7 +699,19 @@
       const card = node("article", "", "cs2-cycle");
       const inStep = node("div", "", "cs2-step in");
       inStep.append(node("span", "① วันเข้า"), node("strong", day(c.start)),
-        node("small", `เอกสาร ${c.startDoc} · รับเข้าในรอบนี้ ${num(c.received)} ${unit} (${num(c.receipts)} ครั้ง)`));
+        node("small", `เอกสารแรกของรอบ ${c.startDoc}`));
+      // Received total of the cycle, split into ใบซื้อ (flag 12) and everything else that added stock.
+      const receipt = node("dl", "", "cs2-receipt");
+      const other = c.received - (c.purchased ?? 0);
+      const rows = [["รับเข้ารวมในรอบนี้", `${num(c.received)} ${unit}`, `จาก ${num(c.receipts)} เอกสาร`]];
+      if (c.purchased) rows.push(["• ใบซื้อ/รับสินค้า", `${num(c.purchased)} ${unit}`]);
+      if (Math.abs(other) > 0.0005) rows.push(["• ปรับปรุง/โอน/รับคืน", `${num(other)} ${unit}`]);
+      for (const [label, value, note] of rows) {
+        const row = node("div");
+        row.append(node("dt", label), node("dd", note ? `${value} ${note}` : value));
+        receipt.append(row);
+      }
+      inStep.append(receipt);
       const buyStep = node("div", "", "cs2-step");
       buyStep.append(node("span", `② ใครซื้อ · ${num(c.buyers.length)} ราย · ขาย ${num(c.sold)} ${unit}`));
       if (c.buyers.length) {
