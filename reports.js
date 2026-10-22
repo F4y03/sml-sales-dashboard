@@ -126,9 +126,24 @@ export function installReports(app, pool) {
       await client.query('BEGIN READ ONLY');
       await client.query("SET LOCAL statement_timeout='25000'");
       const result=await client.query({text:`SELECT * FROM (${compiled.text}) AS sml_web_report LIMIT ${pageSize+1} OFFSET ${page*pageSize}`,values:compiled.values,rowMode:'array',types:{getTypeParser:(oid,format)=>[1082,1114,1184].includes(oid)?v=>v:pg.types.getTypeParser(oid,format)}});
+      // Total rows for "หน้า x จาก y": exact without a query on the last page; otherwise a COUNT in a savepoint
+      // with its own short timeout, so a slow count never fails the page (total stays null = unknown).
+      const hasMore=result.rows.length>pageSize;
+      let total=hasMore?null:page*pageSize+result.rows.length;
+      if (hasMore) {
+        await client.query('SAVEPOINT sml_web_count');
+        try {
+          await client.query("SET LOCAL statement_timeout='10000'");
+          total=Number((await client.query(`SELECT COUNT(*) AS n FROM (${compiled.text}) AS sml_web_report`,compiled.values)).rows[0].n);
+          await client.query('RELEASE SAVEPOINT sml_web_count');
+        } catch(countError) {
+          await client.query('ROLLBACK TO SAVEPOINT sml_web_count');
+          console.error('SML report count',req.params.key,countError.code || '',countError.message);
+        }
+      }
       await client.query('COMMIT');
       const fields=result.fields.map(f=>({name:f.name,label:q.fields.find(c=>c.name===f.name)?.label || f.name,type:q.fields.find(c=>c.name===f.name)?.type || ([20,21,23,700,701,1700].includes(f.dataTypeID)?'Number':'Text')}));
-      res.json({id:r.id,name:r.name,dataset,page,pageSize,hasMore:result.rows.length>pageSize,fields,rows:result.rows.slice(0,pageSize),filters:values,updatedAt:new Date().toISOString()});
+      res.json({id:r.id,name:r.name,dataset,page,pageSize,hasMore,total,fields,rows:result.rows.slice(0,pageSize),filters:values,updatedAt:new Date().toISOString()});
     } catch(e) {
       if(client) await client.query('ROLLBACK').catch(()=>{});
       console.error('SML report',req.params.key,e.code || '',e.message);

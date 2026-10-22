@@ -127,13 +127,15 @@
   const isoOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
   const todayIso = () => { const t = new Date(); return isoOf(t.getFullYear(), t.getMonth(), t.getDate()); };
 
+  // to === null: single-date mode (same calendar, one click picks the day). Opt-in via data-dmy-calendar.
   function enhanceRange(box, from, to) {
-    if (!from || !to || from.dmyRangeOpen) return;
+    if (!from || from.dmyRangeOpen) return;
+    const single = !to;
     const pop = document.createElement("div");
     pop.className = "date-range-pop";
     pop.hidden = true;
     pop.setAttribute("role", "dialog");
-    pop.setAttribute("aria-label", "เลือกช่วงวันที่");
+    pop.setAttribute("aria-label", single ? "เลือกวันที่" : "เลือกช่วงวันที่");
     document.body.appendChild(pop);
     let view, start, end, hover;
 
@@ -143,7 +145,8 @@
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     };
-    const outside = (e) => { if (!pop.contains(e.target) && !box.contains(e.target)) close(); };
+    const owner = box || from.closest(".date-dmy") || from;
+    const outside = (e) => { if (!pop.contains(e.target) && !owner.contains(e.target)) close(); };
     const place = () => {
       const r = (from.closest(".date-dmy") || from).getBoundingClientRect();
       const w = pop.offsetWidth, h = pop.offsetHeight;
@@ -192,7 +195,7 @@
       const arrow = (step, label, text) => { const b = document.createElement("button"); b.type = "button"; b.className = "drp-arrow"; b.dataset.step = step; b.setAttribute("aria-label", label); b.textContent = text; return b; };
       const hint = document.createElement("span");
       hint.className = "drp-hint";
-      hint.textContent = start && !end ? "เลือกวันสิ้นสุด" : "เลือกวันเริ่มต้น";
+      hint.textContent = single ? "เลือกวันที่" : start && !end ? "เลือกวันสิ้นสุด" : "เลือกวันเริ่มต้น";
       nav.append(arrow(-1, "เดือนก่อน", "‹"), hint, arrow(1, "เดือนถัดไป", "›"));
       const months = document.createElement("div");
       months.className = "drp-months";
@@ -209,9 +212,10 @@
       if (!t) return;
       if (t.dataset.step) { const d = new Date(view.y, view.m + Number(t.dataset.step), 1); view = { y: d.getFullYear(), m: d.getMonth() }; return render(); }
       if (t.dataset.act === "close") return close();
-      if (t.dataset.act === "today") { const iso = todayIso(); setValue(from, iso); setValue(to, iso); return close(); }
+      if (t.dataset.act === "today") { const iso = todayIso(); setValue(from, iso); if (!single) setValue(to, iso); return close(); }
       const iso = t.dataset.iso;
       if (!iso) return;
+      if (single) { setValue(from, iso); return close(); }
       if (!start || end) { start = iso; end = null; hover = null; return render(); }
       [start, end] = iso < start ? [iso, start] : [start, iso];
       setValue(from, start);
@@ -219,13 +223,14 @@
       close();
     });
     pop.addEventListener("pointerover", (e) => {
+      if (single) return;
       const iso = e.target.dataset && e.target.dataset.iso;
       if (iso && start && !end && iso !== hover) { hover = iso; render(); }
     });
 
     const open = () => {
       if (!pop.hidden) return close();
-      start = from.value || null; end = to.value || null; hover = null;
+      start = from.value || null; end = single ? start : to.value || null; hover = null;
       const anchor = start ? new Date(start + "T00:00:00") : new Date();
       view = { y: anchor.getFullYear(), m: anchor.getMonth() };
       render();
@@ -237,7 +242,7 @@
       document.addEventListener("keydown", esc);
     };
     from.dmyRangeOpen = open;
-    to.dmyRangeOpen = open;
+    if (!single) to.dmyRangeOpen = open;
   }
 
   const style = document.createElement("style");
@@ -292,7 +297,11 @@
         i++;
       }
     }
+    // Lone date fields that ask for the same calendar (pages set data-dmy-calendar).
+    for (const input of document.querySelectorAll('input[type="date"][data-dmy-calendar]')) enhanceRange(null, input, null);
   };
+  // Pages that build date inputs later (e.g. reports.html conditions) call this after adding them.
+  window.DateDmy = { refresh: run };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
   else run();
 })();

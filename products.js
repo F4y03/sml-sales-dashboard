@@ -1,6 +1,7 @@
 import pg from 'pg';
 import ExcelJS from 'exceljs';
 import { PassThrough } from 'node:stream';
+import { stockAffectingSQL } from './consignment.js';
 
 export const productLabels = {code:'รหัสสินค้า',code_old:'รหัสสินค้าเดิม',name_1:'ชื่อสินค้า',name_2:'ชื่อสินค้า 2',name_eng_1:'ชื่อภาษาอังกฤษ',group_main:'รหัสกลุ่มหลัก',group_main_name:'ชื่อกลุ่มหลัก',group_sub:'รหัสกลุ่มย่อย',unit_standard:'หน่วยมาตรฐาน',item_brand:'รหัสยี่ห้อ',item_model:'รุ่น',description:'รายละเอียด',remark:'หมายเหตุ',average_cost:'ต้นทุนเฉลี่ยในทะเบียน',balance_qty:'ยอดคงเหลือในทะเบียน',item_status:'สถานะสินค้า (รหัส)',status:'สถานะ (รหัส)'};
 const types={getTypeParser:(oid,format)=>[1082,1114,1184].includes(oid)?v=>v:pg.types.getTypeParser(oid,format)};
@@ -111,7 +112,23 @@ SELECT a.net_all, a.net_recent, a.last_sold, a.invoices, a.buyers,
   rr.rank AS rank_recent, rr.ranked_total AS total_recent
 FROM agg a LEFT JOIN rank_all ra ON ra.code=a.code LEFT JOIN rank_recent rr ON rr.code=a.code
 WHERE a.code=$1`;
+// Receipt dates of one product: any stock-increasing line of report 2060 (calc_flag 1) and ใบซื้อ/รับสินค้า (flag 12).
+const receiptDatesSql=`
+SELECT to_char(MIN(d.doc_date),'YYYY-MM-DD') AS first_in, to_char(MAX(d.doc_date),'YYYY-MM-DD') AS last_in,
+  to_char(MIN(d.doc_date) FILTER (WHERE d.trans_flag=12),'YYYY-MM-DD') AS first_purchase,
+  to_char(MAX(d.doc_date) FILTER (WHERE d.trans_flag=12),'YYYY-MM-DD') AS last_purchase
+FROM ic_trans_detail d
+WHERE d.item_code=$1 AND d.calc_flag=1 AND d.last_status=0 AND d.doc_date<=CURRENT_DATE AND d.qty<>0 AND ${stockAffectingSQL}`;
 export function installProducts(app,pool){
+  app.get('/api/products/receipt-dates',async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    const code=typeof req.query.code==='string'?req.query.code.trim():'';
+    if(!code||code.length>200)return res.status(400).json({error:'กรุณาระบุรหัสสินค้าให้ถูกต้อง'});
+    try{
+      const r=(await pool.query(receiptDatesSql,[code])).rows[0];
+      res.json({code,firstIn:r.first_in,lastIn:r.last_in,firstPurchase:r.first_purchase,lastPurchase:r.last_purchase});
+    }catch(e){console.error('Receipt dates lookup failed:',e.code);res.status(503).json({error:'ดึงวันที่สินค้าเข้าจาก SML ไม่สำเร็จ'});}
+  });
   app.get('/api/products/best-seller',async(req,res)=>{
     res.set('Cache-Control','no-store');
     const code=typeof req.query.code==='string'?req.query.code.trim():'';

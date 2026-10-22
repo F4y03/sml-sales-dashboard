@@ -57,8 +57,7 @@ function renderCategories() {
       $("report-search").value = "";
       renderCategories();
       list();
-      const first = categoryItems()[0];
-      if (first) openReport(first.key);
+      status("เลือกรายงานจากรายการ หรือกดรายงานใช้บ่อยด้านบน");
     };
     categoryNav.append(button);
   }
@@ -108,7 +107,7 @@ async function openReport(key) {
     return;
   }
   if (!$("report-form").checkValidity()) {
-    $("report-settings").open = true;
+    $("report-form").querySelector(":invalid")?.focus();
     status("กรุณาระบุเงื่อนไขให้ครบ แล้วกดแสดงรายงาน", true);
     return;
   }
@@ -132,7 +131,7 @@ async function select(key) {
   snapshot = null;
   $("report-form").hidden = true;
   $("report-settings").hidden = true;
-  $("report-settings").open = false;
+  $("date-presets").hidden = true;
   status("กำลังอ่านเงื่อนไขรายงาน…");
   try {
     const r = await json("/api/reports/" + key);
@@ -197,10 +196,15 @@ async function select(key) {
                 ? String(new Date().getFullYear())
                 : c.default || "";
         if (c.type === "Date" || c.type === "Number") input.required = true;
+        if (c.type === "Date") input.dataset.dmyCalendar = ""; // shared 2-month calendar, also for a lone date
       }
       label.append(input);
       $("condition-fields").append(label);
     }
+    window.DateDmy?.refresh(); // DD/MM/YYYY text + shared from/to range calendar (date-dmy.js)
+    renderDatePresets();
+    remember(r.key);
+    renderQuick();
     $("dataset").replaceChildren();
     for (const d of r.datasets) {
       const option = document.createElement("option");
@@ -309,11 +313,29 @@ function render(data) {
     const tr = document.createElement("tr"),
       td = document.createElement("td");
     td.colSpan = Math.max(1, data.fields.length);
-    td.textContent = "ไม่พบข้อมูลตามเงื่อนไขที่เลือก";
+    td.textContent = "ไม่พบข้อมูลตามเงื่อนไขที่เลือก · ลองขยายช่วงวันที่หรือเว้นช่องรหัสว่าง";
+    tr.className = "empty-row";
     tr.append(td);
     $("result-body").append(tr);
   }
-  $("page-label").textContent = `หน้า ${data.page + 1} · หน้าละ 100 แถว`;
+  $("pin-report").setAttribute("aria-pressed", String(pins().includes(selected.key)));
+  $("pin-report").textContent = pins().includes(selected.key) ? "★ ปักหมุดแล้ว" : "☆ ปักหมุด";
+  $("result-filter").value = "";
+  filterRows();
+  // "หน้า 2 จาก 12 · แถว 101–200 จาก 1,150"; total is null when the server could not count in time.
+  const first = data.page * data.pageSize + 1, last = data.page * data.pageSize + data.rows.length;
+  const pages = data.total == null ? null : Math.max(1, Math.ceil(data.total / data.pageSize));
+  $("page-label").textContent = !data.rows.length
+    ? "ไม่มีข้อมูล"
+    : pages == null
+      ? `หน้า ${(data.page + 1).toLocaleString("th-TH")} · แถว ${first.toLocaleString("th-TH")}–${last.toLocaleString("th-TH")} · นับจำนวนทั้งหมดไม่ทัน`
+      : `หน้า ${(data.page + 1).toLocaleString("th-TH")} จาก ${pages.toLocaleString("th-TH")} · แถว ${first.toLocaleString("th-TH")}–${last.toLocaleString("th-TH")} จาก ${data.total.toLocaleString("th-TH")} แถว`;
+  const jump = $("page-jump");
+  jump.closest(".page-jump").hidden = !pages || pages < 2;
+  if (pages && pages > 1) {
+    jump.replaceChildren(...Array.from({ length: Math.min(pages, 10001) }, (_, i) => new Option(String(i + 1), String(i))));
+    jump.value = String(data.page);
+  }
   $("previous-page").disabled = data.page === 0;
   $("next-page").disabled = !data.hasMore;
 }
@@ -332,6 +354,9 @@ $("report-form").onsubmit = (e) => {
 };
 $("previous-page").onclick = () => {
   if (result) run(result.page - 1);
+};
+$("page-jump").onchange = () => {
+  if (result) run(Number($("page-jump").value));
 };
 $("next-page").onclick = () => {
   if (result) run(result.page + 1);
@@ -376,6 +401,7 @@ async function loadCatalog() {
     catalog = data.reports;
     renderCategories();
     list();
+    renderQuick();
     $("report-select").disabled = false;
     const key = selected?.key || Number(location.hash.slice(1));
     if (key && catalog.some((r) => r.key === key)) {
@@ -399,8 +425,107 @@ $("report-select").onchange = () => {
 $("reload-reports").onclick = loadCatalog;
 loadCatalog();
 setInterval(() => {
-  if (document.hidden || $("report-settings").open) return;
+  if (document.hidden || $("report-form").contains(document.activeElement)) return;
   if (selected && snapshot) {
     if (!$("run-report").disabled) run(result?.page || 0, true);
   } else if (!$("reload-reports").disabled) loadCatalog();
 }, 60000);
+
+// ---------- รายงานใช้บ่อย: pinned (per browser) + recently opened + reports verified on the real DB ----------
+const DEFAULT_IDS = ["1002", "2017", "4007", "4014"]; // tested against SML (REPORTS.md)
+const store = {
+  get(name) {
+    try { return JSON.parse(localStorage.getItem(name) || "[]").filter(Number.isInteger); } catch { return []; }
+  },
+  set(name, value) {
+    try { localStorage.setItem(name, JSON.stringify(value)); } catch {}
+  },
+};
+const pins = () => store.get("sml-report-pins");
+function remember(key) {
+  store.set("sml-report-recent", [key, ...store.get("sml-report-recent").filter((k) => k !== key)].slice(0, 6));
+}
+function renderQuick() {
+  const box = $("quick-reports");
+  if (!catalog.length) return;
+  const byKey = new Map(catalog.map((r) => [r.key, r]));
+  const pinned = pins().filter((k) => byKey.has(k));
+  const recent = store.get("sml-report-recent").filter((k) => byKey.has(k) && !pinned.includes(k));
+  const defaults = catalog
+    .filter((r) => DEFAULT_IDS.includes(String(r.id)) && !pinned.includes(r.key) && !recent.includes(r.key))
+    .map((r) => r.key);
+  box.replaceChildren();
+  for (const [keys, tag] of [[pinned, "★"], [recent, "ล่าสุด"], [defaults, "แนะนำ"]]) {
+    for (const key of keys) {
+      const r = byKey.get(key);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "quick-report";
+      b.dataset.reportKey = key;
+      b.setAttribute("aria-pressed", String(selected?.key === key));
+      const t = document.createElement("small");
+      t.textContent = `${tag} · ${r.id}`;
+      const n = document.createElement("span");
+      n.textContent = r.name;
+      b.append(t, n);
+      b.onclick = () => openReport(key);
+      box.append(b);
+    }
+  }
+}
+$("pin-report").onclick = () => {
+  if (!selected) return;
+  const list = pins(), on = list.includes(selected.key);
+  store.set("sml-report-pins", on ? list.filter((k) => k !== selected.key) : [selected.key, ...list]);
+  $("pin-report").setAttribute("aria-pressed", String(!on));
+  $("pin-report").textContent = on ? "☆ ปักหมุด" : "★ ปักหมุดแล้ว";
+  renderQuick();
+};
+
+// ---------- quick date ranges (YYYY-MM-DD, local calendar) ----------
+function dateInputs() {
+  return [...document.querySelectorAll('#condition-fields input[type="date"]')];
+}
+function renderDatePresets() {
+  const box = $("date-presets"), dates = dateInputs();
+  box.replaceChildren();
+  box.hidden = !dates.length;
+  if (!dates.length) return;
+  const now = new Date(), day = (offset) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset));
+  const presets = [
+    ["วันนี้", day(0), day(0)],
+    ["เมื่อวาน", day(-1), day(-1)],
+    ["7 วันล่าสุด", day(-6), day(0)],
+    ["เดือนนี้", iso(new Date(now.getFullYear(), now.getMonth(), 1)), day(0)],
+    ["เดือนที่แล้ว", iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), iso(new Date(now.getFullYear(), now.getMonth(), 0))],
+  ];
+  // One date field = "as of" date (balance reports): ranges collapse to their end date.
+  for (const [label, from, to] of presets) {
+    if (dates.length === 1 && label === "7 วันล่าสุด") continue;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.onclick = () => {
+      if (dates.length === 1) dates[0].value = to;
+      else { dates[0].value = from; dates[dates.length - 1].value = to; }
+      box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      $("report-form").requestSubmit();
+    };
+    box.append(b);
+  }
+}
+
+// ---------- ค้นหาในหน้านี้ (current page only; export still uses the full page) ----------
+function filterRows() {
+  const term = $("result-filter").value.trim().toLowerCase();
+  const rows = [...$("result-body").rows].filter((tr) => !tr.classList.contains("empty-row"));
+  let shown = 0;
+  for (const tr of rows) {
+    const hit = !term || tr.textContent.toLowerCase().includes(term);
+    tr.hidden = !hit;
+    if (hit) shown++;
+  }
+  $("result-filter-count").textContent = term ? `พบ ${shown.toLocaleString("th-TH")} จาก ${rows.length.toLocaleString("th-TH")} แถวในหน้านี้` : "";
+}
+$("result-filter").addEventListener("input", filterRows);
+

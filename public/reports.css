@@ -251,3 +251,264 @@
     min-width: 0;
   }
 }
+
+/* ---------- รายงานใช้บ่อย ---------- */
+.report-quick {
+  display: grid;
+  gap: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.report-quick h2,
+.settings-head h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.quick-reports {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.quick-report {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #e0e2e6);
+  border-radius: 10px;
+  background: var(--surface-raised, #f8f9fb);
+  color: var(--ink, #191b20);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.quick-report small {
+  font-size: 12px;
+  color: var(--muted, #656973);
+}
+.quick-report span {
+  font-size: 14px;
+  line-height: 1.4;
+}
+html[data-theme] .quick-report:hover,
+html[data-theme] .quick-report[aria-pressed="true"] {
+  border-color: var(--brand-border);
+  background: var(--brand-soft);
+}
+.quick-help {
+  font-size: 12px;
+  color: var(--muted, #656973);
+}
+
+/* ---------- เงื่อนไขรายงาน (always open) ---------- */
+.settings-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.date-presets button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--line, #e0e2e6);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.condition-grid {
+  margin: 16px 0;
+}
+#run-report {
+  min-height: 44px;
+  padding: 0 28px;
+  font-size: 15px;
+}
+
+/* ---------- ตาราง ---------- */
+.result-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.pin-button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--line, #e0e2e6);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.result-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 0 24px 14px;
+}
+.result-filter {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+#result-filter-count {
+  font-size: 13px;
+  color: var(--muted, #656973);
+}
+html[data-theme] .report-result .result-scroll th {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  z-index: 2;
+}
+html[data-theme] .report-result .result-scroll td {
+  font-size: 14px;
+  padding: 10px 16px;
+}
+html[data-theme] .report-result .result-scroll tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+}
+html[data-theme] .report-result .result-scroll tbody tr:hover td {
+  background: var(--brand-soft);
+}
+/* First column stays visible while scrolling sideways. */
+html[data-theme] .report-result .result-scroll :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--line);
+}
+html[data-theme] .report-result .result-scroll th:first-child {
+  z-index: 3;
+  background: var(--surface-raised);
+}
+html[data-theme] .report-result .result-scroll tr.empty-row td {
+  position: static;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+@media (max-width: 700px) {
+  .report-quick { padding: 12px; }
+  .quick-reports { grid-template-columns: 1fr 1fr; }
+  .result-tools { padding: 0 18px 12px; }
+}
+@media print {
+  .report-quick,
+  .result-tools,
+  .pin-button {
+    display: none !important;
+  }
+}
+
+/* ---------- เงื่อนไขรายงาน: one compact row ---------- */
+.settings-head .form-help {
+  margin: 0;
+}
+#report-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.settings-row .condition-grid {
+  display: contents;
+}
+.settings-row .condition-grid > label {
+  flex: 0 1 220px;
+}
+.settings-row .dataset-field {
+  flex: 1 1 260px;
+  max-width: 460px;
+}
+.settings-row #run-report {
+  flex: 0 0 auto;
+}
+.date-presets button[aria-pressed="true"] {
+  border-color: var(--brand-border, #f3cccc);
+}
+/* Shared DD/MM/YYYY field + range calendar (date-dmy.js), sized like the other inputs. */
+.report-main .date-dmy {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line, #e0e2e6);
+  border-radius: 8px;
+  background: var(--surface-raised, #f8f9fb);
+  color: var(--ink, #191b20);
+}
+.report-main .date-dmy:focus-within {
+  border-color: var(--brand-border, #f3cccc);
+}
+html[data-theme] .report-main .date-dmy .date-dmy-text {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.report-main .date-dmy-btn svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 700px) {
+  .settings-row .condition-grid > label,
+  .settings-row .dataset-field,
+  .settings-row #run-report {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+/* รายงานใช้บ่อย: one row, no scrolling. As many cards as fit; the rest (lowest priority:
+   pinned → recent → suggested) wrap into zero-height rows and stay hidden. */
+.quick-reports {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-rows: auto;
+  grid-auto-rows: 0;
+  row-gap: 0;
+  column-gap: 8px;
+  overflow: hidden;
+}
+@media (max-width: 700px) {
+  .quick-reports { grid-template-columns: 1fr 1fr; }
+}
+.page-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  text-align: center;
+}
+#page-label {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.report-main .page-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.report-main .page-jump[hidden] {
+  display: none;
+}
+.report-main .page-jump select {
+  width: auto;
+  min-height: 34px;
+  padding: 4px 8px;
+}

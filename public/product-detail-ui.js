@@ -626,6 +626,53 @@
     }
   }
 
+  // ---------- receipt dates (เข้าวันแรก / เข้าล่าสุด) ----------
+  let receiptRequest = 0;
+  const thDay = (v) =>
+    v ? new Date(`${v}T12:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const daysAgo = (v) => {
+    if (!v) return "";
+    const d = Math.round((Date.now() - new Date(`${v}T12:00:00`)) / 86400000);
+    return d <= 0 ? "วันนี้" : `${count(d)} วันที่แล้ว`;
+  };
+  async function loadReceiptDates(code) {
+    const box = byId("pd-dates"),
+      id = ++receiptRequest;
+    box.classList.remove("error");
+    box.replaceChildren(el("span", "pd-dates-state", "กำลังดึงวันที่สินค้าเข้าจาก SML…"));
+    try {
+      const response = await fetch("/api/products/receipt-dates?" + new URLSearchParams({ code }), {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      if (id !== receiptRequest) return;
+      if (!data.firstIn) {
+        box.replaceChildren(el("span", "pd-dates-state", "สินค้านี้ยังไม่เคยมีรายการรับเข้าในระบบ"));
+        return;
+      }
+      // เข้าล่าสุด = any stock-increasing document; ซื้อเข้าล่าสุด = ใบซื้อ/รับสินค้า (flag 12) only.
+      const rows = [
+        ["เข้าล่าสุด", data.lastIn, daysAgo(data.lastIn)],
+        ["ซื้อเข้าล่าสุด", data.lastPurchase, data.lastPurchase ? daysAgo(data.lastPurchase) : "ไม่มีใบซื้อ"],
+      ];
+      box.replaceChildren(
+        ...rows.map(([label, date, note]) => {
+          const item = el("div", "pd-date");
+          item.append(el("span", "", label), el("strong", "", thDay(date)), el("small", "", note));
+          return item;
+        }),
+      );
+    } catch (error) {
+      if (id !== receiptRequest) return;
+      box.classList.add("error");
+      box.replaceChildren(
+        el("span", "pd-dates-state", error.name === "TimeoutError" ? "ดึงวันที่สินค้าเข้านานเกินไป กรุณาปิดแล้วเปิดใหม่" : error.message),
+      );
+    }
+  }
+
   // ---------- open / close ----------
   function open(row, trigger) {
     dialog.querySelectorAll(".pd-saved").forEach((badge) => badge.remove()); // belongs to the previous product
@@ -642,6 +689,7 @@
     dialog.showModal();
     dialog.scrollTop = 0;
     byId("close-detail").focus({ preventScroll: true });
+    loadReceiptDates(product.code);
     if (canRank) loadBestSeller(product.code);
     else byId("detail-bestseller").replaceChildren();
     // Refresh this product's links (someone else may have edited them since the table loaded).
