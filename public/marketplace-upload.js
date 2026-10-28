@@ -241,7 +241,7 @@
     historyStatus.textContent = 'กำลังโหลดประวัติ…';
     historyStatus.dataset.state = 'loading';
     try {
-      const response = await fetch('/api/marketplace/uploads', { cache: 'no-store' });
+      const response = await fetch('/api/marketplace/uploads?source=' + document.getElementById('history-source').value, { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'โหลดประวัติไม่สำเร็จ');
       historyBody.replaceChildren(...data.uploads.map(upload => {
@@ -299,6 +299,7 @@
     }
   }
   document.getElementById('refresh-history').addEventListener('click', loadHistory);
+  document.getElementById('history-source').addEventListener('change', loadHistory);
   render();
   loadShops();
   loadHistory();

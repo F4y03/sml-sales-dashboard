@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="marketplace.css?v=202610092" />
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
-    <script src="marketplace-upload.js?v=20261009" defer></script>
+    <script src="marketplace-upload.js?v=20261028-source" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -92,6 +92,11 @@
         <section class="mp-panel" aria-labelledby="history-title">
           <div class="mp-panel-head">
             <h2 id="history-title">ประวัติการอัปโหลด</h2>
+            <select id="history-source" class="mp-btn mp-btn-ghost mp-btn-sm" aria-label="ประเภทประวัติ">
+              <option value="file">ไฟล์ที่อัปโหลด</option>
+              <option value="api">ดึงผ่าน API</option>
+              <option value="all">ทั้งหมด</option>
+            </select>
             <button type="button" id="refresh-history" class="mp-btn mp-btn-ghost mp-btn-sm">รีเฟรช</button>
           </div>
           <p id="history-status" class="mp-muted" role="status">กำลังโหลดประวัติ…</p>
