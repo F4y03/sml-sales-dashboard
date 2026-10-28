@@ -4,6 +4,7 @@ export const PERMISSIONS = {
   marketplace_view: 'ดูยอดขายออนไลน์ Shopee / Lazada / TikTok', marketplace_upload: 'อัปโหลดไฟล์ยอดขายออนไลน์ (ไม่เห็นตัวเลข)',
   tiktok_sync: 'ดึงข้อมูล TikTok Shop API (ไม่เห็นตัวเลข)',
   lazada_sync: 'ดึงข้อมูล Lazada API (ไม่เห็นตัวเลข)',
+  shopee_sync: 'ดึงข้อมูล Shopee API และดูสินค้า/สต็อก Shopee (ไม่เห็นยอดขาย)',
   users_manage: 'จัดการผู้ใช้', roles_manage: 'จัดการ Role / Permission', territories_manage: 'จัดการเขตการขาย',
   system_settings: 'ตั้งค่าระบบ', environment_settings: 'ตั้งค่า Environment (Super Admin เท่านั้น)', activity_logs: 'ดู Activity Log',
 };
@@ -42,5 +43,7 @@ export const MODULES = [
   { permissions:['marketplace_view'], pages:[], apis:['/api/google-sheets'] },
   // Lazada API: same rules as TikTok — status/sync need lazada_sync; connect/callback/disconnect are Super Admin only.
   { permissions:['lazada_sync'], pages:[], apis:['/api/lazada'] },
+  // Shopee API: same rules — status/sync/items need shopee_sync; connect/callback/disconnect are Super Admin only.
+  { permissions:['shopee_sync'], pages:[], apis:['/api/shopee'] },
 ];
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

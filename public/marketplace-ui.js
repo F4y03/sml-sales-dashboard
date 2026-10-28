@@ -485,6 +485,7 @@
   // tiktok-api-panel.js announces a finished sync: show the new orders right away.
   window.addEventListener('tiktok-synced', () => load());
   window.addEventListener('lazada-synced', () => load());
+  window.addEventListener('shopee-synced', () => load());
   window.addEventListener('dashboard-theme-change', () => { if (lastData) renderDaily(lastData); });
   // New uploads show up without a manual reload.
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });

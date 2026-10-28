@@ -102,3 +102,29 @@
 | `GET /api/google-sheets/status` | Super Admin | ตั้งค่าแล้วไหม, ส่งล่าสุด, error ล่าสุด, ลิงก์ชีต |
 | `POST /api/google-sheets/export` | Super Admin | ส่งตอนนี้ |
 - ส่งอัตโนมัติเมื่อครบ GOOGLE_SHEETS_EVERY_HOURS นับจากการส่งสำเร็จครั้งล่าสุด (เช็กทุก 10 นาที ถ้า server ปิดไปจะส่งเมื่อเปิดกลับมา ส่งไม่สำเร็จจะลองใหม่รอบเช็กถัดไป) เก็บเวลา/ข้อผิดพลาดใน system_settings `google_sheets_last_at` / `google_sheets_last_error`
+
+## Shopee API (Open Platform v2 — ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
+แอป ISV (ERP System) ใน open.shopee.com — โฟลว์เดียวกับ Lazada API ด้านบน
+- ไฟล์: `src/services/shopeeApi.js` (เซ็น HMAC-SHA256, token, ออเดอร์/สินค้า/สต็อก, แปลงออเดอร์), `shopee-shop.js` (routes, sync, ต่ออายุ token, ลบข้อมูลตามนโยบาย), `migrations/011-shopee-api.sql`, `public/shopee-api-panel.js` (วิดเจ็ตบนแท็บ Shopee), `test-shopee-api.js` (Shopee ปลอม ไม่ต่อเน็ต)
+- `.env`: `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV=sandbox|live` (ค่าอื่น = sandbox), `SHOPEE_REDIRECT_URL` (เช่น `https://dashboard.sksales.app/api/shopee/callback` ต้องอยู่บนโดเมนที่ลงทะเบียนในแอป), ตัวเลือก `SHOPEE_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วัน + สินค้า)
+- Host: sandbox `https://partner.test-stable.shopeemobile.com`, live `https://partner.shopeemobile.com`
+- Sign = HMAC-SHA256(partner_key) hex ตัวเล็ก ของ public: `partner_id + path + timestamp`, shop: `partner_id + path + timestamp + access_token + shop_id` (timestamp เป็นวินาที)
+- การเชื่อมต่อผูกกับ `env` — เปลี่ยน sandbox → live ต้องให้ Super Admin กดเชื่อมต่อใหม่ (ของ sandbox ไม่ถูกใช้กับ live)
+
+| Route | สิทธิ์ | ทำอะไร |
+|---|---|---|
+| `GET /api/shopee/status` | `shopee_sync` | สถานะการเชื่อมต่อ (ไม่มีตัวเลขยอดขาย) |
+| `GET /api/shopee/items?q=` | `shopee_sync` | สินค้า/สต็อกที่ดึงล่าสุด (≤ 500 แถว) สต็อก NULL = Shopee ไม่ส่งมา ไม่ใช่ 0 |
+| `GET /api/shopee/connect?shop=` | Super Admin | ไป `/api/v2/shop/auth_partner`; state (ครั้งเดียว 10 นาที ผูกกับผู้กด) ใส่ใน query ของ redirect เพราะ Shopee ไม่มี state |
+| `GET /api/shopee/callback` | Super Admin คนที่กด connect | รับ `code`, `shop_id` → `/api/v2/auth/token/get`, `/api/v2/shop/get_shop_info`, เก็บ token เข้ารหัส |
+| `POST /api/shopee/sync {start,end}` | `shopee_sync` | ออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน (ถาม Shopee ทีละ ≤ 15 วัน, cursor, detail ครั้งละ 50) + สินค้า/สต็อกทั้งร้าน ตอบแค่ "สำเร็จ" |
+| `DELETE /api/shopee/connections/:id` | Super Admin | ลืม token และรายการสินค้า (ออเดอร์ที่ดึงแล้วยังอยู่) |
+
+- **นิยามเท่ากับไฟล์ export**: ยอดของบรรทัด = `model_discounted_price × model_quantity_purchased` (= ราคาขายสุทธิ), โค้ดส่วนลด/ส่วนลด Shopee ไม่หัก; สถานะ CANCELLED → ยกเลิก, TO_RETURN → คืนสินค้า, COMPLETED → สำเร็จ, อื่น ๆ (รวม IN_CANCEL) → กำลังดำเนินการ
+- ยังไม่ดึงค่าธรรมเนียม/ยอดโอน (`payment/get_escrow_detail`) — ใช้ไฟล์ รายงานรายรับของฉัน ตามเดิม
+- Token: access ≈ 4 ชม. ทุก 30 นาทีต่ออายุตัวที่จะหมดใน 1 ชม. (refresh token ใหม่ทุกครั้ง อายุ 30 วัน); Shopee ตอบ token ใช้ไม่ได้ → ต่ออายุแล้วลองใหม่ 1 ครั้ง; rate limit/เน็ตหลุด → รอ 1–16 วินาทีแล้วลองใหม่
+- Log ทุก call ใน `shopee_api_log` (endpoint, HTTP status, error code, เวลา) ไม่เก็บ sign/token/partner key/เนื้อหาคำตอบ
+- **ข้อมูลส่วนตัว (Shopee Data Protection Policy ≤ 90 วัน)**: แอปปิดสิทธิ์ข้อมูลผู้ซื้อ และไม่อ่านชื่อ เบอร์ อีเมล ที่อยู่ ชื่อผู้ใช้ผู้ซื้อเลย เก็บแค่จังหวัด (ถ้าไม่ถูกปิด `*` หรือจากรหัสไปรษณีย์ที่ไม่ถูกปิด) job รายวัน (และตอนเปิด server) ล้างจังหวัดของออเดอร์ Shopee ที่มาจาก API ซึ่งวันที่สั่งเก่ากว่า 90 วัน และลบ log เก่ากว่า 90 วัน — ออเดอร์จากไฟล์อัปโหลดไม่ถูกแตะ
+- **ทดสอบกับ sandbox**: Console › Sandbox สร้าง test shop → ใส่ test Partner ID/Key, `SHOPEE_ENV=sandbox` → restart → แท็บ Shopee › เชื่อมต่อร้าน Shopee → login ด้วยบัญชี test shop → ดึงข้อมูลช่วงนี้
+- **ไป live**: หลังแอป Go-Live ใส่ live Partner ID/Key, `SHOPEE_ENV=live` → restart → Super Admin เชื่อมต่อร้านจริงใหม่ → sync ช่วงที่เคยอัปไฟล์แล้วเทียบยอดก่อนใช้งาน
+- **ก่อนเชื่อถือตัวเลข**: host, base string ของ sign, ชื่อฟิลด์ และขีดจำกัดเขียนตามเอกสาร v2 ยังไม่ได้ทดสอบกับ sandbox/ร้านจริง

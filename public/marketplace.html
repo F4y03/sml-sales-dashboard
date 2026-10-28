@@ -17,6 +17,14 @@
       /* TikTok sync widget in the page header, shown on the TikTok tab only (status chip + sync for the selected range). */
       body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
       body:not([data-tab="lazada"]) #lazada-api { display: none; }
+      body:not([data-tab="shopee"]) #shopee-api { display: none; }
+      #shopee-items { flex-basis: 100%; min-width: 0; }
+      #shopee-items summary { cursor: pointer; }
+      #shopee-items input { margin: 8px 0; width: 100%; max-width: 320px; }
+      #shopee-items .tbl { max-height: 320px; overflow: auto; }
+      #shopee-items table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      #shopee-items th, #shopee-items td { padding: 4px 8px; border-bottom: 1px solid var(--ov-line, rgba(127,127,127,.25)); text-align: left; }
+      #shopee-items td.num, #shopee-items th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
       #overview-top .gs-box { display: contents; }
       #overview-top .gs-box[hidden] { display: none; }
       #overview-top .gs-note { flex-basis: 100%; text-align: right; font-size: 12px; color: var(--ov-muted); }
@@ -78,9 +86,10 @@
     <script src="date-dmy.js?v=20261020-range4" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261021-customer-stock" defer></script>
-    <script src="marketplace-ui.js?v=20261021-autoload" defer></script>
+    <script src="marketplace-ui.js?v=20261028-shopee" defer></script>
     <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
+    <script src="shopee-api-panel.js?v=20261028-shopee" defer></script>
     <script src="google-sheets-ui.js?v=20261020-5h" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
@@ -97,7 +106,7 @@
             <div class="ov-title-block">
               <p class="ov-eyebrow">ONLINE MARKETPLACE</p>
               <h1>ยอดขายออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
-              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลด, Lazada API และ TikTok Shop API <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
+              <p class="ov-subtitle">Shopee · Lazada · TikTok Shop จากไฟล์ที่อัปโหลด, Shopee API, Lazada API และ TikTok Shop API <span id="last-upload" class="ov-live" role="status">กำลังโหลด…</span></p>
             </div>
             <div class="ov-header-side">
               <div class="ov-actions">
@@ -135,6 +144,26 @@
                   </button>
                 </div>
                 <p id="lazada-status" class="tt-sync-status" role="status"></p>
+              </div>
+              <div class="tt-sync" id="shopee-api" aria-label="เชื่อมต่อและดึงข้อมูล Shopee" hidden>
+                <div class="tt-sync-info">
+                  <span id="shopee-chip" class="ov-live">กำลังโหลด…</span>
+                  <small id="shopee-meta"></small>
+                </div>
+                <div class="tt-sync-actions">
+                  <select id="shopee-shop-select" class="mp-select tt-shop" aria-label="บันทึกออเดอร์ Shopee เข้าร้าน" hidden></select>
+                  <a id="shopee-connect" class="ov-btn ov-btn-ghost" href="/api/shopee/connect" hidden>เชื่อมต่อร้าน Shopee</a>
+                  <button type="button" id="shopee-sync-button" class="ov-btn ov-btn-ghost" title="ดึงออเดอร์ตามช่วงวันที่ที่เลือกด้านล่าง (ไม่เกิน 92 วัน) และรายการสินค้า/สต็อกล่าสุด" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.9M4 4v4h4M4 13a8 8 0 0 0 14.9 3.9M20 20v-4h-4"/></svg>ดึงข้อมูลช่วงนี้
+                  </button>
+                </div>
+                <p id="shopee-status" class="tt-sync-status" role="status"></p>
+                <details id="shopee-items" hidden>
+                  <summary>สินค้าและสต็อก Shopee <small id="shopee-items-meta"></small></summary>
+                  <input id="shopee-items-q" class="mp-select" type="search" placeholder="ค้นหาชื่อสินค้า / SKU" aria-label="ค้นหาสินค้า Shopee" />
+                  <div class="tbl"><table><thead><tr><th>SKU</th><th>สินค้า</th><th class="num">ราคา</th><th class="num">สต็อก</th></tr></thead><tbody id="shopee-items-body"></tbody></table></div>
+                  <p id="shopee-items-state" class="tt-sync-status" role="status"></p>
+                </details>
               </div>
             </div>
           </header>
