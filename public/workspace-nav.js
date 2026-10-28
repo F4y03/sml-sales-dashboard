@@ -307,7 +307,7 @@ window.prplusUser
     // Keep compatibility with standalone fixture pages, while the backend remains authoritative.
     // Read-only reviewer (server: REVIEWER_PAGES in src/config/access.js): no implicit price_stock,
     // no password / 2FA / log-out-everywhere buttons.
-    const reviewer = user.role === "reviewer";
+    const reviewer = ["reviewer", "marketplace_reviewer"].includes(user.role);
     if (reviewer)
       workspace
         .querySelectorAll(".workspace-password-button")

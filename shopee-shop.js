@@ -8,6 +8,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { sameSite } from './auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
+import { isReviewer } from './src/config/access.js';
 import { createSecretVault } from './src/services/totpService.js';
 import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
 
@@ -121,7 +122,7 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
   // Status only — never order counts or totals (shopee_sync users may lack marketplace_view).
   app.get('/api/shopee/status', (req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.json({ configured: configured(), env: mode, canConnect: req.auth?.role === 'super_admin', autoSyncMinutes: autoMinutes >= 30 ? autoMinutes : 0,
+    res.json({ configured: configured(), env: mode, canConnect: req.auth?.role === 'super_admin', readOnly: isReviewer(req.auth?.role), autoSyncMinutes: autoMinutes >= 30 ? autoMinutes : 0,
       connections: store.all(`SELECT c.shop_id AS id,c.shop_name AS shopeeShop,s.name AS shop,c.connected_at AS connectedAt,c.last_sync_at AS lastSyncAt,
         c.last_sync_error AS lastSyncError,c.last_item_sync_at AS lastItemSyncAt,c.refresh_expires AS expiresAt
         FROM shopee_connections c JOIN marketplace_shops s ON s.id=c.dashboard_shop_id WHERE c.env=? ORDER BY c.shop_name`, mode) });

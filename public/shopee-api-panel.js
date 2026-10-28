@@ -44,7 +44,7 @@
       connect.hidden = !data.canConnect || !data.configured;
       connect.textContent = conns.length ? 'เชื่อมต่อใหม่' : 'เชื่อมต่อร้าน Shopee';
       if (!connect.hidden) loadShops();
-      button.hidden = !conns.length;
+      button.hidden = !conns.length || data.readOnly; // reviewer: badge, last sync and products only
       itemsBox.hidden = !conns.length;
       const failed = conns.find(c => c.lastSyncError);
       if (!data.configured) setChip('failed', 'ยังไม่ได้ตั้งค่า Shopee API');

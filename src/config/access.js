@@ -51,6 +51,10 @@ export const MODULES = [
 // Everything a 'reviewer' may reach; any other page or API answers 403 (src/middleware/access.js). GET/HEAD only,
 // except logout (handled in auth.js). Static assets (js/css/images) stay open — they hold no data.
 export const REVIEWER_ROLE = 'reviewer';
+// Roles held to the reviewer allowlist (marketplace_reviewer: older review role kept in existing databases).
+export const REVIEWER_ROLES = ['reviewer', 'marketplace_reviewer'];
+export const isReviewer = role => REVIEWER_ROLES.includes(role);
 export const REVIEWER_PAGES = ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/access-denied.html'];
-export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status'];
+export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status',
+  '/api/shopee/status', '/api/shopee/items']; // Shopee: connection badge, last sync, synced products (no connect/sync)
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];
