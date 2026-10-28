@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Protection · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=202610092" />
+    <style>
+      .dp-main { max-width: 920px; }
+      .dp-section { display: grid; gap: 8px; }
+      .dp-section h2 { margin: 0; font-size: 17px; }
+      .dp-section p, .dp-section ul { margin: 0; line-height: 1.7; }
+      .dp-section ul { padding-left: 20px; }
+      .dp-th { color: var(--muted, #888); font-size: 13px; }
+      .dp-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .dp-table th, .dp-table td { padding: 8px 10px; border-bottom: 1px solid var(--line, #333); text-align: left; vertical-align: top; }
+      .dp-table th { color: var(--muted, #888); font-size: 12px; font-weight: 600; }
+      .dp-no { color: #e5484d; font-weight: 600; }
+      .dp-yes { color: #30a46c; font-weight: 600; }
+    </style>
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main dp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">DATA PROTECTION</p>
+              <h1>Data Protection<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">How this dashboard handles marketplace data (Shopee, Lazada, TikTok Shop) · การคุ้มครองข้อมูลของระบบนี้</p>
+            </div>
+          </header>
+        </div>
+
+        <section class="mp-panel dp-section">
+          <h2>1. What we store · ข้อมูลที่เก็บ</h2>
+          <table class="dp-table">
+            <thead><tr><th>Data</th><th>Stored</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>Order ID, order date, status</td><td class="dp-yes">Yes</td><td>Sales reporting</td></tr>
+              <tr><td>Item SKU, product name, quantity, item amount</td><td class="dp-yes">Yes</td><td>Best-seller and stock planning</td></tr>
+              <tr><td>Platform fees, settled (net) amount</td><td class="dp-yes">Yes</td><td>Revenue after fees</td></tr>
+              <tr><td>Buyer province (no street, district or postcode)</td><td class="dp-yes">Yes</td><td>Sales by region</td></tr>
+              <tr><td>Buyer name, phone, email, username, street address</td><td class="dp-no">Never</td><td>Not read and not stored</td></tr>
+              <tr><td>Original export files</td><td class="dp-no">Never</td><td>Only a SHA-256 fingerprint is kept to detect duplicate uploads</td></tr>
+            </tbody>
+          </table>
+          <p class="dp-th">เก็บเฉพาะข้อมูลออเดอร์ ยอดเงิน และชื่อจังหวัด ไม่เก็บชื่อ เบอร์โทร อีเมล หรือที่อยู่ของผู้ซื้อ และไม่เก็บไฟล์ต้นฉบับ</p>
+        </section>
+
+        <section class="mp-panel dp-section">
+          <h2>2. Retention and deletion · ระยะเวลาเก็บและการลบ</h2>
+          <ul>
+            <li>Shopee data received through the API: the buyer province is cleared once the order is older than <b>90 days</b>; Shopee API call logs are deleted after <b>90 days</b>.</li>
+            <li>Every import (file upload or API sync) is listed in the upload history and can be deleted by an administrator; deleting it removes its orders, items and fee rows.</li>
+            <li>Disconnecting a shop deletes its access tokens; already imported orders stay until deleted as above.</li>
+            <li>Local backups of the dashboard database are kept for 30 days on the company server only.</li>
+          </ul>
+        </section>
+
+        <section class="mp-panel dp-section">
+          <h2>3. Access control · การควบคุมการเข้าถึง</h2>
+          <ul>
+            <li>Sign-in with password and two-factor authentication (TOTP) for staff accounts.</li>
+            <li>Role-based permissions: each account sees only the pages its role allows; online-sales figures need a dedicated permission.</li>
+            <li>Connecting a shop and changing system settings are limited to the Super Admin.</li>
+            <li>This review account is read-only: it can view online sales, its own activity log and this page; uploads, deletion, exports and settings are blocked on the server (HTTP 403).</li>
+          </ul>
+        </section>
+
+        <section class="mp-panel dp-section">
+          <h2>4. Security · ความปลอดภัย</h2>
+          <ul>
+            <li>All traffic uses HTTPS.</li>
+            <li>Marketplace access tokens and 2FA secrets are encrypted at rest (AES-256-GCM); app secrets are kept in server configuration only, never in the browser or source code.</li>
+            <li>Every sign-in and data action is recorded in the activity log (who, what, when, from which IP).</li>
+          </ul>
+        </section>
+
+        <section class="mp-panel dp-section">
+          <h2>5. Your activity · บันทึกการใช้งานของคุณ</h2>
+          <p>See every action made with your own account on <a href="/my-activity.html">My activity</a>.</p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

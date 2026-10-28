@@ -48,6 +48,8 @@ workspace.innerHTML = `
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
     <a href="marketplace-upload.html" data-page="marketplace-upload">${workspaceIcon("upload")}อัปโหลดไฟล์ยอดขาย</a>
+    <a href="my-activity.html" data-page="my-activity">${workspaceIcon("reports")}บันทึกการใช้งานของฉัน</a>
+    <a href="data-protection.html" data-page="data-protection">${workspaceIcon("admin")}Data Protection</a>
   </nav>
   <div class="workspace-bottom"><div class="workspace-source"><strong>SML Sales Dashboard</strong><small>PostgreSQL · SML</small></div><div class="workspace-profile"><span>DA</span><div><strong>Dashboard Admin</strong><small>Sales workspace</small></div></div></div>`;
 document.body.classList.add("workspace-layout");
@@ -303,8 +305,15 @@ window.prplusUser
     workspace.querySelector(".workspace-profile > span").textContent =
       user.username.slice(0, 2).toUpperCase();
     // Keep compatibility with standalone fixture pages, while the backend remains authoritative.
+    // Read-only reviewer (server: REVIEWER_PAGES in src/config/access.js): no implicit price_stock,
+    // no password / 2FA / log-out-everywhere buttons.
+    const reviewer = user.role === "reviewer";
+    if (reviewer)
+      workspace
+        .querySelectorAll(".workspace-password-button")
+        .forEach((button) => button.remove());
     const can = (p) =>
-      p === "price_stock" ||
+      (p === "price_stock" && !reviewer) ||
       user.role === "super_admin" ||
       user.permissions?.includes(p);
     const policy = {
@@ -317,10 +326,13 @@ window.prplusUser
       marketplace: ["marketplace_view"],
       "marketplace-upload": ["marketplace_upload"],
     };
+    const everyone = ["my-activity", "data-protection"];
     workspace.querySelectorAll("nav a").forEach((link) => {
-      link.hidden = Array.isArray(user.permissions)
-        ? !policy[link.dataset.page]?.some(can)
-        : false;
+      link.hidden = everyone.includes(link.dataset.page)
+        ? false
+        : Array.isArray(user.permissions)
+          ? !policy[link.dataset.page]?.some(can)
+          : false;
       if (
         ["reports", "marketplace"].includes(link.dataset.page) &&
         user.scope === "territory"

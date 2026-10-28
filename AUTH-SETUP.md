@@ -58,3 +58,12 @@ node test-login-ui.js
 ภาพตรวจหน้าจอเก็บใน `test-results/login-desktop.png` และ `test-results/login-mobile.png` การทดสอบใช้บัญชีชั่วคราวและไม่แก้ไข `.env` หรือฐานข้อมูลจริง
 
 อ้างอิงคุณสมบัติ cookie: [MDN Set-Cookie](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie)
+
+## Role Reviewer (อ่านอย่างเดียว สำหรับผู้ตรวจภายนอก เช่น Shopee Open Platform)
+- Role ในตัว `reviewer` สิทธิ์ `marketplace_view` อย่างเดียว ล็อกอินแล้วไป `/marketplace.html#shopee`
+- เข้าได้เฉพาะ (GET): `/marketplace.html`, `/my-activity.html`, `/data-protection.html`, `/api/marketplace/summary`, `/api/marketplace/shops`, `/api/me/activity`, `/api/connection-status` และไฟล์ js/css/รูป — รายการอยู่ที่ `REVIEWER_PAGES` / `REVIEWER_APIS` ใน `src/config/access.js`
+- อย่างอื่นทั้งหมดตอบ 403 ที่ server (`src/middleware/access.js`) รวม POST/PUT/DELETE ทุกเส้น; `/api/auth/password`, `/security`, `/recovery-codes`, `/logout-all` ถูกกันใน `auth.js` (route auth ทำงานก่อน middleware) — ออกจากระบบปกติได้
+- `price_stock` ที่เปิดให้ทุกคนโดยปริยาย ไม่รวม reviewer
+- หน้าใหม่สำหรับทุกบัญชี: บันทึกการใช้งานของฉัน (`/my-activity.html` + `GET /api/me/activity` เฉพาะแถวของตัวเอง ไม่มี details) และ `/data-protection.html`
+- บัญชีที่ใช้: `shopee_review` (ยกเว้น 2FA รายบัญชี `users.two_factor_exempt=1`) — ปิดบัญชีหลังตรวจเสร็จ
+- ทดสอบ: `node --test test-reviewer-role.js`

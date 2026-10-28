@@ -1,4 +1,4 @@
-import { MODULES } from '../config/access.js';
+import { MODULES, REVIEWER_APIS, REVIEWER_PAGES, REVIEWER_ROLE } from '../config/access.js';
 import { canAdmin,hasPermission,landingPage } from '../services/permissionService.js';
 import { accessContext } from '../services/territoryService.js';
 import { isProductSheetPublicRead } from '../routes/productSheetProxy.js';
@@ -21,6 +21,14 @@ export function installAccess(app) {
     try{path=decodeURIComponent(req.path).replace(/\/+$/,'').toLowerCase()||'/';}catch{return res.status(400).end();}
     if(/%|\\|\/\//.test(path))return res.status(400).json({error:'URL ไม่ถูกต้อง'});
     const forbidden=()=>path.startsWith('/api/')?res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'}):res.status(403).send('<meta charset="utf-8"><p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p><a href="/access-denied.html">กลับหน้าบัญชี</a>');
+    // Reviewer: read-only allowlist, nothing else (403), whatever other rules or permissions say.
+    if(req.auth.role===REVIEWER_ROLE){
+      const asset=/^\/[\w./-]+\.(?:js|css|png|svg|ico|woff2?|webmanifest)$/.test(path);
+      const readable=REVIEWER_PAGES.includes(path)||REVIEWER_APIS.some(p=>path===p||path.startsWith(p+'/'))||asset;
+      return readable&&['GET','HEAD'].includes(req.method)?next():forbidden();
+    }
+    // Every signed-in user may read their own activity and the data-protection page.
+    if(['/my-activity.html','/data-protection.html','/api/me/activity'].includes(path))return next();
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();

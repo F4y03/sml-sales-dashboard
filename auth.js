@@ -125,6 +125,9 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
     if(req.path==='/api'||req.path.startsWith('/api/')||(isProductSheetPath(req)&&req.method!=='GET'))return res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
     res.redirect('/login.html?next='+encodeURIComponent(req.originalUrl));
   });
+  // Reviewer accounts are read-only: no password change, 2FA / recovery settings or "log out everywhere".
+  const reviewerBlocked=new Set(['/api/auth/password','/api/auth/security','/api/auth/recovery-codes','/api/auth/logout-all']);
+  app.use((req,res,next)=>req.auth?.role==='reviewer'&&reviewerBlocked.has(req.path.toLowerCase().replace(/\/+$/,''))?res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'}):next());
   app.get('/api/auth/me',(req,res)=>{const {auth_version,...user}=req.auth;res.json({...user,landing:landingPage(req.auth),dashboardName:store.get("SELECT value FROM system_settings WHERE key='dashboard_name'")?.value||env.DASHBOARD_NAME||'SML analytics',supportMessage:store.get("SELECT value FROM system_settings WHERE key='support_message'")?.value||''});});
   app.post('/api/auth/password',sameSite,async(req,res)=>{
     const {currentPassword,newPassword,confirmPassword}=req.body||{};

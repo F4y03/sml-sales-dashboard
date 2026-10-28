@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My activity · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=202610092" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
+    <script src="my-activity.js?v=20261028" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">MY ACTIVITY</p>
+              <h1>บันทึกการใช้งานของฉัน<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">Every action made with your account, newest first · เฉพาะบัญชีของคุณ</p>
+            </div>
+          </header>
+        </div>
+        <section class="mp-panel">
+          <p id="activity-status" class="mp-muted" role="status">กำลังโหลด…</p>
+          <div class="mp-scroll" id="activity-wrap" hidden>
+            <table class="mp-table">
+              <thead><tr><th>เวลา (Time)</th><th>การกระทำ (Action)</th><th>ส่วน (Module)</th><th>IP</th></tr></thead>
+              <tbody id="activity-body"></tbody>
+            </table>
+          </div>
+          <button type="button" id="activity-more" class="mp-btn mp-btn-ghost mp-btn-sm" hidden>โหลดเพิ่ม (Load more)</button>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

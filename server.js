@@ -24,6 +24,7 @@ import { createAccessStore } from './src/models/accessStore.js';
 import { startDailyBackup } from './src/services/backup.js';
 import { createScopedPool } from './src/services/territoryService.js';
 import { installAccess } from './src/middleware/access.js';
+import { installSelfRoutes } from './src/routes/selfRoutes.js';
 import { installProductSheetProxy } from './src/routes/productSheetProxy.js';
 import { installAdminRoutes } from './src/routes/adminRoutes.js';
 
@@ -45,6 +46,7 @@ const accessStore = createAccessStore(fileURLToPath(new URL('./data/access.sqlit
 startDailyBackup(accessStore); // data/access.sqlite + 2fa.key -> ../backups/<day>/, 30 days kept
 const auth = installAuth(app, process.env, accessStore);
 installAccess(app);
+installSelfRoutes(app, accessStore);
 installProductSheetProxy(app, { store: accessStore });
 installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)), auth.twofa);
 app.get('/api/connection-status', async (_req, res) => {

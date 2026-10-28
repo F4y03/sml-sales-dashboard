@@ -12,6 +12,8 @@ export const ROLES = [
   ['super_admin', 'Super Admin', 'all', Object.keys(PERMISSIONS)],
   ['executive', 'ผู้บริหาร', 'all', ['dashboard','price_stock','consignment','product_info','product_images','customer_analysis','product_analysis','reports','marketplace_view']],
   ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images','marketplace_upload']],
+  // Read-only external reviewer (e.g. a marketplace app review): online sales, own activity log, data-protection page.
+  ['reviewer', 'Reviewer (อ่านอย่างเดียว)', 'all', ['marketplace_view']],
   ['sales', 'Sales', 'territory', ['price_stock','consignment','customer_analysis','product_analysis']],
 ];
 // Same explicit assignments as executive-ui.js / consignment-data.js. Unknown teams are not assigned.
@@ -46,4 +48,9 @@ export const MODULES = [
   // Shopee API: same rules — status/sync/items need shopee_sync; connect/callback/disconnect are Super Admin only.
   { permissions:['shopee_sync'], pages:[], apis:['/api/shopee'] },
 ];
+// Everything a 'reviewer' may reach; any other page or API answers 403 (src/middleware/access.js). GET/HEAD only,
+// except logout (handled in auth.js). Static assets (js/css/images) stay open — they hold no data.
+export const REVIEWER_ROLE = 'reviewer';
+export const REVIEWER_PAGES = ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/access-denied.html'];
+export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status'];
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

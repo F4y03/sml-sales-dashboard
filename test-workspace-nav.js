@@ -55,7 +55,7 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
       await page.setViewportSize({ width: 1440, height: 960 });
       await page.goto(`${base}/${file}.html`, { waitUntil: 'domcontentloaded' });
       await page.locator('.workspace-sidebar').waitFor();
-      assert.equal(await page.locator('.workspace-links a').count(), 9);
+      assert.equal(await page.locator('.workspace-links a').count(), 11);
       assert.equal(await page.locator('.workspace-links [aria-current]').getAttribute('data-page'), active);
       assert.ok((await page.locator('main').boundingBox()).x >= 246);
       await page.setViewportSize({ width: 390, height: 844 });
