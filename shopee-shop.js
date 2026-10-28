@@ -10,7 +10,7 @@ import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
 import { isReviewer } from './src/config/access.js';
 import { createSecretVault } from './src/services/totpService.js';
-import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
+import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
 export const RETENTION_DAYS = 90, LOG_RETENTION_DAYS = 90, AUTO_SYNC_DAYS = 90;
@@ -59,6 +59,23 @@ export async function syncShopeeOrders(store, client, vault, { conn, start, end,
     store.run('UPDATE shopee_connections SET last_sync_error=? WHERE shop_id=?', message.slice(0, 300), conn.shop_id);
     throw error;
   }
+}
+
+// Fees / net payout (Payment API) for completed orders created start..end that have none yet; at most `limit` per run,
+// so hourly syncs catch up gradually. Saved as one upload row like the orders.
+export async function syncShopeeFees(store, client, vault, { conn, start, end, user, limit = 300, now = Date.now() }) {
+  const sns = store.all(`SELECT o.order_id AS sn FROM marketplace_orders o WHERE o.platform='shopee' AND o.status='completed' AND o.order_date BETWEEN ? AND ?
+    AND o.shop_id IS ? AND NOT EXISTS (SELECT 1 FROM marketplace_settlements s WHERE s.platform='shopee' AND s.order_id=o.order_id)
+    ORDER BY o.order_date DESC LIMIT ?`, start, end, conn.dashboard_shop_id ?? null, limit).map(r => r.sn);
+  if (!sns.length) return { fees: 0 };
+  const settlements = await withShop(store, client, vault, conn, async shop => {
+    const out = [];
+    for (const orderSn of sns) { const s = mapShopeeEscrow({ order_sn: orderSn, ...(await client.escrow({ shop, orderSn })) }); if (s) out.push(s); }
+    return out;
+  }, now);
+  if (settlements.length) saveMarketplaceUpload(store, { platform: 'shopee', fileName: `Shopee API ค่าธรรมเนียม ${start} ถึง ${end} · ${conn.shop_name}`.slice(0, 200),
+    sha256: digest(JSON.stringify(settlements)), user, parsed: { kinds: ['api'], orders: [], settlements, shopCode: null }, shopId: conn.dashboard_shop_id });
+  return { fees: settlements.length };
 }
 
 // Products + stock: the shop's current list replaces the stored one.
@@ -111,6 +128,11 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
     const c = client();
     for (const conn of connections()) {
       await syncShopeeOrders(store, c, vault, { conn, start, end, user });
+      // Fees need the Payment API permission; failing it keeps the orders and shows the reason on the widget.
+      await syncShopeeFees(store, c, vault, { conn, start, end, user }).catch(error => {
+        if (!(error instanceof ShopeeApiError)) throw error;
+        store.run('UPDATE shopee_connections SET last_sync_error=? WHERE shop_id=?', `ดึงออเดอร์สำเร็จ แต่ดึงค่าธรรมเนียมไม่สำเร็จ (${error.message})`.slice(0, 300), conn.shop_id);
+      });
       if (items) await syncShopeeItems(store, c, vault, { conn }).catch(error => {
         if (!(error instanceof ShopeeApiError)) throw error;
         throw new ShopeeApiError(`ดึงออเดอร์สำเร็จ แต่ดึงสินค้า/สต็อกไม่สำเร็จ (${error.message})`, error.code);
@@ -254,9 +276,13 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
   every(DAY_MS, purge);
   // Optional: SHOPEE_AUTO_SYNC_MINUTES (≥ 30) re-pulls the last 90 Bangkok days (orders, 15-day windows) and the product/stock list.
   // Older orders stay as saved by earlier syncs and uploads.
-  if (autoMinutes >= 30 && configured()) every(autoMinutes * 60000, () => {
+  const autoSync = () => {
     if (running || !connections().length) return;
     runSync(bangkokToday(Date.now() - (AUTO_SYNC_DAYS - 1) * DAY_MS), bangkokToday(), SYSTEM_USER).catch(error => console.error('Shopee auto sync failed:', error.code || error.name));
-  });
+  };
+  if (autoMinutes >= 30 && configured()) {
+    every(autoMinutes * 60000, autoSync);
+    const first = setTimeout(autoSync, 2 * 60000); first.unref(); timers.push(first); // first run shortly after start
+  }
   return { close: () => timers.forEach(clearInterval) };
 }

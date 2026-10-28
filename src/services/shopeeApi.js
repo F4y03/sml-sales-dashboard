@@ -118,6 +118,10 @@ export function createShopeeClient({ partnerId, partnerKey, env = 'sandbox', hos
       }
       return orders;
     },
+    // Payment › get_escrow_detail: the order's income breakdown (fees, escrow_amount = amount paid out to the seller).
+    async escrow({ shop, orderSn }) {
+      return (await call('GET', '/api/v2/payment/get_escrow_detail', { shop, query: { order_sn: orderSn } })).response || null;
+    },
     // Every NORMAL/UNLIST item id (100 per page), then base info 50 per call, then models for items that have them.
     async items({ shop, maxPages = 200 }) {
       const ids = [];
@@ -182,6 +186,19 @@ export function mapShopeeOrder(order) {
   return { orderId: id, orderDate: bangkokToday(created * 1000), status, statusRaw: statusRaw.slice(0, 120), refund: 0,
     sales: round2(items.reduce((sum, l) => sum + l.sales, 0)), province: province && !province.includes('*') ? province.slice(0, 60) : null,
     source: 'api', items: items.length ? items : null };
+}
+
+// Fees / net payout of one order, same settlement key as the income report upload (income:<order_sn>) so a file and the API
+// never count it twice. net = escrow_amount; fees = sum of the seller-side fee fields Shopee returns (none returned = no row).
+export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee'];
+export function mapShopeeEscrow(escrow) {
+  const id = clean(escrow?.order_sn), income = escrow?.order_income || {};
+  const net = income.escrow_amount;
+  if (!/^[A-Za-z0-9_-]{5,40}$/.test(id) || net === undefined || net === null || !Number.isFinite(Number(net))) return null;
+  const present = SHOPEE_ESCROW_FEES.filter(k => income[k] !== undefined && income[k] !== null && Number.isFinite(Number(income[k])));
+  if (!present.length) return null; // fees column is NOT NULL: unknown stays missing (blank), never 0
+  return { txnId: `income:${id}`, orderId: id, fees: round2(present.reduce((sum, k) => sum + Math.abs(Number(income[k])), 0)),
+    netPayout: round2(Number(net)) };
 }
 
 // get_item_base_info (+ get_model_list) -> one row per model (model_id 0 = no variations).

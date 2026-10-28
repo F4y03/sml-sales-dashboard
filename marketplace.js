@@ -6,6 +6,15 @@ import { createHash } from 'node:crypto';
 import { sameSite } from './auth.js';
 import { requirePermission } from './src/middleware/access.js';
 import { hasPermission } from './src/services/permissionService.js';
+import { isReviewer } from './src/config/access.js';
+
+// Reviewer accounts see only the last 3 months (Bangkok dates): earlier start dates are moved up to this day.
+export const REVIEWER_MONTHS = 3;
+export function reviewerFloor(now = Date.now()) {
+  const d = new Date(now + 7 * 3600000);
+  d.setUTCMonth(d.getUTCMonth() - REVIEWER_MONTHS);
+  return d.toISOString().slice(0, 10);
+}
 import { MAX_FILE_BYTES, MarketplaceFileError, PLATFORMS, parseMarketplaceFile } from './src/services/marketplaceParser.js';
 
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -214,7 +223,12 @@ export function installMarketplace(app, store, audit) {
     if (shop !== 'all' && !/^[1-9]\d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
     if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน' });
     try {
-      res.json({ ...marketplaceSummary(store, { platform, start, end, shop }), updatedAt: new Date().toISOString() });
+      if (!isReviewer(req.auth.role)) return res.json({ ...marketplaceSummary(store, { platform, start, end, shop }), updatedAt: new Date().toISOString() });
+      // start > end (whole range before the floor) matches no orders.
+      const minDate = reviewerFloor(), data = marketplaceSummary(store, { platform, start: start < minDate ? minDate : start, end, shop });
+      if (data.bounds?.first && data.bounds.first < minDate) data.bounds.first = minDate;
+      if (data.bounds?.last && data.bounds.last < minDate) data.bounds = { ...data.bounds, first: null, last: null };
+      res.json({ ...data, minDate, updatedAt: new Date().toISOString() });
     } catch (error) {
       console.error('Marketplace summary failed:', error.code || error.name);
       res.status(500).json({ error: 'โหลดข้อมูลยอดขายออนไลน์ไม่สำเร็จ กรุณาลองใหม่' });

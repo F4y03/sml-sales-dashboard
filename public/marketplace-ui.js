@@ -110,7 +110,9 @@
     $('mp-content').hidden = false;
     renderShopFilter(data.shops);
     const shopLabel = shopFilter.value === 'all' ? '' : ' · ' + shopFilter.selectedOptions[0].textContent;
-    $('display-period').textContent = `${NAMES[platform]}${shopLabel} · ${thaiDate(data.start)} – ${thaiDate(data.end)}`;
+    $('display-period').textContent = data.start > data.end
+      ? `${NAMES[platform]}${shopLabel} · บัญชีนี้ดูได้ตั้งแต่ ${thaiDate(data.minDate)}`
+      : `${NAMES[platform]}${shopLabel} · ${thaiDate(data.start)} – ${thaiDate(data.end)}${data.minDate ? ` (บัญชีนี้ดูย้อนหลังได้ 3 เดือน)` : ''}`;
     const badge = $('last-upload');
     badge.dataset.state = data.bounds?.lastUploadAt ? 'connected' : '';
     badge.textContent = data.bounds?.lastUploadAt

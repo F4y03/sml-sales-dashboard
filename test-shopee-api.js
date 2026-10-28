@@ -10,7 +10,7 @@ import { createUserService } from './src/services/userService.js';
 import { loadUser } from './src/services/permissionService.js';
 import { installMarketplace, marketplaceSummary } from './marketplace.js';
 import { installShopeeShop, purgeShopeeBuyerData } from './shopee-shop.js';
-import { HOSTS, createShopeeClient, mapShopeeItem, mapShopeeOrder, redactUrl, shopeeEnv, shopeeOrderStatus, signShopee } from './src/services/shopeeApi.js';
+import { HOSTS, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, redactUrl, shopeeEnv, shopeeOrderStatus, signShopee } from './src/services/shopeeApi.js';
 
 const PII = { name: 'ท***บ', phone: '******78', full_address: '99/1 ถนนทดสอบ' };
 const ts = iso => Date.parse(iso) / 1000;
@@ -52,6 +52,7 @@ test('mapping: sales = discounted price × qty, statuses like the export, provin
   const json = JSON.stringify(ORDERS.map(mapShopeeOrder));
   for (const value of [...Object.values(PII), 'buyer1']) assert.ok(!json.includes(value));
   assert.equal(mapShopeeOrder({ order_sn: 'bad id!', create_time: 1 }), null);
+  assert.equal(mapShopeeEscrow({ order_sn: '261001AAA0001', order_income: { escrow_amount: 10 } }), null); // no fee fields: blank, not 0
 });
 
 test('items: one row per model, missing stock is null (not 0)', () => {
@@ -87,6 +88,7 @@ function fakeShopee() {
       return ok({ more: !q.cursor && inRange.length > 2, next_cursor: q.cursor ? '' : 'c2', order_list: page.map(o => ({ order_sn: o.order_sn })) });
     }
     if (path === '/api/v2/order/get_order_detail') return ok({ order_list: ORDERS.filter(o => q.order_sn_list.split(',').includes(o.order_sn)) });
+    if (path === '/api/v2/payment/get_escrow_detail') return ok({ order_sn: q.order_sn, order_income: { escrow_amount: 560.5, commission_fee: 40, service_fee: 30, seller_transaction_fee: 4.5 } });
     if (path === '/api/v2/product/get_item_list') return ok({ item: [{ item_id: 9, item_status: 'NORMAL' }], has_next_page: false, total_count: 1 });
     if (path === '/api/v2/product/get_item_base_info') return ok({ item_list: [{ item_id: 9, item_sku: 'P1', item_name: 'ไมค์', item_status: 'NORMAL', has_model: true }] });
     if (path === '/api/v2/product/get_model_list') return ok({ model: [{ model_id: 91, model_sku: 'P1-R', model_name: 'แดง', price_info: [{ current_price: 199 }], stock_info_v2: { summary_info: { total_available_stock: 4 } } }] });
@@ -167,6 +169,8 @@ test('HTTP: Super Admin connects, permitted user syncs without figures, token re
   assert.deepEqual(items.items.map(i => [i.sku, i.price, i.stock]), [['P1-R', 199, 4]]);
 
   // Logged calls carry endpoint/status/error only.
+  // Completed order gets fees/net from the Payment API under the income-report key (no double count with a file).
+  assert.deepEqual({ ...store.get("SELECT txn_id,fees,net_payout FROM marketplace_settlements WHERE platform='shopee'") }, { txn_id: 'income:261001AAA0001', fees: 74.5, net_payout: 560.5 });
   const logs = store.all('SELECT * FROM shopee_api_log');
   assert.ok(logs.some(l => l.endpoint === '/api/v2/order/get_order_list' && l.http_status === 429 && l.error === 'error_too_many_request'));
   const logText = JSON.stringify(logs);
