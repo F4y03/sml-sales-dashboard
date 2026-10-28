@@ -12,6 +12,9 @@ export function landingPage(user) {
   if (hasPermission(user,'dashboard')) return '/index.html';
   if (hasPermission(user,'customer_analysis') || hasPermission(user,'product_analysis')) return '/customers.html';
   if (hasPermission(user,'consignment')) return '/consignment.html';
+  // price_stock is open to everyone, so an online-sales-only account (e.g. a marketplace app reviewer) would land on
+  // the SML price page; send it to its own data instead. Accounts that explicitly hold price_stock/product_info keep products.
+  if (hasPermission(user,'marketplace_view') && user.scope!=='territory' && !user.permissions?.some(p=>p==='price_stock'||p==='product_info')) return '/marketplace.html#shopee';
   if (hasPermission(user,'price_stock') || hasPermission(user,'product_info')) return '/products.html';
   if (hasPermission(user,'reports') && user.scope!=='territory') return '/reports.html';
   if (hasPermission(user,'marketplace_view') && user.scope!=='territory') return '/marketplace.html';
