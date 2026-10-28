@@ -56,5 +56,5 @@ export const REVIEWER_ROLES = ['reviewer', 'marketplace_reviewer'];
 export const isReviewer = role => REVIEWER_ROLES.includes(role);
 export const REVIEWER_PAGES = ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/access-denied.html'];
 export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status',
-  '/api/shopee/status', '/api/shopee/items']; // Shopee: connection badge, last sync, synced products (no connect/sync)
+  '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup']; // Shopee: connection badge, last sync, synced products (no connect/sync)
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

@@ -28,6 +28,7 @@
     </style>
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
+    <script src="data-protection.js?v=20261028" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
   </head>
@@ -63,7 +64,10 @@
         <section class="mp-panel dp-section">
           <h2>2. Retention and deletion · ระยะเวลาเก็บและการลบ</h2>
           <ul>
-            <li>Shopee data received through the API: the buyer province is cleared once the order is older than <b>90 days</b>; Shopee API call logs are deleted after <b>90 days</b>.</li>
+            <li><b>Buyer personal data</b> (name, phone, email, address): not stored. These fields are dropped before anything is saved, from API responses and uploaded files alike. As a safety net, a daily cleanup job permanently deletes any buyer data older than <b>90 days</b> (the province of Shopee API orders) and Shopee API call logs older than 90 days.</li>
+            <li><b>Order &amp; sales data</b> (order ID, items, amounts, status): retained for business reporting.</li>
+            <li><b>Shopee sync window</b>: each sync pulls the last <b>90 days</b> of orders (in 15-day requests); older data is kept from previous syncs and uploads.</li>
+            <li>Buyer personal data is never sent to Google Sheets.</li>
             <li>Every import (file upload or API sync) is listed in the upload history and can be deleted by an administrator; deleting it removes its orders, items and fee rows.</li>
             <li>Disconnecting a shop deletes its access tokens; already imported orders stay until deleted as above.</li>
             <li>Local backups of the dashboard database are kept for 30 days on the company server only.</li>
@@ -71,9 +75,18 @@
         </section>
 
         <section class="mp-panel dp-section">
+          <h2>Cleanup job · การล้างข้อมูลอัตโนมัติ</h2>
+          <p id="cleanup-status" class="mp-muted" role="status">Loading…</p>
+          <table class="dp-table" id="cleanup-table" hidden>
+            <thead><tr><th>Run time</th><th>Buyer records cleared</th><th>API log rows deleted</th><th>Result</th></tr></thead>
+            <tbody id="cleanup-body"></tbody>
+          </table>
+        </section>
+
+        <section class="mp-panel dp-section">
           <h2>3. Access control · การควบคุมการเข้าถึง</h2>
           <ul>
-            <li>Sign-in with password and two-factor authentication (TOTP) for staff accounts.</li>
+            <li>Mandatory two-factor authentication (TOTP) for every staff account, on top of the password.</li>
             <li>Role-based permissions: each account sees only the pages its role allows; online-sales figures need a dedicated permission.</li>
             <li>Connecting a shop and changing system settings are limited to the Super Admin.</li>
             <li>This review account is read-only: it can view online sales, its own activity log and this page; uploads, deletion, exports and settings are blocked on the server (HTTP 403).</li>

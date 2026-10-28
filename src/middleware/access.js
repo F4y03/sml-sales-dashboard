@@ -28,7 +28,7 @@ export function installAccess(app) {
       return readable&&['GET','HEAD'].includes(req.method)?next():forbidden();
     }
     // Every signed-in user may read their own activity and the data-protection page.
-    if(['/my-activity.html','/data-protection.html','/api/me/activity'].includes(path))return next();
+    if(['/my-activity.html','/data-protection.html','/api/me/activity','/api/data-protection/cleanup'].includes(path))return next();
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();

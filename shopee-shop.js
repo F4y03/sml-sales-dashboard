@@ -13,7 +13,7 @@ import { createSecretVault } from './src/services/totpService.js';
 import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
-export const RETENTION_DAYS = 90, LOG_RETENTION_DAYS = 90;
+export const RETENTION_DAYS = 90, LOG_RETENTION_DAYS = 90, AUTO_SYNC_DAYS = 90;
 const digest = value => createHash('sha256').update(value).digest('hex');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const SYSTEM_USER = { id: null, full_name: 'ระบบ (Shopee API)' };
@@ -128,6 +128,13 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
         FROM shopee_connections c JOIN marketplace_shops s ON s.id=c.dashboard_shop_id WHERE c.env=? ORDER BY c.shop_name`, mode) });
   });
 
+  // Last buyer-data cleanup runs (counts only) for data-protection.html; open to every signed-in user like that page.
+  app.get('/api/data-protection/cleanup', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({ retentionDays: RETENTION_DAYS, syncDays: AUTO_SYNC_DAYS,
+      runs: store.all('SELECT at,provinces,logs,error FROM retention_runs ORDER BY id DESC LIMIT 10') });
+  });
+
   // Products and stock (no sales figures). stock null = unknown.
   app.get('/api/shopee/items', (req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -231,14 +238,25 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
       }
     }
   });
-  // Daily retention cleanup (also once at start).
-  const purge = () => { try { purgeShopeeBuyerData(store); } catch (error) { console.error('Shopee retention cleanup failed:', error.code || error.name); } };
+  // Daily retention cleanup (also once at start); every run is recorded in retention_runs (shown on data-protection.html).
+  const purge = () => {
+    const at = new Date().toISOString();
+    try {
+      const { provinces, logs } = purgeShopeeBuyerData(store);
+      store.run('INSERT INTO retention_runs(at,provinces,logs) VALUES(?,?,?)', at, provinces, logs);
+      console.log(`Buyer-data cleanup: ${provinces} province(s) cleared, ${logs} API log row(s) deleted`);
+    } catch (error) {
+      console.error('Shopee retention cleanup failed:', error.code || error.name);
+      try { store.run('INSERT INTO retention_runs(at,error) VALUES(?,?)', at, String(error.code || error.name).slice(0, 120)); } catch { /* table missing: nothing more to do */ }
+    }
+  };
   purge();
   every(DAY_MS, purge);
-  // Optional: SHOPEE_AUTO_SYNC_MINUTES (≥ 30) re-pulls the last 3 Bangkok days (orders) and the product/stock list.
+  // Optional: SHOPEE_AUTO_SYNC_MINUTES (≥ 30) re-pulls the last 90 Bangkok days (orders, 15-day windows) and the product/stock list.
+  // Older orders stay as saved by earlier syncs and uploads.
   if (autoMinutes >= 30 && configured()) every(autoMinutes * 60000, () => {
     if (running || !connections().length) return;
-    runSync(bangkokToday(Date.now() - 2 * DAY_MS), bangkokToday(), SYSTEM_USER).catch(error => console.error('Shopee auto sync failed:', error.code || error.name));
+    runSync(bangkokToday(Date.now() - (AUTO_SYNC_DAYS - 1) * DAY_MS), bangkokToday(), SYSTEM_USER).catch(error => console.error('Shopee auto sync failed:', error.code || error.name));
   });
   return { close: () => timers.forEach(clearInterval) };
 }

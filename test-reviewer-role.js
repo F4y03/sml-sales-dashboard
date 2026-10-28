@@ -35,9 +35,11 @@ test('reviewer: allowlisted reads work, every other page/API and every write is 
   const call = (method, path, body) => fetch(base + path, { method, headers: { cookie, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, ...(body && { body: JSON.stringify(body) }) });
 
   for (const path of ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/workspace-nav.js', '/marketplace.css',
-    '/api/marketplace/summary?platform=all&start=2026-10-01&end=2026-10-28', '/api/marketplace/shops', '/api/me/activity', '/api/auth/me', '/api/shopee/status', '/api/shopee/items'])
+    '/api/marketplace/summary?platform=all&start=2026-10-01&end=2026-10-28', '/api/marketplace/shops', '/api/me/activity', '/api/auth/me', '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup'])
     assert.notEqual((await call('GET', path)).status, 403, 'allowed: ' + path);
   assert.equal((await (await call('GET', '/api/shopee/status')).json()).readOnly, true); // panel hides Sync now / Reconnect
+  const cleanup = await (await call('GET', '/api/data-protection/cleanup')).json();
+  assert.ok(cleanup.runs.length >= 1 && cleanup.runs[0].at && cleanup.retentionDays === 90); // startup run is logged
   const mine = await (await call('GET', '/api/me/activity')).json();
   assert.ok(mine.rows.length && mine.rows.every(r => r.action && !('details' in r))); // own rows only, no details payload
 
