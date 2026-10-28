@@ -9,6 +9,7 @@ import { sameSite } from './auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
 import { isReviewer } from './src/config/access.js';
+import { startBackfill } from './src/services/marketplaceBackfill.js';
 import { createSecretVault } from './src/services/totpService.js';
 import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
 
@@ -63,7 +64,7 @@ export async function syncShopeeOrders(store, client, vault, { conn, start, end,
 
 // Fees / net payout (Payment API) for completed orders created start..end that have none yet; at most `limit` per run,
 // so hourly syncs catch up gradually. Saved as one upload row like the orders.
-export async function syncShopeeFees(store, client, vault, { conn, start, end, user, limit = 300, now = Date.now() }) {
+export async function syncShopeeFees(store, client, vault, { conn, start, end, user, limit = 1000, now = Date.now() }) {
   const sns = store.all(`SELECT o.order_id AS sn FROM marketplace_orders o WHERE o.platform='shopee' AND o.status='completed' AND o.order_date BETWEEN ? AND ?
     AND o.shop_id IS ? AND NOT EXISTS (SELECT 1 FROM marketplace_settlements s WHERE s.platform='shopee' AND s.order_id=o.order_id)
     ORDER BY o.order_date DESC LIMIT ?`, start, end, conn.dashboard_shop_id ?? null, limit).map(r => r.sn);
@@ -284,5 +285,8 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
     every(autoMinutes * 60000, autoSync);
     const first = setTimeout(autoSync, 2 * 60000); first.unref(); timers.push(first); // first run shortly after start
   }
-  return { close: () => timers.forEach(clearInterval) };
+  // Optional: SHOPEE_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
+  const backfill = configured() ? startBackfill({ store, name: 'shopee', from: env.SHOPEE_BACKFILL_FROM, today: () => bangkokToday(),
+    runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER }) : null;
+  return { close: () => { timers.forEach(clearInterval); backfill?.stop(); } };
 }

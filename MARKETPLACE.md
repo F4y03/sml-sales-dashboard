@@ -106,7 +106,7 @@
 ## Shopee API (Open Platform v2 — ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอป ISV (ERP System) ใน open.shopee.com — โฟลว์เดียวกับ Lazada API ด้านบน
 - ไฟล์: `src/services/shopeeApi.js` (เซ็น HMAC-SHA256, token, ออเดอร์/สินค้า/สต็อก, แปลงออเดอร์), `shopee-shop.js` (routes, sync, ต่ออายุ token, ลบข้อมูลตามนโยบาย), `migrations/011-shopee-api.sql`, `public/shopee-api-panel.js` (วิดเจ็ตบนแท็บ Shopee), `test-shopee-api.js` (Shopee ปลอม ไม่ต่อเน็ต)
-- `.env`: `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV=sandbox|live` (ค่าอื่น = sandbox), `SHOPEE_REDIRECT_URL` (เช่น `https://dashboard.sksales.app/api/shopee/callback` ต้องอยู่บนโดเมนที่ลงทะเบียนในแอป), ตัวเลือก `SHOPEE_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 90 วัน + ค่าธรรมเนียม + สินค้า; รอบแรก 2 นาทีหลังเปิด server)
+- `.env`: `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV=sandbox|live` (ค่าอื่น = sandbox), `SHOPEE_REDIRECT_URL` (เช่น `https://dashboard.sksales.app/api/shopee/callback` ต้องอยู่บนโดเมนที่ลงทะเบียนในแอป), ตัวเลือก `SHOPEE_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 90 วัน + ค่าธรรมเนียม + สินค้า; รอบแรก 2 นาทีหลังเปิด server), `SHOPEE_BACKFILL_FROM=YYYY-MM-DD` (ดึงย้อนหลังครั้งเดียวทีละ 92 วัน ทำต่อหลัง restart)
 - Host: sandbox `https://partner.test-stable.shopeemobile.com`, live `https://partner.shopeemobile.com`
 - Sign = HMAC-SHA256(partner_key) hex ตัวเล็ก ของ public: `partner_id + path + timestamp`, shop: `partner_id + path + timestamp + access_token + shop_id` (timestamp เป็นวินาที)
 - การเชื่อมต่อผูกกับ `env` — เปลี่ยน sandbox → live ต้องให้ Super Admin กดเชื่อมต่อใหม่ (ของ sandbox ไม่ถูกใช้กับ live)
@@ -118,7 +118,7 @@
 | `GET /api/shopee/connect?shop=` | Super Admin | ไป `/api/v2/shop/auth_partner`; state (ครั้งเดียว 10 นาที ผูกกับผู้กด) ใส่ใน query ของ redirect เพราะ Shopee ไม่มี state |
 | `GET /api/shopee/callback` | Super Admin คนที่กด connect | รับ `code`, `shop_id` → `/api/v2/auth/token/get`, `/api/v2/shop/get_shop_info`, เก็บ token เข้ารหัส |
 | `POST /api/shopee/sync {start,end}` | `shopee_sync` | ออเดอร์ตามวันที่สร้าง (เวลาไทย) ≤ 92 วัน (ถาม Shopee ทีละ ≤ 15 วัน, cursor, detail ครั้งละ 50) + สินค้า/สต็อกทั้งร้าน ตอบแค่ "สำเร็จ" |
-| (ใน sync) `/api/v2/payment/get_escrow_detail` | — | ค่าธรรมเนียม/เงินสุทธิของออเดอร์สำเร็จที่ยังไม่มี (≤ 300 ต่อรอบ) คีย์ `income:<order_sn>` เดียวกับรายงานรายรับ: net = `escrow_amount`, fees = commission + service + seller_transaction + order_ams_commission (credit_card_transaction_fee ซ้ำกับ seller_transaction_fee ไม่บวก); ไม่มีช่องค่าธรรมเนียมเลย = ไม่บันทึก (ว่าง ไม่ใช่ 0) ต้องเปิดสิทธิ์ Payment API ในแอป |
+| (ใน sync) `/api/v2/payment/get_escrow_detail` | — | ค่าธรรมเนียม/เงินสุทธิของออเดอร์สำเร็จที่ยังไม่มี (≤ 1000 ต่อรอบ) คีย์ `income:<order_sn>` เดียวกับรายงานรายรับ: net = `escrow_amount`, fees = commission + service + seller_transaction + order_ams_commission (credit_card_transaction_fee ซ้ำกับ seller_transaction_fee ไม่บวก); ไม่มีช่องค่าธรรมเนียมเลย = ไม่บันทึก (ว่าง ไม่ใช่ 0) ต้องเปิดสิทธิ์ Payment API ในแอป |
 | `DELETE /api/shopee/connections/:id` | Super Admin | ลืม token และรายการสินค้า (ออเดอร์ที่ดึงแล้วยังอยู่) |
 
 - **นิยามเท่ากับไฟล์ export**: ยอดของบรรทัด = `model_discounted_price × model_quantity_purchased` (= ราคาขายสุทธิ), โค้ดส่วนลด/ส่วนลด Shopee ไม่หัก; สถานะ CANCELLED → ยกเลิก, TO_RETURN → คืนสินค้า, COMPLETED → สำเร็จ, อื่น ๆ (รวม IN_CANCEL) → กำลังดำเนินการ
