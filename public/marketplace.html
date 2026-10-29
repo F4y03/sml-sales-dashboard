@@ -64,6 +64,12 @@
       .kpi-table .num { text-align: right; white-space: nowrap; }
       .kpi-table tfoot td { font-weight: 700; border-bottom: 0; }
       .kpi-note { padding: 10px 12px; border-left: 3px solid #f5a524; border-radius: 6px; background: color-mix(in srgb, #f5a524 10%, transparent); font-size: 13px; }
+      /* Keep title and actions on one row so the actions don't drop into an empty full-width band. */
+      @media (min-width: 1000px) {
+        #overview-top .ov-header { flex-wrap: nowrap; align-items: flex-start; }
+        #overview-top .ov-title-block { flex: 1 1 auto; min-width: 0; }
+        #overview-top .ov-header-side { flex: 0 1 auto; }
+      }
       #overview-top .ov-header-side { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
       #overview-top .tt-sync { display: grid; gap: 8px; justify-items: end; max-width: 100%; }
       #overview-top .tt-sync-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
