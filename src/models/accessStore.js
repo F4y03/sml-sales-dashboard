@@ -10,6 +10,8 @@ export function createAccessStore(path = ':memory:', env = {}) {
   for (const file of ['001-access.sql','002-security.sql','003-product-images.sql','004-product-image-imports.sql','005-unmatched-product-images.sql','006-product-image-files.sql','007-marketplace.sql','008-marketplace-shops.sql','009-tiktok-api.sql','010-lazada-api.sql','011-shopee-api.sql','012-retention-runs.sql']) db.exec(readFileSync(new URL('../../migrations/'+file, import.meta.url), 'utf8'));
   // Per-user override: an 'all'-scope role (e.g. Admin) can be limited to assigned territories.
   // Per-account 2FA exemption (e.g. a marketplace app-review account); off for everyone unless set explicitly.
+  // Fee breakdown per settlement row: JSON {fee type: positive amount deducted}; NULL = the source gave no breakdown.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_settlements') WHERE name='fee_detail'").get()) db.exec('ALTER TABLE marketplace_settlements ADD COLUMN fee_detail TEXT');
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='two_factor_exempt'").get()) db.exec("ALTER TABLE users ADD COLUMN two_factor_exempt INTEGER NOT NULL DEFAULT 0 CHECK(two_factor_exempt IN (0,1))");
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='scope_override'").get()) db.exec("ALTER TABLE users ADD COLUMN scope_override TEXT CHECK(scope_override IN ('territory'))");
   // Marketplace seller shop (008); NULL = uploaded before shops existed.

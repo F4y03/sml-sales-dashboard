@@ -160,5 +160,6 @@ export function mapLazadaTransaction(tx) {
   const amount = money(tx.amount), product = PRODUCT_LINES.test(clean(tx.fee_name)) ? amount : 0;
   // Lazada gives every line of one item (price credit, commission, payment fee…) the same transaction_number and
   // orderItem_no, so the fee type and date are needed to keep each line as its own row.
-  return { txnId: `api:${txn}:${clean(tx.orderItem_no)}:${clean(tx.fee_type || tx.fee_name)}:${clean(tx.transaction_date)}`.slice(0, 120), orderId, fees: round2(product - amount), netPayout: round2(amount) };
+  return { txnId: `api:${txn}:${clean(tx.orderItem_no)}:${clean(tx.fee_type || tx.fee_name)}:${clean(tx.transaction_date)}`.slice(0, 120), orderId, fees: round2(product - amount), netPayout: round2(amount),
+    detail: product ? null : { [clean(tx.fee_name || tx.fee_type) || 'อื่น ๆ']: round2(-amount) } };
 }

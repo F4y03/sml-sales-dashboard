@@ -34,7 +34,7 @@ export const MODULES = [
   { permissions:['consignment'], pages:['/consignment.html'], apis:['/api/consignment'] },
   { permissions:['reports'], pages:['/reports.html'], apis:['/api/reports'] },
   // Marketplace: uploaders never get the summary API; history (file name/platform/who/when) is shared.
-  { permissions:['marketplace_view'], pages:['/marketplace.html'], apis:['/api/marketplace/summary'] },
+  { permissions:['marketplace_view'], pages:['/marketplace.html'], apis:['/api/marketplace/summary','/api/marketplace/order-fees','/api/marketplace/order-detail'] },
   { permissions:['marketplace_upload'], pages:['/marketplace-upload.html'], apis:['/api/marketplace/upload'] },
   { permissions:['marketplace_upload','marketplace_view'], pages:[], apis:['/api/marketplace/uploads','/api/marketplace/shops'] },
   // Old TikTok pages only redirect to marketplace.html#tiktok (the connect/sync widget lives on that tab).
@@ -55,6 +55,6 @@ export const REVIEWER_ROLE = 'reviewer';
 export const REVIEWER_ROLES = ['reviewer', 'marketplace_reviewer'];
 export const isReviewer = role => REVIEWER_ROLES.includes(role);
 export const REVIEWER_PAGES = ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/access-denied.html'];
-export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status',
+export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/order-fees', '/api/marketplace/order-detail', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status',
   '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup']; // Shopee: connection badge, last sync, synced products (no connect/sync)
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

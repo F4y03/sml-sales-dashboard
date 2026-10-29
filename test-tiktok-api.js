@@ -10,7 +10,7 @@ import { createUserService } from './src/services/userService.js';
 import { loadUser } from './src/services/permissionService.js';
 import { installMarketplace, marketplaceSummary } from './marketplace.js';
 import { installTikTokShop } from './tiktok-shop.js';
-import { bangkokDate, bangkokDayStart, mapTikTokOrder, signRequest } from './src/services/tiktokShopApi.js';
+import { bangkokDate, bangkokDayStart, mapTikTokOrder, mapTikTokSettlement, signRequest } from './src/services/tiktokShopApi.js';
 
 const PII = { name: 'ทดสอบ ผู้รับ', phone_number: '(+66)812345678', full_address: '99/1 ถนนทดสอบ' };
 const at = (day, hh = 10) => Math.floor(Date.parse(`${day}T${String(hh).padStart(2, '0')}:00:00+07:00`) / 1000);
@@ -174,4 +174,14 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   assert.equal((await fetch(base + '/api/tiktok/connections/7496225617718250195', { method: 'DELETE', headers: { cookie: admin, 'X-PRPlus-Request': '1' } })).status, 403);
   assert.equal((await fetch(base + '/api/tiktok/connections/7496225617718250195', { method: 'DELETE', headers: { cookie: owner, 'X-PRPlus-Request': '1' } })).status, 200);
   assert.equal(marketplaceSummary(store, { platform: 'tiktok', start: '2026-10-01', end: '2026-10-31' }).platforms[0].sales, 935); // data stays
+});
+
+test('settlement: fee breakdown from the named fee fields, the unnamed rest as other_fee_amount (sums to the total)', () => {
+  // Real shape (Finance 202309): fee_amount -15.36, only platform_commission named.
+  const s = mapTikTokSettlement({ id: 'T1', order_id: 'O1', fee_amount: '-15.36', settlement_amount: '54.64', platform_commission_amount: '-7.49',
+    transaction_fee_amount: '0', actual_shipping_fee_amount: '-29', platform_shipping_fee_discount_amount: '29' });
+  assert.deepEqual([s.fees, s.netPayout, s.detail], [15.36, 54.64, { platform_commission_amount: 7.49, other_fee_amount: 7.87 }]);
+  assert.deepEqual(mapTikTokSettlement({ id: 'T3', order_id: 'O3', fee_amount: '-12', platform_commission_amount: '-8', transaction_fee_amount: '-4' }).detail,
+    { platform_commission_amount: 8, transaction_fee_amount: 4 });
+  assert.equal(mapTikTokSettlement({ id: 'T2', order_id: 'O2', fee_amount: '0', settlement_amount: '5' }).detail, null);
 });

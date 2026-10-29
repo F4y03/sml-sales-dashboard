@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="workspace-nav.css" />
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
-    <link rel="stylesheet" href="marketplace.css?v=202610092" />
+    <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
     <style>
       /* TikTok sync widget in the page header, shown on the TikTok tab only (status chip + sync for the selected range). */
       body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
@@ -93,7 +93,8 @@
     <script src="date-dmy.js?v=20261020-range4" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
-    <script src="marketplace-ui.js?v=20261028-3m" defer></script>
+    <script src="marketplace-ui.js?v=20261029-fees" defer></script>
+    <script src="order-fees.js?v=20261029-filter" defer></script>
     <script src="tiktok-api-panel.js?v=20261019-tab" defer></script>
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
     <script src="shopee-api-panel.js?v=20261028-readonly" defer></script>
@@ -268,6 +269,41 @@
             <p id="province-note" class="mp-muted" hidden></p>
             <ol id="province-list" class="mp-rank mp-rank-compact"></ol>
           </section>
+          <section class="mp-panel mp-span-2" id="fees-panel" aria-labelledby="fees-title">
+            <div class="mp-panel-head"><h2 id="fees-title">ค่าธรรมเนียมรายออเดอร์</h2>
+              <span class="mp-info" tabindex="0" role="img" aria-label="ราคาขาย = ยอดขายของออเดอร์ (นิยามเดียวกับยอดขายรวม) · % หัก = ค่าธรรมเนียม ÷ ราคาขาย · กดที่แถวเพื่อดูรายละเอียดทั้งหมดของออเดอร์ · ออเดอร์ที่แพลตฟอร์มยังไม่ชำระเงินจะยังไม่มีข้อมูลค่าธรรมเนียม (แสดง —)" data-tip="ราคาขาย = ยอดขายของออเดอร์ (นิยามเดียวกับยอดขายรวม) · % หัก = ค่าธรรมเนียม ÷ ราคาขาย · กดที่แถวเพื่อดูรายละเอียดทั้งหมดของออเดอร์ · ออเดอร์ที่แพลตฟอร์มยังไม่ชำระเงินจะยังไม่มีข้อมูลค่าธรรมเนียม (แสดง —)">ⓘ</span></div>
+            <form class="mp-fees-filters" id="fees-filters" role="search" aria-label="กรองค่าธรรมเนียมรายออเดอร์">
+              <input id="fees-q" class="mp-select mp-fees-q" type="search" maxlength="80" placeholder="🔍 ค้นหาเลขออเดอร์ / SKU / ชื่อสินค้า" aria-label="ค้นหาเลขออเดอร์ SKU หรือชื่อสินค้า" />
+              <select id="fees-status" class="mp-select" aria-label="สถานะออเดอร์">
+                <option value="all">ทุกสถานะ</option>
+                <option value="completed">สำเร็จ</option>
+                <option value="pending">กำลังดำเนินการ</option>
+              </select>
+              <select id="fees-has" class="mp-select" aria-label="ข้อมูลค่าธรรมเนียม">
+                <option value="all">ค่าธรรมเนียม: ทั้งหมด</option>
+                <option value="with">มีข้อมูลค่าธรรมเนียม</option>
+                <option value="without">ยังไม่มีข้อมูล (—)</option>
+              </select>
+              <select id="fees-sort" class="mp-select" aria-label="เรียงตาม">
+                <option value="date">ล่าสุดก่อน</option>
+                <option value="percent">% หักมากสุด</option>
+                <option value="fees">ค่าธรรมเนียมมากสุด</option>
+              </select>
+              <button type="button" id="fees-clear" class="mp-btn mp-btn-ghost mp-btn-sm" hidden>ล้างตัวกรอง</button>
+            </form>
+            <p id="fees-summary" class="mp-muted" role="status">กำลังโหลด…</p>
+            <div class="mp-scroll" id="fees-wrap" hidden>
+              <table class="mp-table mp-fees">
+                <thead><tr><th>วันที่</th><th>ออเดอร์</th><th>แพลตฟอร์ม</th><th class="num">ราคาขาย</th><th class="num">ค่าธรรมเนียม</th><th class="num">% หัก</th><th class="num">เงินสุทธิ</th></tr></thead>
+                <tbody id="fees-body"></tbody>
+              </table>
+            </div>
+            <div class="mp-pager" id="fees-pager" hidden>
+              <button type="button" id="fees-prev" class="mp-btn mp-btn-ghost mp-btn-sm">‹ ก่อนหน้า</button>
+              <span id="fees-page" class="mp-muted"></span>
+              <button type="button" id="fees-next" class="mp-btn mp-btn-ghost mp-btn-sm">ถัดไป ›</button>
+            </div>
+          </section>
         </div>
         <details id="shopee-items" hidden>
           <summary>สินค้าและสต็อก Shopee <small id="shopee-items-meta"></small></summary>
@@ -281,6 +317,18 @@
             <button type="button" class="kpi-dialog-close" aria-label="ปิด">✕</button>
           </div>
           <div id="kpi-dialog-body"></div>
+        </dialog>
+        <dialog id="order-dialog" class="od" aria-labelledby="order-dialog-title">
+          <header class="od-head">
+            <span class="od-logo" id="od-logo" aria-hidden="true"></span>
+            <div class="od-title">
+              <h2><span id="order-dialog-title">รายละเอียดออเดอร์</span>
+                <button type="button" class="od-copy" id="od-copy" aria-label="คัดลอกเลขออเดอร์" title="คัดลอกเลขออเดอร์">⧉</button></h2>
+              <p id="od-sub"></p>
+            </div>
+            <button type="button" class="od-x od-close" aria-label="ปิด">✕</button>
+          </header>
+          <div class="od-body" id="order-dialog-body"></div>
         </dialog>
       </main>
     </div>

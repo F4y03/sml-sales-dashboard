@@ -138,10 +138,26 @@ const clean = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '')
 // One statement transaction -> the same settlement row the finance file gives (MARKETPLACE.md):
 // fees = ค่าธรรมเนียมทั้งหมด as a positive deduction (API fee_amount is negative), net = ยอดการชำระเงินทั้งหมด.
 // Transactions without an order (shop-level adjustments) are skipped, as in the file reader.
+// Fee breakdown from the fee fields of the transaction (Finance 202309 sends them flat, negative = deducted), as positive amounts.
+// The named fields do not always add up to fee_amount (TikTok leaves some service fees unnamed): the rest is other_fee_amount,
+// so the breakdown always sums to the total. null when there is no fee at all.
+export const TIKTOK_FEE_FIELDS = ['platform_commission_amount', 'transaction_fee_amount', 'referral_fee_amount', 'affiliate_commission_amount',
+  'affiliate_partner_commission_amount', 'affiliate_ads_commission_amount', 'sfp_service_fee_amount', 'voucher_xtra_service_fee_amount',
+  'flash_sales_service_fee_amount', 'live_specials_fee_amount', 'bonus_cashback_service_fee_amount', 'refund_administration_fee_amount',
+  'fbt_fulfillment_fee_amount', 'signature_confirmation_fee_amount', 'shipping_insurance_fee_amount'];
+function tiktokFeeDetail(tx) {
+  const total = round2(-money(tx.fee_amount));
+  if (!total) return null;
+  const detail = {};
+  for (const k of TIKTOK_FEE_FIELDS) { const v = round2(-money(tx[k])); if (v) detail[k] = v; }
+  const rest = round2(total - Object.values(detail).reduce((sum, v) => sum + v, 0));
+  if (Math.abs(rest) >= 0.01) detail.other_fee_amount = rest;
+  return detail;
+}
 export function mapTikTokSettlement(tx) {
   const txnId = clean(tx?.id), orderId = clean(tx?.order_id);
   if (!txnId || !orderId) return null;
-  return { txnId, orderId, fees: round2(-money(tx.fee_amount)), netPayout: round2(money(tx.settlement_amount)) };
+  return { txnId, orderId, fees: round2(-money(tx.fee_amount)), netPayout: round2(money(tx.settlement_amount)), detail: tiktokFeeDetail(tx) };
 }
 
 // Order create_time (unix seconds) as the Thai calendar day, ค.ศ. YYYY-MM-DD — same day the Seller Center export shows.

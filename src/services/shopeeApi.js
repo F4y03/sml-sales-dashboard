@@ -197,8 +197,9 @@ export function mapShopeeEscrow(escrow) {
   if (!/^[A-Za-z0-9_-]{5,40}$/.test(id) || net === undefined || net === null || !Number.isFinite(Number(net))) return null;
   const present = SHOPEE_ESCROW_FEES.filter(k => income[k] !== undefined && income[k] !== null && Number.isFinite(Number(income[k])));
   if (!present.length) return null; // fees column is NOT NULL: unknown stays missing (blank), never 0
+  const detail = Object.fromEntries(present.map(k => [k, round2(Math.abs(Number(income[k])))]));
   return { txnId: `income:${id}`, orderId: id, fees: round2(present.reduce((sum, k) => sum + Math.abs(Number(income[k])), 0)),
-    netPayout: round2(Number(net)) };
+    netPayout: round2(Number(net)), detail };
 }
 
 // get_item_base_info (+ get_model_list) -> one row per model (model_id 0 = no variations).

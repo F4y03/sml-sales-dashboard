@@ -35,7 +35,7 @@ test('reviewer: allowlisted reads work, every other page/API and every write is 
   const call = (method, path, body) => fetch(base + path, { method, headers: { cookie, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, ...(body && { body: JSON.stringify(body) }) });
 
   for (const path of ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/workspace-nav.js', '/marketplace.css',
-    '/api/marketplace/summary?platform=all&start=2026-10-01&end=2026-10-28', '/api/marketplace/shops', '/api/me/activity', '/api/auth/me', '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup'])
+    '/api/marketplace/summary?platform=all&start=2026-10-01&end=2026-10-28', '/api/marketplace/order-fees?platform=all&start=2026-10-01&end=2026-10-28', '/api/marketplace/order-detail?platform=shopee&id=NOPE1', '/api/marketplace/shops', '/api/me/activity', '/api/auth/me', '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup'])
     assert.notEqual((await call('GET', path)).status, 403, 'allowed: ' + path);
   assert.equal((await (await call('GET', '/api/shopee/status')).json()).readOnly, true); // panel hides Sync now / Reconnect
   const old = await (await call('GET', '/api/marketplace/summary?platform=all&start=2025-01-01&end=2025-12-31')).json();

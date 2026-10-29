@@ -172,6 +172,9 @@ const SHEETS = [
   },
 ];
 const SHOPEE_FEES = ['feeAms', 'feeCommission', 'feeService', 'feeInfra', 'feeShippingSaver', 'feePayment'];
+// Same breakdown keys as the Shopee API (get_escrow_detail) where one exists.
+const SHOPEE_FEE_KEYS = { feeAms: 'order_ams_commission_fee', feeCommission: 'commission_fee', feeService: 'service_fee',
+  feeInfra: 'platform_infrastructure_fee', feeShippingSaver: 'shipping_saver_fee', feePayment: 'seller_transaction_fee' };
 
 // Seller identity found inside a file (Shopee username, Lazada short code); null when the export has none.
 const SHOP_CODE = /^[\w.-]{2,60}$/;
@@ -297,13 +300,14 @@ function readShopeeIncome(rows, start, cols) {
     if (!id) continue;
     const fees = -SHOPEE_FEES.reduce((sum, key) => sum + amount(get(key)), 0);
     const line = { price: amount(get('price')), discount: Math.abs(amount(get('sellerDiscount'))), refund: Math.abs(amount(get('refund'))), payout: amount(get('payout')), fees, returnId: text(get('returnId')) };
-    const order = orders.get(id) || { orderId: id, orderDate: orderDate(get('orderDate')), price: 0, discount: 0, refund: 0, payout: 0, fees: 0, returnId: '' };
+    const order = orders.get(id) || { orderId: id, orderDate: orderDate(get('orderDate')), price: 0, discount: 0, refund: 0, payout: 0, fees: 0, returnId: '', detail: {} };
     for (const key of ['price', 'discount', 'refund', 'payout', 'fees']) order[key] += line[key];
+    for (const key of SHOPEE_FEES) order.detail[SHOPEE_FEE_KEYS[key]] = (order.detail[SHOPEE_FEE_KEYS[key]] || 0) - amount(get(key));
     order.returnId ||= line.returnId;
     orders.set(id, order);
   }
   const result = [...orders.values()].map(o => {
-    settlements.push({ txnId: `income:${o.orderId}`, orderId: o.orderId, fees: round2(o.fees), netPayout: round2(o.payout) });
+    settlements.push({ txnId: `income:${o.orderId}`, orderId: o.orderId, fees: round2(o.fees), netPayout: round2(o.payout), detail: o.detail });
     // The income report only lists orders Shopee has paid out, so they are completed unless refunded.
     const status = o.returnId || o.refund > 0 ? 'returned' : 'completed';
     return { orderId: o.orderId, orderDate: o.orderDate, status, statusRaw: status === 'returned' ? 'คืนเงิน/คืนสินค้า' : 'โอนเงินแล้ว',

@@ -156,6 +156,30 @@ test('store: re-upload never double counts; summary totals, top products and fee
   await save('shopee', await shopeeFile(), 'sp.xlsx');
   assert.equal(store.get("SELECT COUNT(*) AS n FROM marketplace_orders WHERE platform='tiktok'").n, 3);
   assert.equal(store.get('SELECT COUNT(*) AS n FROM marketplace_uploads').n, 5);
+  // Per-order fees: % = fees ÷ sales, orders without settlement rows stay null (not 0).
+  const { orderFees, feeDetailJson } = await import('./marketplace.js');
+  const fees = orderFees(store, { platform: 'all', start: '2026-09-01', end: '2026-09-30' });
+  assert.ok(fees.totals.orders > 0 && fees.orders.length === Math.min(fees.totals.orders, 50));
+  for (const o of fees.orders) {
+    if (o.fees === null) assert.equal(o.percent, null);
+    else if (o.sales > 0) assert.equal(o.percent, Math.round(o.fees / o.sales * 10000) / 100);
+  }
+  assert.equal(feeDetailJson({ a: 1.005, b: 0, c: NaN }), '{"a":1}');
+  assert.equal(feeDetailJson({}), null);
+  const { orderDetail } = await import('./marketplace.js');
+  const first = fees.orders.find(o => o.fees !== null) || fees.orders[0];
+  const one = orderDetail(store, first.platform, first.orderId);
+  assert.deepEqual([one.orderId, one.fees, one.net, one.percent], [first.orderId, first.fees, first.net, first.percent]);
+  assert.ok(Array.isArray(one.items) && !('buyer' in one));
+  assert.equal(orderDetail(store, 'shopee', 'NO-SUCH-ORDER'), null);
+  // Filters: search by order id, fee data present/absent, status; % and _ are literal in the search.
+  const base = { platform: 'all', start: '2026-09-01', end: '2026-09-30' };
+  assert.deepEqual(orderFees(store, { ...base, q: first.orderId }).orders.map(o => o.orderId), [first.orderId]);
+  const withF = orderFees(store, { ...base, fees: 'with' }).totals, without = orderFees(store, { ...base, fees: 'without' }).totals;
+  assert.equal(withF.orders + without.orders, fees.totals.orders);
+  assert.equal(without.withFees, 0);
+  assert.equal(orderFees(store, { ...base, q: '%' }).totals.orders, 0);
+  assert.ok(orderFees(store, { ...base, status: 'completed' }).orders.every(o => o.status === 'completed'));
   const all = marketplaceSummary(store, { platform: 'all', start: '2026-09-01', end: '2026-09-30' });
   const by = Object.fromEntries(all.platforms.map(p => [p.platform, p]));
   assert.equal(by.tiktok.sales, 935); // 635 completed + 300 pending; cancelled excluded

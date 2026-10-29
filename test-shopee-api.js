@@ -171,6 +171,7 @@ test('HTTP: Super Admin connects, permitted user syncs without figures, token re
   // Logged calls carry endpoint/status/error only.
   // Completed order gets fees/net from the Payment API under the income-report key (no double count with a file).
   assert.deepEqual({ ...store.get("SELECT txn_id,fees,net_payout FROM marketplace_settlements WHERE platform='shopee'") }, { txn_id: 'income:261001AAA0001', fees: 74.5, net_payout: 560.5 });
+  assert.deepEqual(JSON.parse(store.get("SELECT fee_detail FROM marketplace_settlements WHERE platform='shopee'").fee_detail), { commission_fee: 40, service_fee: 30, seller_transaction_fee: 4.5 });
   const logs = store.all('SELECT * FROM shopee_api_log');
   assert.ok(logs.some(l => l.endpoint === '/api/v2/order/get_order_list' && l.http_status === 429 && l.error === 'error_too_many_request'));
   const logText = JSON.stringify(logs);

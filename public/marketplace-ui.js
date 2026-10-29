@@ -108,6 +108,8 @@
 
   function render(data) {
     $('mp-content').hidden = false;
+    // order-fees.js loads the per-order fee table for the same view.
+    document.dispatchEvent(new CustomEvent('marketplace:view', { detail: { platform, shop: shopFilter.value || 'all', start: data.start, end: data.end } }));
     renderShopFilter(data.shops);
     const shopLabel = shopFilter.value === 'all' ? '' : ' · ' + shopFilter.selectedOptions[0].textContent;
     $('display-period').textContent = data.start > data.end

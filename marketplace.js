@@ -27,6 +27,12 @@ const cleanFileName = value => {
   return name || 'ไม่ระบุชื่อไฟล์';
 };
 
+// {type: amount} -> JSON with zero amounts dropped; null when there is nothing (no breakdown ≠ zero fees).
+export function feeDetailJson(detail) {
+  const entries = Object.entries(detail || {}).filter(([k, v]) => k && Number.isFinite(v) && Math.abs(v) >= 0.005).map(([k, v]) => [String(k).slice(0, 80), Math.round(v * 100) / 100]);
+  return entries.length ? JSON.stringify(Object.fromEntries(entries)) : null;
+}
+
 export function saveMarketplaceUpload(store, { platform, fileName, sha256, user, parsed, shopId = null, now = new Date().toISOString() }) {
   return store.transaction(() => {
     const duplicate = !!store.get('SELECT 1 FROM marketplace_uploads WHERE platform=? AND file_sha256=?', platform, sha256);
@@ -47,11 +53,60 @@ export function saveMarketplaceUpload(store, { platform, fileName, sha256, user,
       for (const item of o.items) store.run('INSERT INTO marketplace_order_items(platform,order_id,line_key,sku,product_name,quantity,sales,status) VALUES(?,?,?,?,?,?,?,?)',
         platform, o.orderId, item.lineKey.slice(0, 120), item.sku.slice(0, 80), item.name.slice(0, 300), item.quantity, item.sales, item.status);
     }
-    for (const s of parsed.settlements) store.run(`INSERT INTO marketplace_settlements(platform,txn_id,order_id,fees,net_payout,upload_id,updated_at,shop_id) VALUES(?,?,?,?,?,?,?,?)
-      ON CONFLICT(platform,txn_id) DO UPDATE SET order_id=excluded.order_id,fees=excluded.fees,net_payout=excluded.net_payout,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id`,
-      platform, s.txnId, s.orderId, s.fees, s.netPayout, uploadId, now, shopId);
+    for (const s of parsed.settlements) store.run(`INSERT INTO marketplace_settlements(platform,txn_id,order_id,fees,net_payout,upload_id,updated_at,shop_id,fee_detail) VALUES(?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(platform,txn_id) DO UPDATE SET order_id=excluded.order_id,fees=excluded.fees,net_payout=excluded.net_payout,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id,
+        fee_detail=COALESCE(excluded.fee_detail,marketplace_settlements.fee_detail)`,
+      platform, s.txnId, s.orderId, s.fees, s.netPayout, uploadId, now, shopId, feeDetailJson(s.detail));
     return { uploadId, duplicate };
   });
+}
+
+export function orderDetail(store, platform, id) {
+  const o = store.get(`SELECT o.platform,o.order_id AS orderId,o.order_date AS orderDate,o.status,o.status_raw AS statusRaw,o.sales,o.refund,o.province,
+    o.source,o.updated_at AS updatedAt,s.name AS shop FROM marketplace_orders o LEFT JOIN marketplace_shops s ON s.id=o.shop_id WHERE o.platform=? AND o.order_id=?`, platform, id);
+  if (!o) return null;
+  const items = store.all(`SELECT sku,product_name AS name,quantity,sales,status FROM marketplace_order_items WHERE platform=? AND order_id=? ORDER BY line_key`, platform, id);
+  const settlements = store.all(`SELECT fees,net_payout AS net,fee_detail AS detail,updated_at AS updatedAt FROM marketplace_settlements WHERE platform=? AND order_id=? ORDER BY updated_at`, platform, id);
+  const detail = {};
+  for (const s of settlements) {
+    try { for (const [k, v] of Object.entries(JSON.parse(s.detail || '{}'))) detail[k] = Math.round(((detail[k] || 0) + Number(v)) * 100) / 100; } catch { /* skip */ }
+  }
+  const fees = settlements.length ? Math.round(settlements.reduce((sum, s) => sum + s.fees, 0) * 100) / 100 : null;
+  const net = settlements.length ? Math.round(settlements.reduce((sum, s) => sum + s.net, 0) * 100) / 100 : null;
+  return { ...o, items, fees, net, percent: fees === null || !(o.sales > 0) ? null : Math.round(fees / o.sales * 10000) / 100,
+    detail: Object.keys(detail).length ? detail : null, settledAt: settlements.at(-1)?.updatedAt || null, settlementRows: settlements.length };
+}
+
+// Filters: q = part of the order id, SKU or product name; status = completed | pending; fees = with | without (fee data).
+export function orderFees(store, { platform, start, end, shop = 'all', sort = 'date', page = 0, size = 50, q = '', status = 'all', fees = 'all' }) {
+  const shopId = shop === 'all' ? null : Number(shop);
+  const base = `WITH s AS (SELECT platform,order_id,SUM(fees) AS fees,SUM(net_payout) AS net,GROUP_CONCAT(fee_detail,char(30)) AS detail
+      FROM marketplace_settlements GROUP BY platform,order_id),
+    o AS (SELECT o.platform,o.order_id,o.order_date,o.status,o.sales,s.fees,s.net,s.detail FROM marketplace_orders o
+      LEFT JOIN s ON s.platform=o.platform AND s.order_id=o.order_id
+      WHERE o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?) AND o.status IN ${SOLD}
+        AND (? = 'all' OR o.status = ?) AND (? = 'all' OR (s.fees IS NOT NULL) = (? = 'with'))
+        AND (? = '' OR o.order_id LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM marketplace_order_items i WHERE i.platform=o.platform AND i.order_id=o.order_id
+          AND (i.sku LIKE ? ESCAPE '\\' OR i.product_name LIKE ? ESCAPE '\\'))))`;
+  const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+  const p = [start, end, platform, platform, shopId, shopId, status, status, fees, fees, q, like, like, like];
+  const totals = store.get(`${base} SELECT COUNT(*) AS orders,SUM(fees IS NOT NULL) AS withFees,SUM(CASE WHEN fees IS NOT NULL THEN sales END) AS sales,
+    SUM(fees) AS fees,SUM(net) AS net FROM o`, ...p);
+  const order = { date: 'order_date DESC,order_id DESC', percent: 'fees IS NULL,(fees/NULLIF(sales,0)) DESC,order_date DESC', fees: 'fees IS NULL,fees DESC,order_date DESC' }[sort];
+  const rows = store.all(`${base} SELECT * FROM o ORDER BY ${order} LIMIT ? OFFSET ?`, ...p, size, page * size);
+  const pct = (fees, sales) => (fees === null || fees === undefined || !(sales > 0) ? null : Math.round(fees / sales * 10000) / 100);
+  return {
+    platform, start, end,
+    totals: { orders: totals.orders, withFees: totals.withFees || 0, sales: totals.sales, fees: totals.fees, net: totals.net, percent: pct(totals.fees, totals.sales) },
+    orders: rows.map(r => {
+      const detail = {};
+      for (const part of String(r.detail || '').split('').filter(Boolean)) {
+        try { for (const [k, v] of Object.entries(JSON.parse(part))) detail[k] = Math.round(((detail[k] || 0) + Number(v)) * 100) / 100; } catch { /* skip a bad row */ }
+      }
+      return { platform: r.platform, orderId: r.order_id, orderDate: r.order_date, status: r.status, sales: r.sales, fees: r.fees, net: r.net,
+        percent: pct(r.fees, r.sales), detail: Object.keys(detail).length ? detail : null };
+    }),
+  };
 }
 
 export function marketplaceSummary(store, { platform, start, end, shop = 'all' }) {
@@ -212,6 +267,43 @@ export function installMarketplace(app, store, audit) {
       console.error('Marketplace delete failed:', error.code || error.name);
       res.status(500).json({ error: 'ลบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
     }
+  });
+
+  // Per-order fees: sales (same definition as the summary), fees, net, % deducted (fees ÷ sales) and the fee breakdown.
+  // Sold orders only (completed + pending); an order without settlement rows has fees/net/percent = null (no data, not 0).
+  app.get('/api/marketplace/order-fees', requirePermission('marketplace_view'), (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.auth.scope === 'territory') return res.status(403).json({ error: 'ยอดขายออนไลน์ไม่รองรับบัญชีที่จำกัดเขต' });
+    let { start, end } = req.query;
+    const platform = String(req.query.platform || 'all'), shop = String(req.query.shop || 'all');
+    const sort = ['date', 'percent', 'fees'].includes(req.query.sort) ? req.query.sort : 'date';
+    const q = String(req.query.q || '').trim().slice(0, 80);
+    const status = ['completed', 'pending'].includes(req.query.status) ? req.query.status : 'all';
+    const fees = ['with', 'without'].includes(req.query.fees) ? req.query.fees : 'all';
+    const page = Math.max(0, Math.min(100000, Number.parseInt(req.query.page, 10) || 0)), size = 10;
+    if (platform !== 'all' && !PLATFORMS[platform]) return res.status(400).json({ error: 'แพลตฟอร์มไม่ถูกต้อง' });
+    if (shop !== 'all' && !/^[1-9]d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
+    if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน' });
+    const minDate = isReviewer(req.auth.role) ? reviewerFloor() : null;
+    if (minDate && start < minDate) start = minDate;
+    try {
+      res.json({ ...orderFees(store, { platform, start, end, shop, sort, page, size, q, status, fees }), minDate, page, size });
+    } catch (error) {
+      console.error('Marketplace order fees failed:', error.code || error.name);
+      res.status(500).json({ error: 'โหลดค่าธรรมเนียมรายออเดอร์ไม่สำเร็จ กรุณาลองใหม่' });
+    }
+  });
+
+  // One order for the order popup: order fields, product lines, settlement rows (fees / net / breakdown). No buyer data.
+  app.get('/api/marketplace/order-detail', requirePermission('marketplace_view'), (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.auth.scope === 'territory') return res.status(403).json({ error: 'ยอดขายออนไลน์ไม่รองรับบัญชีที่จำกัดเขต' });
+    const platform = String(req.query.platform || ''), id = String(req.query.id || '');
+    if (!PLATFORMS[platform] || !/^[A-Za-z0-9_-]{1,60}$/.test(id)) return res.status(400).json({ error: 'ออเดอร์ไม่ถูกต้อง' });
+    const order = orderDetail(store, platform, id);
+    // Reviewers only see the last 3 months, like every other marketplace figure.
+    if (!order || (isReviewer(req.auth.role) && order.orderDate < reviewerFloor())) return res.status(404).json({ error: 'ไม่พบออเดอร์นี้' });
+    res.json(order);
   });
 
   app.get('/api/marketplace/summary', requirePermission('marketplace_view'), (req, res) => {
