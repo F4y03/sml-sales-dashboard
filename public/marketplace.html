@@ -18,7 +18,8 @@
       body:not([data-tab="tiktok"]) #tiktok-api { display: none; }
       body:not([data-tab="lazada"]) #lazada-api { display: none; }
       body:not([data-tab="shopee"]) #shopee-api { display: none; }
-      #shopee-items { flex-basis: 100%; min-width: 0; }
+      body:not([data-tab="shopee"]) #shopee-items { display: none; }
+      #shopee-items { min-width: 0; margin: 16px 0 0; padding: 12px 16px; border: 1px solid var(--ov-line, rgba(127,127,127,.25)); border-radius: 12px; }
       #shopee-items summary { cursor: pointer; }
       #shopee-items input { margin: 8px 0; width: 100%; max-width: 320px; }
       #shopee-items .tbl { max-height: 320px; overflow: auto; }
@@ -158,12 +159,6 @@
                   </button>
                 </div>
                 <p id="shopee-status" class="tt-sync-status" role="status"></p>
-                <details id="shopee-items" hidden>
-                  <summary>สินค้าและสต็อก Shopee <small id="shopee-items-meta"></small></summary>
-                  <input id="shopee-items-q" class="mp-select" type="search" placeholder="ค้นหาชื่อสินค้า / SKU" aria-label="ค้นหาสินค้า Shopee" />
-                  <div class="tbl"><table><thead><tr><th>SKU</th><th>สินค้า</th><th class="num">ราคา</th><th class="num">สต็อก</th></tr></thead><tbody id="shopee-items-body"></tbody></table></div>
-                  <p id="shopee-items-state" class="tt-sync-status" role="status"></p>
-                </details>
               </div>
             </div>
           </header>
@@ -268,6 +263,12 @@
             <ol id="province-list" class="mp-rank mp-rank-compact"></ol>
           </section>
         </div>
+        <details id="shopee-items" hidden>
+          <summary>สินค้าและสต็อก Shopee <small id="shopee-items-meta"></small></summary>
+          <input id="shopee-items-q" class="mp-select" type="search" placeholder="ค้นหาชื่อสินค้า / SKU" aria-label="ค้นหาสินค้า Shopee" />
+          <div class="tbl"><table><thead><tr><th>SKU</th><th>สินค้า</th><th class="num">ราคา</th><th class="num">สต็อก</th></tr></thead><tbody id="shopee-items-body"></tbody></table></div>
+          <p id="shopee-items-state" class="tt-sync-status" role="status"></p>
+        </details>
         <dialog id="kpi-dialog" class="kpi-dialog" aria-labelledby="kpi-dialog-title">
           <div class="kpi-dialog-head">
             <h2 id="kpi-dialog-title"></h2>
