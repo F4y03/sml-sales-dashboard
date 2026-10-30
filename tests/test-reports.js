@@ -32,15 +32,18 @@ try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('https://fonts.googleapis.com/**',route=>route.abort());
   await page.route('https://fonts.gstatic.com/**',route=>route.abort());
-  await page.goto(base+'/reports.html',{waitUntil:'domcontentloaded'});await page.locator('#report-list button').first().waitFor();
-  await page.fill('#report-search','4007');await page.locator('#report-list button').first().click();
-  await page.locator('#report-form').waitFor({state:'visible'});await page.fill('#single-day','2026-09-07');await page.click('#apply-single');
+  await page.goto(base+'/reports.html',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!document.getElementById('report-select').disabled);
+  await page.fill('#report-search','4007');const key=await page.locator('#report-select option',{hasText:'4007'}).first().getAttribute('value');await page.locator('#report-select').selectOption(key);
+  await page.locator('#report-form').waitFor({state:'visible'});
+  // Date presets replaced the single-day box: "เมื่อวาน" must set one day in both fields.
+  await page.locator('#date-presets button',{hasText:'เมื่อวาน'}).click();assert.equal(await page.locator('[name=from_date]').inputValue(),await page.locator('[name=to_date]').inputValue());
+  await page.fill('[name=from_date]','2026-09-07');await page.fill('[name=to_date]','2026-09-07');
   assert.equal(await page.locator('[name=from_date]').inputValue(),'2026-09-07');assert.equal(await page.locator('[name=to_date]').inputValue(),'2026-09-07');
   await page.click('#run-report');await page.locator('#result-card').waitFor({state:'visible'});
   assert.ok((await page.locator('#result-body').innerText()).includes('2026-09-07'));
   const downloadPromise=page.waitForEvent('download');await page.click('#csv-report');assert.ok((await downloadPromise).suggestedFilename().includes('4007'));
-  await page.screenshot({path:'reports-desktop.png',fullPage:true});
-  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'reports-mobile.png',fullPage:true});
+  await page.screenshot({path:'test-results/reports-desktop.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'test-results/reports-mobile.png',fullPage:true});
   await page.goto(base+'/',{waitUntil:'domcontentloaded'});await page.click('#day-yesterday');assert.equal(await page.locator('#start').inputValue(),await page.locator('#end').inputValue());
   assert.deepEqual(errors,[]);console.log('PASS: SQL parameter handling, invalid dates, write rejection, 4 live reports, single-day UI, CSV, mobile and dashboard day filter.');
 }finally{await browser.close();await sml.close();}

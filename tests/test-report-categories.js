@@ -39,6 +39,8 @@ test('SML categories preserve report types, filter both lists, search and open s
     await expect(page.locator('#report-select optgroup option')).toHaveCount(3);
     await expect(page.locator('.report-main aside')).toHaveCount(0);
     await page.locator('[data-category="1"]').click();
+    // Since 2026-10-22 a category only filters the list; the report is opened from the select.
+    await page.locator('#report-select').selectOption('1');
     await expect(page.locator('#result-body')).toContainText('42');
     await expect(page.locator('#report-settings')).not.toHaveAttribute('open', '');
     assert.equal(runs, 1);
@@ -46,12 +48,10 @@ test('SML categories preserve report types, filter both lists, search and open s
     await page.locator('#report-select').selectOption('2');
     await expect(page.locator('#report-select')).toHaveValue('2');
     await expect(page.locator('#result-card')).toBeVisible();
-    await page.locator('#report-settings summary').click();
     await page.locator('[name=from_date]').fill('2026-09-01');
     await expect(page.locator('#result-card')).toBeHidden();
     await page.locator('#run-report').click();
     await expect(page.locator('#result-card')).toBeVisible();
-    await page.locator('#report-settings summary').click();
     await page.screenshot({path:'test-results/reports-simple-desktop.png',fullPage:true});
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
