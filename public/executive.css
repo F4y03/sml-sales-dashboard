@@ -753,7 +753,7 @@ dialog::backdrop {
 .detail-stat > span:first-child {
   font-size: 11px;
   letter-spacing: 0.4px;
-  color: #bb7261;
+  color: #a65e4e; /* a touch darker than #bb7261 so labels pass 4.5:1 */
   font-weight: bold;
 }
 .detail-stat strong {

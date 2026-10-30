@@ -16,7 +16,7 @@
   font-variant-numeric: tabular-nums;
 }
 html[data-theme="light"] #overview-top {
-  --ov-up: #15803d;
+  --ov-up: #166534; /* green-800: badge text stays readable on its tinted background */
   --ov-down: #c22b38;
   --ov-warn: #a86400;
 }

@@ -757,6 +757,14 @@ html[data-theme] .detail-stat strong {
 html[data-theme] :is(.detail-stat small, .bill-next-steps li p) {
   color: var(--muted);
 }
+/* Light header is pale grey: a slightly darker idle sort arrow keeps 4.5:1 (dark mode unchanged). */
+html[data-theme="light"] .product-sort-icon:not(th[aria-sort="ascending"] *, th[aria-sort="descending"] *) {
+  color: #646b76;
+}
+/* Dark keeps the original terracotta (4.6:1 on the dark card); light uses the darker #a65e4e. */
+html[data-theme="dark"] .detail-stat > span:first-child {
+  color: #bb7261;
+}
 html[data-theme] .detail-insight {
   background: var(--surface-raised);
   border-color: var(--line);
