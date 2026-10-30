@@ -1,6 +1,6 @@
 import pg from 'pg';
 import assert from 'node:assert/strict';
-import { catalogSql, buyersSql, previousPeriod } from './product-performance.js';
+import { catalogSql, buyersSql, previousPeriod } from '../src/routes/product-performance.js';
 
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 30000, options: '-c default_transaction_read_only=on' });
 const near = (actual, expected, label) => assert.ok(Math.abs(Number(actual) - Number(expected)) < .005, label);

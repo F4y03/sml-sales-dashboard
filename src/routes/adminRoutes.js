@@ -1,5 +1,5 @@
 import { requirePermission,requireSuperAdmin } from '../middleware/access.js';
-import { sameSite } from '../../auth.js';
+import { sameSite } from '../middleware/auth.js';
 import { createUserService,bad,positiveId,text } from '../services/userService.js';
 import { createSettingsService } from '../services/settingsService.js';
 import { validateMapping } from '../services/territoryService.js';

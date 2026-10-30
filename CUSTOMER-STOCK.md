@@ -2,7 +2,7 @@
 
 สิทธิ์: เฉพาะ role `super_admin` / `executive` ที่เห็นทุกเขต (scope ไม่ใช่ `territory`) — ล็อกตาม role ไม่มี permission checkbox
 บังคับใน `src/middleware/access.js` (`CUSTOMER_STOCK_ROLES`) ทั้งหน้าและ `/api/customer-stock/*`; เมนูซ่อนตามกฎเดียวกันใน `public/workspace-nav.js`
-Backend: `customer-stock.js` (อ่านอย่างเดียว, parameterized ทั้งหมด) · Frontend: `public/customer-stock.{html,css,js}` · Test: `node --test tests/test-customer-stock.js`
+Backend: `src/routes/customer-stock.js` (อ่านอย่างเดียว, parameterized ทั้งหมด) · Frontend: `public/customer-stock.{html,css,js}` · Test: `node --test tests/test-customer-stock.js`
 
 ## แท็บ 1 ประวัติลูกค้า
 - ค้นหา `ar_customer` ตามรหัส/ชื่อ (30 รายการแรก)
@@ -19,7 +19,7 @@ Backend: `customer-stock.js` (อ่านอย่างเดียว, parame
 
 ## แท็บ 3 ความเคลื่อนไหวสินค้า
 - เลือกสินค้าจากรายการด้านซ้าย กรองด้วย ค้นหา (รหัส/ชื่อ) · กลุ่มสินค้า (`group_main`/`ic_group`) · กลุ่มย่อย (`group_sub`/`ic_group_sub`) · สถานะสินค้า (มีสินค้า = คงเหลือ > 0, ไม่มีสินค้า = ≤ 0; คงเหลือ NULL ไม่เข้าทั้งสองกลุ่ม) — นิยามเดียวกับหน้าเช็คราคา/สต๊อก ไม่รวมสินค้าฝาก เรียงตามรหัส ทีละ 100 รายการ
-- ใช้เงื่อนไขรายงาน 2060 เดียวกับหน้าสินค้าฝาก (`stockAffectingSQL` ใน `consignment.js`) แปลงหน่วยด้วย `stand_value/divide_value` คงเหลือสะสมตามลำดับเอกสาร
+- ใช้เงื่อนไขรายงาน 2060 เดียวกับหน้าสินค้าฝาก (`stockAffectingSQL` ใน `src/routes/consignment.js`) แปลงหน่วยด้วย `stand_value/divide_value` คงเหลือสะสมตามลำดับเอกสาร
 - รอบสต็อก (`stockCycles`): **วันเข้า** = เอกสารที่ทำให้คงเหลือขึ้นจาก ≤ 0 เป็น > 0 · **ใครซื้อ** = เอกสารขาย 44 ในรอบนั้นรวมตามลูกค้า · **วันหมด** = เอกสารแรกที่ทำให้คงเหลือกลับเป็น ≤ 0 (ไม่ว่าเอกสารประเภทใด) รับคืน 48 ที่กลับเข้าระหว่างรอบนับรวมใน "รับเข้าในรอบนี้"
 - แสดงคงเหลือทะเบียนเทียบยอดรวมความเคลื่อนไหว ถ้าไม่ตรงจะเตือน ไม่ปรับให้ตรง
 - ชื่อประเภทเอกสารแสดงเฉพาะ 44/46/48 ที่รู้แน่ ประเภทอื่นแสดง "รับเข้า/เบิกออก · เอกสาร {trans_flag}"

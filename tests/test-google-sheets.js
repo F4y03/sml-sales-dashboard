@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createVerify, generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 import { createAccessStore } from '../src/models/accessStore.js';
-import { saveMarketplaceUpload } from '../marketplace.js';
+import { saveMarketplaceUpload } from '../src/routes/marketplace.js';
 import { buildExportTabs, createSheetsClient } from '../src/services/googleSheets.js';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -68,7 +68,7 @@ test('scheduled export runs again only after GOOGLE_SHEETS_EVERY_HOURS since the
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
-  const { installGoogleSheets } = await import('../google-sheets.js');
+  const { installGoogleSheets } = await import('../src/routes/google-sheets.js');
   const dir = mkdtempSync(join(tmpdir(), 'gs-')), keyFile = join(dir, 'key.json');
   writeFileSync(keyFile, JSON.stringify({ type: 'service_account', client_email: account.email, private_key: account.privateKey }));
   const store = createAccessStore(':memory:', {});

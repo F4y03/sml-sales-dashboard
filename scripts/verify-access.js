@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
-import { scopeQuery,accessContext,createScopedPool } from './src/services/territoryService.js';
-import { movementsSQL } from './consignment.js';
-import { analyticsQuery } from './analytics.js';
-import { installProducts } from './products.js';
-import { installProductPerformance } from './product-performance.js';
+import { scopeQuery,accessContext,createScopedPool } from '../src/services/territoryService.js';
+import { movementsSQL } from '../src/routes/consignment.js';
+import { analyticsQuery } from '../src/routes/analytics.js';
+import { installProducts } from '../src/routes/products.js';
+import { installProductPerformance } from '../src/routes/product-performance.js';
 const pool=new pg.Pool({connectionTimeoutMillis:5000,statement_timeout:30000,max:1,options:'-c default_transaction_read_only=on'});
 const territory={id:1,mapping:{teams:['หย'],customerCodes:[],consignmentPrefixes:['ฝหย']}};
 const execute=(sql,values=[],module='customer_analysis')=>{const q=scopeQuery(sql,values,{territory,module});return pool.query(q.text,q.values);};
@@ -16,7 +16,7 @@ try {
     ['customer-insights.sql',['2026-09-01','2026-09-16']],
     ['non-buyers.sql',['2026-09-01','2026-09-16']],
     ['executive.sql',['2026-09-01','2026-09-16','2026-08-01','2026-08-16','2025-09-01','2025-09-16']],
-  ]){const sql=await readFile(new URL('./sql/'+file,import.meta.url),'utf8');const r=await execute(sql,params);assert.ok(r.rows.length);console.log(file+': scoped query OK');}
+  ]){const sql=await readFile(new URL('../sql/'+file,import.meta.url),'utf8');const r=await execute(sql,params);assert.ok(r.rows.length);console.log(file+': scoped query OK');}
   await execute(analyticsQuery('net'),['2026-09-01','2026-09-16']);
   const stock=await execute('SELECT code FROM ic_inventory');assert.ok(stock.rows.every(r=>!r.code.startsWith('ฝ')||r.code.startsWith('ฝหย')));
   const deposits=await execute(movementsSQL,['ฝ%','^ฝ[^0-9]{2}[0-9]{3}'],'consignment');assert.ok(deposits.rows.every(r=>r.productCode.startsWith('ฝหย')));

@@ -1,8 +1,8 @@
 // Google Sheets copy of the online-sales data: export every few hours + a Super Admin "export now" button. See MARKETPLACE.md › Google Sheets.
 // Needs GOOGLE_SHEETS_KEY_FILE (service account key in data/) and GOOGLE_SHEETS_ID; optional GOOGLE_SHEETS_EVERY_HOURS (default 5, minimum 1).
-import { sameSite } from './auth.js';
-import { requireSuperAdmin } from './src/middleware/access.js';
-import { GoogleSheetsError, OLD_TABS, buildExportTabs, createSheetsClient, loadServiceAccount } from './src/services/googleSheets.js';
+import { sameSite } from '../middleware/auth.js';
+import { requireSuperAdmin } from '../middleware/access.js';
+import { GoogleSheetsError, OLD_TABS, buildExportTabs, createSheetsClient, loadServiceAccount } from '../services/googleSheets.js';
 
 const HOUR_MS = 3600000;
 const setting = (store, key) => store.get('SELECT value FROM system_settings WHERE key=?', key)?.value ?? null;

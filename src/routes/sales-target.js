@@ -1,7 +1,7 @@
 // Sales target for the executive summary, stored in the app's access database (never in SML).
 // A target belongs to a calendar month ("month:YYYY-MM") or, for ranges spanning months, to that exact range.
 // Territory-scoped sessions keep their own target so they never overwrite the company-wide one.
-import { sameSite } from './auth.js';
+import { sameSite } from '../middleware/auth.js';
 
 const KEY_PATTERN = /^(month:\d{4}-(0[1-9]|1[0-2])|range:\d{4}-\d{2}-\d{2}:\d{4}-\d{2}-\d{2})$/;
 const MAX_TARGET = 1e12;

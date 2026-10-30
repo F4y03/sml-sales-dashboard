@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installCustomerStock, stockCycles, withInferredSaleCodes } from '../customer-stock.js';
+import { installCustomerStock, stockCycles, withInferredSaleCodes } from '../src/routes/customer-stock.js';
 import { installAccess } from '../src/middleware/access.js';
 
 async function listen(app) {

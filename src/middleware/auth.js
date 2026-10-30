@@ -1,15 +1,15 @@
 import { randomBytes, scrypt as scryptCallback, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { isIP } from 'node:net';
-import { createAccessStore } from './src/models/accessStore.js';
-import { isReviewer } from './src/config/access.js';
-import { isProductSheetPath, isProductSheetPublicRead } from './src/routes/productSheetProxy.js';
-import { createAuditService } from './src/services/auditService.js';
-import { loadUser, landingPage } from './src/services/permissionService.js';
-import { createTwoFactorService } from './src/services/twoFactorService.js';
-import { createLockoutService } from './src/services/lockoutService.js';
-import { createTerritoryService } from './src/services/territoryService.js';
-import { makePassword,verifyPassword,hashOnly,isModernHash } from './src/services/passwordService.js';
+import { createAccessStore } from '../models/accessStore.js';
+import { isReviewer } from '../config/access.js';
+import { isProductSheetPath, isProductSheetPublicRead } from '../routes/productSheetProxy.js';
+import { createAuditService } from '../services/auditService.js';
+import { loadUser, landingPage } from '../services/permissionService.js';
+import { createTwoFactorService } from '../services/twoFactorService.js';
+import { createLockoutService } from '../services/lockoutService.js';
+import { createTerritoryService } from '../services/territoryService.js';
+import { makePassword,verifyPassword,hashOnly,isModernHash } from '../services/passwordService.js';
 const scrypt=promisify(scryptCallback);
 // Kept for setup-auth and legacy credentials. Successful legacy logins upgrade to bcrypt.
 export async function hashPassword(password,salt=randomBytes(16).toString('hex')) {return `${salt}:${(await scrypt(password,salt,64)).toString('hex')}`;}

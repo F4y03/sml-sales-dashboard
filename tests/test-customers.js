@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { installCustomerInsights } from '../customer-insights.js';
+import { installCustomerInsights } from '../src/routes/customer-insights.js';
 
 async function listen(app) {
   const server = app.listen(0, '127.0.0.1');

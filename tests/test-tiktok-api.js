@@ -3,13 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import express from 'express';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 import { installAccess } from '../src/middleware/access.js';
 import { createUserService } from '../src/services/userService.js';
 import { loadUser } from '../src/services/permissionService.js';
-import { installMarketplace, marketplaceSummary } from '../marketplace.js';
-import { installTikTokShop } from '../tiktok-shop.js';
+import { installMarketplace, marketplaceSummary } from '../src/routes/marketplace.js';
+import { installTikTokShop } from '../src/routes/tiktok-shop.js';
 import { bangkokDate, bangkokDayStart, mapTikTokOrder, mapTikTokSettlement, signRequest } from '../src/services/tiktokShopApi.js';
 
 const PII = { name: 'ทดสอบ ผู้รับ', phone_number: '(+66)812345678', full_address: '99/1 ถนนทดสอบ' };

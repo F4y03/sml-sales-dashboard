@@ -1,5 +1,5 @@
 import express from 'express';
-import { installAuth } from '../auth.js';
+import { installAuth } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 // Shared fixture for test-security.js and test-2fa.js: in-memory store, given users (plain-text legacy passwords are upgraded on first login).
 export async function fixture(t, { users = [['admin', 'admin', 'blue-sky-42']], env = {} } = {}) {

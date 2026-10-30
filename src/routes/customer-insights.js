@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { analyticsQuery } from './analytics.js';
 
-const customersSql = await readFile(new URL('./sql/customer-insights.sql', import.meta.url), 'utf8');
-const productsSql = await readFile(new URL('./sql/customer-products.sql', import.meta.url), 'utf8');
-const nonBuyersSql = await readFile(new URL('./sql/non-buyers.sql', import.meta.url), 'utf8');
+const customersSql = await readFile(new URL('../../sql/customer-insights.sql', import.meta.url), 'utf8');
+const productsSql = await readFile(new URL('../../sql/customer-products.sql', import.meta.url), 'utf8');
+const nonBuyersSql = await readFile(new URL('../../sql/non-buyers.sql', import.meta.url), 'utf8');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end

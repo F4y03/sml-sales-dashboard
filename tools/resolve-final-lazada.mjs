@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import pg from 'pg';
 import {createAccessStore} from '../src/models/accessStore.js';
-import {normalizeImageLink} from '../product-images.js';
+import {normalizeImageLink} from '../src/routes/product-images.js';
 const root='product-drive-transfer';
 const products=JSON.parse(await fs.readFile(`${root}/lazada-recovered-gallery.json`,'utf8'));
 const receipts=JSON.parse(await fs.readFile(`${root}/lazada-drive-receipts-complete.json`,'utf8'));

@@ -3,13 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import express from 'express';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 import { installAccess } from '../src/middleware/access.js';
 import { createUserService } from '../src/services/userService.js';
 import { loadUser } from '../src/services/permissionService.js';
-import { installMarketplace, marketplaceSummary } from '../marketplace.js';
-import { installShopeeShop, purgeShopeeBuyerData } from '../shopee-shop.js';
+import { installMarketplace, marketplaceSummary } from '../src/routes/marketplace.js';
+import { installShopeeShop, purgeShopeeBuyerData } from '../src/routes/shopee-shop.js';
 import { HOSTS, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, redactUrl, shopeeEnv, shopeeOrderStatus, signShopee } from '../src/services/shopeeApi.js';
 
 const PII = { name: 'ท***บ', phone: '******78', full_address: '99/1 ถนนทดสอบ' };

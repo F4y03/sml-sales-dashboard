@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-export const performanceBaseSql = await readFile(new URL('./sql/product-performance-base.sql', import.meta.url), 'utf8');
+export const performanceBaseSql = await readFile(new URL('../../sql/product-performance-base.sql', import.meta.url), 'utf8');
 export const catalogSql = `${performanceBaseSql}
 SELECT json_build_object('products', COALESCE((SELECT json_agg(c ORDER BY net DESC, code) FROM catalog c), '[]'::json)) AS insights`;
 export const buyersSql = `${performanceBaseSql}, buyers AS (

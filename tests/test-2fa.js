@@ -196,7 +196,7 @@ test('admin reset/revoke paths cancel trusted devices; Super Admin can reset ano
   const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
   const { resolve } = await import('node:path');
   const express = (await import('express')).default;
-  const { installAuth, hashPassword } = await import('../auth.js');
+  const { installAuth, hashPassword } = await import('../src/middleware/auth.js');
   const { createAccessStore } = await import('../src/models/accessStore.js');
   const { installAccess } = await import('../src/middleware/access.js');
   const { installAdminRoutes } = await import('../src/routes/adminRoutes.js');

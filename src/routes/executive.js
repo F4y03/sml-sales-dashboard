@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const sql = await readFile(new URL('./sql/executive.sql', import.meta.url), 'utf8');
+const sql = await readFile(new URL('../../sql/executive.sql', import.meta.url), 'utf8');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 
 export function shiftMonth(value, months) {

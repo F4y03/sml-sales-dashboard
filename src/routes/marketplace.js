@@ -3,10 +3,10 @@
 // The summary API needs marketplace_view. Data lives in the app SQLite database; SML is not touched.
 import express from 'express';
 import { createHash } from 'node:crypto';
-import { sameSite } from './auth.js';
-import { requirePermission } from './src/middleware/access.js';
-import { hasPermission } from './src/services/permissionService.js';
-import { isReviewer } from './src/config/access.js';
+import { sameSite } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/access.js';
+import { hasPermission } from '../services/permissionService.js';
+import { isReviewer } from '../config/access.js';
 
 // Reviewer accounts see only the last 3 months (Bangkok dates): earlier start dates are moved up to this day.
 export const REVIEWER_MONTHS = 3;
@@ -15,7 +15,7 @@ export function reviewerFloor(now = Date.now()) {
   d.setUTCMonth(d.getUTCMonth() - REVIEWER_MONTHS);
   return d.toISOString().slice(0, 10);
 }
-import { MAX_FILE_BYTES, MarketplaceFileError, PLATFORMS, parseMarketplaceFile } from './src/services/marketplaceParser.js';
+import { MAX_FILE_BYTES, MarketplaceFileError, PLATFORMS, parseMarketplaceFile } from '../services/marketplaceParser.js';
 
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;

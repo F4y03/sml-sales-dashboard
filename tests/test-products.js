@@ -1,11 +1,11 @@
 import { fixtureIdentity } from './support/fixture-identity.js';
 import { startSmlApp } from './support/sml-app.js';
-import { installProducts } from '../products.js';
+import { installProducts } from '../src/routes/products.js';
 import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import {chromium} from '@playwright/test';
-import {excelBuffer,csvValue} from '../products.js';
+import {excelBuffer,csvValue} from '../src/routes/products.js';
 const sml=await startSmlApp(installProducts);const base=sml.base;
 const first=await(await fetch(base+'/api/products')).json();assert.ok(first.total>first.rows.length); // more than one pageassert.equal(first.rows.length,50);
 const page2=await(await fetch(base+'/api/products?page=1')).json();assert.notEqual(first.rows[0].code,page2.rows[0].code);

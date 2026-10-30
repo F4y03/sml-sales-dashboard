@@ -2,8 +2,8 @@ import pg from 'pg';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 const pool = new pg.Pool({ statement_timeout: 30000, connectionTimeoutMillis: 5000 });
-const sql = await readFile(new URL('./sql/dashboard.sql', import.meta.url), 'utf8');
-const xml = await readFile(new URL('./sml-report-4007.xml', import.meta.url), 'utf8');
+const sql = await readFile(new URL('../sql/dashboard.sql', import.meta.url), 'utf8');
+const xml = await readFile(new URL('../sml-report-4007.xml', import.meta.url), 'utf8');
 // Extract only the reviewed SELECT from the saved native report (not its field-discovery query).
 const native = xml.match(/<_query>\s*(select doc_date,[\s\S]*?)<\/_query>/i)[1]
   .replaceAll("'@from_date@'", '$1::text').replaceAll("'@to_date@'", '$2::text')

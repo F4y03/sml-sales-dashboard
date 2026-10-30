@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { findContrastIssues } from './support/theme-contrast.js';
 
 test('two themes work on every page, login assets are public, choice persists and mobile controls fit', async () => {

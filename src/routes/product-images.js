@@ -5,13 +5,13 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import express from 'express';
-import { sameSite } from './auth.js';
-import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
-import { hasPermission } from './src/services/permissionService.js';
+import { sameSite } from '../middleware/auth.js';
+import { requirePermission, requireSuperAdmin } from '../middleware/access.js';
+import { hasPermission } from '../services/permissionService.js';
 
 // One source of truth for link rules: evaluate the same file the browser loads.
 const sandbox = { URL };
-vm.runInNewContext(readFileSync(new URL('./public/product-image-links.js', import.meta.url), 'utf8'), sandbox);
+vm.runInNewContext(readFileSync(new URL('../../public/product-image-links.js', import.meta.url), 'utf8'), sandbox);
 const rules = sandbox.ProductImageLinks;
 // Copy results out of the vm realm so callers get plain objects of this realm.
 export const normalizeImageLink = raw => ({ ...rules.normalizeImageLink(raw) });

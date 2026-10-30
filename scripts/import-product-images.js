@@ -11,7 +11,7 @@
 import pg from 'pg';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { createAccessStore } from '../src/models/accessStore.js';
-import { normalizeImageLink, MAX_IMAGES } from '../product-images.js';
+import { normalizeImageLink, MAX_IMAGES } from '../src/routes/product-images.js';
 
 const args = new Set(process.argv.slice(2));
 const apply = args.has('--apply'), overwrite = args.has('--overwrite');

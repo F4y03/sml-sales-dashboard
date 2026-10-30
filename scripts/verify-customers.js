@@ -2,8 +2,8 @@ import pg from 'pg';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const customerSql = await readFile(new URL('./sql/customer-insights.sql', import.meta.url), 'utf8');
-const productSql = await readFile(new URL('./sql/customer-products.sql', import.meta.url), 'utf8');
+const customerSql = await readFile(new URL('../sql/customer-insights.sql', import.meta.url), 'utf8');
+const productSql = await readFile(new URL('../sql/customer-products.sql', import.meta.url), 'utf8');
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 30000, options: '-c default_transaction_read_only=on' });
 const closeEnough = (actual, expected, label) => assert.ok(Math.abs(Number(actual) - Number(expected)) < .005, label);
 

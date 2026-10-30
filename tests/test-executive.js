@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium } from '@playwright/test';
-import { installExecutive, shiftMonth, growth } from '../executive.js';
+import { installExecutive, shiftMonth, growth } from '../src/routes/executive.js';
 
 test('comparison periods clamp month ends and handle missing bases', () => {
   assert.equal(shiftMonth('2024-03-31', -1), '2024-02-29');
@@ -230,7 +230,7 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
 });
 
 test('sales target API: strict keys and amounts, same-site writes, per-territory storage, audit trail', async () => {
-  const { installSalesTarget } = await import('../sales-target.js');
+  const { installSalesTarget } = await import('../src/routes/sales-target.js');
   const { createAccessStore } = await import('../src/models/accessStore.js');
   const { createAuditService } = await import('../src/services/auditService.js');
   const store = createAccessStore(':memory:', {});

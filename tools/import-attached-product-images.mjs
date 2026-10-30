@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import pg from 'pg';
 import { createAccessStore } from '../src/models/accessStore.js';
-import { normalizeImageLink, MAX_IMAGES } from '../product-images.js';
+import { normalizeImageLink, MAX_IMAGES } from '../src/routes/product-images.js';
 
 const positional = process.argv.slice(2).filter(x => x !== '--apply');
 const [mapPath, receiptPath, sourceName] = positional;

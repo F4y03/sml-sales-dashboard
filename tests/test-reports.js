@@ -1,8 +1,8 @@
 import { startSmlApp } from './support/sml-app.js';
-import { installReports } from '../reports.js';
+import { installReports } from '../src/routes/reports.js';
 import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
-import { compileQuery, validateValues } from '../reports.js';
+import { compileQuery, validateValues } from '../src/routes/reports.js';
 import { chromium } from '@playwright/test';
 const sml=await startSmlApp(installReports);const base=sml.base;
 const conditions=[{name:'from_date',type:'Date',label:'start'},{name:'item',type:'Text',column:'item_code',label:'item'}];

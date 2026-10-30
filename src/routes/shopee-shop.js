@@ -5,13 +5,13 @@
 // SHOPEE_ENV=sandbox|live picks the host; connections made in one environment are not used in the other.
 import express from 'express';
 import { createHash, randomBytes } from 'node:crypto';
-import { sameSite } from './auth.js';
+import { sameSite } from '../middleware/auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
-import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
-import { isReviewer } from './src/config/access.js';
-import { startBackfill } from './src/services/marketplaceBackfill.js';
-import { createSecretVault } from './src/services/totpService.js';
-import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, shopeeEnv } from './src/services/shopeeApi.js';
+import { requirePermission, requireSuperAdmin } from '../middleware/access.js';
+import { isReviewer } from '../config/access.js';
+import { startBackfill } from '../services/marketplaceBackfill.js';
+import { createSecretVault } from '../services/totpService.js';
+import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, shopeeEnv } from '../services/shopeeApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
 export const RETENTION_DAYS = 90, LOG_RETENTION_DAYS = 90, AUTO_SYNC_DAYS = 90;

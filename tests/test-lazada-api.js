@@ -3,13 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import express from 'express';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 import { installAccess } from '../src/middleware/access.js';
 import { createUserService } from '../src/services/userService.js';
 import { loadUser } from '../src/services/permissionService.js';
-import { installMarketplace, marketplaceSummary } from '../marketplace.js';
-import { installLazadaShop } from '../lazada-shop.js';
+import { installMarketplace, marketplaceSummary } from '../src/routes/marketplace.js';
+import { installLazadaShop } from '../src/routes/lazada-shop.js';
 import { lazadaDate, mapLazadaOrder, mapLazadaTransaction, parseLazadaJson, signRequest } from '../src/services/lazadaApi.js';
 
 const PII = { first_name: 'ทดสอบ', last_name: 'ผู้รับ', phone: '0812345678', address1: '99/1 ถนนทดสอบ' };

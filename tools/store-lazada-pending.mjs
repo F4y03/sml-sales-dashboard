@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { createAccessStore } from '../src/models/accessStore.js';
-import { normalizeImageLink } from '../product-images.js';
+import { normalizeImageLink } from '../src/routes/product-images.js';
 
 const read = async name => JSON.parse(await fs.readFile(`product-drive-transfer/${name}`, 'utf8'));
 const { products } = await read('lazada-mapping-prepared.json');

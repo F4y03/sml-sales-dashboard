@@ -92,9 +92,9 @@ Activity records logins/failures, logout, switches, user creation/edits/password
 
 ## Files
 
-Added: `migrations/001-access.sql`; `src/config/access.js`; `src/models/accessStore.js`; services `permissionService`, `passwordService`, `userService`, `territoryService`, `auditService`, `settingsService`; `src/middleware/access.js`; `src/routes/adminRoutes.js`; admin/territory/access-denied pages, scripts and `public/access-ui.css`; `tests/test-rbac.js`, `tests/test-access-ui.js`, `verify-access.js`.
+Added: `migrations/001-access.sql`; `src/config/access.js`; `src/models/accessStore.js`; services `permissionService`, `passwordService`, `userService`, `territoryService`, `auditService`, `settingsService`; `src/middleware/access.js`; `src/routes/adminRoutes.js`; admin/territory/access-denied pages, scripts and `public/access-ui.css`; `tests/test-rbac.js`, `tests/test-access-ui.js`, `scripts/verify-access.js`.
 
-Updated: `auth.js`, `server.js`, `scripts/setup-auth.js`, `public/login.js`, `public/workspace-nav.js`, `public/customers-ui.js`, `tests/test-auth.js`, package manifest/lock, `.gitignore`, auth documentation. Existing customer/product/theme/navigation tests now use `tests/support/fixture-identity.js` to model an authenticated Executive. The original page layouts, theme, navigation and login form are reused.
+Updated: `src/middleware/auth.js`, `server.js`, `scripts/setup-auth.js`, `public/login.js`, `public/workspace-nav.js`, `public/customers-ui.js`, `tests/test-auth.js`, package manifest/lock, `.gitignore`, auth documentation. Existing customer/product/theme/navigation tests now use `tests/support/fixture-identity.js` to model an authenticated Executive. The original page layouts, theme, navigation and login form are reused.
 
 ## Verification
 
@@ -106,4 +106,4 @@ node tests/test-login-ui.js
 node --env-file=.env verify-access.js
 ```
 
-Unit/API tests use isolated stores and cover four roles, URL access, malicious territory selections, session revocation, disabled accounts, role overrides, last-Super-Admin protection, CSRF, secret exclusion, environment allowlist, migration idempotency and concurrent scope isolation. UI tests use temporary accounts and do not touch `.env` or SML. Screenshots go to ignored `test-results/`. `verify-access.js` runs SELECTs only against configured SML and checks scoped queries against independent SQL.
+Unit/API tests use isolated stores and cover four roles, URL access, malicious territory selections, session revocation, disabled accounts, role overrides, last-Super-Admin protection, CSRF, secret exclusion, environment allowlist, migration idempotency and concurrent scope isolation. UI tests use temporary accounts and do not touch `.env` or SML. Screenshots go to ignored `test-results/`. `scripts/verify-access.js` runs SELECTs only against configured SML and checks scoped queries against independent SQL.

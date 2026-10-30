@@ -2,14 +2,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 import { installAccess } from '../src/middleware/access.js';
 import { installSelfRoutes } from '../src/routes/selfRoutes.js';
 import { createUserService } from '../src/services/userService.js';
 import { landingPage, loadUser } from '../src/services/permissionService.js';
-import { installMarketplace } from '../marketplace.js';
-import { installShopeeShop } from '../shopee-shop.js';
+import { installMarketplace } from '../src/routes/marketplace.js';
+import { installShopeeShop } from '../src/routes/shopee-shop.js';
 import { isReviewer } from '../src/config/access.js';
 
 test('reviewer: allowlisted reads work, every other page/API and every write is 403', async t => {

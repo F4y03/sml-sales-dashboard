@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from '../auth.js';
+import { installAuth, hashPassword } from '../src/middleware/auth.js';
 import { createAccessStore } from '../src/models/accessStore.js';
 import { installAccess } from '../src/middleware/access.js';
 import { createUserService } from '../src/services/userService.js';

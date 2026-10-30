@@ -4,12 +4,12 @@
 // the upload history and "delete upload" all work exactly as for files. Like uploads, sync answers carry no figures.
 import express from 'express';
 import { createHash, randomBytes } from 'node:crypto';
-import { sameSite } from './auth.js';
+import { sameSite } from '../middleware/auth.js';
 import { saveMarketplaceUpload } from './marketplace.js';
-import { requirePermission, requireSuperAdmin } from './src/middleware/access.js';
-import { startBackfill } from './src/services/marketplaceBackfill.js';
-import { createSecretVault } from './src/services/totpService.js';
-import { LazadaApiError, bangkokDayStart, bangkokToday, createLazadaClient, mapLazadaOrder, mapLazadaTransaction } from './src/services/lazadaApi.js';
+import { requirePermission, requireSuperAdmin } from '../middleware/access.js';
+import { startBackfill } from '../services/marketplaceBackfill.js';
+import { createSecretVault } from '../services/totpService.js';
+import { LazadaApiError, bangkokDayStart, bangkokToday, createLazadaClient, mapLazadaOrder, mapLazadaTransaction } from '../services/lazadaApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 24 * 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
 const SETTLE_DAYS = 60, FINANCE_WINDOW_DAYS = 90;
