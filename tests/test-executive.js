@@ -71,7 +71,7 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
     await page.route('**/api/sales-trend/daily**', route => route.fulfill({ json: { daily: [{ day: '2026-09-01', sales: 400 }, { day: '2026-09-02', sales: 600 }] } }));
     await page.goto(`http://127.0.0.1:${server.address().port}/executive.html`);
     await page.locator('#summary:visible').waitFor();
-    const controls = await page.locator('#start, #end, #refresh').evaluateAll(inputs => inputs.map(input => ({ top: input.getBoundingClientRect().top, height: input.getBoundingClientRect().height })));
+    const controls = await page.locator('#start, #end, #refresh').evaluateAll(inputs => inputs.map(input => input.closest('.date-dmy') || input).map(box => ({ top: box.getBoundingClientRect().top, height: box.getBoundingClientRect().height }))); // dates render in the visible .date-dmy box
     assert.ok(controls.every(control => Math.abs(control.top - controls[0].top) < 1));
     assert.ok(controls.every(control => control.height === 44));
     assert.equal(await page.locator('#net').textContent(), '฿900.00');

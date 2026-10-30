@@ -1,5 +1,6 @@
 import { launchBrowser } from './support/browser.js';
-﻿import express from 'express';
+import { installFixtureIdentity } from './support/fixture-identity.js';
+import express from 'express';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
@@ -7,6 +8,7 @@ import { mkdir } from 'node:fs/promises';
 
 test('non-buyers: search, pagination, empty results, dates and themes', async () => {
   const app = express();
+  installFixtureIdentity(app);
   app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -22,10 +24,11 @@ test('non-buyers: search, pagination, empty results, dates and themes', async ()
     await page.goto(`http://127.0.0.1:${server.address().port}/customers.html`);
     await expect(page.locator('#non-buyer-count')).toHaveText('12 ราย');
     await expect(page.locator('#non-buyer-rows tr')).toHaveCount(10);
-    await expect(page.locator('#non-buyer-rows').first()).toContainText('ไม่เคยมีบิลขาย');
-    await expect(page.locator('#non-buyer-rows tr').nth(1)).toContainText('70 วัน');
+    // Default sort (since 2026-09-18): most days first; never-bought customers (no days) go last.
+    await expect(page.locator('#non-buyer-rows tr').first()).toContainText('70 วัน');
     await page.locator('#non-buyer-next').click();
     await expect(page.locator('#non-buyer-rows tr')).toHaveCount(2);
+    await expect(page.locator('#non-buyer-rows tr').last()).toContainText('ไม่เคยมีบิลขาย');
     await expect(page.locator('#non-buyer-rows img')).toHaveCount(0);
     await page.locator('#non-buyer-search').fill('0011');
     await expect(page.locator('#non-buyer-count')).toHaveText('1 ราย');

@@ -20,16 +20,16 @@ test('explanations: every trigger, current values, keyboard, backdrop, mobile an
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/customers.html`);
     await page.evaluate(() => {
-      ['customer-dashboard', 'product-view', 'performance-dashboard'].forEach(id => document.getElementById(id).hidden = false);
+      ['customer-dashboard', 'product-view', 'performance-dashboard', 'seller-summary-card'].forEach(id => document.getElementById(id).hidden = false);
       document.getElementById('total-net').textContent = '฿4,621,087.71';
       document.getElementById('matching-count').textContent = '171 ราย';
       window.productClicks = 0;
       document.querySelector('.performance-kpi').addEventListener('click', () => window.productClicks++);
     });
     const triggers = page.locator('[data-insight-help]');
-    await expect(triggers).toHaveCount(11);
+    await expect(triggers).toHaveCount(12);
     const dialog = page.locator('#insight-help-dialog');
-    for (let index = 0; index < 11; index++) {
+    for (let index = 0; index < 12; index++) {
       const trigger = triggers.nth(index);
       await trigger.click();
       await expect(dialog).toBeVisible();
