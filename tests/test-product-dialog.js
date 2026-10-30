@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -10,7 +11,7 @@ test('product dialog: backdrop closes, content and drag do not, focus returns', 
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
     await page.route('**/api/products?**', route => route.fulfill({ json: {
       rows: [{ code: 'P001', name_1: 'สินค้าทดสอบ' }], fields: [{ key: 'code', label: 'รหัสสินค้า' }, { key: 'name_1', label: 'ชื่อสินค้า' }],

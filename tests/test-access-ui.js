@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { chromium } from '@playwright/test';
 import express from 'express';
 import assert from 'node:assert/strict';
@@ -19,18 +20,21 @@ app.use(express.static('public'));
 const users=createUserService(store,auth.audit);await users.save(loadUser(store,1),null,{username:'ui-sales',full_name:'Sales ทดสอบ',role:'sales',is_active:true,password:'ui-fixture-password1',territoryIds:[1,2],additionalPermissions:[]});
 const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;let browser;
 try {
-  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
+  browser=await launchBrowser();
   const page=await browser.newPage({viewport:{width:1440,height:1000},timezoneId:'America/Los_Angeles'});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**/*',r=>r.abort());
   async function login(username){await page.goto(base+'/login.html');await page.locator('#username').fill(username);await page.locator('#password').fill('ui-fixture-password1');await page.locator('#submit').click();await page.waitForURL(url=>!url.pathname.includes('login'));}
   await login('ui-admin');await page.goto(base+'/system-admin.html');await page.waitForLoadState('networkidle');await page.getByRole('button',{name:'Users',exact:true}).click();await page.getByRole('button',{name:'+ เพิ่มผู้ใช้'}).click();
-  await page.locator('[name=full_name]').fill('ผู้ใช้ทดสอบ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('blue-sky-42');await page.locator('[name=role]').selectOption('sales');await page.getByLabel('ภาคกลาง',{exact:true}).check();await page.getByRole('button',{name:'บันทึกผู้ใช้',exact:true}).click();await page.getByRole('cell',{name:'ผู้ใช้ทดสอบ / ui-new',exact:true}).waitFor();
+  await page.locator('[name=full_name]').fill('ผู้ใช้ทดสอบ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('blue-sky-42');await page.locator('[name=role]').selectOption('sales');await page.getByLabel('ภาคกลาง',{exact:true}).check();await page.getByRole('button',{name:'บันทึกผู้ใช้',exact:true}).click();await page.getByRole('cell',{name:/^ผู้ใช้ทดสอบ\s*@ui-new$/}).waitFor();
   await page.getByRole('button',{name:'+ เพิ่มผู้ใช้'}).click();await page.locator('[name=full_name]').fill('ชื่อซ้ำ');await page.locator('[name=username]').fill('ui-new');await page.locator('[name=password]').fill('blue-sky-42');await page.locator('#user-editor button[type=submit]').click();
   await page.locator('.admin-form-status[data-error=true]').filter({hasText:'Username นี้ถูกใช้แล้ว'}).waitFor();assert.equal(await page.locator('[name=username]').getAttribute('aria-invalid'),'true');
   await page.screenshot({path:'test-results/access-users-desktop.png',fullPage:true});
-  await page.route('**/api/admin/activity',route=>route.fulfill({json:{logs:['2026-09-17 02:35:43','2026-12-31 17:00:00','2026-09-17T02:35:44Z','invalid'].map((created_at,i)=>({id:i+1,created_at,username:'ui-admin',action:'login',details:{}}))}}));
+  await page.route(/\/api\/admin\/activity(\?|$)/,route=>route.fulfill({json:{logs:['2026-09-17 02:35:43','2026-12-31 17:00:00','2026-09-17T02:35:44Z','invalid'].map((created_at,i)=>({id:i+1,created_at,username:'ui-admin',action:'login',details:{}}))}}));
+  await page.reload();await page.waitForLoadState('networkidle'); // activity is fetched on page load
   await page.getByRole('button',{name:'Activity Logs',exact:true}).click();
   await page.getByRole('columnheader',{name:'เวลาไทย (UTC+7)',exact:true}).waitFor();
-  for(const value of ['2026-09-17 09:35:43','2027-01-01 00:00:00','2026-09-17 09:35:44','ไม่ระบุเวลา'])await page.getByRole('cell',{name:value,exact:true}).waitFor();
+  // Stamp shows time then date ("09:35:43" / "2026-09-17").
+  for(const [date,time] of [['2026-09-17','09:35:43'],['2027-01-01','00:00:00'],['2026-09-17','09:35:44']])await page.getByRole('cell',{name:new RegExp(`^${time}\\s*${date}$`)}).waitFor();
+  await page.getByRole('cell',{name:'ไม่ระบุเวลา',exact:true}).waitFor();
   await page.screenshot({path:'test-results/access-activity-thai-time.png',fullPage:true});
   await page.getByRole('button',{name:'Sales Territories',exact:true}).click();await page.getByRole('button',{name:'+ เพิ่มเขต'}).click();await page.locator('[name=code]').fill('TEST');await page.locator('[name=name]').fill('เขตทดสอบ');await page.locator('[name=teams]').fill('กจ');await page.locator('[name=consignmentPrefixes]').fill('ฝกจ');await page.getByRole('button',{name:'บันทึกเขต',exact:true}).click();await page.getByRole('cell',{name:'TEST',exact:true}).waitFor();
   await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'test-results/access-territories-mobile.png',fullPage:true});
@@ -46,9 +50,9 @@ try {
     await page.screenshot({path:`test-results/price-stock-no-territory-${width}.png`,fullPage:true});
     await page.goto(base+'/select-territory.html');await page.waitForLoadState('networkidle');
   }
-  await page.getByRole('button',{name:'ภาคเหนือ',exact:true}).click();await page.waitForURL('**/customers.html');await page.waitForLoadState('networkidle');
+  await page.getByRole('button',{name:'ภาคเหนือ',exact:true}).click();await page.waitForURL('**/customers.html');await page.getByLabel('เขตปัจจุบัน').waitFor();
   assert.equal(await page.getByLabel('เขตปัจจุบัน').inputValue(),'2');assert.equal(await page.locator('.source-badge').innerText(),'ภาคเหนือ');assert.equal(await page.locator('a[href="/system-admin.html"]').count(),0);assert.equal((await page.request.get(base+'/api/admin/users')).status(),403);
-  await page.getByLabel('เขตปัจจุบัน').selectOption('1');await page.waitForLoadState('networkidle');await page.waitForFunction(()=>document.querySelector('[aria-label="เขตปัจจุบัน"]')?.value==='1');
+  await page.getByLabel('เขตปัจจุบัน').selectOption('1');await page.waitForFunction(()=>document.querySelector('[aria-label="เขตปัจจุบัน"]')?.value==='1');
   await page.screenshot({path:'test-results/access-sales-mobile.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);console.log('Access UI passed: create user, assign territory, create territory, mobile layout, Sales selection/switch, backend denial and no JS errors.');
 } finally {await browser?.close();await new Promise(r=>{server.close(r);server.closeAllConnections();});auth.close();store.close();}

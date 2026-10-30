@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import { compileQuery, validateValues } from '../reports.js';
 import { chromium } from '@playwright/test';
@@ -24,7 +25,7 @@ for(const id of ['4007','4014','2017','1002']){
     const next=await(await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filters,page:1,pageSize:5})})).json();assert.equal(next.page,1);assert.ok(next.rows.length);
   }
 }
-const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const browser=await launchBrowser();
 try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('https://fonts.googleapis.com/**',route=>route.abort());

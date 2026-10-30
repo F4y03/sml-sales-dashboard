@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { chromium } from '@playwright/test';
 import express from 'express';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ const server = app.listen(0, '127.0.0.1');
 await new Promise(resolve => server.once('listening', resolve));
 let browser;
 try {
-  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  browser = await launchBrowser();
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -38,14 +39,14 @@ try {
   assert.equal((await page.locator('#recovery-codes').textContent()).trim().split('\n').length, 10);
   await page.screenshot({ path: 'test-results/login-2fa-recovery.png', fullPage: true });
   await page.locator('#recovery-done').click();
-  await page.waitForURL('**/executive.html');
+  await page.waitForURL('**/system-admin.html'); // env bootstrap user is super_admin
   const cookies = await context.cookies();
   const trusted = cookies.find(c => c.name === 'prplus_trusted');
   assert.ok(trusted?.httpOnly && trusted.sameSite === 'Strict', 'trusted-device cookie is httpOnly + SameSite=Strict');
   // Trusted browser: password only.
   await context.request.post(base + '/api/auth/logout', { headers: { 'X-PRPlus-Request': '1' } });
   await password();
-  await page.waitForURL('**/executive.html');
+  await page.waitForURL('**/system-admin.html'); // env bootstrap user is super_admin
   // Untrusted browser: OTP required, no QR this time.
   await context.clearCookies();
   await password();

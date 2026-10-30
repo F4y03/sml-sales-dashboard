@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,7 +50,7 @@ test('product API validates dates, binds exact SKU and previous dates, and retur
 test('product view: search, rankings, no-sales, quantities, buyers popup, filters, errors, races and mobile',async()=>{
   const app=express();installFixtureIdentity(app); app.use(express.static('public'));const {server,base}=await listen(app);let browser;
   try{
-    browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+    browser=await launchBrowser();
     const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[],requests=[];
     page.on('pageerror',error=>errors.push(error.message));
     const products=Array.from({length:18},(_,index)=>({code:`SKU${String(index+1).padStart(3,'0')}`,name:['ลำโพงแอคทีฟ','ไมโครโฟนไร้สาย','ดิจิทัลมิกเซอร์'][index%3]+` รุ่น ${index+1}`,categoryCode:index%2?'G2':'G1',category:index%2?'ไมโครโฟน':'ระบบเสียง',registered:true,stock:25-index,stockUnit:'ชิ้น',net:1800-index*100,previousNet:index%2?0:(1800-index*100)*2,sales:1900-index*100,added:0,returns:100,invoiceCount:12,buyerCount:12,lastSold:'2026-09-09',quantities:[{unit:'ชิ้น',net:10,sold:12,added:0,returned:2},{unit:'กล่อง',net:1,sold:1,added:0,returned:0}]}));

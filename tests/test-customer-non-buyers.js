@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 ﻿import express from 'express';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +12,7 @@ test('non-buyers: search, pagination, empty results, dates and themes', async ()
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));

@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import express from 'express';
 import pg from 'pg';
@@ -26,7 +27,7 @@ try {
       assert.ok(exported.products.every(p => p.balance_qty != null && (stock === 'in' ? Number(p.balance_qty) > 0 : Number(p.balance_qty) <= 0)));
     }
   }
-  browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+  browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));

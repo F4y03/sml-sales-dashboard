@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ test('sidebar checks the database every minute and recovers after failure', asyn
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     await page.clock.install();
     await page.route('https://**', route => route.abort());
@@ -46,7 +47,7 @@ test('shared navigation: all pages, active links, cross-page anchors and mobile 
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
     await page.route('https://**', route => route.abort());
     await page.route('**/api/**', route => route.fulfill(new URL(route.request().url()).pathname === '/api/auth/me' ? { json: fixtureIdentity } : { status: 503, json: { error: 'Test offline' } }));

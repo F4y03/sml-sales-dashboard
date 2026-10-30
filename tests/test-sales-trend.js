@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -32,7 +33,7 @@ test('monthly endpoint validates years and chart switches between daily and mont
     const daily = await (await fetch(`${base}/api/sales-trend/daily?start=2026-08-01&end=2026-08-23`)).json();
     assert.deepEqual(dailyCalls.at(-1), ['2026-08-01', '2026-08-23']);
     assert.deepEqual(daily.daily.map(d => d.sales), [40, 60]);
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors=[]; page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.abort());

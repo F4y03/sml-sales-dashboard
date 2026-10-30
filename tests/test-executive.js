@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -45,7 +46,7 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, reducedMotion: 'reduce' });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const fixture = { net: 900, sales: 1000, returns: 100, profit: 100, revenue: 800, mom: -25, yoy: null, count: 2, start: '2026-09-01', end: '2026-09-08', previous: { start: '2026-08-01', end: '2026-08-08' }, year: { start: '2025-09-01', end: '2025-09-08' }, previousNet: 1200, yearNet: 0, updatedAt: new Date().toISOString(), products: [{ code: 'P1', name: '<img src=x onerror=alert(1)>', sales: 900, profit: 20, revenue: 800, stock: 2, unit: 'ชิ้น' }], branches: [{ name: 'สาขาหลัก', sales: 900 }], staff: [{ name: 'พนักงานหนึ่ง', sales: 900 }], declines: [{ name: 'สาขาหลัก', sales: 900, previous: 1200 }], bills: [{ docNo: 'INV1', date: '2026-09-08', flag: 44, total: 1000, lineTotal: 800 }], unusual: [{ docNo: 'INV1', date: '2026-09-08', flag: 44, total: 1000, lineTotal: 800, difference: 200 }] };

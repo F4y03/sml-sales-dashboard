@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { chromium } from '@playwright/test';
 import express from 'express';
 import assert from 'node:assert/strict';
@@ -11,14 +12,14 @@ const server = app.listen(0, '127.0.0.1');
 await new Promise(resolve => server.once('listening', resolve));
 let browser;
 try {
-  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(15000);
   await page.route('https://**/*', route => route.abort());
   const base = `http://127.0.0.1:${server.address().port}`;
   await page.goto(base + '/executive.html');
   assert.ok(page.url().includes('/login.html'));
-  await page.locator('.brand img').evaluate(img => img.decode());
+  await page.locator('.lg-logo img').evaluate(img => img.decode());
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/login-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -32,7 +33,7 @@ try {
   await page.getByText('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', { exact: true }).waitFor();
   await page.locator('#password').fill('ui-test-password');
   await page.locator('#submit').click();
-  await page.waitForURL('**/executive.html');
+  await page.waitForURL('**/system-admin.html'); // env bootstrap user is super_admin
   await page.getByRole('button', { name: '☰ เมนู Workspace' }).click();
   await page.getByRole('button', { name: 'ออกจากระบบ ↗' }).click();
   await page.waitForURL('**/login.html');

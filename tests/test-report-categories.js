@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -20,7 +21,7 @@ test('SML categories preserve report types, filter both lists, search and open s
     const base = `http://127.0.0.1:${server.address().port}`;
     const result = await (await fetch(base + '/api/reports')).json();
     assert.deepEqual(result.reports.map(r => r.reportType), [1, 3, 0]);
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));

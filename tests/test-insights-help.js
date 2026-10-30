@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -10,7 +11,7 @@ test('explanations: every trigger, current values, keyboard, backdrop, mobile an
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     await page.route('**/*', route => {
       const url = new URL(route.request().url());

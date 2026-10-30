@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -125,7 +126,7 @@ test('browser: HTML 404, HTML fallback and broken JSON show actionable errors an
   const { server, base } = await listen(app);
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -168,7 +169,7 @@ test('browser: filters, chart/table master-detail, pagination, safe text, races,
   const { server, base } = await listen(app);
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1080 } });
     const dialog = page.locator('#customer-detail');
     const closePopup = async () => {

@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ import { findContrastIssues } from './support/theme-contrast.js';
 
 test('two themes work on every page, login assets are public, choice persists and mobile controls fit', async () => {
   const app = express(); app.use(express.json());
-  installAuth(app, { AUTH_USERNAME: 'test', AUTH_PASSWORD_HASH: await hashPassword('theme-test-password'), AUTH_COOKIE_SECURE: 'false' });
+  installAuth(app, { AUTH_USERNAME: 'test', AUTH_PASSWORD_HASH: await hashPassword('theme-test-password'), AUTH_COOKIE_SECURE: 'false', AUTH_REQUIRE_2FA: 'false' });
   app.use('/api', (req, res) => res.status(503).json({ error: 'Test offline' }));
   installFixtureIdentity(app); app.use(express.static('public'));
   const server = app.listen(0, '127.0.0.1');
@@ -17,7 +18,7 @@ test('two themes work on every page, login assets are public, choice persists an
   try {
     const base = `http://127.0.0.1:${server.address().port}`;
     for (const asset of ['/theme-mode.js', '/theme-modes.css']) assert.equal((await fetch(base + asset, { redirect: 'manual' })).status, 200);
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.abort());
@@ -31,7 +32,7 @@ test('two themes work on every page, login assets are public, choice persists an
     await page.locator('#username').fill('test');
     await page.locator('#password').fill('theme-test-password');
     await page.locator('#submit').click();
-    await page.waitForURL('**/executive.html');
+    await page.waitForURL('**/system-admin.html'); // env bootstrap user is super_admin
     for (const file of ['index', 'customers', 'products', 'reports', 'executive', 'login']) {
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.goto(`${base}/${file}.html`);
@@ -65,7 +66,7 @@ test('executive detail and explanation dialogs keep readable surfaces and text i
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     await page.route('https://**', route => route.abort());
     const bill = { docNo: 'INV1', date: '2026-09-08', flag: 44, total: 1000, lineTotal: 800, difference: 200 };
@@ -113,7 +114,7 @@ test('customer detail and shared help dialog keep readable inherited text when s
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     await page.route('https://**', route => route.abort());
     const customer = { code: 'C1', name: 'ลูกค้าทดสอบ', invoiceCount: 1, net: 100 };
@@ -129,7 +130,8 @@ test('customer detail and shared help dialog keep readable inherited text when s
     for (const mode of ['dark', 'light']) {
       await page.evaluate(mode => window.dashboardTheme.setMode(mode), mode);
       const dialog = page.locator('#customer-detail');
-      await expect(dialog.locator('.detail-heading')).toHaveCSS('background-color', mode === 'dark' ? 'rgb(20, 20, 22)' : 'rgb(255, 255, 255)');
+      // The customer popup is intentionally dark in both modes (matches .cs-bill).
+      await expect(dialog).toHaveCSS('background-color', 'rgb(31, 31, 31)');
       assert.deepEqual(await dialog.evaluate(findContrastIssues), [], mode);
     }
     await page.locator('#detail-close').click();

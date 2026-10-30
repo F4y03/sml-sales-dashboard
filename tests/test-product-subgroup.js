@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -58,7 +59,7 @@ test('subgroups filter products, pagination and exports consistently', async () 
     const injected = await get('/api/products?' + new URLSearchParams({ subgroup: "' OR 1=1 --" }));
     assert.equal(injected.matching, 0);
 
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));

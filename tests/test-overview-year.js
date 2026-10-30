@@ -1,3 +1,4 @@
+import { launchBrowser } from './support/browser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -12,7 +13,7 @@ test('year growth covers every comparison day with a 62-day backend limit', asyn
   await new Promise(resolve => server.once('listening', resolve));
   let browser;
   try {
-    browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+    browser = await launchBrowser();
     const page = await browser.newPage({ reducedMotion: 'reduce' });
     await page.clock.install({ time: new Date('2026-09-23T12:00:00') });
     const requests = [], errors = [];
