@@ -186,10 +186,10 @@ test('browser: filters, chart/table master-detail, pagination, safe text, races,
     page.on('pageerror', error => errors.push(error.message));
     const names = ['บริษัท เสียงดี โปรเฟสชันแนล จำกัด', 'บริษัท มิวสิค พลัส จำกัด', 'ห้างหุ้นส่วน แสงสีเสียง', 'บริษัท ออดิโอ โซลูชัน จำกัด', 'ร้าน สยามมิวสิค', 'บริษัท ไลฟ์ซาวด์ จำกัด', 'ร้าน บ้านเครื่องเสียง', 'บริษัท สตูดิโอ โปร จำกัด', 'บริษัท พีเอ เซ็นเตอร์ จำกัด', 'ร้าน เมโลดี้ มิวสิค', '<img src=x onerror=alert(1)>', 'ลูกค้าไม่ระบุรหัส'];
     const customers = names.map((name, index) => ({ code: index === 11 ? '' : `C${String(index + 1).padStart(3, '0')}`, name, invoiceCount: 24 - index, net: 286450 - index * 22000 }));
-    const productNames = ['ลำโพงแอคทีฟ 12 นิ้ว', 'ไมโครโฟนไร้สาย ดิจิทัล', 'มิกเซอร์ดิจิทัล 16 แชนแนล', 'เพาเวอร์แอมป์ 2 แชนแนล', 'สายสัญญาณ XLR', 'ขาตั้งไมโครโฟน', 'ลำโพงมอนิเตอร์', 'หัวต่อสัญญาณ', '<svg onload=alert(1)>'];
+    const productNames = ['ลำโพงแอคทีฟ 12 นิ้ว', 'ไมโครโฟนไร้สาย ดิจิทัล', 'มิกเซอร์ดิจิทัล 16 แชนแนล', 'เพาเวอร์แอมป์ 2 แชนแนล', 'สายสัญญาณ XLR', 'ขาตั้งไมโครโฟน', 'ลำโพงมอนิเตอร์', 'หัวต่อสัญญาณ', 'สายสัญญาณ XLR 10 เมตร', 'ขาตั้งลำโพง', '<svg onload=alert(1)>'];
     const detailsFor = customer => ({
       customer,
-      products: productNames.map((name, index) => ({ code: `P${index}`, name, category: index % 2 ? 'ไมโครโฟนและอุปกรณ์' : 'ระบบเสียง', quantity: index + 1, unit: index === 4 ? 'กล่อง' : 'ชิ้น', total: index === 0 ? 600 : 50, lastPurchased: index === 8 ? null : '2026-09-09' })),
+      products: productNames.map((name, index) => ({ code: `P${index}`, name, category: index % 2 ? 'ไมโครโฟนและอุปกรณ์' : 'ระบบเสียง', quantity: index + 1, unit: index === 4 ? 'กล่อง' : 'ชิ้น', total: index === 0 ? 600 : 50, lastPurchased: index === productNames.length - 1 ? null : '2026-09-09' })),
       categories: [{ code: 'G1', name: 'ระบบเสียง', total: 750 }, { code: 'G2', name: 'ไมโครโฟนและอุปกรณ์', total: 250 }], itemNet: 1000
     });
     let failMaster = false, failDetail = false, empty = false, noProducts = false, negative = false;
@@ -219,7 +219,7 @@ test('browser: filters, chart/table master-detail, pagination, safe text, races,
     await expect(page.locator('#detail-content')).toBeVisible();
     assert.equal(await page.locator('#customer-chart button').count(), 10);
     assert.equal(await page.locator('#customer-rows tr').count(), 10);
-    assert.equal(await page.locator('#product-rows tr').count(), 8);
+    assert.equal(await page.locator('#product-rows [role=listitem]').count(), 10);
     await expect(page.locator('#detail-title')).toContainText(names[0]);
     await expect(page.locator('#category-legend')).toContainText('75%');
     await expect(page.locator('#category-legend')).toContainText('25%');
@@ -242,11 +242,11 @@ test('browser: filters, chart/table master-detail, pagination, safe text, races,
     await expect(page.locator('#detail-content')).toBeVisible();
     await expect(page.locator('#detail-title')).toContainText('<img src=x onerror=alert(1)>');
     assert.equal(await page.locator('main img').count(), 0);
-    await page.locator('#product-next').click();
-    assert.equal(await page.locator('#product-rows tr').count(), 1);
+    await page.locator('#cbx-pager [aria-label="หน้าถัดไป"]').click();
+    assert.equal(await page.locator('#product-rows [role=listitem]').count(), 1);
     assert.equal(await page.locator('#product-rows svg').count(), 0);
-    await expect(page.locator('#product-rows')).toContainText('ไม่มีบิลขายในช่วงนี้');
-    await expect(page.locator('#product-next')).toBeDisabled();
+    await expect(page.locator('#product-rows')).toContainText('ไม่มีบิลขาย');
+    await expect(page.locator('#cbx-pager [aria-label="หน้าถัดไป"]')).toBeDisabled();
 
     await closePopup();
     await page.locator('#customer-search').fill('c002');
@@ -361,8 +361,8 @@ test('browser: filters, chart/table master-detail, pagination, safe text, races,
     negative = false;
     noProducts = true;
     await openCustomer(page.locator('#customer-chart button').nth(2));
-    await expect(page.locator('#product-rows')).toContainText('ไม่พบรายการสินค้า');
-    await expect(page.locator('#product-next')).toBeDisabled();
+    await expect(page.locator('#cbx-empty')).toContainText('ไม่พบรายการสินค้า');
+    await expect(page.locator('#cbx-pager')).toBeHidden();
 
     await closePopup();
     failMaster = true;

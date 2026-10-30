@@ -1815,6 +1815,10 @@ body.customer-dialog-open {
 }
 #customer-detail .cbx-info:hover .cbx-info-tip,
 #customer-detail .cbx-info:focus .cbx-info-tip { opacity: 1; visibility: visible; }
+/* Narrow screens: centre the tip on the icon and cap its width so it never widens the dialog. */
+@media (max-width: 600px) {
+  #customer-detail .cbx-info-tip { left: 50%; transform: translateX(-50%); width: min(300px, calc(100vw - 96px)); }
+}
 #customer-detail .cbx-csv {
   flex: none;
   min-height: 0;
