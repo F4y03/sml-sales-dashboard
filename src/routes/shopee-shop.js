@@ -11,6 +11,7 @@ import { requirePermission, requireSuperAdmin } from '../middleware/access.js';
 import { isReviewer } from '../config/access.js';
 import { startBackfill } from '../services/marketplaceBackfill.js';
 import { createSecretVault } from '../services/totpService.js';
+import { accessToken } from '../services/marketplaceTokens.js';
 import { ShopeeApiError, bangkokDayStart, bangkokToday, createShopeeClient, mapShopeeEscrow, mapShopeeItem, mapShopeeOrder, shopeeEnv } from '../services/shopeeApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
@@ -24,20 +25,21 @@ function saveToken(store, vault, shopId, t) {
   store.run('UPDATE shopee_connections SET access_token=?,access_expires=?,refresh_token=?,refresh_expires=? WHERE shop_id=?',
     vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, shopId);
 }
-async function refreshConnection(store, client, vault, conn, now = Date.now()) {
-  if (conn.refresh_expires <= now) throw new ShopeeApiError('การเชื่อมต่อ Shopee หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่');
-  const t = await client.refresh(vault.open(conn.refresh_token), conn.shop_id);
-  saveToken(store, vault, conn.shop_id, t);
-  Object.assign(conn, { access_expires: t.accessExpires, refresh_expires: t.refreshExpires });
-  return t.accessToken;
+// One refresh at a time per shop, from the latest saved token (see marketplaceTokens.js).
+function tokenFor(store, client, vault, conn, now = Date.now(), force = false) {
+  return accessToken({ key: 'shopee:' + conn.shop_id, conn, vault, earlyMs: REFRESH_EARLY_MS, now, force,
+    reload: () => store.get('SELECT * FROM shopee_connections WHERE shop_id=?', conn.shop_id),
+    refresh: token => client.refresh(token, conn.shop_id),
+    save: t => saveToken(store, vault, conn.shop_id, t),
+    expired: () => new ShopeeApiError('การเชื่อมต่อ Shopee หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่') });
 }
 
 // Runs fn(shop) with a valid token; an access-token-expired answer refreshes and retries once.
 export async function withShop(store, client, vault, conn, fn, now = Date.now()) {
-  let accessToken = conn.access_expires - now > REFRESH_EARLY_MS ? vault.open(conn.access_token) : await refreshConnection(store, client, vault, conn, now);
+  let accessToken = await tokenFor(store, client, vault, conn, now);
   try { return await fn({ shopId: conn.shop_id, accessToken }); } catch (error) {
     if (!error.tokenExpired) throw error;
-    accessToken = await refreshConnection(store, client, vault, conn, now);
+    accessToken = await tokenFor(store, client, vault, conn, now, true);
     return fn({ shopId: conn.shop_id, accessToken });
   }
 }
@@ -257,7 +259,7 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
     const c = client();
     for (const conn of connections()) {
       if (conn.access_expires - Date.now() > REFRESH_EARLY_MS) continue;
-      try { await refreshConnection(store, c, vault, conn); } catch (error) {
+      try { await tokenFor(store, c, vault, conn); } catch (error) {
         store.run('UPDATE shopee_connections SET last_sync_error=? WHERE shop_id=?', String(error.message || 'ต่ออายุ token ไม่สำเร็จ').slice(0, 300), conn.shop_id);
       }
     }

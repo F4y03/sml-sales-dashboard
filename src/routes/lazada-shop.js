@@ -9,6 +9,7 @@ import { saveMarketplaceUpload } from './marketplace.js';
 import { requirePermission, requireSuperAdmin } from '../middleware/access.js';
 import { startBackfill } from '../services/marketplaceBackfill.js';
 import { createSecretVault } from '../services/totpService.js';
+import { accessToken } from '../services/marketplaceTokens.js';
 import { LazadaApiError, bangkokDayStart, bangkokToday, createLazadaClient, mapLazadaOrder, mapLazadaTransaction } from '../services/lazadaApi.js';
 
 const STATE_MS = 10 * 60 * 1000, REFRESH_EARLY_MS = 24 * 60 * 60 * 1000, DAY_MS = 86400000, MAX_SYNC_DAYS = 92;
@@ -18,13 +19,14 @@ const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 const SYSTEM_USER = { id: null, full_name: 'ระบบ (Lazada API)' };
 
 // Returns a usable access token, refreshing (and saving) it when it is close to expiry.
-async function accessTokenFor(store, client, vault, conn, now = Date.now()) {
-  if (conn.access_expires - now > REFRESH_EARLY_MS) return vault.open(conn.access_token);
-  if (conn.refresh_expires <= now) throw new LazadaApiError('การเชื่อมต่อ Lazada หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่');
-  const t = await client.refresh(vault.open(conn.refresh_token));
-  store.run('UPDATE lazada_connections SET access_token=?,access_expires=?,refresh_token=?,refresh_expires=? WHERE seller_id=?',
-    vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, conn.seller_id);
-  return t.accessToken;
+function accessTokenFor(store, client, vault, conn, now = Date.now()) {
+  // One refresh at a time per shop, from the latest saved token (see marketplaceTokens.js).
+  return accessToken({ key: 'lazada:' + conn.seller_id, conn, vault, earlyMs: REFRESH_EARLY_MS, now,
+    reload: () => store.get('SELECT * FROM lazada_connections WHERE seller_id=?', conn.seller_id),
+    refresh: token => client.refresh(token),
+    save: t => store.run('UPDATE lazada_connections SET access_token=?,access_expires=?,refresh_token=?,refresh_expires=? WHERE seller_id=?',
+      vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, conn.seller_id),
+    expired: () => new LazadaApiError('การเชื่อมต่อ Lazada หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่') });
 }
 
 // Pulls orders created on Bangkok days start..end (inclusive) and saves them. Returns counts for logging only.
