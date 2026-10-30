@@ -1,8 +1,10 @@
+import { startSmlApp } from './support/sml-app.js';
+import { installReports } from '../reports.js';
 import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import { compileQuery, validateValues } from '../reports.js';
 import { chromium } from '@playwright/test';
-const base=process.env.TEST_URL || 'http://localhost:3002';
+const sml=await startSmlApp(installReports);const base=sml.base;
 const conditions=[{name:'from_date',type:'Date',label:'start'},{name:'item',type:'Text',column:'item_code',label:'item'}];
 const values=validateValues({conditions},{from_date:'2026-09-07',item:'901:905,907'});
 const q=compileQuery("select * from ic_trans_detail where doc_date='@from_date@' @and_item@",conditions,values);
@@ -16,13 +18,13 @@ const list=await(await fetch(base+'/api/reports')).json();assert.ok(list.reports
 for(const id of ['4007','4014','2017','1002']){
   const r=list.reports.find(r=>r.id===id);const d=await(await fetch(base+'/api/reports/'+r.key)).json();
   const filters=Object.fromEntries(d.conditions.map(c=>[c.name,c.type==='Date'?'2026-09-07':c.type==='Number'?'0':c.options?.[0]?.value??c.default??'']));
-  const response=await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filters,pageSize:5})});
+  const response=await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({filters,pageSize:5})});
   const data=await response.json();assert.equal(response.status,200,JSON.stringify(data));assert.ok(data.fields.length);assert.ok(data.rows.length<=5);
   if(id==='4007'){assert.equal(data.rows[0][0],'2026-09-07');}
   if(id==='2017'){
-    const filtered=await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filters:{...filters,ic_code_list:'901AL415',wh_code_list:'CENTER'},pageSize:5})});
+    const filtered=await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({filters:{...filters,ic_code_list:'901AL415',wh_code_list:'CENTER'},pageSize:5})});
     const body=await filtered.json();assert.equal(filtered.status,200,JSON.stringify(body));assert.ok(body.rows.length);assert.ok(body.rows.every(row=>row[0]==='CENTER'&&row[5]==='901AL415'));
-    const next=await(await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filters,page:1,pageSize:5})})).json();assert.equal(next.page,1);assert.ok(next.rows.length);
+    const next=await(await fetch(base+'/api/reports/'+r.key+'/run',{method:'POST',headers:{'Content-Type':'application/json','X-PRPlus-Request':'1'},body:JSON.stringify({filters,page:1,pageSize:5})})).json();assert.equal(next.page,1);assert.ok(next.rows.length);
   }
 }
 const browser=await launchBrowser();
@@ -41,4 +43,4 @@ try{
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:'reports-mobile.png',fullPage:true});
   await page.goto(base+'/',{waitUntil:'domcontentloaded'});await page.click('#day-yesterday');assert.equal(await page.locator('#start').inputValue(),await page.locator('#end').inputValue());
   assert.deepEqual(errors,[]);console.log('PASS: SQL parameter handling, invalid dates, write rejection, 4 live reports, single-day UI, CSV, mobile and dashboard day filter.');
-}finally{await browser.close();}
+}finally{await browser.close();await sml.close();}

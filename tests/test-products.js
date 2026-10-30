@@ -1,10 +1,12 @@
+import { startSmlApp } from './support/sml-app.js';
+import { installProducts } from '../products.js';
 import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import {chromium} from '@playwright/test';
 import {excelBuffer,csvValue} from '../products.js';
-const base=process.env.TEST_URL||'http://localhost:3002';
-const first=await(await fetch(base+'/api/products')).json();assert.ok(first.total>5000);assert.equal(first.rows.length,50);
+const sml=await startSmlApp(installProducts);const base=sml.base;
+const first=await(await fetch(base+'/api/products')).json();assert.ok(first.total>first.rows.length); // more than one pageassert.equal(first.rows.length,50);
 const page2=await(await fetch(base+'/api/products?page=1')).json();assert.notEqual(first.rows[0].code,page2.rows[0].code);
 const exact=first.rows[0].code;
 const filtered=await(await fetch(base+'/api/products?q='+encodeURIComponent(exact))).json();assert.ok(filtered.matching<first.total);assert.ok(filtered.rows.some(r=>r.code===exact));
@@ -13,5 +15,5 @@ const xres=await fetch(base+'/api/products/export?format=xlsx&scope=all');assert
 const cres=await fetch(base+'/api/products/export?format=csv&scope=all');const csv=await cres.text();assert.ok(csv.includes(all.products.at(-1).code));assert.ok(csv.includes('รหัสสินค้า'));assert.ok(csvValue('=1+1').startsWith('"\''));
 const fixture=new ExcelJS.Workbook();await fixture.xlsx.load(await excelBuffer([{code:'00123',name:'=1+1'}],[{key:'code',label:'Code'},{key:'name',label:'Name'}],{}));assert.equal(fixture.worksheets[0].getCell('A2').value,'00123');assert.equal(fixture.worksheets[0].getCell('B2').type,ExcelJS.ValueType.String);
 const browser=await launchBrowser();
-try{const p=await browser.newPage({viewport:{width:1440,height:960}});const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('https://fonts.googleapis.com/**',r=>r.abort());await p.goto(base+'/products.html',{waitUntil:'domcontentloaded'});await p.locator('#product-table button').first().waitFor();await p.fill('#product-search',exact);await p.click('#search-products');await p.waitForFunction(()=>!document.getElementById('search-products').disabled);await p.locator('#product-table button').first().click();assert.ok(await p.locator('#product-detail').isVisible());await p.click('#close-detail');await p.selectOption('#export-format','json');await p.selectOption('#export-scope','filtered');const dl=p.waitForEvent('download');await p.click('#download-products');assert.ok((await dl).suggestedFilename().endsWith('.json'));await p.screenshot({path:'products-desktop.png',fullPage:true});await p.setViewportSize({width:390,height:844});await p.screenshot({path:'products-mobile.png',fullPage:true});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);}finally{await browser.close();}
+try{const p=await browser.newPage({viewport:{width:1440,height:960}});const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('https://fonts.googleapis.com/**',r=>r.abort());await p.goto(base+'/products.html',{waitUntil:'domcontentloaded'});await p.locator('#product-table button').first().waitFor();await p.fill('#product-search',exact);await p.click('#search-products');await p.waitForFunction(()=>!document.getElementById('search-products').disabled);await p.locator('#product-table button').first().click();assert.ok(await p.locator('#product-detail').isVisible());await p.click('#close-detail');await p.selectOption('#export-format','json');await p.selectOption('#export-scope','filtered');const dl=p.waitForEvent('download');await p.click('#download-products');assert.ok((await dl).suggestedFilename().endsWith('.json'));await p.screenshot({path:'test-results/products-desktop.png',fullPage:true});await p.setViewportSize({width:390,height:844});await p.screenshot({path:'test-results/products-mobile.png',fullPage:true});assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);}finally{await browser.close();await sml.close();}
 console.log(`PASS: ${all.products.length} products, ${all.fields.length} columns, full Excel/CSV/JSON export, exact codes, search, pagination, details, browser download and mobile.`);

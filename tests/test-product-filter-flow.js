@@ -1,3 +1,4 @@
+import { fixtureIdentity } from './support/fixture-identity.js';
 import { launchBrowser } from './support/browser.js';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -22,7 +23,7 @@ try {
       const result = await fetch(`${base}/api/products?activity=${activity}&stock=${stock}`);
       assert.equal(result.status, 200);
       const listing = await result.json();
-      const exported = await (await fetch(`${base}/api/products/export?format=json&scope=${activity}&stock=${stock}`)).json();
+      const exported = await (await fetch(`${base}/api/products/export?format=json&scope=filtered&activity=${activity}&stock=${stock}`)).json();
       assert.equal(exported.products.length, listing.matching);
       assert.ok(exported.products.every(p => p.balance_qty != null && (stock === 'in' ? Number(p.balance_qty) > 0 : Number(p.balance_qty) <= 0)));
     }
@@ -31,7 +32,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.route('**/api/auth/**', route => route.fulfill({ json: { user: { name: 'Test', username: 'test' } } }));
+  await page.route('**/api/auth/me', route => route.fulfill({ json: { ...fixtureIdentity, permissions: [...fixtureIdentity.permissions, 'product_export'] } }));
   await page.route('https://fonts.googleapis.com/**', route => route.abort());
   await page.goto(base + '/products.html', { waitUntil: 'networkidle' });
   const ready = () => page.waitForFunction(() => !document.getElementById('search-products').disabled);
