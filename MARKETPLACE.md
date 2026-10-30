@@ -3,8 +3,10 @@
 นำเข้าจากไฟล์ที่ export จาก Seller Center (ไม่ใช้ API) เก็บใน `data/access.sqlite` (migration `007-marketplace.sql`) — **ไม่แตะ SML**
 
 ## ไฟล์ที่เกี่ยวข้อง
-- `src/services/marketplaceParser.js` — ตรวจ/อ่านไฟล์ (.xlsx, .csv) ตามหัวคอลัมน์ด้านล่าง
-- `src/routes/marketplace.js` — API `/api/marketplace/upload`, `/uploads`, `/summary`
+- `src/services/marketplaceParser.js` — ตรวจ/อ่านไฟล์ (.xlsx, .csv) ตามหัวคอลัมน์ด้านล่าง (`SHEETS` + ถอด zip/csv)
+  - `src/services/marketplace-parse/` — `common.js` (ตัวช่วยอ่านเซลล์/วันที่/ตัวเลข), `shopee.js`, `lazada.js`, `tiktok.js` (ตัวอ่านแต่ละแพลตฟอร์ม)
+- `src/routes/marketplace.js` — API `/api/marketplace/upload`, `/uploads`, `/summary`, `/order-fees`, `/order-detail`
+- `src/services/marketplaceStore.js` — บันทึกไฟล์/สรุปยอด/ค่าธรรมเนียมรายออเดอร์ใน SQLite (ไม่มี HTTP)
 - `public/marketplace-upload.html|js` — หน้าอัปโหลด (แอดมิน), `public/marketplace.html` + `marketplace-ui.js` — แดชบอร์ด (เจ้าของ), `public/marketplace.css`
 - `tests/test-marketplace.js` — ทดสอบ parser, กันออเดอร์ซ้ำ, สิทธิ์ (fixture สังเคราะห์ ไม่มีข้อมูลลูกค้าจริง)
 

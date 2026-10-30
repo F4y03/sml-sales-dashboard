@@ -3,104 +3,10 @@
 // read: customer name, phone, address and e-mail columns are never touched (province only).
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
-
-export const PLATFORMS = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop' };
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
-const MAX_ROWS = 200000;
-// Zip-bomb guard: measured while inflating, because zip headers can lie about sizes.
-const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
-const MAX_ZIP_ENTRIES = 2000;
-
-export class MarketplaceFileError extends Error {
-  constructor(message) { super(message); this.status = 400; }
-}
-const fail = message => { throw new MarketplaceFileError(message); };
-
-const norm = value => String(value ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
-function cellValue(value) {
-  if (value == null) return '';
-  if (value instanceof Date || typeof value !== 'object') return value;
-  if ('result' in value) return cellValue(value.result);
-  if (Array.isArray(value.richText)) return value.richText.map(part => part.text).join('');
-  if ('text' in value) return cellValue(value.text);
-  return '';
-}
-const text = value => { const v = cellValue(value); return v instanceof Date ? '' : String(v).trim(); };
-const round2 = n => Math.round(n * 100) / 100;
-
-function money(value) {
-  const v = cellValue(value);
-  if (typeof v === 'number') return v;
-  if (v instanceof Date) return NaN;
-  const t = String(v).replace(/[,\s฿]|THB/gi, '');
-  if (t === '' || t === '-') return 0;
-  return /^[+-]?\d*\.?\d+$/.test(t) ? Number(t) : NaN;
-}
-function amount(value) {
-  const n = money(value);
-  if (!Number.isFinite(n)) fail('พบตัวเลขยอดเงินในไฟล์ไม่ถูกต้อง ไฟล์อาจถูกแก้ไขหลัง export กรุณา export ไฟล์ใหม่จาก Seller Center');
-  return n;
-}
-
-const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-const pad = n => String(n).padStart(2, '0');
-// Returns ค.ศ. YYYY-MM-DD or null. Excel dates arrive as UTC wall-clock Dates from exceljs.
-// Slash dates are day-first (TikTok TH: 30/09/2026); พ.ศ. years are converted.
-export function parseDate(value) {
-  const v = cellValue(value);
-  let y, m, d, r;
-  if (v instanceof Date) {
-    if (Number.isNaN(v.getTime())) return null;
-    [y, m, d] = [v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate()];
-  } else if (typeof v === 'number') {
-    if (v < 20000 || v > 80000) return null;
-    const date = new Date(Math.round((v - 25569) * 86400000));
-    [y, m, d] = [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()];
-  } else {
-    const t = String(v).trim();
-    if ((r = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/))) [y, m, d] = [+r[1], +r[2], +r[3]];
-    else if ((r = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:\D|$)/))) {
-      [d, m, y] = [+r[1], +r[2], +r[3]];
-      if (m > 12 && d <= 12) [d, m] = [m, d];
-    } else if ((r = t.match(/^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*\.?[ -](\d{4})(?:\D|$)/))) [d, m, y] = [+r[1], MONTHS[r[2].toLowerCase()], +r[3]];
-    else return null;
-  }
-  if (y > 2400) y -= 543;
-  if (!m || y < 2000 || y > 2100) return null;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
-  return `${y}-${pad(m)}-${pad(d)}`;
-}
-function orderDate(value) {
-  return parseDate(value) || fail('พบวันที่สั่งซื้อในไฟล์ไม่ถูกต้อง ไฟล์อาจถูกแก้ไขหลัง export กรุณา export ไฟล์ใหม่จาก Seller Center');
-}
-// Description rows (TikTok row 2), totals and blank rows have no valid id and are skipped.
-function orderId(value) {
-  const v = cellValue(value);
-  if (typeof v === 'number' && !Number.isSafeInteger(v)) fail('หมายเลขคำสั่งซื้อในไฟล์ถูกแปลงเป็นตัวเลขจนไม่ครบ (เปิดแล้วบันทึกทับใน Excel) กรุณาใช้ไฟล์ที่ export จาก Seller Center โดยตรง');
-  const t = text(v);
-  return /^[A-Za-z0-9_-]{5,40}$/.test(t) ? t : '';
-}
-function province(value) {
-  const t = text(value).split('/')[0].replace(/^จังหวัด\s*/, '').trim();
-  return !t || t.includes('*') ? null : t.slice(0, 60);
-}
-
-// ---------- status buckets: completed (สำเร็จ) / pending (กำลังดำเนินการ) / cancelled (ยกเลิก) / returned (คืนสินค้า)
-function tiktokStatus(status, substatus, cancelType, refund, returnQty) {
-  const s = norm(status), sub = norm(substatus), t = norm(cancelType);
-  if (/ยกเลิก|cancel/.test(s) || t === 'cancel') return 'cancelled';
-  if (refund > 0 || returnQty > 0 || /return|refund|คืน/.test(`${t} ${sub}`)) return 'returned';
-  if (/เสร็จสมบูรณ์|completed|delivered|จัดส่งสำเร็จ/.test(`${s} ${sub}`)) return 'completed';
-  return 'pending';
-}
-export function lazadaItemStatus(status, refund) {
-  const s = norm(status);
-  if (/cancel/.test(s)) return 'cancelled';
-  if (refund > 0 || /return|refund|failed/.test(s)) return 'returned';
-  if (/delivered|confirmed|completed/.test(s)) return 'completed';
-  return 'pending';
-}
+import { PLATFORMS, MAX_FILE_BYTES, MAX_ROWS, MAX_UNZIPPED_BYTES, MAX_ZIP_ENTRIES, MarketplaceFileError, fail, norm, text, amount, orderDate, orderId, province } from './marketplace-parse/common.js';
+import { readTiktokOrders, readTiktokSettlement } from './marketplace-parse/tiktok.js';
+import { readLazadaOrders, readLazadaStatement } from './marketplace-parse/lazada.js';
+import { readShopeeOrders, readShopeeIncome } from './marketplace-parse/shopee.js';
 
 // ---------- sheet signatures. `cols` maps a key to accepted header names (compared lower-case, spaces collapsed).
 const SHEETS = [
@@ -171,10 +77,6 @@ const SHEETS = [
     hint: 'ไฟล์นี้เป็นรายการกระเป๋าเงิน Shopee ซึ่งไม่มีรายการคำสั่งซื้อ กรุณา export "รายงานรายรับของฉัน" จาก Shopee Seller Center (การเงิน › รายรับของฉัน)',
   },
 ];
-const SHOPEE_FEES = ['feeAms', 'feeCommission', 'feeService', 'feeInfra', 'feeShippingSaver', 'feePayment'];
-// Same breakdown keys as the Shopee API (get_escrow_detail) where one exists.
-const SHOPEE_FEE_KEYS = { feeAms: 'order_ams_commission_fee', feeCommission: 'commission_fee', feeService: 'service_fee',
-  feeInfra: 'platform_infrastructure_fee', feeShippingSaver: 'shipping_saver_fee', feePayment: 'seller_transaction_fee' };
 
 // Seller identity found inside a file (Shopee username, Lazada short code); null when the export has none.
 const SHOP_CODE = /^[\w.-]{2,60}$/;
@@ -202,146 +104,6 @@ function findHeader(rows, sheet) {
     if (sheet.required.every(key => key in cols)) return { headerRow: r, cols };
   }
   return null;
-}
-const getter = (row, cols) => key => (key in cols ? row[cols[key]] : '');
-
-function readTiktokOrders(rows, start, cols) {
-  const orders = new Map();
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), id = orderId(get('orderId'));
-    if (!id) continue;
-    let order = orders.get(id);
-    if (!order) {
-      order = { orderId: id, orderDate: orderDate(get('created')), statusRaw: text(get('status')), substatus: text(get('substatus')),
-        cancelType: text(get('cancelType')), refund: Math.abs(amount(get('refund'))), province: province(get('province')), returnQty: 0, items: [] };
-      orders.set(id, order);
-    }
-    order.returnQty += Math.max(0, amount(get('returnQty')));
-    const sku = text(get('sellerSku')) || text(get('skuId'));
-    const name = [text(get('productName')), text(get('variation'))].filter(Boolean).join(' · ') || sku || 'ไม่ระบุชื่อสินค้า';
-    let lineKey = text(get('skuId')) || `${sku}|${name}`;
-    if (order.items.some(item => item.lineKey === lineKey)) lineKey += `#${order.items.length}`;
-    order.items.push({ lineKey, sku, name, quantity: amount(get('quantity')), sales: round2(amount(get('subtotalBefore')) - Math.abs(amount(get('sellerDiscount')))) });
-  }
-  return [...orders.values()].map(({ substatus, cancelType, returnQty, ...order }) => {
-    const status = tiktokStatus(order.statusRaw, substatus, cancelType, order.refund, returnQty);
-    return { ...order, status, source: 'orders', sales: round2(order.items.reduce((sum, item) => sum + item.sales, 0)), items: order.items.map(item => ({ ...item, status })) };
-  });
-}
-
-function readLazadaOrders(rows, start, cols) {
-  const orders = new Map();
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), id = orderId(get('orderNumber'));
-    if (!id) continue;
-    let order = orders.get(id);
-    if (!order) {
-      const ship = province(get('shipProvince'));
-      order = { orderId: id, orderDate: orderDate(get('createTime')), province: ship || province(get('billProvince')), items: [] };
-      orders.set(id, order);
-    }
-    const refund = Math.abs(amount(get('refund'))), statusRaw = text(get('status'));
-    const sku = text(get('sellerSku')) || text(get('lazadaSku'));
-    const name = [text(get('itemName')), text(get('variation'))].filter(Boolean).join(' · ') || sku || 'ไม่ระบุชื่อสินค้า';
-    let lineKey = text(get('itemId')) || `${sku}|${name}`;
-    if (order.items.some(item => item.lineKey === lineKey)) lineKey += `#${order.items.length}`;
-    // One row is one unit in the Lazada export.
-    order.items.push({ lineKey, sku, name, quantity: 1, sales: round2(amount(get('unitPrice')) - Math.abs(amount(get('sellerDiscount')))), refund, statusRaw, status: lazadaItemStatus(statusRaw, refund) });
-  }
-  return [...orders.values()].map(order => {
-    const active = order.items.filter(item => item.status !== 'cancelled');
-    const status = !active.length ? 'cancelled' : active.some(item => item.status === 'returned') ? 'returned'
-      : active.every(item => item.status === 'completed') ? 'completed' : 'pending';
-    const counted = active.length ? active : order.items;
-    return { ...order, status, source: 'orders', statusRaw: [...new Set(order.items.map(item => item.statusRaw))].join(', '),
-      sales: round2(counted.reduce((sum, item) => sum + item.sales, 0)), refund: round2(order.items.reduce((sum, item) => sum + item.refund, 0)),
-      items: order.items.map(({ refund, statusRaw, ...item }) => item) };
-  });
-}
-
-// Shopee order export: sales of a line = ราคาขายสุทธิ (ราคาขาย × จำนวน, i.e. normal price minus the seller's product
-// discount — the same definition as the income report). Order-level vouchers and Shopee discounts are not deducted.
-function shopeeStatus(status, returnStatus, returnQty) {
-  const s = norm(status), r = norm(returnStatus);
-  if (/ยกเลิก|cancel/.test(s)) return 'cancelled';
-  if (returnQty > 0 || (r && !/ปฏิเสธ|ยกเลิก|reject|cancel/.test(r))) return 'returned';
-  if (/สำเร็จ|completed/.test(s)) return 'completed';
-  return 'pending';
-}
-function readShopeeOrders(rows, start, cols) {
-  const orders = new Map();
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), id = orderId(get('orderId'));
-    if (!id) continue;
-    let order = orders.get(id);
-    if (!order) {
-      order = { orderId: id, orderDate: orderDate(get('orderDate')), statusRaw: text(get('status')), returnStatus: text(get('returnStatus')), province: province(get('province')), returnQty: 0, items: [] };
-      orders.set(id, order);
-    }
-    order.returnStatus ||= text(get('returnStatus'));
-    order.returnQty += Math.max(0, amount(get('returnQty')));
-    const sku = text(get('sku')) || text(get('parentSku'));
-    const name = [text(get('productName')), text(get('variation'))].filter(Boolean).join(' · ') || sku || 'ไม่ระบุชื่อสินค้า';
-    let lineKey = `${sku}|${name}`;
-    if (order.items.some(item => item.lineKey === lineKey)) lineKey += `#${order.items.length}`;
-    order.items.push({ lineKey, sku, name, quantity: amount(get('quantity')), sales: round2(amount(get('netPrice'))) });
-  }
-  return [...orders.values()].map(({ returnStatus, returnQty, ...order }) => {
-    const status = shopeeStatus(order.statusRaw, returnStatus, returnQty);
-    const statusRaw = [order.statusRaw, returnStatus].filter(Boolean).join(' · ');
-    return { ...order, statusRaw, status, refund: 0, source: 'orders', sales: round2(order.items.reduce((sum, item) => sum + item.sales, 0)), items: order.items.map(item => ({ ...item, status })) };
-  });
-}
-
-function readShopeeIncome(rows, start, cols) {
-  const orders = new Map(), settlements = [];
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), id = orderId(get('orderId'));
-    if (!id) continue;
-    const fees = -SHOPEE_FEES.reduce((sum, key) => sum + amount(get(key)), 0);
-    const line = { price: amount(get('price')), discount: Math.abs(amount(get('sellerDiscount'))), refund: Math.abs(amount(get('refund'))), payout: amount(get('payout')), fees, returnId: text(get('returnId')) };
-    const order = orders.get(id) || { orderId: id, orderDate: orderDate(get('orderDate')), price: 0, discount: 0, refund: 0, payout: 0, fees: 0, returnId: '', detail: {} };
-    for (const key of ['price', 'discount', 'refund', 'payout', 'fees']) order[key] += line[key];
-    for (const key of SHOPEE_FEES) order.detail[SHOPEE_FEE_KEYS[key]] = (order.detail[SHOPEE_FEE_KEYS[key]] || 0) - amount(get(key));
-    order.returnId ||= line.returnId;
-    orders.set(id, order);
-  }
-  const result = [...orders.values()].map(o => {
-    settlements.push({ txnId: `income:${o.orderId}`, orderId: o.orderId, fees: round2(o.fees), netPayout: round2(o.payout), detail: o.detail });
-    // The income report only lists orders Shopee has paid out, so they are completed unless refunded.
-    const status = o.returnId || o.refund > 0 ? 'returned' : 'completed';
-    return { orderId: o.orderId, orderDate: o.orderDate, status, statusRaw: status === 'returned' ? 'คืนเงิน/คืนสินค้า' : 'โอนเงินแล้ว',
-      sales: round2(o.price - o.discount), refund: round2(o.refund), province: null, items: null, source: 'income' };
-  });
-  return { orders: result, settlements };
-}
-
-function readTiktokSettlement(rows, start, cols) {
-  const settlements = [];
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), txnId = orderId(get('txnId')), related = orderId(get('orderId'));
-    if (!txnId || !related) continue;
-    settlements.push({ txnId, orderId: related, fees: round2(-amount(get('fees'))), netPayout: round2(amount(get('net'))) });
-  }
-  return { orders: [], settlements };
-}
-
-// Lazada Income Overview (ใบแจ้งยอด): one row per money line. Per order and billing cycle,
-// netPayout = Σ all lines; fees = product lines (ยอดรวมค่าสินค้า / หักเงินค่าสินค้า) − netPayout.
-const LAZADA_PRODUCT_LINES = /^(ยอดรวมค่าสินค้า|หักเงินค่าสินค้า)/;
-function readLazadaStatement(rows, start, cols) {
-  const groups = new Map();
-  for (const row of rows.slice(start)) {
-    const get = getter(row, cols), id = orderId(get('orderNumber')), cycle = text(get('cycle'));
-    if (!id || !cycle) continue;
-    const txnId = `statement:${cycle}:${id}`.slice(0, 120), value = amount(get('amount'));
-    const g = groups.get(txnId) || { txnId, orderId: id, product: 0, net: 0 };
-    g.net += value;
-    if (LAZADA_PRODUCT_LINES.test(text(get('feeName')))) g.product += value;
-    groups.set(txnId, g);
-  }
-  const settlements = [...groups.values()].map(g => ({ txnId: g.txnId, orderId: g.orderId, fees: round2(g.product - g.net), netPayout: round2(g.net) }));
-  return { orders: [], settlements };
 }
 
 // ---------- file decoding
@@ -458,3 +220,7 @@ export async function parseMarketplaceFile({ buffer, fileName = '', platform }) 
   if (!orders.size && !settlements.size) fail('ไฟล์นี้ไม่มีรายการคำสั่งซื้อ กรุณาตรวจสอบช่วงวันที่ที่ export');
   return { orders: [...orders.values()], settlements: [...settlements.values()], kinds: [...new Set(mine.map(f => f.sheet.kind))], shopCode };
 }
+
+// Public names stay importable from this module.
+export { PLATFORMS, MAX_FILE_BYTES, MarketplaceFileError, parseDate } from './marketplace-parse/common.js';
+export { lazadaItemStatus } from './marketplace-parse/lazada.js';
