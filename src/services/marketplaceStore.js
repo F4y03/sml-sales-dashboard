@@ -1,0 +1,180 @@
+// Marketplace data in the app SQLite store: saving uploads, summaries, per-order fees. No HTTP here.
+// Routes live in src/routes/marketplace.js. See MARKETPLACE.md.
+
+// Reviewer accounts see only the last 3 months (Bangkok dates): earlier start dates are moved up to this day.
+export const REVIEWER_MONTHS = 3;
+export function reviewerFloor(now = Date.now()) {
+  const d = new Date(now + 7 * 3600000);
+  d.setUTCMonth(d.getUTCMonth() - REVIEWER_MONTHS);
+  return d.toISOString().slice(0, 10);
+}
+
+const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+export const validPeriod = (start, end) => validDate(start) && validDate(end) && start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 365;
+const SOLD = "('completed','pending')";
+export const cleanFileName = value => {
+  let name = '';
+  try { name = decodeURIComponent(String(value || '')); } catch {}
+  name = name.split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 200);
+  return name || 'ไม่ระบุชื่อไฟล์';
+};
+
+// {type: amount} -> JSON with zero amounts dropped; null when there is nothing (no breakdown ≠ zero fees).
+export function feeDetailJson(detail) {
+  const entries = Object.entries(detail || {}).filter(([k, v]) => k && Number.isFinite(v) && Math.abs(v) >= 0.005).map(([k, v]) => [String(k).slice(0, 80), Math.round(v * 100) / 100]);
+  return entries.length ? JSON.stringify(Object.fromEntries(entries)) : null;
+}
+
+export function saveMarketplaceUpload(store, { platform, fileName, sha256, user, parsed, shopId = null, now = new Date().toISOString() }) {
+  return store.transaction(() => {
+    const duplicate = !!store.get('SELECT 1 FROM marketplace_uploads WHERE platform=? AND file_sha256=?', platform, sha256);
+    const uploadId = Number(store.run('INSERT INTO marketplace_uploads(platform,file_name,file_sha256,file_kinds,uploaded_by,uploaded_by_name,created_at,shop_id) VALUES(?,?,?,?,?,?,?,?)',
+      platform, fileName, sha256, parsed.kinds.join(','), user?.id ?? null, user?.full_name || user?.username || 'ไม่ทราบชื่อ', now, shopId).lastInsertRowid);
+    if (shopId && parsed.shopCode) store.run('INSERT OR IGNORE INTO marketplace_shop_codes(platform,code,shop_id) VALUES(?,?,?)', platform, parsed.shopCode, shopId);
+    for (const o of parsed.orders) {
+      // Same order uploaded again (re-export, overlapping date range) replaces the old row: never counted twice.
+      // A source without product lines (Shopee income report) keeps lines another file already supplied.
+      store.run(`INSERT INTO marketplace_orders(platform,order_id,order_date,status,status_raw,sales,refund,province,has_items,source,upload_id,updated_at,shop_id)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(platform,order_id) DO UPDATE SET order_date=excluded.order_date,status=excluded.status,status_raw=excluded.status_raw,
+          sales=excluded.sales,refund=excluded.refund,province=COALESCE(excluded.province,marketplace_orders.province),
+          has_items=MAX(excluded.has_items,marketplace_orders.has_items),source=excluded.source,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id`,
+        platform, o.orderId, o.orderDate, o.status, String(o.statusRaw || '').slice(0, 120), o.sales, o.refund || 0, o.province, o.items ? 1 : 0, o.source, uploadId, now, shopId);
+      if (!o.items) continue;
+      store.run('DELETE FROM marketplace_order_items WHERE platform=? AND order_id=?', platform, o.orderId);
+      for (const item of o.items) store.run('INSERT INTO marketplace_order_items(platform,order_id,line_key,sku,product_name,quantity,sales,status) VALUES(?,?,?,?,?,?,?,?)',
+        platform, o.orderId, item.lineKey.slice(0, 120), item.sku.slice(0, 80), item.name.slice(0, 300), item.quantity, item.sales, item.status);
+    }
+    for (const s of parsed.settlements) store.run(`INSERT INTO marketplace_settlements(platform,txn_id,order_id,fees,net_payout,upload_id,updated_at,shop_id,fee_detail) VALUES(?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(platform,txn_id) DO UPDATE SET order_id=excluded.order_id,fees=excluded.fees,net_payout=excluded.net_payout,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id,
+        fee_detail=COALESCE(excluded.fee_detail,marketplace_settlements.fee_detail)`,
+      platform, s.txnId, s.orderId, s.fees, s.netPayout, uploadId, now, shopId, feeDetailJson(s.detail));
+    return { uploadId, duplicate };
+  });
+}
+
+export function orderDetail(store, platform, id) {
+  const o = store.get(`SELECT o.platform,o.order_id AS orderId,o.order_date AS orderDate,o.status,o.status_raw AS statusRaw,o.sales,o.refund,o.province,
+    o.source,o.updated_at AS updatedAt,s.name AS shop FROM marketplace_orders o LEFT JOIN marketplace_shops s ON s.id=o.shop_id WHERE o.platform=? AND o.order_id=?`, platform, id);
+  if (!o) return null;
+  const items = store.all(`SELECT sku,product_name AS name,quantity,sales,status FROM marketplace_order_items WHERE platform=? AND order_id=? ORDER BY line_key`, platform, id);
+  const settlements = store.all(`SELECT fees,net_payout AS net,fee_detail AS detail,updated_at AS updatedAt FROM marketplace_settlements WHERE platform=? AND order_id=? ORDER BY updated_at`, platform, id);
+  const detail = {};
+  for (const s of settlements) {
+    try { for (const [k, v] of Object.entries(JSON.parse(s.detail || '{}'))) detail[k] = Math.round(((detail[k] || 0) + Number(v)) * 100) / 100; } catch { /* skip */ }
+  }
+  const fees = settlements.length ? Math.round(settlements.reduce((sum, s) => sum + s.fees, 0) * 100) / 100 : null;
+  const net = settlements.length ? Math.round(settlements.reduce((sum, s) => sum + s.net, 0) * 100) / 100 : null;
+  return { ...o, items, fees, net, percent: fees === null || !(o.sales > 0) ? null : Math.round(fees / o.sales * 10000) / 100,
+    detail: Object.keys(detail).length ? detail : null, settledAt: settlements.at(-1)?.updatedAt || null, settlementRows: settlements.length };
+}
+
+// Filters: q = part of the order id, SKU or product name; status = completed | pending; fees = with | without (fee data).
+export function orderFees(store, { platform, start, end, shop = 'all', sort = 'date', page = 0, size = 50, q = '', status = 'all', fees = 'all' }) {
+  const shopId = shop === 'all' ? null : Number(shop);
+  const base = `WITH s AS (SELECT platform,order_id,SUM(fees) AS fees,SUM(net_payout) AS net,GROUP_CONCAT(fee_detail,char(30)) AS detail
+      FROM marketplace_settlements GROUP BY platform,order_id),
+    o AS (SELECT o.platform,o.order_id,o.order_date,o.status,o.sales,s.fees,s.net,s.detail FROM marketplace_orders o
+      LEFT JOIN s ON s.platform=o.platform AND s.order_id=o.order_id
+      WHERE o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?) AND o.status IN ${SOLD}
+        AND (? = 'all' OR o.status = ?) AND (? = 'all' OR (s.fees IS NOT NULL) = (? = 'with'))
+        AND (? = '' OR o.order_id LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM marketplace_order_items i WHERE i.platform=o.platform AND i.order_id=o.order_id
+          AND (i.sku LIKE ? ESCAPE '\\' OR i.product_name LIKE ? ESCAPE '\\'))))`;
+  const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+  const p = [start, end, platform, platform, shopId, shopId, status, status, fees, fees, q, like, like, like];
+  const totals = store.get(`${base} SELECT COUNT(*) AS orders,SUM(fees IS NOT NULL) AS withFees,SUM(CASE WHEN fees IS NOT NULL THEN sales END) AS sales,
+    SUM(fees) AS fees,SUM(net) AS net FROM o`, ...p);
+  const order = { date: 'order_date DESC,order_id DESC', percent: 'fees IS NULL,(fees/NULLIF(sales,0)) DESC,order_date DESC', fees: 'fees IS NULL,fees DESC,order_date DESC' }[sort];
+  const rows = store.all(`${base} SELECT * FROM o ORDER BY ${order} LIMIT ? OFFSET ?`, ...p, size, page * size);
+  const pct = (fees, sales) => (fees === null || fees === undefined || !(sales > 0) ? null : Math.round(fees / sales * 10000) / 100);
+  return {
+    platform, start, end,
+    totals: { orders: totals.orders, withFees: totals.withFees || 0, sales: totals.sales, fees: totals.fees, net: totals.net, percent: pct(totals.fees, totals.sales) },
+    orders: rows.map(r => {
+      const detail = {};
+      for (const part of String(r.detail || '').split('').filter(Boolean)) {
+        try { for (const [k, v] of Object.entries(JSON.parse(part))) detail[k] = Math.round(((detail[k] || 0) + Number(v)) * 100) / 100; } catch { /* skip a bad row */ }
+      }
+      return { platform: r.platform, orderId: r.order_id, orderDate: r.order_date, status: r.status, sales: r.sales, fees: r.fees, net: r.net,
+        percent: pct(r.fees, r.sales), detail: Object.keys(detail).length ? detail : null };
+    }),
+  };
+}
+
+export function marketplaceSummary(store, { platform, start, end, shop = 'all' }) {
+  const shopId = shop === 'all' ? null : Number(shop);
+  const where = "o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)", p = [start, end, platform, platform, shopId, shopId];
+  const platforms = store.all(`SELECT o.platform,
+      COALESCE(SUM(CASE WHEN o.status IN ${SOLD} THEN o.sales END),0) AS sales,
+      SUM(o.status IN ${SOLD}) AS orders, COUNT(*) AS allOrders,
+      SUM(o.status IN ${SOLD} AND o.has_items=1) AS ordersWithItems,
+      SUM(o.status<>'cancelled' AND s.order_id IS NOT NULL) AS ordersWithFees, SUM(o.status<>'cancelled') AS feeBase,
+      SUM(s.fees) AS fees, SUM(s.net_payout) AS netPayout
+    FROM marketplace_orders o
+    LEFT JOIN (SELECT platform,order_id,SUM(fees) AS fees,SUM(net_payout) AS net_payout FROM marketplace_settlements GROUP BY platform,order_id) s
+      ON s.platform=o.platform AND s.order_id=o.order_id
+    WHERE ${where} GROUP BY o.platform`, ...p);
+  const statuses = store.all(`SELECT o.platform,o.status,COUNT(*) AS orders,SUM(o.sales) AS sales,SUM(o.refund) AS refund
+    FROM marketplace_orders o WHERE ${where} GROUP BY o.platform,o.status`, ...p);
+  const daily = store.all(`SELECT o.order_date AS date,o.platform,SUM(o.sales) AS sales,COUNT(*) AS orders
+    FROM marketplace_orders o WHERE ${where} AND o.status IN ${SOLD} GROUP BY o.order_date,o.platform ORDER BY o.order_date`, ...p);
+  // Seller SKU is the shared key across platforms; lines without one fall back to the product name.
+  const topProducts = store.all(`SELECT COALESCE(NULLIF(UPPER(TRIM(i.sku)),''),i.product_name) AS productKey,
+      MAX(i.sku) AS sku,MAX(i.product_name) AS name,GROUP_CONCAT(DISTINCT i.platform) AS platforms,
+      SUM(i.quantity) AS quantity,SUM(i.sales) AS sales,COUNT(DISTINCT i.platform||':'||i.order_id) AS orders
+    FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
+    WHERE ${where} AND o.status IN ${SOLD} AND i.status IN ${SOLD}
+    GROUP BY productKey ORDER BY sales DESC, quantity DESC LIMIT 10`, ...p);
+  const provinces = store.all(`SELECT o.province,COUNT(*) AS orders,SUM(o.sales) AS sales FROM marketplace_orders o
+    WHERE ${where} AND o.status IN ${SOLD} AND o.province IS NOT NULL GROUP BY o.province ORDER BY sales DESC LIMIT 10`, ...p);
+  const bounds = store.get(`SELECT MIN(order_date) AS first,MAX(order_date) AS last,(SELECT MAX(created_at) FROM marketplace_uploads) AS lastUploadAt
+    FROM marketplace_orders WHERE (? = 'all' OR platform = ?) AND (? IS NULL OR shop_id = ?)`, platform, platform, shopId, shopId);
+  // Shops that have orders: the dashboard hides the shop filter when there is only one.
+  const shops = store.all(`SELECT DISTINCT s.id,s.name,s.active FROM marketplace_shops s JOIN marketplace_orders o ON o.shop_id=s.id
+    WHERE (? = 'all' OR o.platform = ?) ORDER BY s.name`, platform, platform);
+  return { platform, shop: shopId ?? 'all', start, end, bounds, shops, platforms, statuses, daily, topProducts: topProducts.map(({ productKey, ...row }) => ({ ...row, platforms: String(row.platforms || '').split(',') })), provinces };
+}
+
+// Picks the shop for an upload and refuses a likely wrong pick. Returns { shopId } or { error }.
+// 1) one active shop and none chosen -> that shop; 2) a seller code in the file that is already linked to
+// another shop -> refuse; 3) order IDs already stored (orders or settlements) mostly under another shop -> refuse.
+export function resolveUploadShop(store, { platform, shop, parsed }) {
+  const active = store.all('SELECT id,name FROM marketplace_shops WHERE active=1 ORDER BY name');
+  if (!active.length) return { error: 'ยังไม่มีร้านในระบบ กรุณาเพิ่มร้านก่อนอัปโหลด' };
+  let chosen = shop ? active.find(s => s.id === Number(shop)) : active.length === 1 ? active[0] : null;
+  if (!chosen) return { error: shop ? 'ร้านที่เลือกไม่มีอยู่หรือปิดใช้งานแล้ว กรุณาเลือกร้านใหม่' : 'กรุณาเลือกร้านก่อนอัปโหลด' };
+  if (parsed.shopCode) {
+    const linked = store.get('SELECT s.id,s.name FROM marketplace_shop_codes c JOIN marketplace_shops s ON s.id=c.shop_id WHERE c.platform=? AND c.code=?', platform, parsed.shopCode);
+    if (linked && linked.id !== chosen.id) return { error: `ไฟล์นี้เป็นของร้าน ${linked.name} (รหัสผู้ขาย ${parsed.shopCode}) แต่เลือกร้าน ${chosen.name} อยู่ กรุณาเลือกร้านให้ถูกต้อง` };
+  }
+  const ids = [...new Set([...parsed.orders.map(o => o.orderId), ...parsed.settlements.map(s => s.orderId)])];
+  const counts = new Map();
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500), marks = chunk.map(() => '?').join(',');
+    for (const row of store.all(`SELECT shop_id,COUNT(DISTINCT order_id) AS n FROM (
+        SELECT shop_id,order_id FROM marketplace_orders WHERE platform=? AND shop_id IS NOT NULL AND order_id IN (${marks})
+        UNION SELECT shop_id,order_id FROM marketplace_settlements WHERE platform=? AND shop_id IS NOT NULL AND order_id IN (${marks})
+      ) GROUP BY shop_id`, platform, ...chunk, platform, ...chunk)) counts.set(row.shop_id, (counts.get(row.shop_id) || 0) + row.n);
+  }
+  const same = counts.get(chosen.id) || 0;
+  const [otherId, other = 0] = [...counts].filter(([id]) => id !== chosen.id).sort((a, b) => b[1] - a[1])[0] || [];
+  if (other > same) {
+    const name = store.get('SELECT name FROM marketplace_shops WHERE id=?', otherId)?.name || 'อื่น';
+    return { error: `ออเดอร์ในไฟล์นี้ ${other} รายการเป็นของร้าน ${name} อยู่แล้ว แต่เลือกร้าน ${chosen.name} อยู่ กรุณาเลือกร้านให้ถูกต้อง (ถ้าเคยอัปผิดร้าน ให้ลบรายการเดิมก่อน)` };
+  }
+  return { shopId: chosen.id };
+}
+
+// Removes what an upload still owns: orders/settlements a later upload re-wrote belong to that later upload and stay.
+// Older data the deleted upload had replaced is not restored — upload that file again if it is still needed.
+export function deleteMarketplaceUpload(store, id) {
+  return store.transaction(() => {
+    const upload = store.get('SELECT id,platform,file_name AS fileName FROM marketplace_uploads WHERE id=?', id);
+    if (!upload) return null;
+    const orders = Number(store.run('DELETE FROM marketplace_orders WHERE upload_id=?', id).changes);
+    const settlements = Number(store.run('DELETE FROM marketplace_settlements WHERE upload_id=?', id).changes);
+    store.run('DELETE FROM marketplace_uploads WHERE id=?', id);
+    return { ...upload, orders, settlements };
+  });
+}
+
