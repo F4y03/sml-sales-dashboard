@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
-import { installSalesTrend } from './sales-trend.js';
+import { installSalesTrend } from '../sales-trend.js';
 
 test('monthly endpoint validates years and chart switches between daily and monthly with retry and themes', async () => {
   const app = express(); let failed = false; const dailyCalls = [];

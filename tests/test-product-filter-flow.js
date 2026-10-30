@@ -4,7 +4,7 @@ import pg from 'pg';
 import ExcelJS from 'exceljs';
 import { chromium } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { installProducts } from './products.js';
+import { installProducts } from '../products.js';
 
 // Integration check against the configured read-only SML database.
 const pool = new pg.Pool({ connectionTimeoutMillis: 5000, statement_timeout: 15000, options: '-c default_transaction_read_only=on' });

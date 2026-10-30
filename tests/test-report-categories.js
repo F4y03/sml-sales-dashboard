@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
-import { installReports } from './reports.js';
+import { installReports } from '../reports.js';
 
 test('SML categories preserve report types, filter both lists, search and open shortcuts', async () => {
   const reports = [

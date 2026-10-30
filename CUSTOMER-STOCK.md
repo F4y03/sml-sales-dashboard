@@ -2,7 +2,7 @@
 
 สิทธิ์: เฉพาะ role `super_admin` / `executive` ที่เห็นทุกเขต (scope ไม่ใช่ `territory`) — ล็อกตาม role ไม่มี permission checkbox
 บังคับใน `src/middleware/access.js` (`CUSTOMER_STOCK_ROLES`) ทั้งหน้าและ `/api/customer-stock/*`; เมนูซ่อนตามกฎเดียวกันใน `public/workspace-nav.js`
-Backend: `customer-stock.js` (อ่านอย่างเดียว, parameterized ทั้งหมด) · Frontend: `public/customer-stock.{html,css,js}` · Test: `node --test test-customer-stock.js`
+Backend: `customer-stock.js` (อ่านอย่างเดียว, parameterized ทั้งหมด) · Frontend: `public/customer-stock.{html,css,js}` · Test: `node --test tests/test-customer-stock.js`
 
 ## แท็บ 1 ประวัติลูกค้า
 - ค้นหา `ar_customer` ตามรหัส/ชื่อ (30 รายการแรก)

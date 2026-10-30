@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, logActions } from './test-security-helpers.js';
-import { totpAt } from './src/services/totpService.js';
+import { totpAt } from '../src/services/totpService.js';
 import { createHash } from 'node:crypto';
 
 const PW = 'blue-sky-42';
@@ -196,12 +196,12 @@ test('admin reset/revoke paths cancel trusted devices; Super Admin can reset ano
   const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
   const { resolve } = await import('node:path');
   const express = (await import('express')).default;
-  const { installAuth, hashPassword } = await import('./auth.js');
-  const { createAccessStore } = await import('./src/models/accessStore.js');
-  const { installAccess } = await import('./src/middleware/access.js');
-  const { installAdminRoutes } = await import('./src/routes/adminRoutes.js');
-  const { createUserService } = await import('./src/services/userService.js');
-  const { loadUser } = await import('./src/services/permissionService.js');
+  const { installAuth, hashPassword } = await import('../auth.js');
+  const { createAccessStore } = await import('../src/models/accessStore.js');
+  const { installAccess } = await import('../src/middleware/access.js');
+  const { installAdminRoutes } = await import('../src/routes/adminRoutes.js');
+  const { createUserService } = await import('../src/services/userService.js');
+  const { loadUser } = await import('../src/services/permissionService.js');
   mkdirSync('test-results', { recursive: true });
   const envPath = resolve(mkdtempSync(resolve('test-results/sec-')), '.env'); writeFileSync(envPath, 'PGHOST=localhost\n');
   const env = { AUTH_USERNAME: 'root', AUTH_PASSWORD_HASH: await hashPassword(PW), AUTH_COOKIE_SECURE: 'false' };
@@ -268,8 +268,8 @@ test('password-only login and a raw challenge token cannot call protected APIs d
 // ---- 2FA for every account ----
 test('2FA cannot be switched off per account; a Sales user enrols and gets a session only after the OTP', async t => {
   const f = await fixture(t, SA);
-  const { createUserService } = await import('./src/services/userService.js');
-  const { loadUser } = await import('./src/services/permissionService.js');
+  const { createUserService } = await import('../src/services/userService.js');
+  const { loadUser } = await import('../src/services/permissionService.js');
   const users = createUserService(f.store, f.auth.audit), root = loadUser(f.store, 1);
   const rep = await users.save(root, null, { username: 'rep', full_name: 'Rep', role: 'sales', is_active: true, password: 'bronze-ash-74', additionalPermissions: [], territoryIds: [], twoFactorRequired: false }, 'test');
   assert.equal(rep.twoFactorRequired, true);

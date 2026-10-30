@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installProductImages } from './product-images.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installProductImages } from '../product-images.js';
 test('super admin can match pending image rows to an SML code without writing SML', async () => {
   const store = createAccessStore();
   const app = express();

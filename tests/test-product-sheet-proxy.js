@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from './auth.js';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installAccess } from './src/middleware/access.js';
-import { installProductSheetProxy } from './src/routes/productSheetProxy.js';
-import { createUserService } from './src/services/userService.js';
-import { loadUser } from './src/services/permissionService.js';
-import { hashOnly } from './src/services/passwordService.js';
+import { installAuth, hashPassword } from '../auth.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installAccess } from '../src/middleware/access.js';
+import { installProductSheetProxy } from '../src/routes/productSheetProxy.js';
+import { createUserService } from '../src/services/userService.js';
+import { loadUser } from '../src/services/permissionService.js';
+import { hashOnly } from '../src/services/passwordService.js';
 
 const listen = async app => { const s = app.listen(0, '127.0.0.1'); await new Promise(r => s.once('listening', r)); return s; };
 

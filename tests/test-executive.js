@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium } from '@playwright/test';
-import { installExecutive, shiftMonth, growth } from './executive.js';
+import { installExecutive, shiftMonth, growth } from '../executive.js';
 
 test('comparison periods clamp month ends and handle missing bases', () => {
   assert.equal(shiftMonth('2024-03-31', -1), '2024-02-29');
@@ -229,9 +229,9 @@ test('browser: drilldowns, targets, alerts, safe text, mobile, errors and empty 
 });
 
 test('sales target API: strict keys and amounts, same-site writes, per-territory storage, audit trail', async () => {
-  const { installSalesTarget } = await import('./sales-target.js');
-  const { createAccessStore } = await import('./src/models/accessStore.js');
-  const { createAuditService } = await import('./src/services/auditService.js');
+  const { installSalesTarget } = await import('../sales-target.js');
+  const { createAccessStore } = await import('../src/models/accessStore.js');
+  const { createAuditService } = await import('../src/services/auditService.js');
   const store = createAccessStore(':memory:', {});
   store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT 'exec','x','Exec',id FROM roles WHERE code='executive'");
   const auth = { id: 1, username: 'exec', role: 'executive', scope: 'all', permissions: ['dashboard'] };

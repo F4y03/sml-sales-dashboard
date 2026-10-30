@@ -5,8 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createAccessStore } from './src/models/accessStore.js';
-import { runBackup } from './src/services/backup.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { runBackup } from '../src/services/backup.js';
 
 test('backup copies the live database and 2fa.key, replaces the same day, keeps the newest N days', async t => {
   const root = mkdtempSync(join(tmpdir(), 'bk-')), dataDir = join(root, 'data'), dir = join(root, 'backups');

@@ -2,11 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from './auth.js';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installAccess } from './src/middleware/access.js';
-import { createUserService } from './src/services/userService.js';
-import { loadUser } from './src/services/permissionService.js';
+import { installAuth, hashPassword } from '../auth.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installAccess } from '../src/middleware/access.js';
+import { createUserService } from '../src/services/userService.js';
+import { loadUser } from '../src/services/permissionService.js';
 
 test('exempt account logs in with password only; normal account still gets the 2FA challenge', async t => {
   const env = { AUTH_USERNAME: 'root', AUTH_PASSWORD_HASH: await hashPassword('fixture-password-123'), AUTH_COOKIE_SECURE: 'false' }; // 2FA enforced

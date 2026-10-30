@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { compileQuery, validateValues } from './reports.js';
+import { compileQuery, validateValues } from '../reports.js';
 import { chromium } from '@playwright/test';
 const base=process.env.TEST_URL || 'http://localhost:3002';
 const conditions=[{name:'from_date',type:'Date',label:'start'},{name:'item',type:'Text',column:'item_code',label:'item'}];

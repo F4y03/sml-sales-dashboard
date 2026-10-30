@@ -1,4 +1,4 @@
-import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
+import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';

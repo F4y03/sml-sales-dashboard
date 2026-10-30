@@ -6,7 +6,7 @@
 - `src/services/marketplaceParser.js` — ตรวจ/อ่านไฟล์ (.xlsx, .csv) ตามหัวคอลัมน์ด้านล่าง
 - `marketplace.js` — API `/api/marketplace/upload`, `/uploads`, `/summary`
 - `public/marketplace-upload.html|js` — หน้าอัปโหลด (แอดมิน), `public/marketplace.html` + `marketplace-ui.js` — แดชบอร์ด (เจ้าของ), `public/marketplace.css`
-- `test-marketplace.js` — ทดสอบ parser, กันออเดอร์ซ้ำ, สิทธิ์ (fixture สังเคราะห์ ไม่มีข้อมูลลูกค้าจริง)
+- `tests/test-marketplace.js` — ทดสอบ parser, กันออเดอร์ซ้ำ, สิทธิ์ (fixture สังเคราะห์ ไม่มีข้อมูลลูกค้าจริง)
 
 ## สิทธิ์
 | Permission | ได้อะไร |
@@ -50,8 +50,8 @@
 
 ## TikTok Shop API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอป in-house "Proplus SML Analytics" ใน TikTok Shop Partner Center (หมวด นักพัฒนาผู้ขายภายในองค์กร, ตลาดไทย, ผู้ขายท้องถิ่น)
-- ไฟล์: `src/services/tiktokShopApi.js` (เซ็นคำขอ, token, ค้นออเดอร์/คืนสินค้า, แปลงออเดอร์), `tiktok-shop.js` (routes + sync), `migrations/009-tiktok-api.sql`, `public/tiktok-api-panel.js` (การ์ดในหน้าอัปโหลด), `test-tiktok-api.js` (TikTok ปลอม ไม่ต่อเน็ต)
-- `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `TIKTOK_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `tiktok_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `test-marketplace-backfill.js`)
+- ไฟล์: `src/services/tiktokShopApi.js` (เซ็นคำขอ, token, ค้นออเดอร์/คืนสินค้า, แปลงออเดอร์), `tiktok-shop.js` (routes + sync), `migrations/009-tiktok-api.sql`, `public/tiktok-api-panel.js` (การ์ดในหน้าอัปโหลด), `tests/test-tiktok-api.js` (TikTok ปลอม ไม่ต่อเน็ต)
+- `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `TIKTOK_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `tiktok_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `tests/test-marketplace-backfill.js`)
 - Redirect URL ใน Partner Center: `https://dashboard.sksales.app/api/tiktok/callback`
 - Scopes ที่ขอ: `seller.order.info`, `seller.product.basic`, `seller.finance.info`, `seller.return_refund.basic`
 
@@ -72,8 +72,8 @@
 
 ## Lazada API (ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอปใน Lazada Open Platform (open.lazada.com, ประเทศไทย) — โฟลว์เดียวกับ TikTok Shop API ด้านบน
-- ไฟล์: `src/services/lazadaApi.js` (เซ็นคำขอ HMAC-SHA256, token, ออเดอร์/รายการสินค้า/การเงิน, แปลงออเดอร์), `lazada-shop.js` (routes + sync), `migrations/010-lazada-api.sql`, `public/lazada-api-panel.js` (วิดเจ็ตบนแท็บ Lazada), `test-lazada-api.js` (Lazada ปลอม ไม่ต่อเน็ต)
-- `.env`: `LAZADA_APP_KEY`, `LAZADA_APP_SECRET`, `LAZADA_REDIRECT_URI` (ต้องตรงกับ Callback URL ในแอป เช่น `https://dashboard.sksales.app/api/lazada/callback`), ตัวเลือก `LAZADA_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `LAZADA_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `lazada_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `test-marketplace-backfill.js`)
+- ไฟล์: `src/services/lazadaApi.js` (เซ็นคำขอ HMAC-SHA256, token, ออเดอร์/รายการสินค้า/การเงิน, แปลงออเดอร์), `lazada-shop.js` (routes + sync), `migrations/010-lazada-api.sql`, `public/lazada-api-panel.js` (วิดเจ็ตบนแท็บ Lazada), `tests/test-lazada-api.js` (Lazada ปลอม ไม่ต่อเน็ต)
+- `.env`: `LAZADA_APP_KEY`, `LAZADA_APP_SECRET`, `LAZADA_REDIRECT_URI` (ต้องตรงกับ Callback URL ในแอป เช่น `https://dashboard.sksales.app/api/lazada/callback`), ตัวเลือก `LAZADA_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `LAZADA_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `lazada_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `tests/test-marketplace-backfill.js`)
 - Permission ใหม่ `lazada_sync` (Super Admin เป็นค่าเริ่มต้น ให้ role อื่นได้ใน System Admin)
 
 | Route | สิทธิ์ | หน้าที่ |
@@ -92,7 +92,7 @@
 - **ก่อนเชื่อถือตัวเลข**: ชื่อฟิลด์ตามเอกสาร Lazada Open Platform ยังไม่ได้ทดสอบกับร้านจริง (โดยเฉพาะ `voucher_seller` และ `fee_name` ของบรรทัดค่าสินค้า) ให้ sync ช่วงที่เคยอัปไฟล์ไว้แล้วเทียบยอดก่อนใช้งาน
 
 ## Google Sheets (สำเนาข้อมูลยอดขายออนไลน์)
-- ไฟล์: `src/services/googleSheets.js` (เซ็น JWT ของ Service Account ด้วย node:crypto, เขียนชีตผ่าน Sheets API v4, สร้างแถวจากตาราง marketplace_*), `google-sheets.js` (routes + ส่งทุกคืน), `public/google-sheets-ui.js` (ปุ่มบนหน้ายอดขายออนไลน์), `test-google-sheets.js` (Google ปลอม ไม่ต่อเน็ต)
+- ไฟล์: `src/services/googleSheets.js` (เซ็น JWT ของ Service Account ด้วย node:crypto, เขียนชีตผ่าน Sheets API v4, สร้างแถวจากตาราง marketplace_*), `google-sheets.js` (routes + ส่งทุกคืน), `public/google-sheets-ui.js` (ปุ่มบนหน้ายอดขายออนไลน์), `tests/test-google-sheets.js` (Google ปลอม ไม่ต่อเน็ต)
 - `.env`: `GOOGLE_SHEETS_KEY_FILE` (ไฟล์ key JSON ของ Service Account ใน `data/` ห้ามขึ้น Git), `GOOGLE_SHEETS_ID` (ส่วนระหว่าง /d/ กับ /edit ของ URL ชีต), ตัวเลือก `GOOGLE_SHEETS_EVERY_HOURS` (ส่งทุกกี่ชั่วโมง ค่าเริ่มต้น 5 ต่ำสุด 1)
 - ต้องแชร์ชีตให้อีเมล Service Account เป็น Editor
 - แท็บ: ออเดอร์ / สินค้า / สรุปรายวัน / ข้อมูล — **เขียนทับทั้งแท็บทุกครั้ง** (ตรงกับแดชบอร์ดเสมอ ห้ามแก้ข้อมูลในแท็บเหล่านี้ ให้คำนวณในแท็บอื่น) เขียนแบบ RAW (ข้อความไม่ถูกตีความเป็นสูตร)
@@ -105,7 +105,7 @@
 
 ## Shopee API (Open Platform v2 — ดึงอัตโนมัติ แทน/เสริมไฟล์ export)
 แอป ISV (ERP System) ใน open.shopee.com — โฟลว์เดียวกับ Lazada API ด้านบน
-- ไฟล์: `src/services/shopeeApi.js` (เซ็น HMAC-SHA256, token, ออเดอร์/สินค้า/สต็อก, แปลงออเดอร์), `shopee-shop.js` (routes, sync, ต่ออายุ token, ลบข้อมูลตามนโยบาย), `migrations/011-shopee-api.sql`, `public/shopee-api-panel.js` (วิดเจ็ตบนแท็บ Shopee), `test-shopee-api.js` (Shopee ปลอม ไม่ต่อเน็ต)
+- ไฟล์: `src/services/shopeeApi.js` (เซ็น HMAC-SHA256, token, ออเดอร์/สินค้า/สต็อก, แปลงออเดอร์), `shopee-shop.js` (routes, sync, ต่ออายุ token, ลบข้อมูลตามนโยบาย), `migrations/011-shopee-api.sql`, `public/shopee-api-panel.js` (วิดเจ็ตบนแท็บ Shopee), `tests/test-shopee-api.js` (Shopee ปลอม ไม่ต่อเน็ต)
 - `.env`: `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV=sandbox|live` (ค่าอื่น = sandbox), `SHOPEE_REDIRECT_URL` (เช่น `https://dashboard.sksales.app/api/shopee/callback` ต้องอยู่บนโดเมนที่ลงทะเบียนในแอป), ตัวเลือก `SHOPEE_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 90 วัน + ค่าธรรมเนียม + สินค้า; รอบแรก 2 นาทีหลังเปิด server), `SHOPEE_BACKFILL_FROM=YYYY-MM-DD` (ดึงย้อนหลังครั้งเดียวทีละ 92 วัน ทำต่อหลัง restart)
 - Host: sandbox `https://partner.test-stable.shopeemobile.com`, live `https://partner.shopeemobile.com`
 - Sign = HMAC-SHA256(partner_key) hex ตัวเล็ก ของ public: `partner_id + path + timestamp`, shop: `partner_id + path + timestamp + access_token + shop_id` (timestamp เป็นวินาที)

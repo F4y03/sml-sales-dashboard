@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from './auth.js';
-import { createAccessStore } from './src/models/accessStore.js';
+import { installAuth, hashPassword } from '../auth.js';
+import { createAccessStore } from '../src/models/accessStore.js';
 import { fixture, logActions } from './test-security-helpers.js';
-import { makePassword, validatePassword, verifyPassword, hashOnly } from './src/services/passwordService.js';
+import { makePassword, validatePassword, verifyPassword, hashOnly } from '../src/services/passwordService.js';
 
 // ---- Phase 1: hashing + legacy password support ----
 test('bcrypt hashes are used; scrypt, plain-text and bcrypt values all verify', async () => {

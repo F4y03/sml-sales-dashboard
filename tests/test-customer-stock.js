@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installCustomerStock, stockCycles, withInferredSaleCodes } from './customer-stock.js';
-import { installAccess } from './src/middleware/access.js';
+import { installCustomerStock, stockCycles, withInferredSaleCodes } from '../customer-stock.js';
+import { installAccess } from '../src/middleware/access.js';
 
 async function listen(app) {
   const server = app.listen(0, '127.0.0.1');

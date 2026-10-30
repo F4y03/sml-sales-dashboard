@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installProductImages } from './product-images.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installProductImages } from '../product-images.js';
 
 test('unmatched references stay separate, private, and visible even when no imported SML codes remain', async () => {
   const store = createAccessStore();

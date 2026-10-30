@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import {chromium} from '@playwright/test';
-import {excelBuffer,csvValue} from './products.js';
+import {excelBuffer,csvValue} from '../products.js';
 const base=process.env.TEST_URL||'http://localhost:3002';
 const first=await(await fetch(base+'/api/products')).json();assert.ok(first.total>5000);assert.equal(first.rows.length,50);
 const page2=await(await fetch(base+'/api/products?page=1')).json();assert.notEqual(first.rows[0].code,page2.rows[0].code);

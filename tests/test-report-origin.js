@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installReports } from './reports.js';
+import { installReports } from '../reports.js';
 
 test('report requests work behind HTTPS termination and reject cross-site requests', async () => {
   const app = express();

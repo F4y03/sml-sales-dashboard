@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 import express from 'express';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { installAuth, hashPassword } from './auth.js';
+import { installAuth, hashPassword } from '../auth.js';
 const app = express();
 app.use(express.json());
 installAuth(app, { AUTH_USERNAME: 'ui-admin', AUTH_PASSWORD_HASH: await hashPassword('ui-test-password'), AUTH_COOKIE_SECURE: 'false', AUTH_REQUIRE_2FA: 'false' });

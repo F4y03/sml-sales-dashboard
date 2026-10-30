@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { mkdtempSync,writeFileSync,readFileSync,mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { installAuth,hashPassword } from './auth.js';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installAccess } from './src/middleware/access.js';
-import { installAdminRoutes } from './src/routes/adminRoutes.js';
-import { createUserService } from './src/services/userService.js';
-import { loadUser } from './src/services/permissionService.js';
-import { scopeQuery,accessContext,createScopedPool } from './src/services/territoryService.js';
+import { installAuth,hashPassword } from '../auth.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installAccess } from '../src/middleware/access.js';
+import { installAdminRoutes } from '../src/routes/adminRoutes.js';
+import { createUserService } from '../src/services/userService.js';
+import { loadUser } from '../src/services/permissionService.js';
+import { scopeQuery,accessContext,createScopedPool } from '../src/services/territoryService.js';
 
 async function fixture(t){
   mkdirSync('test-results',{recursive:true});const dir=mkdtempSync(resolve('test-results/access-'));const envPath=resolve(dir,'.env');writeFileSync(envPath,'PGHOST=localhost\nPGPORT=5432\nSESSION_SECRET=fixture-only-do-not-return\n');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAuth, hashPassword } from './auth.js';
+import { installAuth, hashPassword } from '../auth.js';
 
 async function fixture(t, overrides = {}) {
   const app = express();

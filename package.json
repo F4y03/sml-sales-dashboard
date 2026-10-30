@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "test:access": "node --test test-auth.js test-rbac.js test-security.js test-2fa.js",
+    "test:access": "node --test tests/test-auth.js tests/test-rbac.js tests/test-security.js tests/test-2fa.js",
     "backup": "node scripts/backup-db.js"
   },
   "engines": {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCSV, summarize, headers, regionFor } from './public/consignment-data.js';
+import { parseCSV, summarize, headers, regionFor } from '../public/consignment-data.js';
 import express from 'express';
 import { chromium } from '@playwright/test';
 const csv = lines => [headers.join(','), ...lines].join('\n');

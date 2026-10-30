@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installProductImages, normalizeImageLink, cleanLinks, nameSimilarity, MIN_NAME_SIMILARITY } from './product-images.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installProductImages, normalizeImageLink, cleanLinks, nameSimilarity, MIN_NAME_SIMILARITY } from '../product-images.js';
 
 const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz012345';
 const view = `https://drive.google.com/file/d/${ID}/view`;

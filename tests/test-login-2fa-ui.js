@@ -2,8 +2,8 @@ import { chromium } from '@playwright/test';
 import express from 'express';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { installAuth, hashPassword } from './auth.js';
-import { totpAt } from './src/services/totpService.js';
+import { installAuth, hashPassword } from '../auth.js';
+import { totpAt } from '../src/services/totpService.js';
 // Super Admin login through the real page: password -> QR/enrol -> recovery codes -> dashboard, then OTP + trusted device on the next login.
 const app = express();
 app.use(express.json());

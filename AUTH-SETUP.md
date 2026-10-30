@@ -44,15 +44,15 @@ npm start
 
 ```powershell
 npm run test:access   # test-auth, test-rbac, test-security, test-2fa
-node test-login-ui.js
-node test-login-2fa-ui.js
+node tests/test-login-ui.js
+node tests/test-login-2fa-ui.js
 ```
 
 UI test ต้องมี Playwright Chromium หรือใช้ Microsoft Edge ที่ติดตั้งไว้:
 
 ```powershell
 $env:PLAYWRIGHT_CHANNEL='msedge'
-node test-login-ui.js
+node tests/test-login-ui.js
 ```
 
 ภาพตรวจหน้าจอเก็บใน `test-results/login-desktop.png` และ `test-results/login-mobile.png` การทดสอบใช้บัญชีชั่วคราวและไม่แก้ไข `.env` หรือฐานข้อมูลจริง
@@ -66,4 +66,4 @@ node test-login-ui.js
 - `price_stock` ที่เปิดให้ทุกคนโดยปริยาย ไม่รวม reviewer
 - หน้าใหม่สำหรับทุกบัญชี: บันทึกการใช้งานของฉัน (`/my-activity.html` + `GET /api/me/activity` เฉพาะแถวของตัวเอง ไม่มี details) และ `/data-protection.html`
 - บัญชีที่ใช้: `shopee_review` (ยกเว้น 2FA รายบัญชี `users.two_factor_exempt=1`) — ปิดบัญชีหลังตรวจเสร็จ
-- ทดสอบ: `node --test test-reviewer-role.js`
+- ทดสอบ: `node --test tests/test-reviewer-role.js`

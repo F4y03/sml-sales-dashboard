@@ -1,8 +1,8 @@
 // History backfill for the TikTok / Lazada APIs: 92-day chunks oldest first, resumable, retries, stops at today.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAccessStore } from './src/models/accessStore.js';
-import { startBackfill } from './src/services/marketplaceBackfill.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { startBackfill } from '../src/services/marketplaceBackfill.js';
 
 function setup({ from = '2025-07-01', today = '2026-01-15', busy = false, connected = true, fail = () => false } = {}) {
   const store = createAccessStore(':memory:', {});

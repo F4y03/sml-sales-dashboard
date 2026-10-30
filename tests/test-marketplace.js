@@ -4,13 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import ExcelJS from 'exceljs';
-import { installAuth, hashPassword } from './auth.js';
-import { createAccessStore } from './src/models/accessStore.js';
-import { installAccess } from './src/middleware/access.js';
-import { createUserService } from './src/services/userService.js';
-import { loadUser } from './src/services/permissionService.js';
-import { installMarketplace, marketplaceSummary } from './marketplace.js';
-import { parseMarketplaceFile, parseDate } from './src/services/marketplaceParser.js';
+import { installAuth, hashPassword } from '../auth.js';
+import { createAccessStore } from '../src/models/accessStore.js';
+import { installAccess } from '../src/middleware/access.js';
+import { createUserService } from '../src/services/userService.js';
+import { loadUser } from '../src/services/permissionService.js';
+import { installMarketplace, marketplaceSummary } from '../marketplace.js';
+import { parseMarketplaceFile, parseDate } from '../src/services/marketplaceParser.js';
 
 const PII = ['ทดสอบ ผู้รับ', '0812345678', '99/1 ถนนทดสอบ', 'buyer@example.com'];
 
@@ -146,7 +146,7 @@ test('Shopee order export: lines grouped per order, ราคาขายสุ�
 
 test('store: re-upload never double counts; summary totals, top products and fee coverage', async () => {
   const store = createAccessStore(':memory:');
-  const { saveMarketplaceUpload } = await import('./marketplace.js');
+  const { saveMarketplaceUpload } = await import('../marketplace.js');
   const user = { id: null, full_name: 'แอดมินทดสอบ' };
   const save = async (platform, buffer, fileName) => saveMarketplaceUpload(store, { platform, fileName, sha256: fileName, user, parsed: await parseMarketplaceFile({ buffer, fileName, platform }) });
   assert.equal((await save('tiktok', Buffer.from(tiktokCsv()), 'tt.csv')).duplicate, false);
@@ -157,7 +157,7 @@ test('store: re-upload never double counts; summary totals, top products and fee
   assert.equal(store.get("SELECT COUNT(*) AS n FROM marketplace_orders WHERE platform='tiktok'").n, 3);
   assert.equal(store.get('SELECT COUNT(*) AS n FROM marketplace_uploads').n, 5);
   // Per-order fees: % = fees ÷ sales, orders without settlement rows stay null (not 0).
-  const { orderFees, feeDetailJson } = await import('./marketplace.js');
+  const { orderFees, feeDetailJson } = await import('../marketplace.js');
   const fees = orderFees(store, { platform: 'all', start: '2026-09-01', end: '2026-09-30' });
   assert.ok(fees.totals.orders > 0 && fees.orders.length === Math.min(fees.totals.orders, 50));
   for (const o of fees.orders) {
@@ -166,7 +166,7 @@ test('store: re-upload never double counts; summary totals, top products and fee
   }
   assert.equal(feeDetailJson({ a: 1.005, b: 0, c: NaN }), '{"a":1}');
   assert.equal(feeDetailJson({}), null);
-  const { orderDetail } = await import('./marketplace.js');
+  const { orderDetail } = await import('../marketplace.js');
   const first = fees.orders.find(o => o.fees !== null) || fees.orders[0];
   const one = orderDetail(store, first.platform, first.orderId);
   assert.deepEqual([one.orderId, one.fees, one.net, one.percent], [first.orderId, first.fees, first.net, first.percent]);
@@ -202,7 +202,7 @@ test('store: re-upload never double counts; summary totals, top products and fee
 
 test('store: deleting an upload removes only the orders and settlements it still owns', async () => {
   const store = createAccessStore(':memory:');
-  const { saveMarketplaceUpload, deleteMarketplaceUpload } = await import('./marketplace.js');
+  const { saveMarketplaceUpload, deleteMarketplaceUpload } = await import('../marketplace.js');
   const user = { id: null, full_name: 'แอดมินทดสอบ' };
   const save = async (platform, buffer, fileName) => saveMarketplaceUpload(store, { platform, fileName, sha256: fileName, user, parsed: await parseMarketplaceFile({ buffer, fileName, platform }) }).uploadId;
   const first = await save('tiktok', Buffer.from(tiktokCsv()), 'tt-1.csv');

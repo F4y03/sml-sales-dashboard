@@ -25,7 +25,7 @@
 
 ```powershell
 $env:TEST_URL='http://localhost:3001'
-node test-reports.js
+node tests/test-reports.js
 ```
 
 ใช้ Chrome ที่ติดตั้งในเครื่องและ @playwright/test ซึ่งอยู่ใน devDependencies การทดสอบปิดคำขอฟอนต์ภายนอกเพื่อไม่ให้การเชื่อมต่อ Google Fonts ทำให้ทดสอบค้าง

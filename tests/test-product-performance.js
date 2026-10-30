@@ -1,10 +1,10 @@
-import { installFixtureIdentity, fixtureIdentity } from './test-support/fixture-identity.js';
+import { installFixtureIdentity, fixtureIdentity } from './support/fixture-identity.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { installProductPerformance, performanceBaseSql, previousPeriod } from './product-performance.js';
+import { installProductPerformance, performanceBaseSql, previousPeriod } from '../product-performance.js';
 
 async function listen(app) {
   const server=app.listen(0,'127.0.0.1'); await new Promise(resolve=>server.once('listening',resolve));

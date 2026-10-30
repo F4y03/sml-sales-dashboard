@@ -5,7 +5,7 @@ import pg from 'pg';
 import ExcelJS from 'exceljs';
 import { chromium, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { installProducts } from './products.js';
+import { installProducts } from '../products.js';
 
 // Run with node --env-file=.env --test test-product-subgroup.js (read-only SML).
 test('subgroups filter products, pagination and exports consistently', async () => {

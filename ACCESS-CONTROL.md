@@ -92,17 +92,17 @@ Activity records logins/failures, logout, switches, user creation/edits/password
 
 ## Files
 
-Added: `migrations/001-access.sql`; `src/config/access.js`; `src/models/accessStore.js`; services `permissionService`, `passwordService`, `userService`, `territoryService`, `auditService`, `settingsService`; `src/middleware/access.js`; `src/routes/adminRoutes.js`; admin/territory/access-denied pages, scripts and `public/access-ui.css`; `test-rbac.js`, `test-access-ui.js`, `verify-access.js`.
+Added: `migrations/001-access.sql`; `src/config/access.js`; `src/models/accessStore.js`; services `permissionService`, `passwordService`, `userService`, `territoryService`, `auditService`, `settingsService`; `src/middleware/access.js`; `src/routes/adminRoutes.js`; admin/territory/access-denied pages, scripts and `public/access-ui.css`; `tests/test-rbac.js`, `tests/test-access-ui.js`, `verify-access.js`.
 
-Updated: `auth.js`, `server.js`, `scripts/setup-auth.js`, `public/login.js`, `public/workspace-nav.js`, `public/customers-ui.js`, `test-auth.js`, package manifest/lock, `.gitignore`, auth documentation. Existing customer/product/theme/navigation tests now use `test-support/fixture-identity.js` to model an authenticated Executive. The original page layouts, theme, navigation and login form are reused.
+Updated: `auth.js`, `server.js`, `scripts/setup-auth.js`, `public/login.js`, `public/workspace-nav.js`, `public/customers-ui.js`, `tests/test-auth.js`, package manifest/lock, `.gitignore`, auth documentation. Existing customer/product/theme/navigation tests now use `tests/support/fixture-identity.js` to model an authenticated Executive. The original page layouts, theme, navigation and login form are reused.
 
 ## Verification
 
 ```powershell
 npm run test:access
 $env:PLAYWRIGHT_CHANNEL='msedge'
-node test-access-ui.js
-node test-login-ui.js
+node tests/test-access-ui.js
+node tests/test-login-ui.js
 node --env-file=.env verify-access.js
 ```
 
