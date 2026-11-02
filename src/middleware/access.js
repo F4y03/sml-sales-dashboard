@@ -37,6 +37,8 @@ export function installAccess(app) {
       return CUSTOMER_STOCK_ROLES.includes(req.auth.role)&&req.auth.scope!=='territory'?next():forbidden();
     // Proxied product-sheet tool: viewing is public, editing the product workbook is super_admin only.
     if(path==='/product-sheet'||path.startsWith('/product-sheet/'))return isProductSheetPublicRead(req)||req.auth.role==='super_admin'?next():forbidden();
+    // หน้าตรวจหมวดสินค้า (proxied tool, no SML data): Super Admin, or users given category_preview; not in the side menu.
+    if(path==='/category-preview'||path.startsWith('/category-preview/'))return hasPermission(req.auth,'category_preview')?next():forbidden();
     if(path.startsWith('/api/admin/'))return next(); // Route-specific middleware is mandatory below.
     if(path==='/api/connection-status')return next();
     // ดาวน์โหลดข้อมูลสินค้าเป็นสิทธิ์แยก (Super Admin มีเสมอ) ต้องกันที่ API ด้วย ไม่ใช่แค่ซ่อนปุ่ม

@@ -26,6 +26,7 @@ import { createScopedPool } from './src/services/territoryService.js';
 import { installAccess } from './src/middleware/access.js';
 import { installSelfRoutes } from './src/routes/selfRoutes.js';
 import { installProductSheetProxy } from './src/routes/productSheetProxy.js';
+import { installCategoryPreviewProxy } from './src/routes/categoryPreviewProxy.js';
 import { installAdminRoutes } from './src/routes/adminRoutes.js';
 
 const app = express();
@@ -48,6 +49,7 @@ const auth = installAuth(app, process.env, accessStore);
 installAccess(app);
 installSelfRoutes(app, accessStore);
 installProductSheetProxy(app, { store: accessStore });
+installCategoryPreviewProxy(app);
 installAdminRoutes(app, accessStore, auth.audit, fileURLToPath(new URL('./.env', import.meta.url)), auth.twofa);
 app.get('/api/connection-status', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
