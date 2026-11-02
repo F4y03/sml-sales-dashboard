@@ -4,20 +4,40 @@ import http from 'node:http';
 // Its team edits and CSVs live outside Git in CATEGORY_DATA_DIR (default C:\category-preview).
 // Needs a dashboard login (installAccess). Not in the side menu: open the link directly.
 // The editor name written to its history is always the signed-in dashboard user, not what the page sends.
-// The dashboard session cookie is never forwarded. The tool does not use SML.
-const ROUTES = new Set(['GET /', 'GET /api/edits', 'GET /api/log', 'GET /download/all.csv', 'GET /download/categories.csv', 'GET /download/prices.csv',
+// The dashboard session cookie is never forwarded. The tool itself has no SML access: the dashboard adds
+// /api/sml-status (read-only: codes ticked เลิกผลิต / หยุดขาย / หยุดซื้อ in SML tab 8.สถานะ) and splits the
+// product CSV into ?status=active / ?status=stopped with it.
+const ROUTES = new Set(['GET /', 'GET /api/edits', 'GET /api/sml-status', 'GET /api/log', 'GET /download/all.csv', 'GET /download/categories.csv', 'GET /download/prices.csv',
   'POST /api/edit', 'POST /api/revert', 'POST /api/log/delete']);
 const RETURN = ['content-type', 'content-disposition'];
 const editorName = auth => String(auth.full_name || auth.username || '').trim().slice(0, 40);
+const STOPPED_SQL = 'SELECT DISTINCT ic_code FROM ic_inventory_detail WHERE is_end=1 OR is_hold_sale=1 OR is_hold_purchase=1';
+const parseCsv = t => { const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < t.length; i++) { const ch = t[i];
+    if (q) { if (ch === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+    else if (ch === '"') q = true; else if (ch === ',') { row.push(f); f = ''; }
+    else if (ch === '\n') { row.push(f.replace(/\r$/, '')); rows.push(row); row = []; f = ''; } else f += ch; }
+  if (f || row.length) { row.push(f); rows.push(row); } return rows; };
+const csvText = rows => '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
 const sameOrigin = req => { try { return new URL(req.get('Origin')).host === req.get('Host') && req.get('Sec-Fetch-Site') !== 'cross-site'; } catch { return false; } };
 
-export function installCategoryPreviewProxy(app, { host = '127.0.0.1', port = 3010 } = {}) {
+export function installCategoryPreviewProxy(app, { host = '127.0.0.1', port = 3010, sml } = {}) {
+  let cache = null; // { at, codes } kept 5 minutes
+  const stoppedCodes = async () => {
+    if (cache && Date.now() - cache.at < 300000) return cache;
+    const { rows } = await sml.query(STOPPED_SQL);
+    return cache = { at: Date.now(), codes: rows.map(r => String(r.ic_code).trim()) };
+  };
   app.use('/category-preview', (req, res) => {
     const path = req.path.toLowerCase();
     // The page uses relative URLs, so it must be served with the trailing slash.
     if (!/^\/category-preview\//i.test(req.originalUrl)) return res.redirect(302, '/category-preview/');
     if (!ROUTES.has(req.method + ' ' + path)) return res.status(404).type('html').send('<meta charset="utf-8"><p>ไม่พบหน้านี้</p>');
     if (!req.auth) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ', code: 'AUTH_REQUIRED' });
+    if (path === '/api/sml-status') return stoppedCodes()
+      .then(c => res.set('Cache-Control', 'no-store').json({ checkedAt: new Date(c.at).toISOString(), stopped: c.codes }))
+      .catch(() => res.status(503).json({ error: 'อ่านสถานะสินค้าจาก SML ไม่ได้' }));
+    const split = path === '/download/all.csv' && ['active', 'stopped'].includes(req.query.status) ? req.query.status : '';
     let body;
     if (req.method === 'POST') {
       if (!sameOrigin(req)) return res.status(403).json({ error: 'คำขอไม่ถูกต้อง กรุณารีเฟรชหน้าแล้วลองใหม่' });
@@ -27,6 +47,20 @@ export function installCategoryPreviewProxy(app, { host = '127.0.0.1', port = 30
     const upstream = http.request({ host, port, method: req.method, path: req.url, headers }, up => {
       res.status(up.statusCode || 502).set('Cache-Control', 'no-store');
       for (const name of RETURN) if (up.headers[name] !== undefined) res.set(name, up.headers[name]);
+      if (split) {
+        // Products still sold vs. ticked เลิกผลิต / หยุดขาย / หยุดซื้อ in SML; never sent unsplit if SML cannot be read.
+        const chunks = [];
+        up.on('data', c => chunks.push(c));
+        up.on('end', () => stoppedCodes().then(({ codes }) => {
+          if ((up.statusCode || 502) !== 200) return res.end(Buffer.concat(chunks));
+          const stopped = new Set(codes), rows = parseCsv(Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '')).filter(r => r.length > 1 || r[0]);
+          const col = rows[0].indexOf('รหัสสินค้า');
+          const keep = rows.slice(1).filter(r => stopped.has(String(r[col]).trim()) === (split === 'stopped'));
+          res.set('Content-Disposition', String(res.get('Content-Disposition') || '').replace('products-all-', split === 'stopped' ? 'products-stopped-' : 'products-active-'));
+          res.send(csvText([rows[0], ...keep]));
+        }).catch(() => res.status(503).set('Content-Disposition', 'inline').type('html').send('<meta charset="utf-8"><p>อ่านสถานะสินค้าจาก SML ไม่ได้ จึงยังแยกไฟล์ไม่ได้ กรุณาลองใหม่</p>')));
+        return;
+      }
       if (path !== '/') return up.pipe(res);
       // Page: fill in and lock the editor name box with the dashboard user.
       const chunks = [];
