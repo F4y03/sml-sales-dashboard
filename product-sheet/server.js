@@ -585,6 +585,8 @@ function applyImageLinks(tab) {
       const override = overrides[tab.getCell(row, skuColumn).text.trim().toLocaleLowerCase()];
       if (override?.images?.length)
         tab.getCell(row, imageColumn).value = override.images.map((id) => `https://drive.google.com/file/d/${id}/view`).join(", ");
+      // removeAll: รูปเดิมใน Excel ผิดสินค้า และยังไม่มีรูปที่ถูก → ไม่ใส่รูปเลย
+      else if (override?.removeAll) tab.getCell(row, imageColumn).value = "";
     }
   if (imageColumn)
     for (let row = 2; row <= tab.rowCount; row++) {
