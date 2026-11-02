@@ -60,7 +60,7 @@ label.ck{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:cent
 <div class="wrap">
 <div class="eyebrow">— PRODUCTS</div><h1>สินค้า</h1>
 <p class="sub">กดหมวดทางซ้ายเพื่อไล่ตรวจ · ✏️ แก้ไข = เปลี่ยนหมวด/ราคาแล้วบันทึก · กรอบเขียว = แก้ไขแล้ว · กรอบเหลือง = ตัวที่ระบบแก้ด้วยกฎพิเศษ</p>
-<div class="layout"><aside><h3 class="tree-head">หมวดหมู่สินค้า<span class="cnt" id="treeTotal" title="สินค้าทั้งหมด (นับรหัสละครั้ง)"></span></h3><div id="tree"></div></aside>
+<div class="layout"><aside><h3 class="tree-head">หมวดหมู่สินค้า<span class="cnt" id="treeTotal" title="สินค้าตามตัวกรองรูป/แก้แล้ว/หมายเหตุ (นับรหัสละครั้ง)"></span></h3><div id="tree"></div></aside>
 <main><div class="bar"><input id="q" placeholder="ค้นหาชื่อ หรือรหัสสินค้า…"><span class="chip" id="chip">ทั้งหมด</span>
 <button class="btn" id="clr">ล้างทั้งหมด</button><button class="btn" id="logb">📜 ประวัติการแก้ไข (<span id="nlog">0</span>)</button>
 <label class="ck"><input type="checkbox" id="fe">เฉพาะที่แก้แล้ว (<span id="ned">0</span>)</label>
@@ -83,8 +83,9 @@ const effPrice=pr=>EDITS[pr.s]?(EDITS[pr.s].price):pr.p;
 const inCat=(pr,c)=>effCats(pr).some(l=>l===c||l.startsWith(c+" > "));
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function buildTree(){const tr=$("tree");tr.innerHTML="";$("treeTotal").textContent="ทั้งหมด "+P.length.toLocaleString("th-TH");const openSet=new Set([...document.querySelectorAll(".kids.open")].map(k=>k.dataset.p));
- const node=p=>{const name=p.split(" > ").pop();const ch=kids[p]||[];const n=P.filter(pr=>inCat(pr,p)).length;
+function passF(pr){return (!$("fl").checked||pr.m)&&(!$("fe").checked||EDITS[pr.s])&&(!$("fi").value||($("fi").value==="y")===!!pr.i)}
+function buildTree(){const tr=$("tree");tr.innerHTML="";$("treeTotal").textContent="ทั้งหมด "+P.filter(passF).length.toLocaleString("th-TH");const openSet=new Set([...document.querySelectorAll(".kids.open")].map(k=>k.dataset.p));
+ const node=p=>{const name=p.split(" > ").pop();const ch=kids[p]||[];const n=P.filter(pr=>passF(pr)&&inCat(pr,p)).length;
   const row=document.createElement("div");row.className="cat"+(n?"":" zero");row.dataset.p=p;
   row.innerHTML='<span><span class="tog">'+(ch.length?"›":"")+'</span>'+esc(name)+'</span><span class="cnt">'+n+'</span>';
   const box=document.createElement("div");box.className="kids";box.dataset.p=p;if(openSet.has(p))box.classList.add("open");ch.forEach(c=>box.appendChild(node(c)));
@@ -102,7 +103,7 @@ function editor(pr){const cs=EDITS[pr.s]?.cats||pr.c;return '<div class="ed" dat
  '<div class="msg"></div><div class="acts"><button class="btn red sv">บันทึก</button><button class="btn cc">ยกเลิก</button></div></div>'}
 function render(){document.querySelectorAll(".cat").forEach(x=>x.classList.toggle("on",x.dataset.p===sel));
  $("chip").textContent=sel?("หมวด: "+sel):"ทั้งหมด";const q=$("q").value.trim().toLowerCase();
- const list=P.filter(pr=>(!sel||inCat(pr,sel))&&(!q||pr.n.toLowerCase().includes(q)||pr.s.toLowerCase().includes(q))&&(!$("fl").checked||pr.m)&&(!$("fe").checked||EDITS[pr.s])&&(!$("fi").value||($("fi").value==="y")===!!pr.i));
+ const list=P.filter(pr=>(!sel||inCat(pr,sel))&&(!q||pr.n.toLowerCase().includes(q)||pr.s.toLowerCase().includes(q))&&passF(pr));
  $("ned").textContent=Object.keys(EDITS).length;$("nlog").textContent=LOG.length;
  $("cnt").textContent="พบ "+list.length+" รายการ";
  $("grid").innerHTML=list.slice(0,shown).map(pr=>{const ed=EDITS[pr.s];return '<div class="card'+(pr.m?" flag":"")+(ed?" edited":"")+'"><div class="ph">'+(pr.i?'<img loading="lazy" src="'+pr.i+'=w400" alt="">':'ไม่มีรูป')+'</div><div class="body">'+
@@ -142,7 +143,7 @@ function confirmWho(){if($("who").value.trim())return true;alert("ใส่ช�
 async function post(url,body){try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();
  if(!r.ok){alert(j.error||"ไม่สำเร็จ");return}EDITS=j.edits;if(j.log)LOG=j.log;buildTree();render();renderLog()}catch{alert("ติดต่อเครื่องผู้ดูแลไม่ได้")}}
 $("logb").onclick=()=>$("logbox").classList.toggle("open");
-$("q").oninput=()=>{shown=60;render()};$("fl").onchange=()=>{shown=60;render()};$("fe").onchange=()=>{shown=60;render()};$("fi").onchange=()=>{shown=60;render()};
+$("q").oninput=()=>{shown=60;render()};$("fl").onchange=()=>{shown=60;buildTree();render()};$("fe").onchange=()=>{shown=60;buildTree();render()};$("fi").onchange=()=>{shown=60;buildTree();render()};
 $("clr").onclick=()=>{sel="";$("q").value="";$("fl").checked=false;$("fe").checked=false;$("fi").value="";shown=60;render()};
 $("more").onclick=()=>{shown+=60;render()};buildTree();render();load();
 if(location.protocol==="file:"){const w=document.createElement("div");w.style.cssText="background:#f5b301;color:#000;padding:10px 16px;font-weight:500";
