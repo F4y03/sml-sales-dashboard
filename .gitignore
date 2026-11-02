@@ -23,3 +23,8 @@ certs/
 
 # Server logs (scheduled task)
 logs/
+
+# Category preview: team edits and CSVs live in CATEGORY_DATA_DIR, never in Git
+tools/category-preview/*.json
+tools/category-preview/*.jsonl
+tools/category-preview/*.csv

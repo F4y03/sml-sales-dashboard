@@ -1,6 +1,7 @@
 import http from 'node:http';
 
-// Exposes the local-only category review tool (C:\category-preview, 127.0.0.1:3010) at /category-preview/.
+// Exposes the local-only category review tool (tools/category-preview, 127.0.0.1:3010) at /category-preview/.
+// Its team edits and CSVs live outside Git in CATEGORY_DATA_DIR (default C:\category-preview).
 // Needs a dashboard login (installAccess). Not in the side menu: open the link directly.
 // The editor name written to its history is always the signed-in dashboard user, not what the page sends.
 // The dashboard session cookie is never forwarded. The tool does not use SML.
