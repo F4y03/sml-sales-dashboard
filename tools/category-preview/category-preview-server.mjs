@@ -3,9 +3,9 @@
 // การแก้ไข: <CATEGORY_DATA_DIR>/category-edits.json (ค่าล่าสุดต่อรหัส)
 // ประวัติ:   <CATEGORY_DATA_DIR>/category-edit-log.jsonl (หนึ่งบรรทัดต่อการแก้ หนึ่งช่อง)
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, appendFileSync, existsSync, renameSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync, renameSync, copyFileSync, mkdirSync } from "node:fs";
 import { networkInterfaces } from "node:os";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
 // Program files sit next to this script (in Git); team edits and CSVs live in CATEGORY_DATA_DIR (not in Git).
 const DATA = pathToFileURL((process.env.CATEGORY_DATA_DIR || "C:/category-preview").replace(/[\\/]*$/, "/"));
@@ -17,6 +17,10 @@ const IMPORT_CSV = new URL("./all-categories-import.csv", DATA);
 const PRICE_CSV = new URL("./all-price-updates.csv", DATA);
 const PRODUCTS_CSV = new URL("./products-ALL_2026-10-30_TH.csv", DATA);
 const PORT = Number(process.env.CATEGORY_PORT) || 3010;
+// A new server has no data folder yet: create it, and name the files that still have to be copied in.
+mkdirSync(DATA, { recursive: true });
+const missingFiles = () => [IMPORT_CSV, PRICE_CSV, PRODUCTS_CSV].filter((u) => !existsSync(u)).map((u) => decodeURIComponent(u.pathname.split("/").pop()));
+if (missingFiles().length) console.warn("ยังไม่มีไฟล์ข้อมูลใน", fileURLToPath(DATA) + ":", missingFiles().join(", "));
 
 // ---- เขียนผลการแก้ลง CSV ทันที ----
 const parseCsv = (t) => { t = t.replace(/^﻿/, ""); const rows = []; let row = [], f = "", q = false;
@@ -127,7 +131,10 @@ createServer((req, res) => {
         if (catsToWrite) writeCategoryCsv(sku, catsToWrite);
         writePriceCsv(edits);
       } catch {
-        json(500, { error: "เขียนไฟล์ CSV ไม่ได้ (ปิดไฟล์ใน Excel ก่อน) — ยังไม่ได้บันทึก" });
+        const missing = missingFiles();
+        json(500, { error: missing.length
+          ? `ไม่พบไฟล์ข้อมูลในโฟลเดอร์ ${fileURLToPath(DATA)} (${missing.join(", ")}) — ยังไม่ได้บันทึก`
+          : "เขียนไฟล์ CSV ไม่ได้ (ปิดไฟล์ใน Excel ก่อน) — ยังไม่ได้บันทึก" });
         return false;
       }
       saveEdits(edits);
