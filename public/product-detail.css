@@ -40,6 +40,14 @@ html.pd-scroll-lock {
 }
 
 /* ---------- table thumbnail ---------- */
+/* Keep the header row above the row photos (absolute imgs) when the table scrolls under it. */
+.product-panel thead {
+  position: relative;
+  z-index: 2;
+}
+.product-panel thead th {
+  z-index: 2;
+}
 .product-panel .thumb-cell {
   width: 46px;
   padding-top: 6px;
