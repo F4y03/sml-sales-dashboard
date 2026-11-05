@@ -51,7 +51,7 @@ export function installMarketplace(app, store, audit) {
   });
 
   const canSeeShops = req => ['marketplace_upload', 'marketplace_view'].some(p => hasPermission(req.auth, p));
-  const listShops = () => store.all('SELECT id,name,active FROM marketplace_shops ORDER BY active DESC,name');
+  const listShops = () => store.all('SELECT id,name,active FROM marketplace_shops ORDER BY active DESC,id'); // oldest (main) shop first: pickers default to it
   const shopName = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
 
   app.get('/api/marketplace/shops', (req, res) => {

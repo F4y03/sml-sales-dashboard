@@ -510,5 +510,17 @@
 
   selectTab(platform);
   applyPreset('latest');
-  load();
+  // With several shops the page opens on the main (oldest) shop, not "all shops"; "ทุกร้าน" stays one click away.
+  fetch('/api/marketplace/shops', { cache: 'no-store' })
+    .then(r => (r.ok ? r.json() : null))
+    .then(data => {
+      const active = (data?.shops || []).filter(s => s.active);
+      if (active.length < 2 || shopFilter.value !== 'all') return;
+      const main = String(active[0].id);
+      if (![...shopFilter.options].some(o => o.value === main)) shopFilter.append(new Option(active[0].name, main));
+      shopFilter.value = main;
+      followShop(main);
+    })
+    .catch(() => {}) // no shop list: open on all shops as before
+    .finally(load);
 })();

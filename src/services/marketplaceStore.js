@@ -133,7 +133,7 @@ export function marketplaceSummary(store, { platform, start, end, shop = 'all' }
   // that still have orders on this platform. The dashboard hides the shop filter when there is only one.
   const shops = store.all(`SELECT s.id,s.name,s.active FROM marketplace_shops s WHERE s.active=1
       OR EXISTS(SELECT 1 FROM marketplace_orders o WHERE o.shop_id=s.id AND (? = 'all' OR o.platform = ?))
-    ORDER BY s.name`, platform, platform);
+    ORDER BY s.active DESC,s.id`, platform, platform); // oldest (main) shop first, as in /api/marketplace/shops
   return { platform, shop: shopId ?? 'all', start, end, bounds, shops, platforms, statuses, daily, topProducts: topProducts.map(({ productKey, ...row }) => ({ ...row, platforms: String(row.platforms || '').split(',') })), provinces };
 }
 
