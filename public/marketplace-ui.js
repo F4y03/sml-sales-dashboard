@@ -481,7 +481,17 @@
     if (startInput.value && endInput.value && startInput.value <= endInput.value) dateTimer = setTimeout(load, 400);
   });
   form.addEventListener('submit', event => { event.preventDefault(); load(); });
-  shopFilter.addEventListener('change', load);
+  // The connect-to-shop pickers in the API widgets (TikTok / Lazada / Shopee) and the shop filter follow each other:
+  // picking a shop in either place shows that shop's figures and connects the next login to it.
+  const connectPickers = ['shop-select', 'lazada-shop-select', 'shopee-shop-select'].map($).filter(Boolean);
+  const followShop = value => connectPickers.forEach(p => { if ([...p.options].some(o => o.value === value)) p.value = value; });
+  shopFilter.addEventListener('change', () => { if (shopFilter.value !== 'all') followShop(shopFilter.value); load(); });
+  for (const picker of connectPickers) picker.addEventListener('change', () => {
+    if (![...shopFilter.options].some(o => o.value === picker.value)) shopFilter.append(new Option(picker.selectedOptions[0]?.textContent || '', picker.value));
+    shopFilter.value = picker.value;
+    followShop(picker.value);
+    load();
+  });
   window.addEventListener('hashchange', () => {
     const name = location.hash.slice(1);
     if (name !== platform && (name === 'all' || PLATFORMS.includes(name))) { selectTab(name); load(); }

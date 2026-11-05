@@ -109,7 +109,7 @@ export function installMarketplace(app, store, audit) {
     const fees = ['with', 'without'].includes(req.query.fees) ? req.query.fees : 'all';
     const page = Math.max(0, Math.min(100000, Number.parseInt(req.query.page, 10) || 0)), size = 10;
     if (platform !== 'all' && !PLATFORMS[platform]) return res.status(400).json({ error: 'แพลตฟอร์มไม่ถูกต้อง' });
-    if (shop !== 'all' && !/^[1-9]d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
+    if (shop !== 'all' && !/^[1-9]\d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
     if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน' });
     const minDate = isReviewer(req.auth.role) ? reviewerFloor() : null;
     if (minDate && start < minDate) start = minDate;

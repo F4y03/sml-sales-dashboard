@@ -17,6 +17,18 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 const SYSTEM_USER = { id: null, full_name: 'ระบบ (TikTok API)' };
 
+// TikTok in-house apps from .env. An in-house app can only be authorised by its own seller's shops, so each seller company
+// gets its own app: TIKTOK_APP_KEY / _SECRET / TIKTOK_SERVICE_ID (id '') and the same names ending _2 … _9 (id '2' … '9').
+// TIKTOK_APP_SHOP_<n> = dashboard shop name that app connects; shops without their own app use the unsuffixed one.
+export function tiktokApps(env) {
+  const apps = [];
+  for (const suffix of ['', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9']) {
+    const key = env['TIKTOK_APP_KEY' + suffix], secret = env['TIKTOK_APP_SECRET' + suffix], service = env['TIKTOK_SERVICE_ID' + suffix];
+    if (key && secret && service) apps.push({ id: suffix.slice(1), key, secret, service, shop: String(env['TIKTOK_APP_SHOP' + suffix] || '').trim().toLowerCase() });
+  }
+  return apps;
+}
+
 // Returns a usable access token, refreshing (and saving) it when it is close to expiry.
 function accessTokenFor(store, client, vault, conn, now = Date.now()) {
   // One refresh at a time per shop, from the latest saved token (see marketplaceTokens.js).
@@ -65,15 +77,35 @@ export async function syncTikTokShop(store, client, vault, { conn, start, end, u
 export function installTikTokShop(app, store, audit, env = process.env, { fetchImpl } = {}) {
   const vault = createSecretVault(env, store.path);
   const autoMinutes = Number(env.TIKTOK_AUTO_SYNC_MINUTES || 0);
-  const configured = () => !!(env.TIKTOK_APP_KEY && env.TIKTOK_APP_SECRET && env.TIKTOK_SERVICE_ID);
-  const client = () => createTikTokClient({ appKey: env.TIKTOK_APP_KEY, appSecret: env.TIKTOK_APP_SECRET, ...(fetchImpl && { fetchImpl }) });
+  const apps = tiktokApps(env);
+  const configured = () => apps.length > 0;
+  const appById = id => apps.find(a => a.id === String(id ?? ''));
+  // The app a dashboard shop connects through: the one named for it, else the unsuffixed default.
+  const appForShop = name => apps.find(a => a.shop && a.shop === String(name || '').trim().toLowerCase()) || appById('');
+  const clients = new Map();
+  const clientFor = app => {
+    if (!clients.has(app.id)) clients.set(app.id, createTikTokClient({ appKey: app.key, appSecret: app.secret, ...(fetchImpl && { fetchImpl }) }));
+    return clients.get(app.id);
+  };
   const connections = () => store.all('SELECT * FROM tiktok_connections ORDER BY shop_name');
   let running = null;
   const runSync = (start, end, user) => {
     if (running) throw new TikTokApiError('กำลังดึงข้อมูล TikTok อยู่ กรุณารอสักครู่');
     running = (async () => {
-      const c = client();
-      for (const conn of connections()) await syncTikTokShop(store, c, vault, { conn, start, end, user });
+      // One shop failing (e.g. its token expired) must not stop the others; the first error is reported after all ran.
+      let firstError = null;
+      for (const conn of connections()) {
+        const app = appById(conn.app);
+        try {
+          if (!app) {
+            const message = `ไม่พบแอป TikTok ของร้านนี้ใน .env (TIKTOK_APP_KEY${conn.app ? '_' + conn.app : ''}) กรุณาตรวจการตั้งค่า`;
+            store.run('UPDATE tiktok_connections SET last_sync_error=? WHERE tiktok_shop_id=?', message, conn.tiktok_shop_id);
+            throw new TikTokApiError(message);
+          }
+          await syncTikTokShop(store, clientFor(app), vault, { conn, start, end, user });
+        } catch (error) { firstError ??= error; }
+      }
+      if (firstError) throw firstError;
     })().finally(() => { running = null; });
     return running;
   };
@@ -91,21 +123,23 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
   app.get('/api/tiktok/connect', requireSuperAdmin, (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (!configured()) return back(res, 'not-configured');
-    let active = store.all('SELECT id FROM marketplace_shops WHERE active=1');
+    let active = store.all('SELECT id,name FROM marketplace_shops WHERE active=1');
     if (!active.length) { // first use from this page: create the dashboard shop the orders are saved under
       if (store.get('SELECT 1 FROM marketplace_shops WHERE name=?', 'TikTok')) return back(res, 'no-dashboard-shop');
       const id = Number(store.run('INSERT INTO marketplace_shops(name,active,created_at) VALUES(?,1,?)', 'TikTok', new Date().toISOString()).lastInsertRowid);
       audit.record(req.auth, 'marketplace.shop_create', 'marketplace', { id, name: 'TikTok' }, null, req.socket.remoteAddress);
-      active = [{ id }];
+      active = [{ id, name: 'TikTok' }];
     }
     const shop = req.query.shop ? active.find(s => s.id === Number(req.query.shop)) : active.length === 1 ? active[0] : null;
     if (!shop) return back(res, 'choose-shop');
+    const app = appForShop(shop.name);
+    if (!app) return back(res, 'no-app');
     const state = randomBytes(32).toString('hex');
     store.transaction(() => {
       store.run('DELETE FROM tiktok_oauth_states WHERE expires<=?', Date.now());
-      store.run('INSERT INTO tiktok_oauth_states VALUES(?,?,?,?)', digest(state), req.auth.id, shop.id, Date.now() + STATE_MS);
+      store.run('INSERT INTO tiktok_oauth_states(state_hash,user_id,shop_id,expires,app) VALUES(?,?,?,?,?)', digest(state), req.auth.id, shop.id, Date.now() + STATE_MS, app.id);
     });
-    res.redirect(303, client().authorizeUrl(env.TIKTOK_SERVICE_ID, state));
+    res.redirect(303, clientFor(app).authorizeUrl(app.service, state));
   });
 
   // TikTok sends the browser back here after the seller approves (TikTok Partner Center › Redirect URL).
@@ -116,21 +150,23 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     if (saved) store.run('DELETE FROM tiktok_oauth_states WHERE state_hash=?', saved.state_hash);
     if (!saved || saved.expires <= Date.now() || saved.user_id !== req.auth.id) return back(res, 'expired');
     if (!code || code.length > 2048) return back(res, 'denied');
+    const app = appById(saved.app);
+    if (!app) return back(res, 'no-app');
     let step = 'client';
     try {
-      const c = client();
+      const c = clientFor(app);
       step = 'token'; const t = await c.exchangeCode(code);
       step = 'shops'; const shops = await c.shops(t.accessToken);
       if (!shops.length) return back(res, 'no-shop');
       const at = new Date().toISOString();
       store.transaction(() => {
-        for (const s of shops) store.run(`INSERT INTO tiktok_connections(tiktok_shop_id,shop_cipher,shop_name,shop_id,access_token,access_expires,refresh_token,refresh_expires,connected_by,connected_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tiktok_shop_id) DO UPDATE SET shop_cipher=excluded.shop_cipher,shop_name=excluded.shop_name,shop_id=excluded.shop_id,
+        for (const s of shops) store.run(`INSERT INTO tiktok_connections(tiktok_shop_id,shop_cipher,shop_name,shop_id,access_token,access_expires,refresh_token,refresh_expires,connected_by,connected_at,app)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(tiktok_shop_id) DO UPDATE SET shop_cipher=excluded.shop_cipher,shop_name=excluded.shop_name,shop_id=excluded.shop_id,app=excluded.app,
           access_token=excluded.access_token,access_expires=excluded.access_expires,refresh_token=excluded.refresh_token,refresh_expires=excluded.refresh_expires,
           connected_by=excluded.connected_by,connected_at=excluded.connected_at,last_sync_error=NULL`,
-          s.id, s.cipher, s.name.slice(0, 120), saved.shop_id, vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, req.auth.id, at);
+          s.id, s.cipher, s.name.slice(0, 120), saved.shop_id, vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, req.auth.id, at, app.id);
       });
-      audit.record(req.auth, 'tiktok.connect', 'marketplace', { shops: shops.map(s => s.name), shopId: saved.shop_id }, null, req.socket.remoteAddress);
+      audit.record(req.auth, 'tiktok.connect', 'marketplace', { shops: shops.map(s => s.name), shopId: saved.shop_id, app: app.id || 'default' }, null, req.socket.remoteAddress);
       back(res, 'connected');
     } catch (error) {
       console.error(`TikTok connect failed at ${step}:`, error.code || error.name, String(error.message || '').slice(0, 200));

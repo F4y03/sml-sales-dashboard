@@ -16,6 +16,7 @@
     'not-configured': ['error', 'ยังไม่ได้ใส่ TIKTOK_APP_KEY / TIKTOK_APP_SECRET / TIKTOK_SERVICE_ID ใน .env ของเซิร์ฟเวอร์'],
     'no-dashboard-shop': ['error', 'ยังไม่มีร้านในระบบ กรุณาเพิ่มร้าน (เช่น "TikTok") ที่หน้า "อัปโหลดไฟล์ยอดขาย" › จัดการร้าน ก่อนกดเชื่อมต่อ'],
     'choose-shop': ['error', 'มีหลายร้านในระบบ กรุณาเลือกร้านก่อนกดเชื่อมต่อ'],
+    'no-app': ['error', 'ยังไม่มีแอป TikTok สำหรับร้านนี้ใน .env (ใส่ TIKTOK_APP_KEY_2 / TIKTOK_APP_SECRET_2 / TIKTOK_SERVICE_ID_2 / TIKTOK_APP_SHOP_2=ชื่อร้าน แล้วรีสตาร์ทเซิร์ฟเวอร์)'],
     expired: ['error', 'ลิงก์เชื่อมต่อหมดอายุหรือถูกใช้ไปแล้ว กรุณากดเชื่อมต่อใหม่'],
     denied: ['error', 'ไม่ได้รับอนุญาตจาก TikTok กรุณาลองใหม่'],
     'no-shop': ['error', 'บัญชี TikTok นี้ไม่มีร้านที่อนุญาตให้แอปเข้าถึง'],

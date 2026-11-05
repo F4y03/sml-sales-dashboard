@@ -129,9 +129,11 @@ export function marketplaceSummary(store, { platform, start, end, shop = 'all' }
     WHERE ${where} AND o.status IN ${SOLD} AND o.province IS NOT NULL GROUP BY o.province ORDER BY sales DESC LIMIT 10`, ...p);
   const bounds = store.get(`SELECT MIN(order_date) AS first,MAX(order_date) AS last,(SELECT MAX(created_at) FROM marketplace_uploads) AS lastUploadAt
     FROM marketplace_orders WHERE (? = 'all' OR platform = ?) AND (? IS NULL OR shop_id = ?)`, platform, platform, shopId, shopId);
-  // Shops that have orders: the dashboard hides the shop filter when there is only one.
-  const shops = store.all(`SELECT DISTINCT s.id,s.name,s.active FROM marketplace_shops s JOIN marketplace_orders o ON o.shop_id=s.id
-    WHERE (? = 'all' OR o.platform = ?) ORDER BY s.name`, platform, platform);
+  // Active shops (even before their first order, so a new shop can be picked and shows empty) plus closed shops
+  // that still have orders on this platform. The dashboard hides the shop filter when there is only one.
+  const shops = store.all(`SELECT s.id,s.name,s.active FROM marketplace_shops s WHERE s.active=1
+      OR EXISTS(SELECT 1 FROM marketplace_orders o WHERE o.shop_id=s.id AND (? = 'all' OR o.platform = ?))
+    ORDER BY s.name`, platform, platform);
   return { platform, shop: shopId ?? 'all', start, end, bounds, shops, platforms, statuses, daily, topProducts: topProducts.map(({ productKey, ...row }) => ({ ...row, platforms: String(row.platforms || '').split(',') })), provinces };
 }
 

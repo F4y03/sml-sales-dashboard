@@ -55,6 +55,7 @@
 - ไฟล์: `src/services/tiktokShopApi.js` (เซ็นคำขอ, token, ค้นออเดอร์/คืนสินค้า, แปลงออเดอร์), `src/routes/tiktok-shop.js` (routes + sync), `migrations/009-tiktok-api.sql`, `public/tiktok-api-panel.js` (การ์ดในหน้าอัปโหลด), `tests/test-tiktok-api.js` (TikTok ปลอม ไม่ต่อเน็ต)
 - `.env`: `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` (เลข ID ที่หัวหน้าแอป), ตัวเลือก `TIKTOK_AUTO_SYNC_MINUTES` (≥ 30 ดึงย้อน 3 วันอัตโนมัติ), ตัวเลือก `TIKTOK_BACKFILL_FROM=YYYY-MM-DD` (ดึงประวัติย้อนหลังเองตั้งแต่วันนั้นถึงวันนี้ ทีละ ≤ 92 วัน เริ่ม 2 นาทีหลังเปิด server เว้น 1 นาทีต่อช่วง ผิดพลาดลองใหม่ใน 10 นาที เก็บความคืบหน้าใน `system_settings` คีย์ `tiktok_backfill_done` ทำครั้งเดียว; `src/services/marketplaceBackfill.js`, `tests/test-marketplace-backfill.js`)
 - Redirect URL ใน Partner Center: `https://dashboard.sksales.app/api/tiktok/callback`
+- **หลายบริษัท/หลายแอป**: แอป in-house อนุญาตได้เฉพาะร้านของ seller เจ้าของแอป (ร้านอื่นเจอ "แอปส่วนตัวนี้จะได้รับอนุญาตจากร้านค้าของพาร์ทเนอร์เท่านั้น") — แต่ละบริษัทสร้างแอปของตัวเอง (Redirect URL เดียวกัน) แล้วใส่ `TIKTOK_APP_KEY_<n>`, `TIKTOK_APP_SECRET_<n>`, `TIKTOK_SERVICE_ID_<n>` (n = 2–9) และ `TIKTOK_APP_SHOP_<n>` = ชื่อร้านในแดชบอร์ด (ไม่สนตัวพิมพ์เล็ก/ใหญ่) ร้านที่ไม่มีแอปของตัวเองใช้แอปไม่มีเลขต่อท้าย; คอลัมน์ `app` ใน `tiktok_connections` / `tiktok_oauth_states` ('' = แอปหลัก) จำว่าแต่ละร้านเชื่อมผ่านแอปไหน sync วนทุกร้าน ร้านหนึ่งผิดพลาดร้านอื่นยังดึงต่อ
 - Scopes ที่ขอ: `seller.order.info`, `seller.product.basic`, `seller.finance.info`, `seller.return_refund.basic`
 
 | Route | สิทธิ์ | หน้าที่ |

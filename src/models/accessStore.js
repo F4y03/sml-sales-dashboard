@@ -14,6 +14,10 @@ export function createAccessStore(path = ':memory:', env = {}) {
   if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_settlements') WHERE name='fee_detail'").get()) db.exec('ALTER TABLE marketplace_settlements ADD COLUMN fee_detail TEXT');
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='two_factor_exempt'").get()) db.exec("ALTER TABLE users ADD COLUMN two_factor_exempt INTEGER NOT NULL DEFAULT 0 CHECK(two_factor_exempt IN (0,1))");
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='scope_override'").get()) db.exec("ALTER TABLE users ADD COLUMN scope_override TEXT CHECK(scope_override IN ('territory'))");
+  // TikTok app a connection / OAuth state belongs to ('' = TIKTOK_APP_KEY, '2' = TIKTOK_APP_KEY_2, …): each seller company has its own in-house app.
+  for (const table of ['tiktok_connections','tiktok_oauth_states']) {
+    if (!db.prepare("SELECT 1 FROM pragma_table_info(?) WHERE name='app'").get(table)) db.exec(`ALTER TABLE ${table} ADD COLUMN app TEXT NOT NULL DEFAULT ''`);
+  }
   // Marketplace seller shop (008); NULL = uploaded before shops existed.
   for (const table of ['marketplace_uploads','marketplace_orders','marketplace_settlements']) {
     if (!db.prepare("SELECT 1 FROM pragma_table_info(?) WHERE name='shop_id'").get(table)) db.exec(`ALTER TABLE ${table} ADD COLUMN shop_id INTEGER REFERENCES marketplace_shops(id)`);

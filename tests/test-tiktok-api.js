@@ -176,6 +176,61 @@ test('HTTP: Super Admin connects, uploader syncs without seeing figures, re-sync
   assert.equal(marketplaceSummary(store, { platform: 'tiktok', start: '2026-10-01', end: '2026-10-31' }).platforms[0].sales, 935); // data stays
 });
 
+test('several TikTok apps: each dashboard shop connects through its own in-house app, sync signs with that app', async t => {
+  const env = { AUTH_USERNAME: 'root', AUTH_PASSWORD_HASH: await hashPassword('fixture-password-123'), AUTH_COOKIE_SECURE: 'false', AUTH_REQUIRE_2FA: 'false',
+    TIKTOK_APP_KEY: 'appkey', TIKTOK_APP_SECRET: 'secret', TIKTOK_SERVICE_ID: '111',
+    TIKTOK_APP_KEY_2: 'appkey2', TIKTOK_APP_SECRET_2: 'secret2', TIKTOK_SERVICE_ID_2: '222', TIKTOK_APP_SHOP_2: ' best ' };
+  const store = createAccessStore(':memory:', env), app = express();
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    const u = new URL(url), query = Object.fromEntries(u.searchParams);
+    const secret = query.app_key === 'appkey2' ? 'secret2' : 'secret';
+    calls.push({ path: u.pathname, appKey: query.app_key });
+    const reply = data => new Response(JSON.stringify({ code: 0, message: 'Success', data }));
+    if (u.pathname === '/api/v2/token/get') return reply({ access_token: 'a-' + query.app_key, access_token_expire_in: Math.floor(Date.now() / 1000) + 86400, refresh_token: 'r', refresh_token_expire_in: Math.floor(Date.now() / 1000) + 86400 * 30 });
+    if (query.sign !== signRequest(secret, u.pathname, query, init.body || '')) return new Response(JSON.stringify({ code: 106001, message: 'Invalid signature' }));
+    if (u.pathname === '/authorization/202309/shops') return reply({ shops: [{ id: 'tt-' + query.app_key, name: 'TT ' + query.app_key, cipher: 'c-' + query.app_key }] });
+    if (u.pathname === '/order/202309/orders/search') return reply({ orders: [], next_page_token: '' });
+    if (u.pathname === '/finance/202309/statements') return reply({ statements: [], next_page_token: '' });
+    return new Response(JSON.stringify({ code: 404, message: 'unknown' }));
+  };
+  app.use(express.json());
+  const auth = installAuth(app, env, store);
+  installAccess(app);
+  installMarketplace(app, store, auth.audit);
+  installTikTokShop(app, store, auth.audit, env, { fetchImpl });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(r => server.once('listening', r));
+  t.after(async () => { await new Promise(r => { server.close(r); server.closeAllConnections(); }); auth.close(); store.close(); });
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const r = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify({ username: 'root', password: 'fixture-password-123' }) });
+  const owner = r.headers.get('set-cookie').split(';')[0];
+  const get = path => fetch(base + path, { headers: { cookie: owner }, redirect: 'manual' });
+  for (const name of ['Proplus', 'BEST', 'MITSUMI']) store.run('INSERT INTO marketplace_shops(name,active,created_at) VALUES(?,1,?)', name, '2026-11-01');
+  const shopId = name => store.get('SELECT id FROM marketplace_shops WHERE name=?', name).id;
+  const connectVia = async name => {
+    const location = new URL((await get('/api/tiktok/connect?shop=' + shopId(name))).headers.get('location'));
+    const state = location.searchParams.get('state');
+    assert.equal((await get(`/api/tiktok/callback?code=c&state=${state}`)).headers.get('location'), '/marketplace.html?tiktok=connected#tiktok');
+    return location.searchParams.get('service_id');
+  };
+  assert.equal(await connectVia('Proplus'), '111');
+  assert.equal(await connectVia('BEST'), '222'); // TIKTOK_APP_SHOP_2 matches the shop name, ignoring case and spaces
+  assert.equal(await connectVia('MITSUMI'), '111'); // no app of its own: the default app
+  assert.deepEqual(store.all('SELECT tiktok_shop_id AS id,app,shop_id FROM tiktok_connections ORDER BY tiktok_shop_id').map(x => ({ ...x })),
+    [{ id: 'tt-appkey', app: '', shop_id: shopId('MITSUMI') }, { id: 'tt-appkey2', app: '2', shop_id: shopId('BEST') }]);
+  const sync = await fetch(base + '/api/tiktok/sync', { method: 'POST', headers: { cookie: owner, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify({ start: '2026-10-01', end: '2026-10-02' }) });
+  assert.equal(sync.status, 200);
+  assert.deepEqual([...new Set(calls.filter(c => c.path === '/order/202309/orders/search').map(c => c.appKey))].sort(), ['appkey', 'appkey2']);
+  // A connection whose app was removed from .env reports it but the other shops still sync.
+  store.run("UPDATE tiktok_connections SET app='7' WHERE tiktok_shop_id='tt-appkey'");
+  const before = calls.length;
+  const partial = await fetch(base + '/api/tiktok/sync', { method: 'POST', headers: { cookie: owner, 'Content-Type': 'application/json', 'X-PRPlus-Request': '1' }, body: JSON.stringify({ start: '2026-10-01', end: '2026-10-02' }) });
+  assert.equal(partial.status, 502);
+  assert.ok(calls.slice(before).some(c => c.path === '/order/202309/orders/search' && c.appKey === 'appkey2'));
+  assert.match(store.get("SELECT last_sync_error FROM tiktok_connections WHERE tiktok_shop_id='tt-appkey'").last_sync_error, /TIKTOK_APP_KEY_7/);
+});
+
 test('settlement: fee breakdown from the named fee fields, the unnamed rest as other_fee_amount (sums to the total)', () => {
   // Real shape (Finance 202309): fee_amount -15.36, only platform_commission named.
   const s = mapTikTokSettlement({ id: 'T1', order_id: 'O1', fee_amount: '-15.36', settlement_amount: '54.64', platform_commission_amount: '-7.49',
