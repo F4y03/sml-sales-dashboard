@@ -19,6 +19,8 @@
       body:not([data-tab="lazada"]) #lazada-api { display: none; }
       body:not([data-tab="shopee"]) #shopee-api { display: none; }
       body:not([data-tab="shopee"]) #shopee-items { display: none; }
+      /* "All channels" tab: the shop picker sits top right like the connect pickers on the platform tabs (mirrors #shop-filter). */
+      body:not([data-tab="all"]) #all-shop { display: none; }
       #shopee-items { min-width: 0; margin: 16px 0 0; padding: 12px 16px; border: 1px solid var(--ov-line, rgba(127,127,127,.25)); border-radius: 12px; }
       #shopee-items summary { cursor: pointer; }
       #shopee-items input { margin: 8px 0; width: 100%; max-width: 320px; }
@@ -93,7 +95,7 @@
     <script src="date-dmy.js?v=20261020-range4" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
-    <script src="marketplace-ui.js?v=20261105-main" defer></script>
+    <script src="marketplace-ui.js?v=20261105-allshop" defer></script>
     <script src="order-fees.js?v=20261029-filter" defer></script>
     <script src="tiktok-api-panel.js?v=20261105-apps" defer></script>
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
@@ -166,6 +168,11 @@
                   </button>
                 </div>
                 <p id="shopee-status" class="tt-sync-status" role="status"></p>
+              </div>
+              <div class="tt-sync" id="all-shop" hidden>
+                <div class="tt-sync-actions">
+                  <select id="all-shop-select" class="mp-select tt-shop" aria-label="ร้าน"></select>
+                </div>
               </div>
             </div>
           </header>

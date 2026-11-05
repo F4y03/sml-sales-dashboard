@@ -104,6 +104,11 @@
     shopFilter.replaceChildren(new Option('ทุกร้าน', 'all'), ...shops.map(shop => new Option(shop.name + (shop.active ? '' : ' (ปิดแล้ว)'), String(shop.id))));
     shopFilter.value = shops.some(shop => String(shop.id) === keep) ? keep : 'all';
     $('shop-filter-wrap').hidden = shops.length < 2 && shopFilter.value === 'all';
+    // Top-right copy for the "all channels" tab.
+    const top = $('all-shop-select');
+    top.replaceChildren(...[...shopFilter.options].map(o => new Option(o.textContent, o.value)));
+    top.value = shopFilter.value;
+    $('all-shop').hidden = $('shop-filter-wrap').hidden;
   }
 
   function render(data) {
@@ -485,6 +490,10 @@
   // picking a shop in either place shows that shop's figures and connects the next login to it.
   const connectPickers = ['shop-select', 'lazada-shop-select', 'shopee-shop-select'].map($).filter(Boolean);
   const followShop = value => connectPickers.forEach(p => { if ([...p.options].some(o => o.value === value)) p.value = value; });
+  $('all-shop-select').addEventListener('change', event => {
+    shopFilter.value = event.target.value;
+    shopFilter.dispatchEvent(new Event('change'));
+  });
   shopFilter.addEventListener('change', () => { if (shopFilter.value !== 'all') followShop(shopFilter.value); load(); });
   for (const picker of connectPickers) picker.addEventListener('change', () => {
     if (![...shopFilter.options].some(o => o.value === picker.value)) shopFilter.append(new Option(picker.selectedOptions[0]?.textContent || '', picker.value));
