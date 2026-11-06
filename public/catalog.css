@@ -1120,3 +1120,9 @@ html[data-theme] .ecat-sections select {
 #ecat-tabs [role="tab"][draggable="true"] { cursor: grab; }
 #ecat-tabs [role="tab"].is-dragging { opacity: .45; }
 #ecat-tabs [role="tab"].is-drop { outline: 2px dashed #d40000; outline-offset: 2px; }
+
+/* Toast with an action button ("แชร์ไปหาลูกค้า") */
+.ecat-toast.has-action { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 18px; max-width: calc(100vw - 32px); }
+.ecat-toast.has-action.is-visible { pointer-events: auto; }
+.ecat-toast button { flex: none; border: 0; border-radius: 999px; padding: 7px 14px; background: #d40000; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.ecat-toast button:hover { background: #b00000; }

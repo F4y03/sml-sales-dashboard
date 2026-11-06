@@ -105,11 +105,23 @@
     if (bar) bar.style.width = Math.round(Math.min(1, Math.max(0, ratio)) * 100) + "%";
   }
   let toastTimer;
-  function showToast(text) {
+  // action = { label, run } adds a button to the toast and keeps it up longer.
+  function showToast(text, action) {
     toast.textContent = text;
+    toast.classList.toggle("has-action", Boolean(action));
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", () => {
+        toast.classList.remove("is-visible");
+        action.run();
+      });
+      toast.append(button);
+    }
     toast.classList.add("is-visible");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2200);
+    toastTimer = setTimeout(() => toast.classList.remove("is-visible"), action ? 10000 : 2200);
   }
   function setControlsEnabled(enabled) {
     slider.disabled = !enabled;
@@ -691,7 +703,18 @@
       }
       // Desktop: copy only. Download the PNG only when the clipboard is unavailable (e.g. plain http on a LAN IP).
       if (await clip) {
-        showToast("คัดลอกภาพหน้า " + range.replace("-", "–") + " แล้ว · กด Ctrl+V วางใน LINE ได้เลย");
+        // "แชร์ไปหาลูกค้า": a fresh click, so the share sheet gets user activation (the render already finished).
+        const shareData = { files: [file], title: current.title + " หน้า " + range };
+        const canShareFile = navigator.canShare?.(shareData);
+        showToast(
+          "คัดลอกภาพหน้า " + range.replace("-", "–") + " แล้ว · กด Ctrl+V วางใน LINE ได้เลย",
+          canShareFile && {
+            label: "แชร์ไปหาลูกค้า",
+            run: () => navigator.share(shareData).catch((error) => {
+              if (error?.name !== "AbortError") showToast("เปิดหน้าแชร์ไม่สำเร็จ · ใช้ Ctrl+V วางแทนได้");
+            }),
+          },
+        );
         return;
       }
       const link = document.createElement("a");
