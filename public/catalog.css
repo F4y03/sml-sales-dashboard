@@ -1070,3 +1070,48 @@ html[data-theme] .ecat-share-menu button:focus-visible {
   cursor: grabbing !important;
   user-select: none;
 }
+
+/* Category drop-down */
+.ecat-sections {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  min-width: 0;
+}
+.ecat-sections[hidden] {
+  display: none;
+}
+html[data-theme] .ecat-sections select {
+  max-width: 280px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ecat-dialog textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.6;
+  resize: vertical;
+}
+@media (max-width: 759.98px) {
+  .ecat-sections {
+    flex: 1 1 100%;
+  }
+  html[data-theme] .ecat-sections select {
+    max-width: none;
+    flex: 1;
+  }
+}

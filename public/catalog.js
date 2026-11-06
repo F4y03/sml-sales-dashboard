@@ -49,6 +49,7 @@
   let pageW = 0,
     pageH = 0;
   let turning = false;
+  let sections = []; // [{ title, page }] category drop-down of the open book
   let queued = null;
   const renderCache = new Map(); // `${page}@${px}` -> Promise<canvas>
   const thumbCache = new Map();
@@ -225,6 +226,7 @@
     slider.value = String(index);
     slider.setAttribute("aria-valuetext", s ? `หน้า ${spreadLabel(s)} จาก ${total}` : "");
     zoomValue.textContent = zoom + "%";
+    syncSectionSelect();
     stage.classList.toggle("is-zoomed", zoom > ZOOM_MIN);
     zoomIn.disabled = !doc || zoom >= ZOOM_MAX;
     zoomOut.disabled = !doc || zoom <= ZOOM_MIN;
@@ -410,6 +412,8 @@
     });
     titleEl.textContent = entry.title;
     syncManage();
+    sections = [];
+    renderSections();
     searchInput.value = "";
     searchResults.replaceChildren();
     openResults(false);
@@ -458,6 +462,7 @@
       buildThumbs();
       setControlsEnabled(true);
       updateUi();
+      loadSections(entry, token);
       await show();
     } catch (error) {
       if (token !== loadToken) return;
@@ -763,14 +768,23 @@
     const token = loadToken,
       pdf = doc;
     const pages = (async () => {
-      const out = [];
+      const texts = [],
+        labels = [];
       for (let p = 1; p <= pdf.numPages; p++) {
         if (token !== loadToken) throw new Error("stale");
-        const content = await (await pdf.getPage(p)).getTextContent();
-        out.push(content.items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim());
+        const page = await pdf.getPage(p);
+        const height = page.getViewport({ scale: 1 }).height;
+        const content = await page.getTextContent();
+        texts.push(content.items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim());
+        // Category label printed at the bottom of the page, e.g. "AUDIO MIXER" (all-caps words, no digits = not a model).
+        const label = content.items
+          .filter((i) => i.transform[5] < height * 0.08)
+          .map((i) => i.str.trim())
+          .find((t) => /^[A-Z][A-Z &/-]{2,}$/.test(t));
+        labels.push(label || "");
         if (p % 10 === 0) renderSearchStatus(`กำลังเตรียมค้นหา… ${p}/${pdf.numPages} หน้า`);
       }
-      return out;
+      return { texts, labels };
     })();
     textIndex = { token, pages };
     pages.catch(() => (textIndex = null));
@@ -797,7 +811,7 @@
     renderSearchStatus("กำลังค้นหา…");
     let texts;
     try {
-      texts = await pageTexts();
+      texts = (await pageTexts()).texts;
     } catch {
       if (seq === searchSeq) renderSearchStatus("ค้นหาไม่สำเร็จ กรุณาลองใหม่");
       return;
@@ -857,6 +871,139 @@
   });
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".ecat-search")) openResults(false);
+  });
+
+  // ---------- category drop-down (from the footer labels, or set by hand by Super Admin) ----------
+  const ACRONYMS = new Set(["ABS", "PA", "LED", "DJ", "DSP", "USB", "UHF", "VHF", "PAR"]);
+  const titleCase = (s) =>
+    s
+      .toLowerCase()
+      .replace(/(^|[\s/-])([a-z]+)/g, (m, sep, word) => sep + (ACRONYMS.has(word.toUpperCase()) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1)));
+  // Thai names for the footer labels used in the catalogue (unknown labels keep the English name only).
+  const THAI = {
+    "AUDIO MIXER": "มิกเซอร์",
+    "POWER AMPLIFIER": "เพาเวอร์แอมป์",
+    CROSSOVER: "ครอสโอเวอร์",
+    EQUALIZER: "อีควอไลเซอร์",
+    "STEREO AMPLIFIER": "แอมป์สเตอริโอ",
+    "PRE-AMPLIFIER": "ปรีแอมป์",
+    "WIRELESS MICROPHONE": "ไมโครโฟนไร้สาย",
+    "WIRELESS MICROPHONE ACCESSORIES": "อุปกรณ์เสริมไมโครโฟนไร้สาย",
+    "WIRELESS CONFERENCE SYSTEM": "ชุดไมค์ประชุมไร้สาย",
+    "WIRED CONFERENCE MICROPHONE": "ไมค์ประชุมแบบมีสาย",
+    "WIRED CONFERENCE SYSTEM": "ชุดไมค์ประชุมแบบมีสาย",
+    MICROPHONE: "ไมโครโฟน",
+    "MICROPHONE CARTRIDGE": "หัวไมโครโฟน",
+    "ABS RACK": "แร็ค ABS",
+    "PORTABLE ACTIVE SPEAKER BOX": "ลำโพงเคลื่อนที่ (มีแอมป์ในตัว)",
+    "ACTIVE SPEAKER BOX": "ตู้ลำโพงมีแอมป์ในตัว",
+    "PASSIVE SPEAKER BOX": "ตู้ลำโพงพาสซีฟ",
+    "WALL MOUNT SPEAKER BOX": "ลำโพงติดผนัง",
+    "CEILING SPEAKER / COLUMN SPEAKER BOX": "ลำโพงเพดาน / ลำโพงคอลัมน์",
+    "ACTIVE COLUMN PA SPEAKER BOX": "ลำโพงคอลัมน์ PA มีแอมป์ในตัว",
+    "ACTIVE LINE ARRAY PA SPEAKER BOX": "ลำโพงไลน์อาเรย์ PA มีแอมป์ในตัว",
+    MEGAPHONE: "โทรโข่ง",
+    "HORN SPEAKER": "ลำโพงฮอร์น",
+    "DRIVER UNIT": "ไดรเวอร์ยูนิต",
+    "TWEETER HORN": "ทวีตเตอร์ฮอร์น",
+    SPEAKER: "ดอกลำโพง",
+    "PIEZO TWEETER": "ทวีตเตอร์เปียโซ",
+    "CAR AUDIO": "เครื่องเสียงรถยนต์",
+    "POWER SEQUENCE CONTROLLER": "ตัวควบคุมลำดับการเปิดไฟ",
+    "LED PAR LIGHT": "ไฟพาร์ LED",
+  };
+  const sectionTitle = (label) => (THAI[label] ? `${THAI[label]} · ${titleCase(label)}` : titleCase(label));
+  function autoSections(labels) {
+    const out = [];
+    let prev = "";
+    labels.forEach((label, i) => {
+      if (label && label !== prev) out.push({ title: sectionTitle(label), page: i + 1 });
+      if (label) prev = label;
+    });
+    return out;
+  }
+  async function loadSections(entry, token) {
+    if (Array.isArray(entry.sections) && entry.sections.length) sections = entry.sections;
+    else {
+      try {
+        sections = autoSections((await pageTexts()).labels);
+      } catch {
+        sections = [];
+      }
+    }
+    if (token === loadToken) renderSections();
+  }
+  function renderSections() {
+    const select = $("ecat-section");
+    select.replaceChildren(
+      Object.assign(document.createElement("option"), { value: "", textContent: `หมวดหมู่ (${sections.length})` }),
+      ...sections.map((s) => Object.assign(document.createElement("option"), { value: String(s.page), textContent: `${s.title} · หน้า ${s.page}` })),
+    );
+    syncManage();
+    syncSectionSelect();
+  }
+  function syncSectionSelect() {
+    const select = document.getElementById("ecat-section");
+    if (!select || !sections.length || !spreads[index]) return;
+    const page = spreads[index].right || spreads[index].left;
+    const hit = [...sections].reverse().find((s) => s.page <= page);
+    select.value = hit ? String(hit.page) : "";
+  }
+  $("ecat-section").addEventListener("change", (event) => {
+    const page = Number(event.target.value);
+    if (page && doc) go(spreadOfPage(Math.min(doc.numPages, page)));
+  });
+  // Super Admin: edit / rename the categories ("<page> <title>" per line).
+  const sectionsDialog = $("ecat-sections-dialog"),
+    sectionsForm = $("ecat-sections-form"),
+    sectionsError = $("ecat-sections-error");
+  $("ecat-sections-edit").addEventListener("click", () => {
+    sectionsForm.elements.lines.value = sections.map((s) => `${s.page} ${s.title}`).join("\n");
+    sectionsError.textContent = "";
+    sectionsDialog.showModal();
+  });
+  $("ecat-sections-cancel").addEventListener("click", () => sectionsDialog.close());
+  async function saveSections(list) {
+    const entry = current;
+    const response = await fetch(`/api/catalogs/${encodeURIComponent(entry.id)}/sections`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-PRPlus-Request": "1" },
+      body: JSON.stringify({ sections: list }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
+    if (data.sections.length) entry.sections = data.sections;
+    else delete entry.sections;
+    await loadSections(entry, loadToken);
+  }
+  sectionsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const list = [];
+    for (const [n, line] of sectionsForm.elements.lines.value.split("\n").entries()) {
+      if (!line.trim()) continue;
+      const m = /^\s*(\d{1,4})\s+(.+?)\s*$/.exec(line);
+      if (!m) {
+        sectionsError.textContent = `บรรทัด ${n + 1}: ต้องขึ้นต้นด้วยเลขหน้า แล้วเว้นวรรคตามด้วยชื่อหมวด`;
+        return;
+      }
+      list.push({ page: Number(m[1]), title: m[2] });
+    }
+    try {
+      await saveSections(list);
+      sectionsDialog.close();
+      showToast(list.length ? "บันทึกหมวดหมู่แล้ว" : "ใช้หมวดแบบอัตโนมัติแล้ว");
+    } catch (error) {
+      sectionsError.textContent = error.message;
+    }
+  });
+  $("ecat-sections-auto").addEventListener("click", async () => {
+    try {
+      await saveSections([]);
+      sectionsDialog.close();
+      showToast("ใช้หมวดแบบอัตโนมัติแล้ว");
+    } catch (error) {
+      sectionsError.textContent = error.message;
+    }
   });
 
   // ---------- thumbnail strip: a drop-down, closed by default so the pages get the room ----------
@@ -940,6 +1087,8 @@
     addBtn.hidden = !canManage;
     removeBtn.hidden = !(isSuperAdmin && current?.custom);
     downloadLink.hidden = !isSuperAdmin;
+    $("ecat-sections-edit").hidden = !(isSuperAdmin && current?.custom && doc);
+    $("ecat-sections").hidden = !sections.length && $("ecat-sections-edit").hidden;
   }
   (window.prplusUser || Promise.resolve(null))
     .then((user) => {

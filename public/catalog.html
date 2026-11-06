@@ -54,11 +54,31 @@
         </form>
       </dialog>
 
+      <dialog id="ecat-sections-dialog" class="ecat-dialog" aria-labelledby="ecat-sections-title">
+        <form id="ecat-sections-form" method="dialog">
+          <h2 id="ecat-sections-title">แก้หมวดหมู่</h2>
+          <label>หนึ่งบรรทัดต่อหนึ่งหมวด: เลขหน้าเริ่ม เว้นวรรค ชื่อหมวด
+            <textarea name="lines" rows="12" spellcheck="false" placeholder="2 มิกเซอร์&#10;22 เพาเวอร์แอมป์&#10;48 ไมโครโฟนไร้สาย"></textarea>
+          </label>
+          <p class="ecat-dialog-hint">ระบบเติมให้จากป้ายมุมล่างของแต่ละหน้า แก้ชื่อเป็นภาษาไทย รวม หรือลบบรรทัดได้ · ปุ่ม "ใช้แบบอัตโนมัติ" = ให้ระบบอ่านจากไฟล์ทุกครั้ง</p>
+          <p id="ecat-sections-error" class="ecat-dialog-error" role="alert"></p>
+          <div class="ecat-dialog-actions">
+            <button type="button" id="ecat-sections-auto">ใช้แบบอัตโนมัติ</button>
+            <button type="button" id="ecat-sections-cancel">ยกเลิก</button>
+            <button type="submit" id="ecat-sections-save" class="ecat-dialog-primary">บันทึก</button>
+          </div>
+        </form>
+      </dialog>
+
       <section id="ecat-viewer" class="ecat-viewer" aria-label="ตัวอ่านแคตตาล็อก">
         <div class="ecat-toolbar">
           <div class="ecat-title">
             <strong id="ecat-book-title">กำลังโหลดรายการแคตตาล็อก…</strong>
             <small id="ecat-counter" aria-live="polite"></small>
+          </div>
+          <div id="ecat-sections" class="ecat-sections" hidden>
+            <select id="ecat-section" aria-label="ไปที่หมวดหมู่"></select>
+            <button id="ecat-sections-edit" class="ecat-tool" type="button" hidden title="แก้รายการหมวดหมู่ของเล่มนี้">แก้หมวด</button>
           </div>
           <div class="ecat-tools">
             <div class="ecat-search">

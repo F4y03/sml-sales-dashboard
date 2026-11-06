@@ -98,6 +98,8 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
         id: b.id, title: b.title,
         pdf: `/catalogs/${encodeURIComponent(b.pdf)}`,
         available: Boolean(b.drive) || existsSync(resolve(dir, b.pdf)),
+        // Categories set by hand (Super Admin). Absent -> the page builds them from the footer labels in the PDF.
+        ...(Array.isArray(b.sections) && b.sections.length ? { sections: b.sections } : {}),
       })),
     });
   });
@@ -119,6 +121,25 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
     writeCustom([...readCustom(), book]);
     console.log('Catalog added:', id, 'by', req.auth.username);
     res.status(201).json({ catalog: { id, title, custom: true, pdf: `/catalogs/${book.pdf}`, available: true } });
+  });
+  // Edit the category drop-down of a book added on the page: [{ title, page }]; an empty list goes back to automatic.
+  app.put('/api/catalogs/:id/sections', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'แก้หมวดได้เฉพาะ Super Admin' }), (req, res) => {
+    const input = req.body?.sections;
+    if (!Array.isArray(input) || input.length > 100) return res.status(400).json({ error: 'รายการหมวดไม่ถูกต้อง' });
+    const sections = [];
+    for (const item of input) {
+      const title = typeof item?.title === 'string' ? item.title.trim().replace(/\s+/g, ' ') : '';
+      const page = Number(item?.page);
+      if (!title || title.length > 60 || !Number.isInteger(page) || page < 1 || page > 9999) return res.status(400).json({ error: 'แต่ละบรรทัดต้องมีเลขหน้าและชื่อหมวด (ไม่เกิน 60 ตัวอักษร)' });
+      sections.push({ title, page });
+    }
+    sections.sort((a, b) => a.page - b.page);
+    const list = readCustom(), book = list.find(b => b.id === req.params.id);
+    if (!book) return res.status(404).json({ error: 'แก้หมวดได้เฉพาะเล่มที่เพิ่มจากหน้าเว็บ' });
+    if (sections.length) book.sections = sections; else delete book.sections;
+    writeCustom(list);
+    console.log('Catalog sections saved:', book.id, sections.length, 'by', req.auth.username);
+    res.json({ sections });
   });
   app.delete('/api/catalogs/:id', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'ลบเล่มได้เฉพาะ Super Admin' }), (req, res) => {
     const list = readCustom(), book = list.find(b => b.id === req.params.id);

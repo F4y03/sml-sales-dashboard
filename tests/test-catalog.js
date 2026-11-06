@@ -20,7 +20,7 @@ function makePdf(pages) {
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>', null, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
   const kids = [];
   for (let i = 1; i <= pages; i++) {
-    const content = `${(i * 0.13) % 1} 0.5 0.8 rg 20 20 380 527 re f 0 0 0 rg BT /F1 160 Tf 110 220 Td (${i}) Tj ET BT /F1 18 Tf 40 40 Td (Model MNX-${i}00 mixer) Tj ET`;
+    const content = `${(i * 0.13) % 1} 0.5 0.8 rg 20 20 380 527 re f 0 0 0 rg BT /F1 160 Tf 110 220 Td (${i}) Tj ET BT /F1 18 Tf 40 40 Td (Model MNX-${i}00 mixer) Tj ET${i > 1 ? ` BT /F1 10 Tf 40 15 Td (${i < 5 ? 'AUDIO MIXER' : 'SPEAKER'}) Tj ET` : ''}`;
     objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
     const contentId = objects.length;
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 420 567] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`);
@@ -136,6 +136,17 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await expect(page.locator('.ecat-page-left')).toHaveClass(/is-empty/);
   await expect(page.locator('#ecat-thumbs .ecat-thumb')).toHaveCount(4); // 1 | 2-3 | 4-5 | 6-7
   await expect(page.locator('#ecat-zoom-out')).toBeDisabled();
+
+  // Categories come from the footer labels: Audio Mixer p.2, Speaker p.5; picking one turns there.
+  await expect(page.locator('#ecat-section option')).toHaveText(['หมวดหมู่ (2)', 'มิกเซอร์ · Audio Mixer · หน้า 2', 'ดอกลำโพง · Speaker · หน้า 5']);
+  await expect(page.locator('#ecat-sections-edit')).toBeHidden(); // Super Admin only
+  await page.locator('#ecat-section').selectOption('5');
+  await expect(page.locator('#ecat-counter')).toHaveText('หน้า 4–5 / 7');
+  await expect(page.locator('.ecat-leaf')).toBeHidden();
+  await expect(page.locator('#ecat-section')).toHaveValue('5');
+  await page.locator('.ecat-thumb').first().evaluate(el => el.click());
+  await expect(page.locator('#ecat-counter')).toHaveText('หน้า 1 / 7');
+  await expect(page.locator('.ecat-leaf')).toBeHidden();
 
   // Next arrow flips (leaf visible mid-turn), keyboard, corner, slider, thumbnail.
   await page.locator('#ecat-next').click();
@@ -380,6 +391,22 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 1 / 3');
   await page.screenshot({ path: 'test-results/catalog-add.png' });
   assert.equal(JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0].id, 'pro-audio-2027');
+  // Super Admin edits the categories (Thai names), then goes back to automatic.
+  await expect(page.locator('#ecat-section option')).toHaveCount(2);
+  await page.locator('#ecat-sections-edit').click();
+  await expect(page.locator('#ecat-sections-form textarea')).toHaveValue('2 มิกเซอร์ · Audio Mixer');
+  await page.locator('#ecat-sections-form textarea').fill('3 ลำโพง\n2 มิกเซอร์');
+  await page.locator('#ecat-sections-save').click();
+  await expect(page.locator('#ecat-section option')).toHaveText(['หมวดหมู่ (2)', 'มิกเซอร์ · หน้า 2', 'ลำโพง · หน้า 3']);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0].sections, [{ title: 'มิกเซอร์', page: 2 }, { title: 'ลำโพง', page: 3 }]);
+  assert.equal((await send(admin, 'PUT', '/api/catalogs/pro-audio-2027/sections', { sections: [] })).status, 403);
+  assert.equal((await send(rootCookie, 'PUT', '/api/catalogs/pro-audio-2027/sections', { sections: [{ title: '', page: 2 }] })).status, 400);
+  await page.locator('#ecat-sections-edit').click();
+  await page.locator('#ecat-sections-form textarea').fill('ไม่มีเลขหน้า');
+  await page.locator('#ecat-sections-save').click();
+  await expect(page.locator('#ecat-sections-error')).toContainText('บรรทัด 1');
+  await page.locator('#ecat-sections-auto').click();
+  await expect(page.locator('#ecat-section option')).toHaveText(['หมวดหมู่ (1)', 'มิกเซอร์ · Audio Mixer · หน้า 2']);
   assert.equal((await send(rootCookie, 'POST', '/api/catalogs', { title: 'pro audio 2027', drive: link })).status, 409);
   await expect(page.locator('#ecat-download')).toBeVisible();
   const dl = await fetch(base + `/catalogs/pro-audio-2027.pdf?download=1`, { headers: { cookie: rootCookie } });
