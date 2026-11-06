@@ -217,16 +217,17 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await page.locator('#ecat-search').press('Escape');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
 
-  // แชร์หน้านี้: left / right / both -> link to a PDF of only those pages; or a link into the reader.
+  // แชร์หน้านี้: left / right / both -> copy those pages as one PNG image.
   await page.locator('#ecat-share').click();
   await expect(page.locator('#ecat-share-menu [data-pages=left]')).toHaveText('หน้าซ้าย · หน้า 4');
   await expect(page.locator('#ecat-share-menu [data-pages=both]')).toHaveText('ทั้งสองหน้า · หน้า 4–5');
   await page.locator('#ecat-share-menu [data-pages=right]').click();
-  await expect(page.locator('#ecat-toast')).toHaveText('คัดลอกลิงก์ PDF หน้า 5 แล้ว');
-  const one = await page.evaluate(() => navigator.clipboard.readText());
-  assert.equal(one, `${base}/catalogs/${CATALOGS[0].pdf}/pages/5.pdf`);
+  await expect(page.locator('#ecat-toast')).toContainText('คัดลอกภาพหน้า 5 แล้ว');
+  const clipTypes = await page.evaluate(async () => (await navigator.clipboard.read()).flatMap(item => item.types));
+  assert.ok(clipTypes.includes('image/png'), 'page copied as PNG');
+  // The per-page PDF route still serves links shared earlier.
   const { PDFDocument } = await import('pdf-lib');
-  const r1 = await fetch(one);
+  const r1 = await fetch(`${base}/catalogs/${CATALOGS[0].pdf}/pages/5.pdf`);
   assert.equal(r1.headers.get('content-type'), 'application/pdf');
   assert.equal((await PDFDocument.load(await r1.arrayBuffer())).getPageCount(), 1);
   const r2 = await fetch(`${base}/catalogs/${CATALOGS[0].pdf}/pages/4-5.pdf`);

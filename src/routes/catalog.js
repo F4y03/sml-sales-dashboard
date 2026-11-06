@@ -146,6 +146,19 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
     console.log('Catalog sections saved:', book.id, sections.length, 'by', req.auth.username);
     res.json({ sections });
   });
+  // Change the Google Drive link of a book added on the page; the old downloaded copy is dropped so the next open fetches the new file.
+  app.put('/api/catalogs/:id/link', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'แก้ลิงก์ได้เฉพาะ Super Admin' }), (req, res) => {
+    const drive = typeof req.body?.drive === 'string' ? req.body.drive.trim() : '';
+    const fileId = driveFileId(drive);
+    if (!fileId || !/^https:\/\/(drive|docs)\.google\.com\//.test(drive)) return res.status(400).json({ error: 'ลิงก์ไม่ใช่ลิงก์ไฟล์ Google Drive (เช่น https://drive.google.com/file/d/…/view)' });
+    const list = readCustom(), book = list.find(b => b.id === req.params.id);
+    if (!book) return res.status(404).json({ error: 'แก้ลิงก์ได้เฉพาะเล่มที่เพิ่มจากหน้าเว็บ' });
+    book.drive = `https://drive.google.com/file/d/${fileId}/view`;
+    writeCustom(list);
+    if (!driveJobs.has(book.pdf)) rmSync(resolve(dir, book.pdf), { force: true });
+    console.log('Catalog link changed:', book.id, 'by', req.auth.username);
+    res.json({ ok: true, drive: book.drive });
+  });
   app.put('/api/catalogs/order', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'จัดลำดับได้เฉพาะ Super Admin' }), (req, res) => {
     const ids = req.body?.order;
     const known = new Set(allBooks().map(b => b.id));

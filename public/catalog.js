@@ -902,10 +902,11 @@
         const content = await page.getTextContent();
         texts.push(content.items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim());
         // Category label printed at the bottom of the page, e.g. "AUDIO MIXER" (all-caps words, no digits = not a model).
-        const label = content.items
-          .filter((i) => i.transform[5] < height * 0.08)
-          .map((i) => i.str.trim())
-          .find((t) => /^[A-Z][A-Z &/-]{2,}$/.test(t));
+        // Pages with only a Thai footer (e.g. "หางปลา") fall back to the Thai text.
+        const footer = content.items.filter((i) => i.transform[5] < height * 0.08).map((i) => i.str.trim());
+        const label =
+          footer.find((t) => /^[A-Z][A-Z &/-]{2,}$/.test(t)) ||
+          footer.find((t) => /^[฀-๿][฀-๿ &/()-]{1,}$/.test(t));
         labels.push(label || "");
         if (p % 10 === 0) renderSearchStatus(`กำลังเตรียมค้นหา… ${p}/${pdf.numPages} หน้า`);
       }
@@ -1036,8 +1037,12 @@
     "CAR AUDIO": "เครื่องเสียงรถยนต์",
     "POWER SEQUENCE CONTROLLER": "ตัวควบคุมลำดับการเปิดไฟ",
     "LED PAR LIGHT": "ไฟพาร์ LED",
+    BATTERY: "แบตเตอรี่",
+    CAPACITOR: "คาปาซิเตอร์",
+    "HEAT SHRINKABLE TUBE": "ท่อหด",
   };
-  const sectionTitle = (label) => (THAI[label] ? `${THAI[label]} · ${titleCase(label)}` : titleCase(label));
+  const sectionTitle = (label) =>
+    /[฀-๿]/.test(label) ? label : THAI[label] ? `${THAI[label]} · ${titleCase(label)}` : titleCase(label);
   function autoSections(labels) {
     const out = [];
     let prev = "";
@@ -1211,6 +1216,7 @@
   function syncManage() {
     addBtn.hidden = !canManage;
     removeBtn.hidden = !(isSuperAdmin && current?.custom);
+    $("ecat-edit-link").hidden = removeBtn.hidden;
     downloadLink.hidden = !isSuperAdmin;
     tabsEl.querySelectorAll("[role=tab]").forEach((tab) => {
       tab.draggable = isSuperAdmin;
@@ -1278,6 +1284,26 @@
       showToast(error.message);
     } finally {
       removeBtn.disabled = false;
+    }
+  });
+  const linkBtn = $("ecat-edit-link");
+  linkBtn.addEventListener("click", async () => {
+    const entry = current;
+    if (!entry?.custom) return;
+    const drive = prompt(`ลิงก์ Google Drive ใหม่ของ “${entry.title}”\n(เช่น https://drive.google.com/file/d/…/view — ไฟล์ต้องแชร์แบบทุกคนที่มีลิงก์)`);
+    if (!drive?.trim()) return;
+    linkBtn.disabled = true;
+    try {
+      await send("PUT", "/api/catalogs/" + encodeURIComponent(entry.id) + "/link", { drive: drive.trim() });
+      // Same file name on the server; bust the browser cache so the new PDF loads.
+      entry.pdf = entry.pdf.split("?")[0] + "?v=" + Date.now();
+      current = null;
+      openCatalog(entry);
+      showToast("เปลี่ยนลิงก์ “" + entry.title + "” แล้ว กำลังโหลดไฟล์ใหม่…");
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      linkBtn.disabled = false;
     }
   });
   init();
