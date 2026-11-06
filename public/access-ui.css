@@ -633,6 +633,10 @@
   border-radius: 50%;
   background: var(--role-c);
 }
+html[data-theme="light"] .role-chip {
+  background: color-mix(in srgb, var(--role-c) 14%, #fff);
+  color: color-mix(in srgb, var(--role-c) 55%, #1a1a1f);
+}
 [data-role="super_admin"] { --role-c: #f0554f; }
 [data-role="admin"] { --role-c: #f2a93b; }
 [data-role="executive"] { --role-c: #5aa2e8; }

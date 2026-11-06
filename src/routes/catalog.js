@@ -40,9 +40,14 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
   const readCustom = () => { try { const list = JSON.parse(readFileSync(customPath, 'utf8')); return Array.isArray(list) ? list.filter(valid) : []; } catch { return []; } };
   const writeCustom = list => { mkdirSync(dir, { recursive: true }); writeFileSync(customPath + '.tmp', JSON.stringify(list, null, 2)); renameSync(customPath + '.tmp', customPath); };
   const fixed = catalogs.filter(valid);
+  // Tab order set by Super Admin: CATALOG_DIR/order.json = [id, ...]. Ids not listed keep their default place after the listed ones.
+  const orderPath = resolve(dir, 'order.json');
+  const readOrder = () => { try { const list = JSON.parse(readFileSync(orderPath, 'utf8')); return Array.isArray(list) ? list.filter(id => typeof id === 'string') : []; } catch { return []; } };
   const allBooks = () => {
     const seen = new Set(fixed.map(b => b.id));
-    return [...fixed, ...readCustom().filter(b => !seen.has(b.id)).map(b => ({ ...b, custom: true }))];
+    const books = [...fixed, ...readCustom().filter(b => !seen.has(b.id)).map(b => ({ ...b, custom: true }))];
+    const rank = new Map(readOrder().map((id, i) => [id, i]));
+    return books.map((b, i) => [b, rank.has(b.id) ? rank.get(b.id) : rank.size + i]).sort((x, y) => x[1] - y[1]).map(x => x[0]);
   };
   const bookByFile = name => allBooks().find(b => b.pdf.toLowerCase() === name.toLowerCase());
   const driveJobs = new Map(); // pdf -> in-flight download
@@ -140,6 +145,15 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
     writeCustom(list);
     console.log('Catalog sections saved:', book.id, sections.length, 'by', req.auth.username);
     res.json({ sections });
+  });
+  app.put('/api/catalogs/order', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'จัดลำดับได้เฉพาะ Super Admin' }), (req, res) => {
+    const ids = req.body?.order;
+    const known = new Set(allBooks().map(b => b.id));
+    if (!Array.isArray(ids) || ids.length > 200 || ids.some(id => typeof id !== 'string' || !known.has(id)) || new Set(ids).size !== ids.length) return res.status(400).json({ error: 'ลำดับไม่ถูกต้อง' });
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(orderPath + '.tmp', JSON.stringify(ids)); renameSync(orderPath + '.tmp', orderPath);
+    console.log('Catalog order saved by', req.auth.username);
+    res.json({ order: ids });
   });
   app.delete('/api/catalogs/:id', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'ลบเล่มได้เฉพาะ Super Admin' }), (req, res) => {
     const list = readCustom(), book = list.find(b => b.id === req.params.id);

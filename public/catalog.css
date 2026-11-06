@@ -1115,3 +1115,8 @@ html[data-theme] .ecat-sections select {
     flex: 1;
   }
 }
+
+/* Super Admin: drag tabs to reorder */
+#ecat-tabs [role="tab"][draggable="true"] { cursor: grab; }
+#ecat-tabs [role="tab"].is-dragging { opacity: .45; }
+#ecat-tabs [role="tab"].is-drop { outline: 2px dashed #d40000; outline-offset: 2px; }

@@ -701,6 +701,10 @@
     if (!move) return;
     event.preventDefault();
     event.stopPropagation();
+    if (event.altKey) {
+      if (isSuperAdmin) moveCatalog(tabs[at].dataset.id, at + move);
+      return;
+    }
     const next = tabs[(at + move + tabs.length) % tabs.length];
     next.focus();
     next.click();
@@ -721,6 +725,28 @@
     renderTabs();
     selectFromHash();
   }
+  let dragId = null;
+  async function moveCatalog(id, to) {
+    const from = catalogs.findIndex((c) => c.id === id);
+    if (from < 0 || to < 0 || to >= catalogs.length || from === to) return;
+    const previous = catalogs.slice();
+    const [moved] = catalogs.splice(from, 1);
+    catalogs.splice(to, 0, moved);
+    renderTabs();
+    tabsEl.querySelector(`[data-id="${CSS.escape(id)}"]`)?.focus();
+    try {
+      const response = await fetch("/api/catalogs/order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-PRPlus-Request": "1" },
+        body: JSON.stringify({ order: catalogs.map((c) => c.id) }),
+      });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "บันทึกลำดับไม่สำเร็จ");
+    } catch (error) {
+      catalogs = previous;
+      renderTabs();
+      alert(error.message || "บันทึกลำดับไม่สำเร็จ");
+    }
+  }
   function renderTabs() {
     tabsEl.replaceChildren(
       ...catalogs.map((entry) => {
@@ -733,6 +759,27 @@
         tab.dataset.id = entry.id;
         tab.textContent = entry.title;
         tab.addEventListener("click", () => selectTab(entry));
+        // Super Admin: drag a tab onto another to reorder (saved on the server for everyone).
+        tab.addEventListener("dragstart", (event) => {
+          dragId = entry.id;
+          event.dataTransfer.effectAllowed = "move";
+          tab.classList.add("is-dragging");
+        });
+        tab.addEventListener("dragend", () => {
+          dragId = null;
+          tabsEl.querySelectorAll(".is-dragging, .is-drop").forEach((el) => el.classList.remove("is-dragging", "is-drop"));
+        });
+        tab.addEventListener("dragover", (event) => {
+          if (!dragId || dragId === entry.id) return;
+          event.preventDefault();
+          tab.classList.add("is-drop");
+        });
+        tab.addEventListener("dragleave", () => tab.classList.remove("is-drop"));
+        tab.addEventListener("drop", (event) => {
+          event.preventDefault();
+          tab.classList.remove("is-drop");
+          moveCatalog(dragId, catalogs.indexOf(entry));
+        });
         return tab;
       }),
     );
@@ -1087,6 +1134,10 @@
     addBtn.hidden = !canManage;
     removeBtn.hidden = !(isSuperAdmin && current?.custom);
     downloadLink.hidden = !isSuperAdmin;
+    tabsEl.querySelectorAll("[role=tab]").forEach((tab) => {
+      tab.draggable = isSuperAdmin;
+      tab.title = isSuperAdmin ? "ลากเพื่อจัดลำดับ (หรือ Alt + ← / →)" : "";
+    });
     $("ecat-sections-edit").hidden = !(isSuperAdmin && current?.custom && doc);
     $("ecat-sections").hidden = !sections.length && $("ecat-sections-edit").hidden;
   }
