@@ -803,3 +803,68 @@ html[data-theme] .ecat-dialog-actions .ecat-dialog-primary:disabled {
 .ecat-book.is-alone-left .ecat-page-left::after {
   display: none;
 }
+
+/* No visible folded corner: the corners stay as invisible click areas to turn the page. */
+html[data-theme] .ecat-corner::before {
+  display: none;
+}
+html[data-theme] .ecat-book .ecat-corner.ecat-corner,
+html[data-theme] .ecat-book .ecat-corner.ecat-corner:hover {
+  box-shadow: none;
+  width: clamp(48px, 10%, 88px);
+  background: transparent;
+  border: 0;
+}
+
+/* Thumbnail drop-down: closed -> the stage takes that height too. */
+.ecat-stage {
+  height: clamp(360px, calc(100vh - 230px), 1100px);
+}
+.ecat-viewer.thumbs-open .ecat-stage {
+  height: clamp(360px, calc(100vh - 360px), 960px);
+}
+.ecat-thumbs[hidden] {
+  display: none;
+}
+html[data-theme] .ecat-thumbs-toggle {
+  justify-self: center;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 999px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ecat-thumbs-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms ease;
+}
+.ecat-thumbs-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+@media (max-width: 759.98px) {
+  .ecat-stage {
+    height: clamp(380px, calc(100vh - 250px), 820px);
+  }
+  .ecat-viewer.thumbs-open .ecat-stage {
+    height: clamp(380px, calc(100vh - 340px), 760px);
+  }
+}
+.ecat-viewer:fullscreen .ecat-stage,
+.ecat-viewer.is-pseudo-fullscreen .ecat-stage {
+  height: auto;
+}

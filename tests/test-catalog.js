@@ -87,7 +87,7 @@ test('catalog: open to everyone (no login, every role incl. reviewer); only list
   assert.equal((await pdf.arrayBuffer()).byteLength > 100, true);
   const ranged = await admin(list.catalogs[0].pdf, { Range: 'bytes=0-7' });
   assert.equal(ranged.status, 206); // pdf.js range loading
-  assert.match((await admin(list.catalogs[0].pdf + '?download=1')).headers.get('content-disposition'), /attachment/);
+  assert.equal((await admin(list.catalogs[0].pdf + '?download=1')).status, 403); // download button/attachment: Super Admin only
   assert.equal((await admin(list.catalogs[1].pdf)).status, 404); // listed, file not on disk yet
   for (const path of ['/catalogs/other.pdf', '/catalogs/..%2f.env', '/catalogs/..%5cserver.js']) assert.notEqual((await admin(path)).status, 200, path);
   assert.equal((await admin('/vendor/pdfjs/build/pdf.min.js')).status, 200);
@@ -153,6 +153,12 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await expect(page.locator('#ecat-next')).toBeDisabled();
   await expect(page.locator('.ecat-thumb').nth(3)).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
+  // Thumbnail strip is a drop-down, closed by default (bigger pages); opening it shrinks the stage.
+  await expect(page.locator('#ecat-thumbs')).toBeHidden();
+  const tall = (await page.locator('#ecat-stage').boundingBox()).height;
+  await page.locator('#ecat-thumbs-toggle').click();
+  await expect(page.locator('#ecat-thumbs')).toBeVisible();
+  assert.ok((await page.locator('#ecat-stage').boundingBox()).height < tall);
   await page.locator('.ecat-thumb').first().click();
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 1 / 7');
   // Page canvases hold real rendered pixels.
@@ -171,7 +177,8 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await page.locator('#ecat-copy').click();
   await expect(page.locator('#ecat-toast')).toHaveText('คัดลอกลิงก์แล้ว');
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${base}/catalog.html#${CATALOGS[0].id}`);
-  await expect(page.locator('#ecat-download')).toHaveAttribute('href', `/catalogs/${CATALOGS[0].pdf}?download=1`);
+  await expect(page.locator('#ecat-download')).toBeHidden(); // Super Admin only
+  await expect(page.locator('#ecat-remove')).toBeHidden();
 
   // Fullscreen toggles.
   await page.locator('#ecat-fullscreen').click();
@@ -310,6 +317,9 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   await page.screenshot({ path: 'test-results/catalog-add.png' });
   assert.equal(JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0].id, 'pro-audio-2027');
   assert.equal((await send(rootCookie, 'POST', '/api/catalogs', { title: 'pro audio 2027', drive: link })).status, 409);
+  await expect(page.locator('#ecat-download')).toBeVisible();
+  const dl = await fetch(base + `/catalogs/pro-audio-2027.pdf?download=1`, { headers: { cookie: rootCookie } });
+  assert.match(dl.headers.get('content-disposition'), /attachment/);
   page.once('dialog', d => d.accept());
   await page.locator('#ecat-remove').click();
   await expect(page.locator('#ecat-state')).toContainText('ยังไม่มีแคตตาล็อก');

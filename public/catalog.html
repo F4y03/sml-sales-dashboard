@@ -75,7 +75,7 @@
             <button id="ecat-remove" class="ecat-tool ecat-tool-danger" type="button" hidden title="ลบเล่มนี้ออกจากแคตตาล็อก">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>ลบเล่ม</span>
             </button>
-            <a id="ecat-download" class="ecat-tool ecat-tool-primary" href="#" download aria-disabled="true">
+            <a id="ecat-download" class="ecat-tool ecat-tool-primary" href="#" download aria-disabled="true" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg><span>ดาวน์โหลด PDF</span>
             </a>
           </div>
@@ -111,7 +111,10 @@
           <input id="ecat-slider" type="range" min="0" max="0" value="0" step="1" disabled />
         </div>
 
-        <nav id="ecat-thumbs" class="ecat-thumbs" aria-label="รูปย่อทุกคู่หน้า"></nav>
+        <button id="ecat-thumbs-toggle" class="ecat-thumbs-toggle" type="button" aria-expanded="false" aria-controls="ecat-thumbs">
+          รูปย่อทุกหน้า<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <nav id="ecat-thumbs" class="ecat-thumbs" aria-label="รูปย่อทุกคู่หน้า" hidden></nav>
       </section>
 
       <p id="ecat-toast" class="ecat-toast" role="status" aria-live="polite"></p>

@@ -662,6 +662,22 @@
     syncManage();
   }
 
+  // ---------- thumbnail strip: a drop-down, closed by default so the pages get the room ----------
+  const thumbsToggle = $("ecat-thumbs-toggle");
+  function setThumbsOpen(open) {
+    thumbsEl.hidden = !open;
+    thumbsToggle.setAttribute("aria-expanded", String(open));
+    viewer.classList.toggle("thumbs-open", open);
+    try {
+      localStorage.setItem("ecat-thumbs-open", open ? "1" : "0");
+    } catch {}
+    if (open) updateUi(); // scroll the strip to the current spread
+  }
+  thumbsToggle.addEventListener("click", () => setThumbsOpen(thumbsEl.hidden));
+  try {
+    if (localStorage.getItem("ecat-thumbs-open") === "1") setThumbsOpen(true);
+  } catch {}
+
   // ---------- add / remove books (catalog_manage; the server checks again) ----------
   const addBtn = $("ecat-add"),
     addDialog = $("ecat-add-dialog"),
@@ -669,14 +685,18 @@
     addError = $("ecat-add-error"),
     addSubmit = $("ecat-add-submit"),
     removeBtn = $("ecat-remove");
-  let canManage = false;
+  let canManage = false,
+    isSuperAdmin = false;
+  // Download PDF + remove book: Super Admin only (the server enforces both too).
   function syncManage() {
     addBtn.hidden = !canManage;
-    removeBtn.hidden = !(canManage && current?.custom);
+    removeBtn.hidden = !(isSuperAdmin && current?.custom);
+    downloadLink.hidden = !isSuperAdmin;
   }
   (window.prplusUser || Promise.resolve(null))
     .then((user) => {
-      canManage = Boolean(user) && (user.role === "super_admin" || Boolean(user.permissions?.includes("catalog_manage")));
+      isSuperAdmin = user?.role === "super_admin";
+      canManage = isSuperAdmin || Boolean(user?.permissions?.includes("catalog_manage"));
       syncManage();
     })
     .catch(() => {});
