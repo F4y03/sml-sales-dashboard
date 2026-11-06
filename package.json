@@ -18,6 +18,7 @@
     "express": "^5.1.0",
     "fast-xml-parser": "^5.11.1",
     "jszip": "^3.10.1",
+    "pdf-lib": "1.17.1",
     "pdfjs-dist": "3.11.174",
     "pg": "^8.16.3",
     "qrcode-generator": "^2.0.4"

@@ -17,7 +17,6 @@
     zoomIn = $("ecat-zoom-in"),
     zoomValue = $("ecat-zoom-value"),
     fullBtn = $("ecat-fullscreen"),
-    copyBtn = $("ecat-copy"),
     downloadLink = $("ecat-download"),
     toast = $("ecat-toast");
   const leftSlot = book.querySelector(".ecat-page-left"),
@@ -113,6 +112,7 @@
   }
   function setControlsEnabled(enabled) {
     slider.disabled = !enabled;
+    searchInput.disabled = !enabled;
     zoomIn.disabled = !enabled || zoom >= ZOOM_MAX;
     zoomOut.disabled = !enabled || zoom <= ZOOM_MIN;
     if (!enabled) prevBtn.disabled = nextBtn.disabled = true;
@@ -225,6 +225,7 @@
     slider.value = String(index);
     slider.setAttribute("aria-valuetext", s ? `หน้า ${spreadLabel(s)} จาก ${total}` : "");
     zoomValue.textContent = zoom + "%";
+    stage.classList.toggle("is-zoomed", zoom > ZOOM_MIN);
     zoomIn.disabled = !doc || zoom >= ZOOM_MAX;
     zoomOut.disabled = !doc || zoom <= ZOOM_MIN;
     thumbsEl.querySelectorAll(".ecat-thumb").forEach((t, i) => {
@@ -384,7 +385,7 @@
   }
 
   // ---------- loading a book ----------
-  async function openCatalog(entry) {
+  async function openCatalog(entry, startPage = 1) {
     current = entry;
     const token = ++loadToken;
     turning = false;
@@ -409,6 +410,9 @@
     });
     titleEl.textContent = entry.title;
     syncManage();
+    searchInput.value = "";
+    searchResults.replaceChildren();
+    openResults(false);
     counterEl.textContent = "";
     downloadLink.href = entry.pdf + "?download=1";
     downloadLink.removeAttribute("aria-disabled");
@@ -447,6 +451,7 @@
       aspect = vp.height / vp.width;
       single = SINGLE_QUERY.matches;
       spreads = buildSpreads(pdf.numPages);
+      index = spreadOfPage(Math.min(pdf.numPages, Math.max(1, startPage))); // shared link to a page: #<id>/<page>
       stateEl.hidden = true;
       book.hidden = false;
       layout();
@@ -527,6 +532,32 @@
     }
   });
 
+  // Pan: when zoomed in, drag the page with the mouse (touch already scrolls natively).
+  let pan = null;
+  stage.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse" || event.button !== 0 || zoom === ZOOM_MIN || !doc) return;
+    if (stage.scrollWidth <= stage.clientWidth && stage.scrollHeight <= stage.clientHeight) return;
+    pan = { x: event.clientX, y: event.clientY, left: stage.scrollLeft, top: stage.scrollTop, moved: false };
+    event.preventDefault(); // no text/image selection while dragging
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (!pan) return;
+    const dx = event.clientX - pan.x,
+      dy = event.clientY - pan.y;
+    if (!pan.moved && Math.hypot(dx, dy) < 4) return;
+    pan.moved = true;
+    stage.classList.add("is-panning");
+    stage.scrollLeft = pan.left - dx;
+    stage.scrollTop = pan.top - dy;
+  });
+  window.addEventListener("pointerup", () => {
+    if (!pan) return;
+    // A real drag must not also "click" a page corner and turn the page.
+    if (pan.moved) stage.addEventListener("click", (e) => (e.stopPropagation(), e.preventDefault()), { capture: true, once: true });
+    pan = null;
+    stage.classList.remove("is-panning");
+  });
+
   // Swipe (touch/pen). Only at 100% — when zoomed, dragging pans the page instead.
   let swipe = null;
   stage.addEventListener("pointerdown", (event) => {
@@ -572,38 +603,85 @@
     relayout();
   });
 
-  // Copy a link that opens this book directly (catalog.html#<id>).
-  copyBtn.addEventListener("click", async () => {
-    if (!current) return;
-    const url = `${location.origin}${location.pathname}#${encodeURIComponent(current.id)}`;
-    let ok = false;
+  // ---------- "แชร์หน้านี้": pick left / right / both -> copy a link to a PDF of just those pages ----------
+  const shareBtn = $("ecat-share"),
+    shareMenu = $("ecat-share-menu");
+  async function copyText(text) {
     try {
-      await navigator.clipboard.writeText(url);
-      ok = true;
+      await navigator.clipboard.writeText(text);
+      return true;
     } catch {
       const area = document.createElement("textarea");
-      area.value = url;
+      area.value = text;
       area.setAttribute("readonly", "");
       area.style.position = "fixed";
       area.style.opacity = "0";
       document.body.append(area);
       area.select();
+      let ok = false;
       try {
         ok = document.execCommand("copy");
       } catch {}
       area.remove();
+      return ok;
     }
-    showToast(ok ? "คัดลอกลิงก์แล้ว" : "คัดลอกไม่สำเร็จ: " + url);
+  }
+  function openShareMenu(open) {
+    shareMenu.hidden = !open;
+    shareBtn.setAttribute("aria-expanded", String(open));
+    if (!open) return;
+    const s = spreads[index] || {};
+    const items = {
+      left: s.left && (single ? null : "หน้าซ้าย · หน้า " + s.left),
+      right: s.right && (single ? "หน้านี้ · หน้า " + s.right : "หน้าขวา · หน้า " + s.right),
+      both: s.left && s.right && !single ? "ทั้งสองหน้า · หน้า " + s.left + "–" + s.right : null,
+    };
+    for (const button of shareMenu.querySelectorAll("[data-pages]")) {
+      const key = button.dataset.pages;
+      button.hidden = !items[key];
+      button.textContent = items[key] || "";
+    }
+    shareMenu.querySelector("button:not([hidden])")?.focus();
+  }
+  shareBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (current && doc) openShareMenu(shareMenu.hidden);
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".ecat-share")) openShareMenu(false);
+  });
+  shareMenu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      openShareMenu(false);
+      shareBtn.focus();
+    }
+  });
+  shareMenu.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-pages]");
+    if (!button || !current) return;
+    openShareMenu(false);
+    const s = spreads[index] || {};
+    let url, label;
+    const from = button.dataset.pages === "right" ? s.right : s.left,
+      to = button.dataset.pages === "left" ? s.left : s.right;
+    const range = from === to ? String(from) : from + "-" + to;
+    url = new URL(current.pdf + "/pages/" + range + ".pdf", location.origin).href;
+    label = "ลิงก์ PDF หน้า " + (from === to ? from : from + "–" + to);
+    showToast((await copyText(url)) ? "คัดลอก" + label + " แล้ว" : "คัดลอกไม่สำเร็จ: " + url);
   });
 
   // ---------- tabs + hash ----------
   function selectFromHash() {
-    let id = "";
+    let raw = "";
     try {
-      id = decodeURIComponent(location.hash.slice(1));
+      raw = decodeURIComponent(location.hash.slice(1));
     } catch {}
+    const [id, pageText] = raw.split("/");
+    const page = Number.parseInt(pageText, 10) || 1;
     const entry = catalogs.find((c) => c.id === id) || catalogs[0];
-    if (entry && entry !== current) openCatalog(entry);
+    if (!entry) return;
+    if (entry !== current) openCatalog(entry, page);
+    else if (doc && pageText) go(spreadOfPage(Math.min(doc.numPages, Math.max(1, page))));
   }
   function selectTab(entry) {
     if (entry === current) return;
@@ -662,18 +740,188 @@
     syncManage();
   }
 
+  // ---------- search the PDF text (pdf.js text layer; image-only pages have no text) ----------
+  const searchInput = $("ecat-search"),
+    searchResults = $("ecat-search-results");
+  let textIndex = null; // { token, pages: Promise<string[]> }
+  // "X-18" / "x18" / "x 18" all match "X-18", but never inside another word or model:
+  // separators are optional only between the typed characters, and an English letter/digit edge
+  // must not start inside another word ("BOX 18" is not "X-18"). A typed prefix still works ("PD-48" finds PD-4800);
+  // pages where the match also ends at a word edge (exactly "X-18", not "X-180") are listed first.
+  function searchPattern(query) {
+    const chars = [...query.toLowerCase().replace(/[\s\-_./]+/g, "")];
+    if (chars.length < 2) return null;
+    const esc = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const body = chars.map(esc).join("[\\s\\-_./]*");
+    const alnum = /[a-z0-9]/;
+    const head = alnum.test(chars[0]) ? "(?<![a-z0-9])" : "";
+    const tail = alnum.test(chars[chars.length - 1]) ? "(?![a-z0-9])" : "";
+    return { any: new RegExp(head + body, "i"), exact: new RegExp(head + body + tail, "i") };
+  }
+  function pageTexts() {
+    if (textIndex?.token === loadToken) return textIndex.pages;
+    const token = loadToken,
+      pdf = doc;
+    const pages = (async () => {
+      const out = [];
+      for (let p = 1; p <= pdf.numPages; p++) {
+        if (token !== loadToken) throw new Error("stale");
+        const content = await (await pdf.getPage(p)).getTextContent();
+        out.push(content.items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim());
+        if (p % 10 === 0) renderSearchStatus(`กำลังเตรียมค้นหา… ${p}/${pdf.numPages} หน้า`);
+      }
+      return out;
+    })();
+    textIndex = { token, pages };
+    pages.catch(() => (textIndex = null));
+    return pages;
+  }
+  function renderSearchStatus(text) {
+    if (searchInput.value.trim().length < 2) return;
+    const p = document.createElement("p");
+    p.className = "ecat-search-status";
+    p.textContent = text;
+    searchResults.replaceChildren(p);
+    openResults(true);
+  }
+  function openResults(open) {
+    searchResults.hidden = !open;
+    searchInput.setAttribute("aria-expanded", String(open));
+  }
+  let searchTimer,
+    searchSeq = 0;
+  async function runSearch() {
+    const query = searchInput.value.trim();
+    const seq = ++searchSeq;
+    if (query.length < 2 || !doc) return openResults(false);
+    renderSearchStatus("กำลังค้นหา…");
+    let texts;
+    try {
+      texts = await pageTexts();
+    } catch {
+      if (seq === searchSeq) renderSearchStatus("ค้นหาไม่สำเร็จ กรุณาลองใหม่");
+      return;
+    }
+    if (seq !== searchSeq) return;
+    const pattern = searchPattern(query);
+    const hits = [];
+    if (pattern)
+      texts.forEach((text, i) => {
+        const m = pattern.exact.exec(text) || pattern.any.exec(text);
+        if (m) hits.push({ page: i + 1, text, at: m.index, len: m[0].length, exact: pattern.exact.test(text) });
+      });
+    hits.sort((a, b) => b.exact - a.exact || a.page - b.page);
+    if (!hits.length) {
+      const noText = texts.every((t) => !t);
+      renderSearchStatus(noText ? "ไฟล์นี้เป็นรูปภาพล้วน ไม่มีข้อความให้ค้นหา" : `ไม่พบ “${query}”`);
+      return;
+    }
+    const head = document.createElement("p");
+    head.className = "ecat-search-status";
+    head.textContent = `พบ ${hits.length} หน้า`;
+    const items = hits.slice(0, 60).map(({ page, text, at, len }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ecat-search-hit";
+      const label = document.createElement("strong");
+      label.textContent = `หน้า ${page}`;
+      const snippet = document.createElement("span");
+      if (at >= 0) {
+        const start = Math.max(0, at - 40);
+        snippet.append(
+          (start ? "…" : "") + text.slice(start, at),
+          Object.assign(document.createElement("mark"), { textContent: text.slice(at, at + len) }),
+          text.slice(at + len, at + len + 60) + "…",
+        );
+      } else snippet.textContent = text.slice(0, 100) + "…";
+      button.append(label, snippet);
+      button.addEventListener("click", () => {
+        openResults(false);
+        go(spreadOfPage(page));
+      });
+      return button;
+    });
+    searchResults.replaceChildren(head, ...items);
+    openResults(true);
+  }
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, 250);
+  });
+  searchInput.addEventListener("focus", () => {
+    if (searchResults.childElementCount && searchInput.value.trim().length >= 2) openResults(true);
+  });
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") openResults(false);
+    if (event.key === "Enter") searchResults.querySelector(".ecat-search-hit")?.click();
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".ecat-search")) openResults(false);
+  });
+
   // ---------- thumbnail strip: a drop-down, closed by default so the pages get the room ----------
-  const thumbsToggle = $("ecat-thumbs-toggle");
+  const thumbsToggle = $("ecat-thumbs-toggle"),
+    thumbsWrap = $("ecat-thumbs-wrap"),
+    thumbScrollBtns = thumbsWrap.querySelectorAll(".ecat-thumbs-scroll");
+  // Arrows show only when there is more to scroll that way.
+  function syncThumbArrows() {
+    const max = thumbsEl.scrollWidth - thumbsEl.clientWidth;
+    thumbScrollBtns[0].disabled = thumbsEl.scrollLeft <= 2;
+    thumbScrollBtns[1].disabled = thumbsEl.scrollLeft >= max - 2;
+  }
+  thumbScrollBtns.forEach((button) =>
+    button.addEventListener("click", () =>
+      thumbsEl.scrollBy({ left: Number(button.dataset.dir) * thumbsEl.clientWidth * 0.8, behavior: "smooth" }),
+    ),
+  );
+  thumbsEl.addEventListener("scroll", syncThumbArrows, { passive: true });
+  new ResizeObserver(syncThumbArrows).observe(thumbsEl);
+  // Mouse wheel (vertical) scrolls the strip sideways.
+  thumbsEl.addEventListener(
+    "wheel",
+    (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || thumbsEl.scrollWidth <= thumbsEl.clientWidth) return;
+      event.preventDefault();
+      thumbsEl.scrollBy({ left: event.deltaY, behavior: "auto" });
+    },
+    { passive: false },
+  );
+  // Drag with the mouse to scroll; a real drag does not count as a click on a thumbnail.
+  let drag = null;
+  thumbsEl.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse" || event.button !== 0) return;
+    drag = { x: event.clientX, left: thumbsEl.scrollLeft, moved: false };
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const dx = event.clientX - drag.x;
+    if (Math.abs(dx) > 5) drag.moved = true;
+    if (drag.moved) {
+      thumbsEl.style.scrollBehavior = "auto";
+      thumbsEl.scrollLeft = drag.left - dx;
+      thumbsEl.classList.add("is-dragging");
+    }
+  });
+  window.addEventListener("pointerup", () => {
+    if (!drag) return;
+    if (drag.moved) thumbsEl.addEventListener("click", (e) => (e.stopPropagation(), e.preventDefault()), { capture: true, once: true });
+    drag = null;
+    thumbsEl.style.scrollBehavior = "";
+    thumbsEl.classList.remove("is-dragging");
+  });
   function setThumbsOpen(open) {
-    thumbsEl.hidden = !open;
+    thumbsWrap.hidden = !open;
     thumbsToggle.setAttribute("aria-expanded", String(open));
     viewer.classList.toggle("thumbs-open", open);
     try {
       localStorage.setItem("ecat-thumbs-open", open ? "1" : "0");
     } catch {}
-    if (open) updateUi(); // scroll the strip to the current spread
+    if (open) {
+      updateUi(); // scroll the strip to the current spread
+      requestAnimationFrame(syncThumbArrows);
+    }
   }
-  thumbsToggle.addEventListener("click", () => setThumbsOpen(thumbsEl.hidden));
+  thumbsToggle.addEventListener("click", () => setThumbsOpen(thumbsWrap.hidden));
   try {
     if (localStorage.getItem("ecat-thumbs-open") === "1") setThumbsOpen(true);
   } catch {}

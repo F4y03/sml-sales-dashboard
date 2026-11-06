@@ -20,7 +20,7 @@ function makePdf(pages) {
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>', null, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
   const kids = [];
   for (let i = 1; i <= pages; i++) {
-    const content = `${(i * 0.13) % 1} 0.5 0.8 rg 20 20 380 527 re f 0 0 0 rg BT /F1 160 Tf 110 220 Td (${i}) Tj ET`;
+    const content = `${(i * 0.13) % 1} 0.5 0.8 rg 20 20 380 527 re f 0 0 0 rg BT /F1 160 Tf 110 220 Td (${i}) Tj ET BT /F1 18 Tf 40 40 Td (Model MNX-${i}00 mixer) Tj ET`;
     objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
     const contentId = objects.length;
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 420 567] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`);
@@ -170,13 +170,66 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   for (let i = 0; i < 8; i++) await page.locator('#ecat-zoom-in').click({ force: true });
   await expect(page.locator('#ecat-zoom-value')).toHaveText('250%');
   await expect(page.locator('#ecat-zoom-in')).toBeDisabled();
+  // Pan: drag the zoomed page with the mouse; the page does not turn.
+  const stageEl = page.locator('#ecat-stage');
+  const sb = await stageEl.boundingBox();
+  const counterBefore = await page.locator('#ecat-counter').textContent();
+  const startScroll = await stageEl.evaluate(el => [el.scrollLeft, el.scrollTop]);
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sb.x + sb.width / 2 - 150, sb.y + sb.height / 2 - 120, { steps: 6 });
+  await page.mouse.up();
+  const endScroll = await stageEl.evaluate(el => [el.scrollLeft, el.scrollTop]);
+  assert.ok(endScroll[0] > startScroll[0] + 100 && endScroll[1] > startScroll[1] + 80, 'panned ' + startScroll + ' -> ' + endScroll);
+  await expect(page.locator('#ecat-counter')).toHaveText(counterBefore);
   for (let i = 0; i < 6; i++) await page.locator('#ecat-zoom-out').click({ force: true });
   await expect(page.locator('#ecat-zoom-value')).toHaveText('100%');
 
-  // Copy link -> #id; download link points at the same-origin PDF.
-  await page.locator('#ecat-copy').click();
-  await expect(page.locator('#ecat-toast')).toHaveText('คัดลอกลิงก์แล้ว');
-  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${base}/catalog.html#${CATALOGS[0].id}`);
+  // Search the PDF text: "mnx 500" finds MNX-500 on page 5 and jumps to spread 4-5.
+  await page.locator('#ecat-search').fill('mnx 500');
+  await expect(page.locator('.ecat-search-hit')).toHaveCount(1);
+  await expect(page.locator('.ecat-search-hit strong')).toHaveText('หน้า 5');
+  await page.locator('.ecat-search-hit').click();
+  await expect(page.locator('#ecat-counter')).toHaveText('หน้า 4–5 / 7');
+  await expect(page.locator('#ecat-search-results')).toBeHidden();
+  await page.locator('#ecat-search').fill('MNX-');
+  await expect(page.locator('.ecat-search-hit')).toHaveCount(7);
+  await page.screenshot({ path: 'test-results/catalog-search.png' });
+  // Not inside another word: "X 1" must not match "MNX-100" ("…NX-1…"), "nx" must not either.
+  await page.locator('#ecat-search').fill('X 1');
+  await expect(page.locator('#ecat-search-results')).toContainText('ไม่พบ');
+  // Prefix of a model still works; the exact model is listed first.
+  await page.locator('#ecat-search').fill('mnx-30');
+  await expect(page.locator('.ecat-search-hit strong')).toHaveText(['หน้า 3']);
+  await page.locator('#ecat-search').fill('ไม่มีคำนี้');
+  await expect(page.locator('#ecat-search-results')).toContainText('ไม่พบ');
+  await page.locator('#ecat-search').press('Escape');
+  await expect(page.locator('.ecat-leaf')).toBeHidden();
+
+  // แชร์หน้านี้: left / right / both -> link to a PDF of only those pages; or a link into the reader.
+  await page.locator('#ecat-share').click();
+  await expect(page.locator('#ecat-share-menu [data-pages=left]')).toHaveText('หน้าซ้าย · หน้า 4');
+  await expect(page.locator('#ecat-share-menu [data-pages=both]')).toHaveText('ทั้งสองหน้า · หน้า 4–5');
+  await page.locator('#ecat-share-menu [data-pages=right]').click();
+  await expect(page.locator('#ecat-toast')).toHaveText('คัดลอกลิงก์ PDF หน้า 5 แล้ว');
+  const one = await page.evaluate(() => navigator.clipboard.readText());
+  assert.equal(one, `${base}/catalogs/${CATALOGS[0].pdf}/pages/5.pdf`);
+  const { PDFDocument } = await import('pdf-lib');
+  const r1 = await fetch(one);
+  assert.equal(r1.headers.get('content-type'), 'application/pdf');
+  assert.equal((await PDFDocument.load(await r1.arrayBuffer())).getPageCount(), 1);
+  const r2 = await fetch(`${base}/catalogs/${CATALOGS[0].pdf}/pages/4-5.pdf`);
+  assert.equal((await PDFDocument.load(await r2.arrayBuffer())).getPageCount(), 2);
+  for (const bad of ['9.pdf', '1-5.pdf', '0.pdf', 'x.pdf']) assert.ok((await fetch(`${base}/catalogs/${CATALOGS[0].pdf}/pages/${bad}`)).status >= 400, bad);
+  await page.locator('#ecat-share').click();
+  await expect(page.locator('#ecat-share-menu [data-pages=link]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // Opening a shared page link lands on that spread.
+  const shared = await context.newPage();
+  await shared.route('https://**', route => route.abort());
+  await shared.goto(`${base}/catalog.html#${CATALOGS[0].id}/7`);
+  await expect(shared.locator('#ecat-counter')).toHaveText('หน้า 6–7 / 7');
+  await shared.close();
   await expect(page.locator('#ecat-download')).toBeHidden(); // Super Admin only
   await expect(page.locator('#ecat-remove')).toBeHidden();
 
@@ -202,6 +255,17 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('#ecat-thumbs .ecat-thumb')).toHaveCount(7);
   await expect(page.locator('#ecat-book')).toHaveClass(/is-single/);
+  // Thumbnail strip scrolls: arrow button and mouse wheel.
+  const strip = page.locator('#ecat-thumbs');
+  await page.locator('.ecat-thumb').first().evaluate(el => el.parentElement.scrollTo({ left: 0, behavior: 'instant' }));
+  await expect(page.locator('.ecat-thumbs-scroll-prev')).toBeDisabled();
+  await page.locator('.ecat-thumbs-scroll-next').click();
+  await expect.poll(() => strip.evaluate(el => el.scrollLeft)).toBeGreaterThan(50);
+  await expect(page.locator('.ecat-thumbs-scroll-prev')).toBeEnabled();
+  const before = await strip.evaluate(el => el.scrollLeft);
+  await strip.hover();
+  await page.mouse.wheel(0, -200);
+  await expect.poll(() => strip.evaluate(el => el.scrollLeft)).toBeLessThan(before);
   const box = await page.locator('#ecat-stage').boundingBox();
   await page.locator('#ecat-stage').dispatchEvent('pointerdown', { pointerType: 'touch', clientX: box.x + 300, clientY: box.y + 200 });
   await page.locator('#ecat-stage').dispatchEvent('pointerup', { pointerType: 'touch', clientX: box.x + 120, clientY: box.y + 210 });

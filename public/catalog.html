@@ -61,6 +61,13 @@
             <small id="ecat-counter" aria-live="polite"></small>
           </div>
           <div class="ecat-tools">
+            <div class="ecat-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>
+              <input id="ecat-search" type="search" autocomplete="off" maxlength="80" disabled
+                placeholder="ค้นหาในแคตตาล็อก เช่น MNX-800" aria-label="ค้นหาข้อความในแคตตาล็อก"
+                aria-controls="ecat-search-results" aria-expanded="false" />
+              <div id="ecat-search-results" class="ecat-search-results" hidden></div>
+            </div>
             <div class="ecat-zoom" role="group" aria-label="ซูม">
               <button id="ecat-zoom-out" type="button" aria-label="ซูมออก" title="ซูมออก">−</button>
               <output id="ecat-zoom-value" aria-live="polite">100%</output>
@@ -69,9 +76,16 @@
             <button id="ecat-fullscreen" class="ecat-tool" type="button" aria-pressed="false" title="เต็มจอ">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>เต็มจอ</span>
             </button>
-            <button id="ecat-copy" class="ecat-tool" type="button" title="คัดลอกลิงก์เปิดเล่มนี้">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>คัดลอกลิงก์</span>
-            </button>
+            <div class="ecat-share">
+              <button id="ecat-share" class="ecat-tool" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="ecat-share-menu" title="บันทึก/แชร์หน้านี้เป็น PDF">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4"/></svg><span>แชร์หน้านี้</span>
+              </button>
+              <div id="ecat-share-menu" class="ecat-share-menu" role="menu" hidden>
+                <button type="button" role="menuitem" data-pages="left"></button>
+                <button type="button" role="menuitem" data-pages="right"></button>
+                <button type="button" role="menuitem" data-pages="both"></button>
+              </div>
+            </div>
             <button id="ecat-remove" class="ecat-tool ecat-tool-danger" type="button" hidden title="ลบเล่มนี้ออกจากแคตตาล็อก">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>ลบเล่ม</span>
             </button>
@@ -111,10 +125,18 @@
           <input id="ecat-slider" type="range" min="0" max="0" value="0" step="1" disabled />
         </div>
 
-        <button id="ecat-thumbs-toggle" class="ecat-thumbs-toggle" type="button" aria-expanded="false" aria-controls="ecat-thumbs">
+        <button id="ecat-thumbs-toggle" class="ecat-thumbs-toggle" type="button" aria-expanded="false" aria-controls="ecat-thumbs-wrap">
           รูปย่อทุกหน้า<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <nav id="ecat-thumbs" class="ecat-thumbs" aria-label="รูปย่อทุกคู่หน้า" hidden></nav>
+        <div id="ecat-thumbs-wrap" class="ecat-thumbs-wrap" hidden>
+          <button class="ecat-thumbs-scroll ecat-thumbs-scroll-prev" type="button" aria-label="เลื่อนรูปย่อไปทางซ้าย" data-dir="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+          </button>
+          <nav id="ecat-thumbs" class="ecat-thumbs" aria-label="รูปย่อทุกคู่หน้า"></nav>
+          <button class="ecat-thumbs-scroll ecat-thumbs-scroll-next" type="button" aria-label="เลื่อนรูปย่อไปทางขวา" data-dir="1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
+        </div>
       </section>
 
       <p id="ecat-toast" class="ecat-toast" role="status" aria-live="polite"></p>

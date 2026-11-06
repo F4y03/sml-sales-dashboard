@@ -4,6 +4,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PDFDocument } from 'pdf-lib';
 import { CATALOGS } from '../config/catalogs.js';
 import { sameSite } from '../middleware/auth.js';
 import { hasPermission } from '../services/permissionService.js';
@@ -135,6 +136,42 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
   app.use('/vendor/pdfjs/cmaps', express.static(resolve(pdfjsRoot, 'cmaps'), vendor));
   app.use('/vendor/pdfjs/standard_fonts', express.static(resolve(pdfjsRoot, 'standard_fonts'), vendor));
   app.use('/vendor/pdfjs', (_req, res) => res.status(404).end());
+
+  // Shareable link to one page or a spread: /catalogs/<pdf>/pages/122.pdf or /pages/122-123.pdf ("แชร์หน้านี้").
+  // pdf-lib copies the pages out of the original (vector, same quality); results are cached on disk per source version.
+  const pageJobs = new Map();
+  app.get('/catalogs/:file/pages/:range', async (req, res) => {
+    const book = bookByFile(String(req.params.file));
+    const m = /^(\d{1,4})(?:-(\d{1,4}))?\.pdf$/i.exec(String(req.params.range));
+    if (!book || !m) return res.status(404).json({ error: 'ไม่พบหน้าแคตตาล็อก' });
+    const from = Number(m[1]), to = Number(m[2] || m[1]);
+    if (from < 1 || to < from || to - from > 1) return res.status(400).json({ error: 'แชร์ได้ครั้งละ 1–2 หน้า' });
+    try {
+      if (!(await ensureFile(book))) return res.status(404).json({ error: 'ยังไม่มีไฟล์ PDF ของแคตตาล็อกนี้บนเซิร์ฟเวอร์' });
+      const source = resolve(dir, book.pdf), version = Math.round(statSync(source).mtimeMs);
+      const cacheDir = resolve(dir, 'pages'), out = resolve(cacheDir, `${book.id}-${version}-${from}-${to}.pdf`);
+      if (!existsSync(out)) {
+        if (!pageJobs.has(out)) pageJobs.set(out, (async () => {
+          const src = await PDFDocument.load(readFileSync(source), { ignoreEncryption: true, updateMetadata: false });
+          if (to > src.getPageCount()) throw Object.assign(new Error('range'), { code: 'RANGE' });
+          const doc = await PDFDocument.create();
+          for (const page of await doc.copyPages(src, Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i))) doc.addPage(page);
+          doc.setTitle(`${book.title} หน้า ${from === to ? from : from + '–' + to}`);
+          mkdirSync(cacheDir, { recursive: true });
+          writeFileSync(out + '.tmp', await doc.save());
+          renameSync(out + '.tmp', out);
+        })().finally(() => pageJobs.delete(out)));
+        await pageJobs.get(out);
+      }
+      res.set({ 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+      const name = `${book.pdf.replace(/\.pdf$/i, '')}-p${from === to ? from : from + '-' + to}.pdf`;
+      res.sendFile(out, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${name}"` } });
+    } catch (error) {
+      if (error.code === 'RANGE') return res.status(404).json({ error: 'ไม่มีหน้านี้ในแคตตาล็อก' });
+      console.error('Catalog page share failed:', book.id, error.code || error.message);
+      res.status(502).json({ error: 'สร้างไฟล์หน้านี้ไม่สำเร็จ กรุณาลองใหม่' });
+    }
+  });
 
   // Only files listed in the config are served; never a path from the request.
   app.get('/catalogs/:file', async (req, res) => {
