@@ -608,7 +608,7 @@
     relayout();
   });
 
-  // ---------- "แชร์หน้านี้": pick left / right / both -> copy a link to a PDF of just those pages ----------
+  // ---------- "แชร์หน้านี้": pick left / right / both -> save or share those pages as one PNG image ----------
   const shareBtn = $("ecat-share"),
     shareMenu = $("ecat-share-menu");
   async function copyText(text) {
@@ -666,14 +666,69 @@
     if (!button || !current) return;
     openShareMenu(false);
     const s = spreads[index] || {};
-    let url, label;
     const from = button.dataset.pages === "right" ? s.right : s.left,
       to = button.dataset.pages === "left" ? s.left : s.right;
     const range = from === to ? String(from) : from + "-" + to;
-    url = new URL(current.pdf + "/pages/" + range + ".pdf", location.origin).href;
-    label = "ลิงก์ PDF หน้า " + (from === to ? from : from + "–" + to);
-    showToast((await copyText(url)) ? "คัดลอก" + label + " แล้ว" : "คัดลอกไม่สำเร็จ: " + url);
+    showToast("กำลังสร้างภาพหน้า " + range.replace("-", "–") + "…");
+    const rendering = renderPagesImage(from === to ? [from] : [from, to]);
+    // Clipboard must be requested inside the click (before any await), so hand it the pending image.
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    const clip = coarse || !window.ClipboardItem || !navigator.clipboard?.write
+      ? Promise.resolve(false)
+      : navigator.clipboard.write([new ClipboardItem({ "image/png": rendering })]).then(() => true, (e) => (console.warn("clipboard", e), false));
+    try {
+      const blob = await rendering;
+      const file = new File([blob], (current.id || "catalog") + "-p" + range + ".png", { type: "image/png" });
+      // Phones/tablets: share sheet (LINE, Photos …). Desktop: the Windows share sheet is unreliable,
+      // so copy the image to the clipboard (Ctrl+V into LINE).
+      if (matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: current.title + " หน้า " + range });
+          return;
+        } catch (error) {
+          if (error?.name === "AbortError") return;
+        }
+      }
+      // Desktop: copy only. Download the PNG only when the clipboard is unavailable (e.g. plain http on a LAN IP).
+      if (await clip) {
+        showToast("คัดลอกภาพหน้า " + range.replace("-", "–") + " แล้ว · กด Ctrl+V วางใน LINE ได้เลย");
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = file.name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+      showToast("คัดลอกภาพไม่ได้ในเบราว์เซอร์นี้ จึงบันทึกเป็นไฟล์แทน");
+    } catch (error) {
+      showToast("สร้างภาพไม่สำเร็จ: " + (error?.message || error));
+    }
   });
+  // Render 1–2 PDF pages side by side into one PNG (~2000px tall for sharp text).
+  async function renderPagesImage(pageNumbers) {
+    const pages = await Promise.all(pageNumbers.map((n) => doc.getPage(n)));
+    const base = pages.map((p) => p.getViewport({ scale: 1 }));
+    const scale = Math.min(3, 2000 / Math.max(...base.map((v) => v.height)));
+    const views = pages.map((p) => p.getViewport({ scale }));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(views.reduce((w, v) => w + v.width, 0));
+    canvas.height = Math.ceil(Math.max(...views.map((v) => v.height)));
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let x = 0;
+    for (const [i, page] of pages.entries()) {
+      const part = document.createElement("canvas");
+      part.width = Math.ceil(views[i].width);
+      part.height = Math.ceil(views[i].height);
+      await page.render({ canvasContext: part.getContext("2d"), viewport: views[i] }).promise;
+      ctx.drawImage(part, x, 0);
+      x += part.width;
+    }
+    return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob"))), "image/png"));
+  }
 
   // ---------- tabs + hash ----------
   function selectFromHash() {
