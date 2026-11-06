@@ -347,6 +347,12 @@ window.prplusUser
           ["super_admin", "executive"].includes(user.role) &&
           user.scope !== "territory"
         );
+      // Sales doesn't need these two in the menu (pages stay reachable by URL).
+      if (
+        user.role === "sales" &&
+        ["my-activity", "data-protection"].includes(link.dataset.page)
+      )
+        link.hidden = true;
     });
     workspace.querySelector(".workspace-brand").href = user.landing || "/";
     workspace.querySelector(".workspace-profile small").textContent =
