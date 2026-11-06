@@ -14,7 +14,7 @@ import { hasPermission } from '../services/permissionService.js';
 // signed-in users get the normal page with the workspace sidebar, visitors get the reader alone.
 const VALID_ID = /^[a-z0-9-]{1,60}$/;
 const VALID_FILE = /^[\w.-]{1,120}\.pdf$/i;
-const PUBLIC_FILES = new Set(['/catalog.html', '/catalog.css', '/catalog.js', '/api/catalogs']);
+const PUBLIC_FILES = new Set(['/catalog.html', '/catalog.css', '/catalog.js', '/catalog-loader.css', '/catalog-loader.js', '/api/catalogs']);
 // Google Drive share link -> file id. Only the id is used: the server never fetches a URL taken from config/request.
 export function driveFileId(link) {
   if (typeof link !== 'string') return null;

@@ -445,6 +445,9 @@
       return;
     }
     showState("loading", "กำลังเปิดแคตตาล็อก…", entry.title);
+    // หน้าโหลด overlay (catalog-loader.js); starting a new one cancels the previous book's.
+    const loader = window.ecatLoader?.start(entry.title);
+    const live = () => token === loadToken;
     try {
       const task = pdfjsLib.getDocument({
         url: entry.pdf,
@@ -456,10 +459,14 @@
       });
       loadingTask = task;
       task.onProgress = ({ loaded, total }) => {
-        if (token === loadToken && total) setProgress(loaded / total);
+        if (token === loadToken && total) {
+          setProgress(loaded / total);
+          loader?.progress(loaded / total);
+        }
       };
       const pdf = await task.promise;
       if (token !== loadToken) return;
+      loader?.prepared(pdf.numPages);
       doc = pdf;
       const first = await pdf.getPage(1);
       if (token !== loadToken) return;
@@ -476,8 +483,10 @@
       updateUi();
       loadSections(entry, token);
       await show();
+      if (live()) loader?.done();
     } catch (error) {
       if (token !== loadToken) return;
+      loader?.fail(errorText(error));
       doc = null;
       showState("error", "เปิดแคตตาล็อกนี้ไม่ได้", errorText(error), () => openCatalog(entry));
       setControlsEnabled(false);
