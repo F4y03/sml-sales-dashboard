@@ -28,6 +28,8 @@ const workspaceIcons = {
     '<path d="M12 15V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
   "customer-stock":
     '<circle cx="7" cy="7" r="3"/><path d="M2 19v-2a5 5 0 0 1 8-4"/><path d="m13 12 4-2 4 2-4 2-4-2Zm0 0v5l4 2 4-2v-5m-4 2v5"/>',
+  catalog:
+    '<path d="M12 6.5C10 5 7 4.5 3 5v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Zm0 0v13"/>',
 };
 const workspaceIcon = (name) =>
   `<svg class="workspace-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${workspaceIcons[name]}</svg>`;
@@ -44,6 +46,7 @@ workspace.innerHTML = `
     <a href="consignment.html" data-page="consignment">${workspaceIcon("consignment")}รับ–เบิกสินค้าฝาก</a>
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
     <a href="customer-stock.html" data-page="customer-stock">${workspaceIcon("customer-stock")}ลูกค้า &amp; สต็อก</a>
+    <a href="catalog.html" data-page="catalog">${workspaceIcon("catalog")}แคตตาล็อก</a>
     <a href="reports.html" data-page="reports">${workspaceIcon("reports")}รายงาน SML ทั้งหมด</a>
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
@@ -326,7 +329,7 @@ window.prplusUser
       marketplace: ["marketplace_view"],
       "marketplace-upload": ["marketplace_upload"],
     };
-    const everyone = ["my-activity", "data-protection"];
+    const everyone = ["my-activity", "data-protection", "catalog"];
     workspace.querySelectorAll("nav a").forEach((link) => {
       link.hidden = everyone.includes(link.dataset.page)
         ? false

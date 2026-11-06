@@ -4,6 +4,7 @@ import { isIP } from 'node:net';
 import { createAccessStore } from '../models/accessStore.js';
 import { isReviewer } from '../config/access.js';
 import { isProductSheetPath, isProductSheetPublicRead } from '../routes/productSheetProxy.js';
+import { isCatalogPublicRead } from '../routes/catalog.js';
 import { createAuditService } from '../services/auditService.js';
 import { loadUser, landingPage } from '../services/permissionService.js';
 import { createTwoFactorService } from '../services/twoFactorService.js';
@@ -123,6 +124,7 @@ export function installAuth(app,env=process.env,store=createAccessStore(':memory
       req.auth={...user,territoryId,territories:allowed.map(({mapping,...t})=>t)};req.territory=territory;req.sessionHash=key;return next();
     }
     if(isProductSheetPublicRead(req))return next();
+    if(isCatalogPublicRead(req))return next(); // แคตตาล็อกสินค้า: customers open shared links without an account
     if(req.path==='/api'||req.path.startsWith('/api/')||(isProductSheetPath(req)&&req.method!=='GET'))return res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
     res.redirect('/login.html?next='+encodeURIComponent(req.originalUrl));
   });

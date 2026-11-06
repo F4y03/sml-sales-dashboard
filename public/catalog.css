@@ -1,0 +1,805 @@
+/* แคตตาล็อกสินค้า (E-Catalog) — shared theme tokens from theme-modes.css (light + dark). */
+body {
+  margin: 0;
+  background: var(--canvas, #0b0b0d);
+  color: var(--ink, #f4f4f5);
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+}
+.ecat {
+  --ecat-paper-shadow: 0 18px 40px rgb(0 0 0 / 0.22);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px clamp(16px, 3vw, 40px) 64px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+:root[data-theme="dark"] .ecat {
+  --ecat-paper-shadow: 0 18px 44px rgb(0 0 0 / 0.55);
+}
+.ecat *,
+.ecat *::before,
+.ecat *::after {
+  box-sizing: border-box;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.ecat-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--muted, #b0b1b8);
+}
+.ecat-heading h1 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.25;
+}
+.ecat-heading h1 span {
+  color: var(--brand, #ff3b30);
+}
+.ecat-subtitle {
+  margin: 8px 0 0;
+  color: var(--muted, #b0b1b8);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Book tabs */
+.ecat-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  margin: 24px 0 16px;
+  padding: 6px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 14px;
+  background: var(--surface, #141416);
+}
+.ecat-tabs:empty {
+  display: none;
+}
+html[data-theme] .ecat-tabs button {
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+html[data-theme] .ecat-tabs button:hover {
+  background: var(--surface-raised, #1c1c20);
+}
+html[data-theme] .ecat-tabs button[aria-selected="true"] {
+  background: var(--brand-soft, #311416);
+  border-color: var(--brand-border, #632124);
+  color: var(--brand, #ff3b30);
+}
+.ecat :is(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand, #ff3b30);
+  outline-offset: 2px;
+}
+
+/* Viewer shell */
+.ecat-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 18px;
+  background: var(--surface, #141416);
+  box-shadow: var(--shadow, none);
+  min-width: 0;
+}
+.ecat-viewer:fullscreen,
+.ecat-viewer.is-pseudo-fullscreen {
+  border-radius: 0;
+  border: 0;
+  padding: 12px clamp(8px, 2vw, 20px);
+  background: var(--canvas, #0b0b0d);
+}
+.ecat-viewer.is-pseudo-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.ecat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.ecat-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ecat-title strong {
+  font-size: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ecat-title small {
+  color: var(--muted, #b0b1b8);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ecat-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+html[data-theme] .ecat-tool,
+.ecat-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+html[data-theme] .ecat-tool {
+  padding: 0 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+html[data-theme] .ecat-tool:hover {
+  border-color: var(--brand-border, #632124);
+}
+html[data-theme] .ecat-tool svg,
+html[data-theme] .ecat-arrow svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+html[data-theme] .ecat-tool-primary {
+  background: var(--brand, #ff3b30);
+  border-color: var(--brand, #ff3b30);
+  color: #fff;
+}
+html[data-theme] .ecat-tool-primary:hover {
+  background: var(--brand-hover, #e10600);
+  border-color: var(--brand-hover, #e10600);
+}
+html[data-theme] .ecat-tool[aria-disabled="true"],
+html[data-theme] .ecat-tool:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+html[data-theme] .ecat-tool[aria-pressed="true"] {
+  background: var(--brand-soft, #311416);
+  border-color: var(--brand-border, #632124);
+  color: var(--brand, #ff3b30);
+}
+.ecat-zoom {
+  padding: 0 4px;
+}
+html[data-theme] .ecat-zoom button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+html[data-theme] .ecat-zoom button:hover:not(:disabled) {
+  background: var(--surface, #141416);
+}
+html[data-theme] .ecat-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ecat-zoom output {
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stage + book */
+.ecat-stage-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.ecat-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: clamp(360px, calc(100vh - 330px), 960px);
+  display: flex;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-raised, #1c1c20);
+  scrollbar-width: thin;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+.ecat-viewer:fullscreen .ecat-stage,
+.ecat-viewer.is-pseudo-fullscreen .ecat-stage {
+  height: auto;
+  flex: 1;
+}
+.ecat-viewer:fullscreen .ecat-stage-wrap,
+.ecat-viewer.is-pseudo-fullscreen .ecat-stage-wrap {
+  flex: 1;
+  min-height: 0;
+}
+.ecat-book {
+  position: relative;
+  margin: auto; /* centres, and still scrolls fully when zoomed past the stage */
+  flex: 0 0 auto;
+  perspective: 2600px;
+}
+.ecat-book[hidden] {
+  display: none;
+}
+.ecat-page,
+.ecat-leaf {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+}
+.ecat-page-left {
+  left: 0;
+}
+.ecat-page-right {
+  left: 50%;
+}
+.ecat-book.is-single .ecat-page-left {
+  display: none;
+}
+.ecat-book.is-single .ecat-page-right,
+.ecat-book.is-single .ecat-leaf {
+  left: 0;
+  width: 100%;
+}
+.ecat-page canvas,
+.ecat-face canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+.ecat-page.is-empty canvas {
+  visibility: hidden;
+}
+.ecat-page:not(.is-empty) {
+  box-shadow: var(--ecat-paper-shadow);
+}
+/* Spine shading so the open spread reads as a book. */
+.ecat-book:not(.is-single) .ecat-page-left:not(.is-empty)::after,
+.ecat-book:not(.is-single) .ecat-page-right:not(.is-empty)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7%;
+  pointer-events: none;
+}
+.ecat-book:not(.is-single) .ecat-page-left::after {
+  right: 0;
+  background: linear-gradient(to left, rgb(0 0 0 / 0.16), transparent);
+}
+.ecat-book:not(.is-single) .ecat-page-right::after {
+  left: 0;
+  background: linear-gradient(to right, rgb(0 0 0 / 0.16), transparent);
+}
+
+/* The turning leaf: front and back are both real PDF pages. */
+.ecat-leaf {
+  z-index: 3;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.ecat-leaf[hidden] {
+  display: none;
+}
+.ecat-leaf.is-forward {
+  left: 50%;
+  transform-origin: left center;
+}
+.ecat-leaf.is-backward {
+  left: 0;
+  transform-origin: right center;
+}
+.ecat-book.is-single .ecat-leaf {
+  transform-origin: left center;
+}
+.ecat-leaf.is-turning {
+  transition: transform var(--ecat-turn, 720ms) cubic-bezier(0.45, 0.05, 0.3, 1);
+}
+.ecat-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  box-shadow: var(--ecat-paper-shadow);
+}
+.ecat-face-back {
+  transform: rotateY(180deg);
+}
+.ecat-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(to right, rgb(0 0 0 / 0.28), transparent 45%);
+}
+.ecat-face-back .ecat-shade {
+  background: linear-gradient(to left, rgb(0 0 0 / 0.28), transparent 45%);
+}
+.ecat-leaf.is-turning .ecat-shade {
+  animation: ecat-shade var(--ecat-turn, 720ms) ease-in-out;
+}
+@keyframes ecat-shade {
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Folded corners (click to turn). */
+html[data-theme] .ecat-corner {
+  position: absolute;
+  bottom: 0;
+  z-index: 4;
+  width: clamp(36px, 7%, 64px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: width 180ms ease;
+}
+html[data-theme] .ecat-corner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(-2px -2px 3px rgb(0 0 0 / 0.25));
+}
+html[data-theme] .ecat-corner-next {
+  right: 0;
+}
+html[data-theme] .ecat-corner-next::before {
+  background: linear-gradient(315deg, var(--surface-raised, #1c1c20) 50%, #e8e8ea 50%, #fff 72%);
+}
+html[data-theme] .ecat-corner-prev {
+  left: 0;
+}
+html[data-theme] .ecat-corner-prev::before {
+  background: linear-gradient(45deg, var(--surface-raised, #1c1c20) 50%, #e8e8ea 50%, #fff 72%);
+  filter: drop-shadow(2px -2px 3px rgb(0 0 0 / 0.25));
+}
+html[data-theme] .ecat-corner:hover {
+  width: clamp(48px, 10%, 88px);
+}
+html[data-theme] .ecat-corner[hidden],
+html[data-theme] .ecat-book.is-turning .ecat-corner {
+  display: none;
+}
+
+/* Side arrows */
+html[data-theme] .ecat-arrow {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--line, #303035);
+  border-radius: 50%;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  cursor: pointer;
+}
+html[data-theme] .ecat-arrow:hover:not(:disabled) {
+  border-color: var(--brand, #ff3b30);
+  color: var(--brand, #ff3b30);
+}
+html[data-theme] .ecat-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+html[data-theme] .ecat-arrow svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Loading / error / empty */
+.ecat-state {
+  margin: auto;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  max-width: 440px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted, #b0b1b8);
+  line-height: 1.6;
+}
+.ecat-state[hidden] {
+  display: none;
+}
+.ecat-state strong {
+  color: var(--ink, #f4f4f5);
+  font-size: 16px;
+}
+.ecat-state p {
+  margin: 0;
+  font-size: 14px;
+}
+.ecat-state.is-error {
+  border: 1px solid var(--tone-red-soft-border, #70484b);
+  border-radius: 14px;
+  background: var(--tone-red-soft-bg, #3a2023);
+  color: var(--tone-red-soft-text, #ffd9dc);
+}
+.ecat-state.is-error strong {
+  color: inherit;
+}
+html[data-theme] .ecat-state button {
+  margin-top: 6px;
+  padding: 8px 16px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ecat-progress {
+  width: 220px;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--chart-track, #303035);
+}
+.ecat-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand, #ff3b30);
+  transition: width 160ms linear;
+}
+.ecat-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--line, #303035);
+  border-top-color: var(--brand, #ff3b30);
+  border-radius: 50%;
+  animation: ecat-spin 0.8s linear infinite;
+}
+@keyframes ecat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slider */
+.ecat-scrub {
+  padding: 0 52px;
+}
+.ecat-scrub input {
+  width: 100%;
+  accent-color: var(--brand, #ff3b30);
+  cursor: pointer;
+}
+
+/* Thumbnails: every spread, hidden scrollbar, still scrollable. */
+.ecat-thumbs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+.ecat-thumbs::-webkit-scrollbar {
+  display: none;
+}
+.ecat-thumbs:empty {
+  display: none;
+}
+html[data-theme] .ecat-thumb {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted, #b0b1b8);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+html[data-theme] .ecat-thumb:hover {
+  background: var(--surface-raised, #1c1c20);
+}
+html[data-theme] .ecat-thumb[aria-current="true"] {
+  border-color: var(--brand, #ff3b30);
+  background: var(--brand-soft, #311416);
+  color: var(--brand, #ff3b30);
+}
+html[data-theme] .ecat-thumb-pages {
+  display: flex;
+  height: 84px;
+}
+html[data-theme] .ecat-thumb canvas {
+  height: 84px;
+  width: 60px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+html[data-theme] .ecat-viewer:fullscreen .ecat-thumb-pages,
+html[data-theme] .ecat-viewer:fullscreen .ecat-thumb canvas,
+html[data-theme] .ecat-viewer.is-pseudo-fullscreen .ecat-thumb-pages,
+html[data-theme] .ecat-viewer.is-pseudo-fullscreen .ecat-thumb canvas {
+  height: 64px;
+}
+html[data-theme] .ecat-viewer:fullscreen .ecat-thumb canvas,
+html[data-theme] .ecat-viewer.is-pseudo-fullscreen .ecat-thumb canvas {
+  width: 46px;
+}
+
+/* Toast */
+.ecat-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1100;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink, #f4f4f5);
+  color: var(--canvas, #0b0b0d);
+  font-size: 14px;
+  font-weight: 600;
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.ecat-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Small screens: one page at a time (the JS switches below 760px too). */
+@media (max-width: 759.98px) {
+  .ecat {
+    padding-top: 20px;
+  }
+  .ecat-viewer {
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .ecat-tools {
+    width: 100%;
+  }
+  html[data-theme] .ecat-tool span {
+    display: none;
+  }
+  html[data-theme] .ecat-tool {
+    padding: 0 10px;
+  }
+  html[data-theme] .ecat-tool-primary::after {
+    content: "PDF";
+  }
+  html[data-theme] .ecat-tool-primary {
+    margin-left: auto;
+  }
+  .ecat-stage {
+    height: clamp(380px, calc(100vh - 300px), 760px);
+    padding: 8px;
+  }
+  .ecat-stage-wrap {
+    gap: 0;
+  }
+  html[data-theme] .ecat-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 5;
+    width: 38px;
+    height: 38px;
+    transform: translateY(-50%);
+    background: color-mix(in srgb, var(--surface, #141416) 86%, transparent);
+  }
+  html[data-theme] .ecat-arrow-prev {
+    left: 4px;
+  }
+  html[data-theme] .ecat-arrow-next {
+    right: 4px;
+  }
+  .ecat-scrub {
+    padding: 0 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ecat-leaf.is-turning {
+    transition: none;
+  }
+  .ecat-thumbs {
+    scroll-behavior: auto;
+  }
+}
+
+/* Add / remove books (catalog_manage only). */
+.ecat-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 16px;
+}
+.ecat-tabbar .ecat-tabs {
+  margin: 0;
+}
+html[data-theme] .ecat-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px dashed var(--brand-border, #632124);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--brand, #ff3b30);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+html[data-theme] .ecat-add:hover {
+  background: var(--brand-soft, #311416);
+  border-style: solid;
+}
+.ecat-add[hidden],
+.ecat-tool[hidden] {
+  display: none !important;
+}
+.ecat-add svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+html[data-theme] .ecat-tool-danger:hover {
+  border-color: var(--tone-red-soft-border, #70484b);
+  color: var(--negative, #ff787c);
+}
+.ecat-dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line, #303035);
+  border-radius: 16px;
+  background: var(--surface, #141416);
+  color: var(--ink, #f4f4f5);
+  box-shadow: var(--shadow, none);
+}
+.ecat-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+.ecat-dialog form {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+}
+.ecat-dialog h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.ecat-dialog label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ecat-dialog input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  background: var(--surface-raised, #1c1c20);
+  color: var(--ink, #f4f4f5);
+  font: inherit;
+  font-weight: 400;
+}
+.ecat-dialog-hint {
+  margin: 0;
+  color: var(--muted, #b0b1b8);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ecat-dialog-error {
+  margin: 0;
+  color: var(--negative, #ff787c);
+  font-size: 14px;
+}
+.ecat-dialog-error:empty {
+  display: none;
+}
+.ecat-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+html[data-theme] .ecat-dialog-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line, #303035);
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+html[data-theme] .ecat-dialog-actions .ecat-dialog-primary {
+  background: var(--brand, #ff3b30);
+  border-color: var(--brand, #ff3b30);
+  color: #fff;
+}
+html[data-theme] .ecat-dialog-actions .ecat-dialog-primary:disabled {
+  opacity: 0.6;
+}
+
+/* Centre a lone page: the cover (right half) or a last page on the left. */
+.ecat-book.is-turning {
+  transition: transform var(--ecat-turn, 720ms) cubic-bezier(0.45, 0.05, 0.3, 1); /* slide only while turning */
+}
+.ecat-book.is-alone-right:not(.is-single) {
+  transform: translateX(-25%);
+}
+.ecat-book.is-alone-left:not(.is-single) {
+  transform: translateX(25%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ecat-book.is-turning {
+    transition: none;
+  }
+}
+.ecat-book.is-alone-right .ecat-page-right::after,
+.ecat-book.is-alone-left .ecat-page-left::after {
+  display: none;
+}

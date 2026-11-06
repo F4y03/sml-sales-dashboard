@@ -2,6 +2,7 @@ import { MODULES, REVIEWER_APIS, REVIEWER_PAGES, isReviewer } from '../config/ac
 import { canAdmin,hasPermission,landingPage } from '../services/permissionService.js';
 import { accessContext } from '../services/territoryService.js';
 import { isProductSheetPublicRead } from '../routes/productSheetProxy.js';
+import { isCatalogPublicRead } from '../routes/catalog.js';
 export const CUSTOMER_STOCK_ROLES=['super_admin','executive'];
 export const requireLogin=(req,res,next)=>req.auth?next():res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
 export const requireRole=(...roles)=>(req,res,next)=>roles.includes(req.auth?.role)?next():res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'});
@@ -21,6 +22,10 @@ export function installAccess(app) {
     try{path=decodeURIComponent(req.path).replace(/\/+$/,'').toLowerCase()||'/';}catch{return res.status(400).end();}
     if(/%|\\|\/\//.test(path))return res.status(400).json({error:'URL ไม่ถูกต้อง'});
     const forbidden=()=>path.startsWith('/api/')?res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'}):res.status(403).send('<meta charset="utf-8"><p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p><a href="/access-denied.html">กลับหน้าบัญชี</a>');
+    // แคตตาล็อกสินค้า (E-Catalog): PDF books + pdf.js, no SML data. Everyone (also without login, see auth.js), every role, read-only.
+    if(isCatalogPublicRead(req))return next();
+    // Adding / removing catalog books: catalog_manage (Super Admin always; grantable per role/user).
+    if(path==='/api/catalogs'||path.startsWith('/api/catalogs/'))return hasPermission(req.auth,'catalog_manage')?next():forbidden();
     // Reviewer: read-only allowlist, nothing else (403), whatever other rules or permissions say.
     if(isReviewer(req.auth.role)){
       const asset=/^\/[\w./-]+\.(?:js|css|png|svg|ico|woff2?|webmanifest)$/.test(path);

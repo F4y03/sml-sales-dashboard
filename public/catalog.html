@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>แคตตาล็อกสินค้า · Dashboard PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="stylesheet" href="workspace-nav.css?v=20261106-catalog" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="catalog.css?v=20261106-1" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261106-catalog" defer></script>
+    <script src="/vendor/pdfjs/build/pdf.min.js" defer></script>
+    <script src="catalog.js?v=20261106-1" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PROPLUS" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+    <script src="/pwa-install.js" defer></script>
+  </head>
+  <body>
+    <main class="ecat">
+      <header class="ecat-heading">
+        <p class="ecat-eyebrow">E-CATALOG</p>
+        <h1>แคตตาล็อกสินค้า<span aria-hidden="true">.</span></h1>
+        <p class="ecat-subtitle">
+          เปิดดูแคตตาล็อกแบบพลิกหน้า คัดลอกลิงก์ส่งต่อ หรือดาวน์โหลดไฟล์ PDF
+        </p>
+      </header>
+
+      <div class="ecat-tabbar">
+        <div id="ecat-tabs" class="ecat-tabs" role="tablist" aria-label="เลือกเล่มแคตตาล็อก"></div>
+        <button id="ecat-add" class="ecat-add" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>เพิ่มแคตตาล็อก
+        </button>
+      </div>
+
+      <dialog id="ecat-add-dialog" class="ecat-dialog" aria-labelledby="ecat-add-title">
+        <form id="ecat-add-form" method="dialog">
+          <h2 id="ecat-add-title">เพิ่มแคตตาล็อก</h2>
+          <label>ชื่อเล่ม (แสดงบนแท็บ)
+            <input name="title" maxlength="60" required autocomplete="off" placeholder="เช่น Pro Audio 2027" />
+          </label>
+          <label>ลิงก์ไฟล์ PDF ใน Google Drive
+            <input name="drive" type="url" required autocomplete="off" placeholder="https://drive.google.com/file/d/…/view" />
+          </label>
+          <p class="ecat-dialog-hint">ใน Drive ตั้งแชร์ไฟล์เป็น “ทุกคนที่มีลิงก์ (ผู้มีสิทธิ์อ่าน)” ก่อน · ทุกคนที่มีลิงก์หน้านี้จะเปิดเล่มนี้ได้</p>
+          <p id="ecat-add-error" class="ecat-dialog-error" role="alert"></p>
+          <div class="ecat-dialog-actions">
+            <button type="button" id="ecat-add-cancel">ยกเลิก</button>
+            <button type="submit" id="ecat-add-submit" class="ecat-dialog-primary">บันทึก</button>
+          </div>
+        </form>
+      </dialog>
+
+      <section id="ecat-viewer" class="ecat-viewer" aria-label="ตัวอ่านแคตตาล็อก">
+        <div class="ecat-toolbar">
+          <div class="ecat-title">
+            <strong id="ecat-book-title">กำลังโหลดรายการแคตตาล็อก…</strong>
+            <small id="ecat-counter" aria-live="polite"></small>
+          </div>
+          <div class="ecat-tools">
+            <div class="ecat-zoom" role="group" aria-label="ซูม">
+              <button id="ecat-zoom-out" type="button" aria-label="ซูมออก" title="ซูมออก">−</button>
+              <output id="ecat-zoom-value" aria-live="polite">100%</output>
+              <button id="ecat-zoom-in" type="button" aria-label="ซูมเข้า" title="ซูมเข้า">+</button>
+            </div>
+            <button id="ecat-fullscreen" class="ecat-tool" type="button" aria-pressed="false" title="เต็มจอ">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>เต็มจอ</span>
+            </button>
+            <button id="ecat-copy" class="ecat-tool" type="button" title="คัดลอกลิงก์เปิดเล่มนี้">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>คัดลอกลิงก์</span>
+            </button>
+            <button id="ecat-remove" class="ecat-tool ecat-tool-danger" type="button" hidden title="ลบเล่มนี้ออกจากแคตตาล็อก">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>ลบเล่ม</span>
+            </button>
+            <a id="ecat-download" class="ecat-tool ecat-tool-primary" href="#" download aria-disabled="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg><span>ดาวน์โหลด PDF</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="ecat-stage-wrap">
+          <button id="ecat-prev" class="ecat-arrow ecat-arrow-prev" type="button" aria-label="หน้าก่อนหน้า" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+          </button>
+          <div id="ecat-stage" class="ecat-stage" tabindex="0" aria-label="หน้าแคตตาล็อก ใช้ปุ่มลูกศรซ้าย/ขวาเพื่อเปลี่ยนหน้า">
+            <div id="ecat-book" class="ecat-book" hidden>
+              <div class="ecat-page ecat-page-left"><canvas role="img"></canvas></div>
+              <div class="ecat-page ecat-page-right"><canvas role="img"></canvas></div>
+              <div class="ecat-leaf" hidden>
+                <div class="ecat-face ecat-face-front"><canvas></canvas><i class="ecat-shade"></i></div>
+                <div class="ecat-face ecat-face-back"><canvas></canvas><i class="ecat-shade"></i></div>
+              </div>
+              <button class="ecat-corner ecat-corner-prev" type="button" aria-label="พลิกกลับหน้าก่อนหน้า" title="พลิกกลับ"></button>
+              <button class="ecat-corner ecat-corner-next" type="button" aria-label="พลิกไปหน้าถัดไป" title="พลิกหน้า"></button>
+            </div>
+            <div id="ecat-state" class="ecat-state" role="status">
+              <span class="ecat-spinner" aria-hidden="true"></span>
+              <strong>กำลังโหลด…</strong>
+            </div>
+          </div>
+          <button id="ecat-next" class="ecat-arrow ecat-arrow-next" type="button" aria-label="หน้าถัดไป" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="ecat-scrub">
+          <label for="ecat-slider" class="sr-only">เลื่อนไปยังหน้า</label>
+          <input id="ecat-slider" type="range" min="0" max="0" value="0" step="1" disabled />
+        </div>
+
+        <nav id="ecat-thumbs" class="ecat-thumbs" aria-label="รูปย่อทุกคู่หน้า"></nav>
+      </section>
+
+      <p id="ecat-toast" class="ecat-toast" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>

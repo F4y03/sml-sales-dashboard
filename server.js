@@ -11,6 +11,7 @@ import { installAnalytics } from './src/routes/analytics.js';
 import { installExecutive } from './src/routes/executive.js';
 import { installCustomerInsights } from './src/routes/customer-insights.js';
 import { installCustomerStock } from './src/routes/customer-stock.js';
+import { installCatalog } from './src/routes/catalog.js';
 import { installProductPerformance } from './src/routes/product-performance.js';
 import { installSalesTrend } from './src/routes/sales-trend.js';
 import { installSalesTarget } from './src/routes/sales-target.js';
@@ -73,6 +74,7 @@ installSalesTarget(app, accessStore, auth.audit);
 installExecutive(app, pool);
 installCustomerInsights(app, pool, accessStore);
 installCustomerStock(app, pool);
+installCatalog(app);
 installProductPerformance(app, pool);
 installSalesTrend(app, pool);
 app.get('/api/dashboard', async (req, res) => {
