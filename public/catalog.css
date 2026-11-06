@@ -804,14 +804,17 @@ html[data-theme] .ecat-dialog-actions .ecat-dialog-primary:disabled {
   display: none;
 }
 
-/* No visible folded corner: the corners stay as invisible click areas to turn the page. */
+/* No visible folded corner: the outer edge strips (full height) are invisible click areas to turn the page. */
 html[data-theme] .ecat-corner::before {
   display: none;
 }
 html[data-theme] .ecat-book .ecat-corner.ecat-corner,
 html[data-theme] .ecat-book .ecat-corner.ecat-corner:hover {
   box-shadow: none;
-  width: clamp(48px, 10%, 88px);
+  top: 0;
+  bottom: 0;
+  aspect-ratio: auto;
+  width: 16%;
   background: transparent;
   border: 0;
 }
