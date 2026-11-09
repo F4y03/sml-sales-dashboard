@@ -43,13 +43,13 @@ workspace.innerHTML = `
     <p class="workspace-label">WORKSPACE</p>
     <a href="index.html#overview" data-page="overview">${workspaceIcon("overview")}ภาพรวม</a>
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon("customers")}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
+    <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
     <a href="consignment.html" data-page="consignment">${workspaceIcon("consignment")}รับ–เบิกสินค้าฝาก</a>
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
     <a href="customer-stock.html" data-page="customer-stock">${workspaceIcon("customer-stock")}ลูกค้า &amp; สต็อก</a>
     <a href="catalog.html" data-page="catalog">${workspaceIcon("catalog")}แคตตาล็อก</a>
     <a href="reports.html" data-page="reports">${workspaceIcon("reports")}รายงาน SML ทั้งหมด</a>
     <a href="executive.html" data-page="executive">${workspaceIcon("executive")}สรุปผู้บริหาร · 10 วินาที</a>
-    <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
     <a href="marketplace-upload.html" data-page="marketplace-upload">${workspaceIcon("upload")}อัปโหลดไฟล์ยอดขาย</a>
     <a href="my-activity.html" data-page="my-activity">${workspaceIcon("reports")}บันทึกการใช้งานของฉัน</a>
     <a href="data-protection.html" data-page="data-protection">${workspaceIcon("admin")}Data Protection</a>
@@ -351,6 +351,14 @@ window.prplusUser
       if (
         user.role === "sales" &&
         ["my-activity", "data-protection"].includes(link.dataset.page)
+      )
+        link.hidden = true;
+      // Admin and executive don't need these three in the menu (access rights are unchanged).
+      if (
+        ["admin", "executive"].includes(user.role) &&
+        ["marketplace-upload", "my-activity", "data-protection"].includes(
+          link.dataset.page,
+        )
       )
         link.hidden = true;
     });
