@@ -30,6 +30,7 @@ body.workspace-layout {
 .workspace-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
   text-decoration: none;
   color: #24262b;
@@ -312,6 +313,7 @@ body.workspace-layout {
     overflow: visible;
   }
   .workspace-brand {
+    justify-content: flex-start;
     font-size: 16px;
     gap: 10px;
   }

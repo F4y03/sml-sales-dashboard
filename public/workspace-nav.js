@@ -36,7 +36,7 @@ const workspaceIcon = (name) =>
 workspace.className = "workspace-sidebar";
 workspace.setAttribute("aria-label", "เมนู Workspace");
 workspace.innerHTML = `
-  <a class="workspace-brand" href="index.html"><img src="assets/pr-plus-logo-red.png" alt="PR PLUS Professional Audio"><span>SML<small>analytics</small></span></a>
+  <a class="workspace-brand" href="index.html"><img src="assets/pr-plus-logo-red.png" alt="PR PLUS Professional Audio"></a>
   <button class="workspace-collapse" type="button" aria-expanded="true" aria-controls="workspace-links" aria-label="ย่อเมนู" title="ย่อเมนู"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m6-11-3 3 3 3"/></svg></button>
   <button class="workspace-toggle" type="button" aria-expanded="false" aria-controls="workspace-links">☰ เมนู Workspace</button>
   <nav id="workspace-links" class="workspace-links" aria-label="หน้าหลัก">
@@ -357,9 +357,6 @@ window.prplusUser
     workspace.querySelector(".workspace-brand").href = user.landing || "/";
     workspace.querySelector(".workspace-profile small").textContent =
       user.role || "Sales workspace";
-    if (user.dashboardName)
-      workspace.querySelector(".workspace-brand > span").textContent =
-        user.dashboardName;
     if (
       [
         "users_manage",
