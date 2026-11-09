@@ -9,6 +9,7 @@ import { hasPermission } from '../services/permissionService.js';
 import { isReviewer } from '../config/access.js';
 import { MAX_FILE_BYTES, MarketplaceFileError, PLATFORMS, parseMarketplaceFile } from '../services/marketplaceParser.js';
 import { REVIEWER_MONTHS, reviewerFloor, feeDetailJson, saveMarketplaceUpload, orderDetail, orderFees, marketplaceSummary, resolveUploadShop, deleteMarketplaceUpload, validPeriod, cleanFileName } from '../services/marketplaceStore.js';
+import { buildAccountingWorkbook } from '../services/marketplaceAccounting.js';
 
 // Re-exported so existing importers (shop modules, tests) keep working.
 export { REVIEWER_MONTHS, reviewerFloor, feeDetailJson, saveMarketplaceUpload, orderDetail, orderFees, marketplaceSummary, resolveUploadShop, deleteMarketplaceUpload } from '../services/marketplaceStore.js';
@@ -131,6 +132,24 @@ export function installMarketplace(app, store, audit) {
     // Reviewers only see the last 3 months, like every other marketplace figure.
     if (!order || (isReviewer(req.auth.role) && order.orderDate < reviewerFloor())) return res.status(404).json({ error: 'ไม่พบออเดอร์นี้' });
     res.json(order);
+  });
+
+  // Accounting workbook for the filters on screen. Super Admin chooses who holds marketplace_accounting.
+  app.get('/api/marketplace/accounting-report', requirePermission('marketplace_accounting'), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.auth.scope === 'territory') return res.status(403).json({ error: 'ยอดขายออนไลน์ไม่รองรับบัญชีที่จำกัดเขต' });
+    const { start, end } = req.query, platform = String(req.query.platform || 'all'), shop = String(req.query.shop || 'all');
+    if (platform !== 'all' && !PLATFORMS[platform]) return res.status(400).json({ error: 'แพลตฟอร์มไม่ถูกต้อง' });
+    if (shop !== 'all' && !/^[1-9]\d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
+    if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน' });
+    try {
+      const body = await buildAccountingWorkbook(store, { platform, shop, start, end }, { by: req.auth.full_name || req.auth.username });
+      audit.record(req.auth, 'marketplace.accounting_report', 'marketplace', { platform, shop, start, end }, null, req.socket.remoteAddress);
+      res.set({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="online-sales-accounting-${platform}-${start}-${end}.xlsx"` }).send(body);
+    } catch (error) {
+      console.error('Marketplace accounting report failed:', error.code || error.name);
+      res.status(500).json({ error: 'ออกรายงานบัญชีไม่สำเร็จ กรุณาลองใหม่' });
+    }
   });
 
   app.get('/api/marketplace/summary', requirePermission('marketplace_view'), (req, res) => {

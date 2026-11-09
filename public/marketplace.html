@@ -101,6 +101,7 @@
     <script src="lazada-api-panel.js?v=20261019-lazada" defer></script>
     <script src="shopee-api-panel.js?v=20261028-readonly" defer></script>
     <script src="google-sheets-ui.js?v=20261020-5h" defer></script>
+    <script src="accounting-report.js?v=20261109-1" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -121,6 +122,8 @@
             <div class="ov-header-side">
               <div class="ov-actions">
                 <a class="ov-btn ov-btn-ghost" href="marketplace-upload.html" id="upload-link" hidden>อัปโหลดไฟล์</a>
+                <button type="button" id="accounting-export" class="ov-btn ov-btn-ghost" title="ดาวน์โหลด Excel สำหรับงานบัญชี ตามช่วงวันที่ ช่องทาง และร้านที่เลือกอยู่" hidden>รายงานบัญชี</button>
+                <small id="accounting-note" class="gs-note" role="status"></small>
                 <span id="gsheets" class="gs-box" hidden>
                   <a id="gsheets-open" class="ov-btn ov-btn-ghost" target="_blank" rel="noopener">เปิด Google Sheets</a>
                   <button type="button" id="gsheets-export" class="ov-btn ov-btn-ghost">ส่งไป Sheets ตอนนี้</button>

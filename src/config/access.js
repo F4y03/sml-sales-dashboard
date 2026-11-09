@@ -3,6 +3,7 @@ export const PERMISSIONS = {
   product_info: 'ข้อมูลสินค้า', product_export: 'ดาวน์โหลดข้อมูลสินค้า', best_sellers: 'ตัวกรองสินค้าขายดี / อันดับยอดขาย', product_images: 'แก้ไขลิงก์รูปสินค้า', category_preview: 'หน้าตรวจหมวดสินค้า (แก้หมวด/ราคาเว็บใหม่)', customer_analysis: 'วิเคราะห์ลูกค้า', product_analysis: 'วิเคราะห์สินค้า', reports: 'รายงาน SML',
   catalog_manage: 'จัดการแคตตาล็อกสินค้า (เพิ่ม/ลบเล่มด้วยลิงก์ Google Drive)',
   marketplace_view: 'ดูยอดขายออนไลน์ Shopee / Lazada / TikTok', marketplace_upload: 'อัปโหลดไฟล์ยอดขายออนไลน์ (ไม่เห็นตัวเลข)',
+  marketplace_accounting: 'ออกรายงานบัญชียอดขายออนไลน์ (ต้องมีสิทธิ์ดูยอดขายออนไลน์ด้วยจึงจะเห็นปุ่ม)',
   tiktok_sync: 'ดึงข้อมูล TikTok Shop API (ไม่เห็นตัวเลข)',
   lazada_sync: 'ดึงข้อมูล Lazada API (ไม่เห็นตัวเลข)',
   shopee_sync: 'ดึงข้อมูล Shopee API และดูสินค้า/สต็อก Shopee (ไม่เห็นยอดขาย)',
@@ -36,6 +37,7 @@ export const MODULES = [
   { permissions:['reports'], pages:['/reports.html'], apis:['/api/reports'] },
   // Marketplace: uploaders never get the summary API; history (file name/platform/who/when) is shared.
   { permissions:['marketplace_view'], pages:['/marketplace.html'], apis:['/api/marketplace/summary','/api/marketplace/order-fees','/api/marketplace/order-detail'] },
+  { permissions:['marketplace_accounting'], pages:[], apis:['/api/marketplace/accounting-report'] },
   { permissions:['marketplace_upload'], pages:['/marketplace-upload.html'], apis:['/api/marketplace/upload'] },
   { permissions:['marketplace_upload','marketplace_view'], pages:[], apis:['/api/marketplace/uploads','/api/marketplace/shops'] },
   // Old TikTok pages only redirect to marketplace.html#tiktok (the connect/sync widget lives on that tab).

@@ -15,6 +15,7 @@
 |---|---|
 | `marketplace_upload` | หน้าอัปโหลด + ประวัติ (ชื่อไฟล์ แพลตฟอร์ม ผู้อัป เวลา) ตอบกลับแค่ "อัปโหลดสำเร็จ" ห้ามคืนตัวเลข/ออเดอร์ |
 | `marketplace_view` | แดชบอร์ด `/api/marketplace/summary` (บัญชีจำกัดเขตถูกปฏิเสธเสมอ) |
+| `marketplace_accounting` | ปุ่ม "รายงานบัญชี" + `/api/marketplace/accounting-report` (Excel ตามตัวกรองบนหน้าจอ, `src/services/marketplaceAccounting.js`) ไม่มีใครได้อัตโนมัติยกเว้น Super Admin ซึ่งเป็นผู้ให้สิทธิ์รายคน (Additional Permissions) หรือราย Role; ต้องมี `marketplace_view` ด้วยจึงเข้าหน้าได้ |
 
 - Super Admin ได้ทั้งสองสิทธิ์อัตโนมัติ, Role `admin` ได้ `marketplace_upload` (grant ครั้งเดียวด้วย flag `marketplace_upload_admin_v1`)
 - ผู้บริหาร (`executive`) ไม่ได้ `marketplace_view` โดยอัตโนมัติ — Super Admin ติ๊กให้ได้ที่ System Admin › Role
