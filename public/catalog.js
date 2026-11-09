@@ -42,7 +42,10 @@
   let loadingTask = null;
   let loadToken = 0;
   let aspect = 1.414; // page height / width, from page 1
-  let single = SINGLE_QUERY.matches;
+  let pickedSingle = false; // the 1/2-page control; every opened book starts at 2 pages
+  const wantsSingle = () => SINGLE_QUERY.matches || pickedSingle; // phones have no room for 2 pages
+  const viewButtons = [...document.querySelectorAll("#ecat-view button")];
+  let single = wantsSingle();
   let spreads = [];
   let index = 0;
   let zoom = 100;
@@ -238,6 +241,10 @@
     slider.value = String(index);
     slider.setAttribute("aria-valuetext", s ? `หน้า ${spreadLabel(s)} จาก ${total}` : "");
     zoomValue.textContent = zoom + "%";
+    viewButtons.forEach((b) => {
+      b.disabled = !doc;
+      b.setAttribute("aria-pressed", String((b.dataset.view === "1") === pickedSingle));
+    });
     syncSectionSelect();
     stage.classList.toggle("is-zoomed", zoom > ZOOM_MIN);
     zoomIn.disabled = !doc || zoom >= ZOOM_MAX;
@@ -282,9 +289,10 @@
       rightCanvas = rightSlot.querySelector("canvas");
     let front, back, baseLeft, baseRight;
     if (single) {
-      // One page: the leaf lifts off to the left (forward) or comes back in from the left (backward).
+      // One page, spine on its left edge: the leaf swings up and away to reveal the next page (forward),
+      // or swings back down over the current page (backward). It never passes 90°, so no back face.
       front = forward ? from.right : to.right;
-      back = forward ? to.right : from.right;
+      back = null;
       baseLeft = null;
       baseRight = forward ? to.right : from.right;
     } else if (forward) {
@@ -302,10 +310,10 @@
     await Promise.all([paint(leafFront, front), paint(leafBack, back)]);
     if (token !== loadToken) return finishTurn();
     const singleBack = single && !forward;
-    leaf.className = "ecat-leaf " + (forward || single ? "is-forward" : "is-backward");
+    leaf.className = "ecat-leaf " + (forward || single ? "is-forward" : "is-backward") + (singleBack ? " is-returning" : "");
     leaf.style.setProperty("--ecat-turn", TURN_MS + "ms");
     book.style.setProperty("--ecat-turn", TURN_MS + "ms");
-    leaf.style.transform = singleBack ? "rotateY(-180deg)" : "rotateY(0deg)";
+    leaf.style.transform = singleBack ? "rotateY(-90deg)" : "rotateY(0deg)";
     leaf.hidden = false;
     await Promise.all([paint(leftCanvas, baseLeft), paint(rightCanvas, baseRight)]);
     if (token !== loadToken) return finishTurn();
@@ -313,8 +321,8 @@
     updateUi();
     void leaf.offsetWidth; // commit the start position before animating
     leaf.classList.add("is-turning");
-    // Double: right leaf 0 → -180 (forward) or left leaf 0 → 180 (backward). Single: 0 → -180 / -180 → 0.
-    const end = single ? (forward ? -180 : 0) : forward ? -180 : 180;
+    // Double: right leaf 0 → -180 (forward) or left leaf 0 → 180 (backward). Single: 0 → -90 / -90 → 0.
+    const end = single ? (forward ? -90 : 0) : forward ? -180 : 180;
     leaf.style.transform = `rotateY(${end}deg)`;
     await new Promise((resolve) => {
       const done = () => {
@@ -474,7 +482,8 @@
       if (token !== loadToken) return;
       const vp = first.getViewport({ scale: 1 });
       aspect = vp.height / vp.width;
-      single = SINGLE_QUERY.matches;
+      pickedSingle = false;
+      single = wantsSingle();
       spreads = buildSpreads(pdf.numPages);
       index = spreadOfPage(Math.min(pdf.numPages, Math.max(1, startPage))); // shared link to a page: #<id>/<page>
       stateEl.hidden = true;
@@ -526,7 +535,7 @@
     relayoutTimer = setTimeout(() => {
       if (!doc) return;
       if (turning) return relayout(); // never rebuild spreads mid-turn
-      const nowSingle = SINGLE_QUERY.matches;
+      const nowSingle = wantsSingle();
       if (nowSingle !== single) {
         const page = firstPage(spreads[index]) || 1;
         single = nowSingle;
@@ -541,6 +550,13 @@
   }
   new ResizeObserver(relayout).observe(stage);
   SINGLE_QUERY.addEventListener("change", relayout);
+  viewButtons.forEach((b) =>
+    b.addEventListener("click", () => {
+      pickedSingle = b.dataset.view === "1";
+      updateUi();
+      relayout();
+    }),
+  );
 
   function setZoom(value) {
     const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));

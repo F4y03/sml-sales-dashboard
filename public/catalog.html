@@ -8,13 +8,13 @@
     <link rel="stylesheet" href="workspace-nav.css?v=20261106-catalog" />
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Kanit:wght@500;600;700&display=swap" />
-    <link rel="stylesheet" href="catalog.css?v=20261106-8" />
+    <link rel="stylesheet" href="catalog.css?v=20261109-3" />
     <link rel="stylesheet" href="catalog-loader.css?v=20261106-1" />
     <script src="/theme-mode.js"></script>
     <script src="workspace-nav.js?v=20261106-catalog" defer></script>
     <script src="/vendor/pdfjs/build/pdf.min.js" defer></script>
     <script src="catalog-loader.js?v=20261106-1" defer></script>
-    <script src="catalog.js?v=20261106-10" defer></script>
+    <script src="catalog.js?v=20261109-3" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -95,6 +95,10 @@
               <button id="ecat-zoom-out" type="button" aria-label="ซูมออก" title="ซูมออก">−</button>
               <output id="ecat-zoom-value" aria-live="polite">100%</output>
               <button id="ecat-zoom-in" type="button" aria-label="ซูมเข้า" title="ซูมเข้า">+</button>
+            </div>
+            <div id="ecat-view" class="ecat-view" role="group" aria-label="จำนวนหน้าที่แสดง">
+              <button type="button" data-view="1" aria-pressed="false" title="แสดงทีละ 1 หน้า" disabled>1 หน้า</button>
+              <button type="button" data-view="2" aria-pressed="true" title="แสดงทีละ 2 หน้า" disabled>2 หน้า</button>
             </div>
             <button id="ecat-fullscreen" class="ecat-tool" type="button" aria-pressed="false" title="เต็มจอ">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>เต็มจอ</span>
