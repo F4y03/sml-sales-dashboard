@@ -109,7 +109,7 @@ function render(){document.querySelectorAll(".cat").forEach(x=>x.classList.toggl
  const list=P.filter(pr=>(!sel||inCat(pr,sel))&&(!q||pr.n.toLowerCase().includes(q)||pr.s.toLowerCase().includes(q))&&passF(pr));
  $("ned").textContent=Object.keys(EDITS).length;$("nlog").textContent=LOG.length;
  $("cnt").textContent="พบ "+list.length+" รายการ";
- $("grid").innerHTML=list.slice(0,shown).map(pr=>{const ed=EDITS[pr.s];return '<div class="card'+(pr.m?" flag":"")+(ed?" edited":"")+'"><div class="ph">'+(pr.i?'<img loading="lazy" src="'+pr.i+'=w400" alt="">':'ไม่มีรูป')+'</div><div class="body">'+(STOP&&STOP.has(pr.s)?'<div class="stopb">⛔ เลิกผลิต/หยุดขาย (SML)</div>':'')+
+ $("grid").innerHTML=list.slice(0,shown).map(pr=>{const ed=EDITS[pr.s];return '<div class="card'+(pr.m?" flag":"")+(ed?" edited":"")+'"><div class="ph">'+(pr.i?'<img loading="lazy" src="'+pr.i+'=w400-rw" alt="">':'ไม่มีรูป')+'</div><div class="body">'+(STOP&&STOP.has(pr.s)?'<div class="stopb">⛔ เลิกผลิต/หยุดขาย (SML)</div>':'')+
   '<div class="brand">'+esc(pr.b)+'</div><div class="name">'+esc(pr.n)+'</div><div class="sku">'+esc(pr.s)+'</div>'+
   '<div class="cats">'+effCats(pr).map(c=>'<span>'+esc(c)+'</span>').join("")+'</div>'+
   (pr.o?'<div class="old">เดิม: '+esc(pr.o)+'</div>':'')+(pr.m?'<div class="note">⚑ '+esc(pr.m)+'</div>':'')+
