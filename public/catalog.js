@@ -449,8 +449,10 @@
     const loader = window.ecatLoader?.start(entry.title);
     const live = () => token === loadToken;
     try {
+      const cached = await readCachedPdf(entry);
+      if (token !== loadToken) return;
       const task = pdfjsLib.getDocument({
-        url: entry.pdf,
+        ...(cached ? { data: cached } : { url: entry.pdf }),
         cMapUrl: "/vendor/pdfjs/cmaps/",
         cMapPacked: true,
         standardFontDataUrl: "/vendor/pdfjs/standard_fonts/",
@@ -484,6 +486,7 @@
       loadSections(entry, token);
       await show();
       if (live()) loader?.done();
+      if (!cached) storeCachedPdf(entry, pdf);
     } catch (error) {
       if (token !== loadToken) return;
       loader?.fail(errorText(error));
@@ -492,6 +495,28 @@
       setControlsEnabled(false);
       updateUi();
     }
+  }
+
+  // ---------- browser PDF cache: open a book again without downloading it, until the server file changes ----------
+  const PDF_CACHE = "ecat-pdf-v1";
+  const cacheKey = (entry) => `${entry.pdf}?v=${entry.version}`;
+  async function readCachedPdf(entry) {
+    if (!entry.version || !window.caches) return null;
+    try {
+      const hit = await (await caches.open(PDF_CACHE)).match(cacheKey(entry));
+      return hit ? new Uint8Array(await hit.arrayBuffer()) : null;
+    } catch { return null; }
+  }
+  async function storeCachedPdf(entry, pdf) {
+    if (!entry.version || !window.caches) return;
+    try {
+      const cache = await caches.open(PDF_CACHE);
+      for (const req of await cache.keys()) {
+        if (new URL(req.url).pathname === entry.pdf) await cache.delete(req); // drop older versions of this book
+      }
+      const bytes = await pdf.getData();
+      await cache.put(cacheKey(entry), new Response(bytes, { headers: { "Content-Type": "application/pdf" } }));
+    } catch { /* quota / private mode: just download next time */ }
   }
 
   // ---------- re-layout (resize, zoom, single/double switch) ----------

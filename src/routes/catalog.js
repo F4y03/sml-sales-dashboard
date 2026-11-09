@@ -103,6 +103,8 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
         id: b.id, title: b.title,
         pdf: `/catalogs/${encodeURIComponent(b.pdf)}`,
         available: Boolean(b.drive) || existsSync(resolve(dir, b.pdf)),
+        // File version for the browser-side PDF cache; changes when the PDF is replaced (null = not downloaded yet).
+        version: existsSync(resolve(dir, b.pdf)) ? Math.round(statSync(resolve(dir, b.pdf)).mtimeMs) : null,
         // Categories set by hand (Super Admin). Absent -> the page builds them from the footer labels in the PDF.
         ...(Array.isArray(b.sections) && b.sections.length ? { sections: b.sections } : {}),
       })),
