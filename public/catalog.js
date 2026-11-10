@@ -1114,24 +1114,78 @@
     if (token === loadToken) renderSections();
   }
   function renderSections() {
-    const select = $("ecat-section");
-    select.replaceChildren(
-      Object.assign(document.createElement("option"), { value: "", textContent: `หมวดหมู่ (${sections.length})` }),
-      ...sections.map((s) => Object.assign(document.createElement("option"), { value: String(s.page), textContent: `${s.title} · หน้า ${s.page}` })),
+    // Custom list instead of a native <select>: the native popup is as wide as
+    // the longest option and overflows narrow screens; this one wraps.
+    closeSectionList();
+    $("ecat-section-list").replaceChildren(
+      ...sections.map((s) => {
+        const option = Object.assign(document.createElement("button"), { type: "button", className: "ecat-section-option" });
+        option.setAttribute("role", "option");
+        option.dataset.page = String(s.page);
+        option.append(
+          Object.assign(document.createElement("span"), { textContent: s.title }),
+          Object.assign(document.createElement("small"), { textContent: `หน้า ${s.page}` }),
+        );
+        return option;
+      }),
     );
     syncManage();
     syncSectionSelect();
   }
   function syncSectionSelect() {
-    const select = document.getElementById("ecat-section");
-    if (!select || !sections.length || !spreads[index]) return;
-    const page = spreads[index].right || spreads[index].left;
-    const hit = [...sections].reverse().find((s) => s.page <= page);
-    select.value = hit ? String(hit.page) : "";
+    const label = document.getElementById("ecat-section-label");
+    if (!label) return;
+    const page = spreads[index] ? spreads[index].right || spreads[index].left : 0;
+    const hit = page ? [...sections].reverse().find((s) => s.page <= page) : null;
+    label.textContent = hit ? `${hit.title} · หน้า ${hit.page}` : `หมวดหมู่ (${sections.length})`;
+    for (const option of $("ecat-section-list").children)
+      option.setAttribute("aria-selected", String(Boolean(hit) && option.dataset.page === String(hit.page)));
   }
-  $("ecat-section").addEventListener("change", (event) => {
-    const page = Number(event.target.value);
+  function closeSectionList() {
+    $("ecat-section-list").hidden = true;
+    $("ecat-section").setAttribute("aria-expanded", "false");
+  }
+  function openSectionList() {
+    const list = $("ecat-section-list");
+    if (!list.children.length) return;
+    list.hidden = false;
+    $("ecat-section").setAttribute("aria-expanded", "true");
+    const selected = list.querySelector('[aria-selected="true"]') || list.firstElementChild;
+    selected.focus();
+    selected.scrollIntoView({ block: "nearest" });
+  }
+  $("ecat-section").addEventListener("click", () => ($("ecat-section-list").hidden ? openSectionList() : closeSectionList()));
+  $("ecat-section").addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    openSectionList();
+  });
+  $("ecat-section-list").addEventListener("click", (event) => {
+    const option = event.target.closest(".ecat-section-option");
+    if (!option) return;
+    const page = Number(option.dataset.page);
+    closeSectionList();
+    $("ecat-section").focus();
     if (page && doc) go(spreadOfPage(Math.min(doc.numPages, page)));
+  });
+  $("ecat-section-list").addEventListener("keydown", (event) => {
+    const list = event.currentTarget,
+      active = document.activeElement;
+    let next = null;
+    if (event.key === "ArrowDown") next = active.nextElementSibling || list.firstElementChild;
+    else if (event.key === "ArrowUp") next = active.previousElementSibling || list.lastElementChild;
+    else if (event.key === "Home") next = list.firstElementChild;
+    else if (event.key === "End") next = list.lastElementChild;
+    else if (event.key === "Escape" || event.key === "Tab") {
+      closeSectionList();
+      if (event.key === "Escape") $("ecat-section").focus();
+      return;
+    } else return;
+    event.preventDefault();
+    next?.focus();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!$("ecat-section-list").hidden && !event.target.closest(".ecat-section-picker")) closeSectionList();
   });
   // Super Admin: edit / rename the categories ("<page> <title>" per line).
   const sectionsDialog = $("ecat-sections-dialog"),

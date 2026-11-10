@@ -88,7 +88,14 @@
             <small id="ecat-counter" aria-live="polite"></small>
           </div>
           <div id="ecat-sections" class="ecat-sections" hidden>
-            <select id="ecat-section" aria-label="ไปที่หมวดหมู่"></select>
+            <div class="ecat-section-picker">
+              <button id="ecat-section" type="button" aria-label="ไปที่หมวดหมู่" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="ecat-section-list">
+                <span id="ecat-section-label"></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div id="ecat-section-list" class="ecat-section-list" role="listbox" aria-label="หมวดหมู่" hidden></div>
+            </div>
             <button id="ecat-sections-edit" class="ecat-tool" type="button" hidden title="แก้รายการหมวดหมู่ของเล่มนี้">แก้หมวด</button>
           </div>
           <div class="ecat-tools">
