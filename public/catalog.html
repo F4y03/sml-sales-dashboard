@@ -45,10 +45,18 @@
           <label>ชื่อเล่ม (แสดงบนแท็บ)
             <input name="title" maxlength="60" required autocomplete="off" placeholder="เช่น Pro Audio 2027" />
           </label>
-          <label>ลิงก์ไฟล์ PDF ใน Google Drive
+          <fieldset class="ecat-source">
+            <label><input type="radio" name="source" value="drive" checked /> ลิงก์ Google Drive</label>
+            <label><input type="radio" name="source" value="file" /> อัปโหลดไฟล์ PDF</label>
+          </fieldset>
+          <label data-source="drive">ลิงก์ไฟล์ PDF ใน Google Drive
             <input name="drive" type="url" required autocomplete="off" placeholder="https://drive.google.com/file/d/…/view" />
           </label>
-          <p class="ecat-dialog-hint">ใน Drive ตั้งแชร์ไฟล์เป็น “ทุกคนที่มีลิงก์ (ผู้มีสิทธิ์อ่าน)” ก่อน · ทุกคนที่มีลิงก์หน้านี้จะเปิดเล่มนี้ได้</p>
+          <label data-source="file" hidden>ไฟล์ PDF (ไม่เกิน 400 MB)
+            <input name="file" type="file" accept="application/pdf,.pdf" />
+          </label>
+          <p class="ecat-dialog-hint" data-source="drive">ใน Drive ตั้งแชร์ไฟล์เป็น “ทุกคนที่มีลิงก์ (ผู้มีสิทธิ์อ่าน)” ก่อน · ทุกคนที่มีลิงก์หน้านี้จะเปิดเล่มนี้ได้</p>
+          <p class="ecat-dialog-hint" data-source="file" hidden>ไฟล์จะเก็บบนเซิร์ฟเวอร์ · ทุกคนที่มีลิงก์หน้านี้จะเปิดเล่มนี้ได้</p>
           <p id="ecat-add-error" class="ecat-dialog-error" role="alert"></p>
           <div class="ecat-dialog-actions">
             <button type="button" id="ecat-add-cancel">ยกเลิก</button>

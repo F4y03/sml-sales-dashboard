@@ -1292,21 +1292,42 @@
     if (!response.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
     return data;
   };
+  const syncSource = () => {
+    const mode = addForm.elements.source.value;
+    addForm.querySelectorAll("[data-source]").forEach((el) => (el.hidden = el.dataset.source !== mode));
+    addForm.elements.drive.required = mode === "drive";
+    addForm.elements.file.required = mode === "file";
+  };
+  addForm.querySelectorAll("input[name=source]").forEach((r) => r.addEventListener("change", syncSource));
   addBtn.addEventListener("click", () => {
     addForm.reset();
+    syncSource();
     addError.textContent = "";
     addDialog.showModal();
   });
+  async function uploadPdf(title, file) {
+    if (file.size > 400 * 1024 * 1024) throw new Error("ไฟล์ใหญ่เกิน 400 MB");
+    const response = await fetch("/api/catalogs/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/pdf", "X-PRPlus-Request": "1", "X-Catalog-Title": encodeURIComponent(title) },
+      body: file,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || (response.status === 413 ? "ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับได้" : "อัปโหลดไม่สำเร็จ กรุณาลองใหม่"));
+    return data;
+  }
   $("ecat-add-cancel").addEventListener("click", () => addDialog.close());
   addForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     addError.textContent = "";
     addSubmit.disabled = true;
     try {
-      const { catalog } = await send("POST", "/api/catalogs", {
-        title: addForm.elements.title.value,
-        drive: addForm.elements.drive.value,
-      });
+      const title = addForm.elements.title.value;
+      const isFile = addForm.elements.source.value === "file";
+      if (isFile) addSubmit.textContent = "กำลังอัปโหลด…";
+      const { catalog } = isFile
+        ? await uploadPdf(title, addForm.elements.file.files[0])
+        : await send("POST", "/api/catalogs", { title, drive: addForm.elements.drive.value });
       catalogs.push(catalog);
       addDialog.close();
       renderTabs();
@@ -1315,6 +1336,7 @@
     } catch (error) {
       addError.textContent = error.message;
     } finally {
+      addSubmit.textContent = "บันทึก";
       addSubmit.disabled = false;
     }
   });

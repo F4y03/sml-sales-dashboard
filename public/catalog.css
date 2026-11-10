@@ -1202,3 +1202,8 @@ html[data-theme] .ecat-sections select {
 .ecat-toast.has-action.is-visible { pointer-events: auto; }
 .ecat-toast button { flex: none; border: 0; border-radius: 999px; padding: 7px 14px; background: #d40000; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .ecat-toast button:hover { background: #b00000; }
+
+.ecat-source { display: flex; gap: 16px; border: 0; padding: 0; margin: 0 0 8px; }
+.ecat-source label { display: inline-flex; align-items: center; gap: 6px; flex-direction: row; cursor: pointer; }
+.ecat-dialog [hidden] { display: none !important; }
+

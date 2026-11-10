@@ -129,6 +129,39 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
     console.log('Catalog added:', id, 'by', req.auth.username);
     res.status(201).json({ catalog: { id, title, custom: true, pdf: `/catalogs/${book.pdf}`, available: true } });
   });
+  // Upload a PDF directly (no Drive link): raw body Content-Type application/pdf, title in X-Catalog-Title (URI-encoded).
+  app.post('/api/catalogs/upload', sameSite, canManage, async (req, res) => {
+    let title = '';
+    try { title = decodeURIComponent(String(req.get('x-catalog-title') || '')).trim().replace(/\s+/g, ' '); } catch { /* bad encoding */ }
+    if (!title || title.length > 60) return res.status(400).json({ error: 'กรุณาใส่ชื่อเล่ม (ไม่เกิน 60 ตัวอักษร)' });
+    if (!/^application\/pdf\b/i.test(req.get('content-type') || '')) return res.status(415).json({ error: 'กรุณาเลือกไฟล์ PDF' });
+    if (Number(req.get('content-length')) > DRIVE_MAX_BYTES) return res.status(413).json({ error: 'ไฟล์ใหญ่เกิน 400 MB' });
+    const existing = allBooks();
+    if (existing.some(b => b.title.toLowerCase() === title.toLowerCase())) return res.status(409).json({ error: 'มีเล่มชื่อนี้แล้ว' });
+    const base = title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'catalog';
+    let id = base, n = 2;
+    while (existing.some(b => b.id === id) || existsSync(resolve(dir, `${id}.pdf`))) id = `${base}-${n++}`;
+    const file = resolve(dir, `${id}.pdf`), tmp = file + '.upload';
+    mkdirSync(dir, { recursive: true });
+    let size = 0;
+    try {
+      await pipeline(req, async function* (source) {
+        for await (const chunk of source) { size += chunk.length; if (size > DRIVE_MAX_BYTES) throw Object.assign(new Error('too large'), { code: 'TOO_LARGE' }); yield chunk; }
+      }, createWriteStream(tmp));
+      if (readFileSync(tmp).subarray(0, 5).toString('latin1') !== '%PDF-') throw Object.assign(new Error('not a PDF'), { code: 'NOT_PDF' });
+      renameSync(tmp, file);
+    } catch (error) {
+      rmSync(tmp, { force: true });
+      if (error.code === 'TOO_LARGE') return res.status(413).json({ error: 'ไฟล์ใหญ่เกิน 400 MB' });
+      if (error.code === 'NOT_PDF') return res.status(400).json({ error: 'ไฟล์นี้ไม่ใช่ PDF' });
+      console.error('Catalog upload failed:', id, error.code || error.message);
+      return res.status(500).json({ error: 'อัปโหลดไม่สำเร็จ กรุณาลองใหม่' });
+    }
+    if (allBooks().some(b => b.title.toLowerCase() === title.toLowerCase())) { rmSync(file, { force: true }); return res.status(409).json({ error: 'มีเล่มชื่อนี้แล้ว' }); }
+    writeCustom([...readCustom(), { id, title, pdf: `${id}.pdf` }]);
+    console.log('Catalog uploaded:', id, size, 'bytes by', req.auth.username);
+    res.status(201).json({ catalog: { id, title, custom: true, pdf: `/catalogs/${id}.pdf`, available: true, version: Math.round(statSync(file).mtimeMs) } });
+  });
   // Edit the category drop-down of a book added on the page: [{ title, page }]; an empty list goes back to automatic.
   app.put('/api/catalogs/:id/sections', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'แก้หมวดได้เฉพาะ Super Admin' }), (req, res) => {
     const input = req.body?.sections;
