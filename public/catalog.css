@@ -132,6 +132,26 @@ html[data-theme] .ecat-tabs button[aria-selected="true"] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ecat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+.ecat-meta {
+  align-items: center;
+}
+/* Upload date: same colours as the selected book tab. */
+.ecat-title #ecat-stamp {
+  padding: 2px 9px;
+  border: 1px solid var(--brand-border, #632124);
+  border-radius: 6px;
+  background: var(--brand-soft, #311416);
+  color: var(--brand, #ff3b30);
+  font-weight: 600;
+}
+.ecat-title #ecat-stamp:empty {
+  display: none;
+}
 .ecat-title small {
   color: var(--muted, #b0b1b8);
   font-size: 13px;

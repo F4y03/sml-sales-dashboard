@@ -9,6 +9,7 @@
     stateEl = $("ecat-state"),
     titleEl = $("ecat-book-title"),
     counterEl = $("ecat-counter"),
+    stampEl = $("ecat-stamp"),
     prevBtn = $("ecat-prev"),
     nextBtn = $("ecat-next"),
     slider = $("ecat-slider"),
@@ -226,10 +227,17 @@
   }
 
   // ---------- UI state ----------
+  // File date next to the page counter: `version` is the PDF's modified time on the server.
+  function fileStamp() {
+    if (!current?.version) return "";
+    const when = new Date(current.version).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+    return `${current.drive ? "ดึงจาก Drive" : "อัปโหลด"} ${when}`;
+  }
   function updateUi() {
     const s = spreads[index];
     const total = doc?.numPages || 0;
     counterEl.textContent = s ? `หน้า ${spreadLabel(s)} / ${total}` : "";
+    stampEl.textContent = s ? fileStamp() : "";
     // A lone page (front cover, or a last page on the left) slides to the centre; it slides back while turning.
     book.classList.toggle("is-alone-right", Boolean(s && !single && !s.left));
     book.classList.toggle("is-alone-left", Boolean(s && !single && s.left && !s.right));
@@ -438,6 +446,7 @@
     searchResults.replaceChildren();
     openResults(false);
     counterEl.textContent = "";
+    stampEl.textContent = "";
     downloadLink.href = entry.pdf + "?download=1";
     downloadLink.removeAttribute("aria-disabled");
     downloadLink.setAttribute("download", entry.pdf.split("/").pop());

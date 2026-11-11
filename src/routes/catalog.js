@@ -105,6 +105,8 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
         available: Boolean(b.drive) || existsSync(resolve(dir, b.pdf)),
         // File version for the browser-side PDF cache; changes when the PDF is replaced (null = not downloaded yet).
         version: existsSync(resolve(dir, b.pdf)) ? Math.round(statSync(resolve(dir, b.pdf)).mtimeMs) : null,
+        // The page shows `version` as a date: upload time for uploaded files, last Drive download for Drive books.
+        drive: Boolean(b.drive),
         // Categories set by hand (Super Admin). Absent -> the page builds them from the footer labels in the PDF.
         ...(Array.isArray(b.sections) && b.sections.length ? { sections: b.sections } : {}),
       })),
