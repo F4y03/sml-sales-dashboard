@@ -139,7 +139,7 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
 
   // Categories come from the footer labels: Audio Mixer p.2, Speaker p.5; picking one turns there.
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (2)');
-  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์ · Audio Mixer', 'ดอกลำโพง · Speaker']);
+  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์', 'ดอกลำโพง']);
   await expect(page.locator('#ecat-section-list .ecat-section-option small')).toHaveText(['หน้า 2', 'หน้า 5']);
   await expect(page.locator('#ecat-sections-edit')).toBeHidden(); // Super Admin only
   await page.locator('#ecat-section').click();
@@ -147,7 +147,7 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await expect(page.locator('#ecat-section-list')).toBeHidden();
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 4–5 / 7');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
-  await expect(page.locator('#ecat-section-label')).toHaveText('ดอกลำโพง · Speaker · หน้า 5');
+  await expect(page.locator('#ecat-section-label')).toHaveText('ดอกลำโพง · หน้า 5');
   await page.locator('.ecat-thumb').first().evaluate(el => el.click());
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 1 / 7');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
@@ -399,7 +399,7 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   // Super Admin edits the categories (Thai names), then goes back to automatic.
   await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveCount(1);
   await page.locator('#ecat-sections-edit').click();
-  await expect(page.locator('#ecat-sections-form textarea')).toHaveValue('2 มิกเซอร์ · Audio Mixer');
+  await expect(page.locator('#ecat-sections-form textarea')).toHaveValue('2 มิกเซอร์');
   await page.locator('#ecat-sections-form textarea').fill('3 ลำโพง\n2 มิกเซอร์');
   await page.locator('#ecat-sections-save').click();
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (2)');
@@ -414,7 +414,7 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   await expect(page.locator('#ecat-sections-error')).toContainText('บรรทัด 1');
   await page.locator('#ecat-sections-auto').click();
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (1)');
-  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์ · Audio Mixer']);
+  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์']);
   assert.equal((await send(rootCookie, 'POST', '/api/catalogs', { title: 'pro audio 2027', drive: link })).status, 409);
   await expect(page.locator('#ecat-download')).toBeVisible();
   const dl = await fetch(base + `/catalogs/pro-audio-2027.pdf?download=1`, { headers: { cookie: rootCookie } });

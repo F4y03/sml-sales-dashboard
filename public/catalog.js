@@ -1101,7 +1101,9 @@
     "HEAT SHRINKABLE TUBE": "ท่อหด",
   };
   const sectionTitle = (label) =>
-    /[฀-๿]/.test(label) ? label : THAI[label] ? `${THAI[label]} · ${titleCase(label)}` : titleCase(label);
+    /[฀-๿]/.test(label) ? label : THAI[label] || titleCase(label);
+  // Titles saved earlier as "ไทย · English" show the Thai part only.
+  const thaiOnly = (title) => (/[฀-๿]/.test(title) ? title.replace(/\s*·\s*[^฀-๿]*$/, "") : title);
   function autoSections(labels) {
     const out = [];
     let prev = "";
@@ -1112,7 +1114,7 @@
     return out;
   }
   async function loadSections(entry, token) {
-    if (Array.isArray(entry.sections) && entry.sections.length) sections = entry.sections;
+    if (Array.isArray(entry.sections) && entry.sections.length) sections = entry.sections.map((s) => ({ ...s, title: thaiOnly(s.title) }));
     else {
       try {
         sections = autoSections((await pageTexts()).labels);
