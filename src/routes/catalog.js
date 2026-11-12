@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync, renameSync, rmSync, createWriteStream } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -163,6 +164,51 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
     writeCustom([...readCustom(), { id, title, pdf: `${id}.pdf` }]);
     console.log('Catalog uploaded:', id, size, 'bytes by', req.auth.username);
     res.status(201).json({ catalog: { id, title, custom: true, pdf: `/catalogs/${id}.pdf`, available: true, version: Math.round(statSync(file).mtimeMs) } });
+  });
+  // Keep the shared book id stable; replacement files use a new name to avoid stale caches / Drive jobs.
+  app.put('/api/catalogs/:id/details', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'แก้ไขเล่มได้เฉพาะ Super Admin' }), async (req, res) => {
+    const original = readCustom().find(b => b.id === req.params.id);
+    if (!original) return res.status(404).json({ error: 'แก้ไขได้เฉพาะเล่มที่เพิ่มจากหน้าเว็บ' });
+    const isFile = /^application\/pdf\b/i.test(req.get('content-type') || '');
+    let title = '';
+    try { title = (isFile ? decodeURIComponent(req.get('x-catalog-title') || '') : req.body?.title || '').trim().replace(/\s+/g, ' '); } catch {}
+    if (!title || title.length > 60) return res.status(400).json({ error: 'กรุณาใส่ชื่อเล่ม (ไม่เกิน 60 ตัวอักษร)' });
+    const duplicate = () => allBooks().some(b => b.id !== original.id && b.title.toLowerCase() === title.toLowerCase());
+    if (duplicate()) return res.status(409).json({ error: 'มีเล่มชื่อนี้แล้ว' });
+    const mode = isFile ? 'file' : req.body?.source;
+    if (!['keep', 'file', 'drive'].includes(mode) || (mode === 'file' && !isFile)) return res.status(400).json({ error: 'แหล่งไฟล์ไม่ถูกต้อง' });
+    const drive = typeof req.body?.drive === 'string' ? req.body.drive.trim() : '';
+    const fileId = driveFileId(drive);
+    if (mode === 'drive' && (!fileId || !/^https:\/\/(drive|docs)\.google\.com\//.test(drive))) return res.status(400).json({ error: 'กรุณาใส่ลิงก์ไฟล์ Google Drive ที่ถูกต้อง' });
+    const pdf = mode === 'keep' ? original.pdf : `${original.id}-${randomUUID()}.pdf`;
+    const file = resolve(dir, pdf), tmp = file + '.upload';
+    if (isFile) {
+      if (Number(req.get('content-length')) > DRIVE_MAX_BYTES) return res.status(413).json({ error: 'ไฟล์ใหญ่เกิน 400 MB' });
+      let size = 0;
+      try {
+        await pipeline(req, async function* (source) {
+          for await (const chunk of source) { size += chunk.length; if (size > DRIVE_MAX_BYTES) throw Object.assign(new Error(), { code: 'TOO_LARGE' }); yield chunk; }
+        }, createWriteStream(tmp));
+        if (readFileSync(tmp).subarray(0, 5).toString('latin1') !== '%PDF-') throw Object.assign(new Error(), { code: 'NOT_PDF' });
+        renameSync(tmp, file);
+      } catch (error) {
+        rmSync(tmp, { force: true });
+        return res.status(error.code === 'TOO_LARGE' ? 413 : error.code === 'NOT_PDF' ? 400 : 500).json({ error: error.code === 'TOO_LARGE' ? 'ไฟล์ใหญ่เกิน 400 MB' : error.code === 'NOT_PDF' ? 'ไฟล์นี้ไม่ใช่ PDF' : 'อัปโหลดไม่สำเร็จ กรุณาลองใหม่' });
+      }
+    }
+    const list = readCustom(), book = list.find(b => b.id === original.id);
+    if (!book || JSON.stringify(book) !== JSON.stringify(original) || duplicate()) {
+      if (isFile) rmSync(file, { force: true });
+      return res.status(409).json({ error: 'ข้อมูลมีการเปลี่ยนแปลงหรือชื่อซ้ำ กรุณาเปิดเล่มแล้วลองใหม่' });
+    }
+    book.title = title;
+    book.pdf = pdf;
+    if (mode !== 'keep') {
+      delete book.sections;
+      if (mode === 'drive') book.drive = `https://drive.google.com/file/d/${fileId}/view`; else delete book.drive;
+    }
+    try { writeCustom(list); } catch (error) { if (isFile) rmSync(file, { force: true }); throw error; }
+    res.json({ catalog: { ...book, drive: Boolean(book.drive), custom: true, pdf: `/catalogs/${book.pdf}`, available: Boolean(book.drive) || existsSync(file), version: existsSync(file) ? Math.round(statSync(file).mtimeMs) : null } });
   });
   // Edit the category drop-down of a book added on the page: [{ title, page }]; an empty list goes back to automatic.
   app.put('/api/catalogs/:id/sections', sameSite, (req, res, next) => req.auth?.role === 'super_admin' ? next() : res.status(403).json({ error: 'แก้หมวดได้เฉพาะ Super Admin' }), (req, res) => {

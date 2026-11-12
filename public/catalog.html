@@ -46,6 +46,7 @@
             <input name="title" maxlength="60" required autocomplete="off" placeholder="เช่น Pro Audio 2027" />
           </label>
           <fieldset class="ecat-source">
+            <label id="ecat-keep-source" hidden><input type="radio" name="source" value="keep" /> ใช้ไฟล์/ลิงก์เดิม</label>
             <label><input type="radio" name="source" value="drive" checked /> ลิงก์ Google Drive</label>
             <label><input type="radio" name="source" value="file" /> อัปโหลดไฟล์ PDF</label>
           </fieldset>
@@ -131,8 +132,8 @@
                 <button type="button" role="menuitem" data-pages="both"></button>
               </div>
             </div>
-            <button id="ecat-edit-link" class="ecat-tool" type="button" hidden title="เปลี่ยนลิงก์ Google Drive ของเล่มนี้">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>แก้ลิงก์</span>
+            <button id="ecat-edit-link" class="ecat-tool" type="button" hidden title="แก้ชื่อ เปลี่ยนไฟล์ PDF หรือลิงก์ของเล่มนี้">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>แก้ไขเล่ม</span>
             </button>
             <button id="ecat-remove" class="ecat-tool ecat-tool-danger" type="button" hidden title="ลบเล่มนี้ออกจากแคตตาล็อก">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>ลบเล่ม</span>

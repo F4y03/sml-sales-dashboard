@@ -915,10 +915,10 @@ body.customer-dialog-open {
   max-height: calc(100dvh - 40px);
   overflow: auto;
   padding: 22px;
-  border: 1px solid #ffffff30;
+  border: 1px solid var(--line, #ffffff30);
   border-radius: 16px;
-  background: #241413;
-  color: #fff;
+  background: var(--surface, #241413);
+  color: var(--ink, #fff);
   box-shadow: 0 24px 80px #0008;
 }
 .net-region-dialog::backdrop {
@@ -934,29 +934,36 @@ body.customer-dialog-open {
 }
 .net-region-dialog-header h2 {
   margin: 0;
-  color: #fff;
+  color: var(--ink, #fff);
   font-size: 18px;
 }
 .net-region-dialog-header button {
-  background: #ffffff12;
-  color: #fff;
-  border-color: #ffffff30;
+  background: var(--surface-raised, #ffffff12);
+  color: var(--ink, #fff);
+  border-color: var(--line, #ffffff30);
 }
 .net-region-dialog .summary-chart-label {
   grid-template-columns: 8px minmax(0, 1fr) auto;
-  color: #fff;
+  color: var(--ink, #fff);
   padding: 10px 0;
-  border-bottom: 1px solid #ffffff18;
+  border-bottom: 1px solid var(--line, #ffffff18);
 }
 .net-region-dialog .summary-chart-label b {
   grid-column: 3;
-  color: #fff;
+  color: var(--ink, #fff);
 }
 .net-region-note {
   font-size: 12px;
   line-height: 1.7;
-  color: #d7c5c3;
+  color: var(--muted, #d7c5c3);
   margin: 20px 0 0;
+}
+/* The dialog sits inside the red featured card; theme-modes.css forces white text there with !important. */
+html[data-theme] .net-region-dialog.net-region-dialog :is(.summary-chart-label, .summary-chart-label b, .summary-chart-label span, h2) {
+  color: var(--ink) !important;
+}
+html[data-theme] .net-region-dialog.net-region-dialog .net-region-note {
+  color: var(--muted) !important;
 }
 /* ---- Summary rings (animated, hover to inspect a slice) ---- */
 .summary-ring .ring-track {

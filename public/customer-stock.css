@@ -1347,6 +1347,10 @@ body {
 .cs2-help.open .cs2-help-tip {
   display: block;
 }
+/* The tip inside the red featured card inherits its white/pink text (theme-modes.css uses !important); use the tip palette. */
+html[data-theme] .cs2-kpi.featured .cs2-help .cs2-help-tip.cs2-help-tip {
+  color: var(--ink, #f4f4f5) !important;
+}
 h3 > .cs2-help .cs2-help-tip {
   left: 0;
   right: auto;
