@@ -268,7 +268,7 @@ html[data-theme] .ecat-view button {
   white-space: nowrap;
   cursor: pointer;
 }
-html[data-theme] .ecat-view button:hover:not(:disabled) {
+html[data-theme] .ecat-view button:hover:not(:disabled):not([aria-pressed="true"]) {
   background: var(--surface, #141416);
 }
 html[data-theme] .ecat-view button[aria-pressed="true"] {

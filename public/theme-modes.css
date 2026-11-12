@@ -203,7 +203,7 @@ html[data-theme]
     .workspace-profile > span,
     .avatar,
     .preview,
-    .report-categories button,
+    .report-categories button:not([aria-pressed="true"]),
     .report-settings,
     .analysis-select,
     .analysis-controls select
@@ -231,7 +231,7 @@ html[data-theme] input::placeholder {
   opacity: 0.75;
 }
 html[data-theme]
-  :is(
+  :where(
     button,
     .button,
     .button.secondary,
@@ -246,7 +246,7 @@ html[data-theme]
   border-color: var(--line);
   box-shadow: none;
 }
-html[data-theme] :is(button, .button):hover:not(:disabled) {
+html[data-theme] :where(:is(button, .button):hover:not(:disabled):not([aria-pressed="true"]):not([aria-selected="true"])) {
   background: var(--brand-soft);
   border-color: var(--brand-border);
 }
@@ -290,8 +290,8 @@ html[data-theme]
   border-color: var(--brand-border);
 }
 html[data-theme] .report-categories button[aria-pressed="true"] {
-  background: linear-gradient(135deg, #e10600, #ab0000);
-  color: #fff;
+  background: #a90000;
+  color: #fff !important;
   border-color: #e10600;
 }
 html[data-theme]
