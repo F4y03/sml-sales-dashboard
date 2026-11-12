@@ -139,7 +139,7 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
 
   // Categories come from the footer labels: Audio Mixer p.2, Speaker p.5; picking one turns there.
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (2)');
-  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์ · Audio Mixer', 'ดอกลำโพง · Speaker']);
+  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์', 'ดอกลำโพง']);
   await expect(page.locator('#ecat-section-list .ecat-section-option small')).toHaveText(['หน้า 2', 'หน้า 5']);
   await expect(page.locator('#ecat-sections-edit')).toBeHidden(); // Super Admin only
   await page.locator('#ecat-section').click();
@@ -147,7 +147,7 @@ test('catalog reader: spreads, flip, thumbnails, zoom, link, hash, small screen,
   await expect(page.locator('#ecat-section-list')).toBeHidden();
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 4–5 / 7');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
-  await expect(page.locator('#ecat-section-label')).toHaveText('ดอกลำโพง · Speaker · หน้า 5');
+  await expect(page.locator('#ecat-section-label')).toHaveText('ดอกลำโพง · หน้า 5');
   await page.locator('.ecat-thumb').first().evaluate(el => el.click());
   await expect(page.locator('#ecat-counter')).toHaveText('หน้า 1 / 7');
   await expect(page.locator('.ecat-leaf')).toBeHidden();
@@ -399,7 +399,7 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   // Super Admin edits the categories (Thai names), then goes back to automatic.
   await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveCount(1);
   await page.locator('#ecat-sections-edit').click();
-  await expect(page.locator('#ecat-sections-form textarea')).toHaveValue('2 มิกเซอร์ · Audio Mixer');
+  await expect(page.locator('#ecat-sections-form textarea')).toHaveValue('2 มิกเซอร์');
   await page.locator('#ecat-sections-form textarea').fill('3 ลำโพง\n2 มิกเซอร์');
   await page.locator('#ecat-sections-save').click();
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (2)');
@@ -414,11 +414,51 @@ test('catalog add/remove from the page: catalog_manage only, Drive link required
   await expect(page.locator('#ecat-sections-error')).toContainText('บรรทัด 1');
   await page.locator('#ecat-sections-auto').click();
   await expect(page.locator('#ecat-section-label')).toHaveText('หมวดหมู่ (1)');
-  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์ · Audio Mixer']);
+  await expect(page.locator('#ecat-section-list .ecat-section-option span')).toHaveText(['มิกเซอร์']);
   assert.equal((await send(rootCookie, 'POST', '/api/catalogs', { title: 'pro audio 2027', drive: link })).status, 409);
   await expect(page.locator('#ecat-download')).toBeVisible();
   const dl = await fetch(base + `/catalogs/pro-audio-2027.pdf?download=1`, { headers: { cookie: rootCookie } });
   assert.match(dl.headers.get('content-disposition'), /attachment/);
+  const editPath = '/api/catalogs/pro-audio-2027/details';
+  assert.equal((await send(null, 'PUT', editPath, { title: 'Changed', source: 'keep' })).status, 401);
+  assert.equal((await send(admin, 'PUT', editPath, { title: 'Changed', source: 'keep' })).status, 403);
+  assert.equal((await send(rootCookie, 'PUT', editPath, { title: 'Changed', source: 'keep' }, false)).status, 403);
+  assert.equal((await send(rootCookie, 'PUT', editPath, { title: '', source: 'keep' })).status, 400);
+  assert.equal((await send(rootCookie, 'PUT', editPath, { title: 'Changed', source: 'drive', drive: 'https://example.com/test.pdf' })).status, 400);
+  const beforeEdit = JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0];
+  const badUpload = await fetch(base + editPath, { method: 'PUT', headers: { cookie: rootCookie, 'Content-Type': 'application/pdf', 'X-PRPlus-Request': '1', 'X-Catalog-Title': 'Changed' }, body: 'not a pdf' });
+  assert.equal(badUpload.status, 400);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0], beforeEdit);
+  await page.locator('#ecat-edit-link').click();
+  await expect(page.locator('#ecat-add-form [name=title]')).toHaveValue('Pro Audio 2027');
+  await page.locator('#ecat-add-form [name=title]').fill('ชื่อใหม่');
+  await page.locator('#ecat-add-submit').click();
+  await expect(page.locator('#ecat-book-title')).toHaveText('ชื่อใหม่');
+  assert.equal(JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0].pdf, beforeEdit.pdf);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#ecat-edit-link').click();
+  await page.locator('#ecat-add-form [value=file]').check();
+  await page.locator('#ecat-add-form [name=file]').setInputFiles({ name: 'replacement.pdf', mimeType: 'application/pdf', buffer: makePdf(2) });
+  await page.locator('#ecat-add-submit').click();
+  await expect(page.locator('#ecat-add-dialog')).not.toBeVisible();
+  let replaced = JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0];
+  assert.equal(replaced.id, beforeEdit.id);
+  assert.notEqual(replaced.pdf, beforeEdit.pdf);
+  assert.equal(replaced.drive, undefined);
+  assert.equal(replaced.sections, undefined);
+  assert.deepEqual(Buffer.from(await (await fetch(base + '/catalogs/' + replaced.pdf)).arrayBuffer()), makePdf(2));
+  await page.locator('#ecat-edit-link').click();
+  await page.locator('#ecat-add-form [value=drive]').check();
+  await page.locator('#ecat-add-form [name=drive]').fill(link);
+  await page.locator('#ecat-add-submit').click();
+  await expect(page.locator('#ecat-add-dialog')).not.toBeVisible();
+  replaced = JSON.parse(readFileSync(join(dir, 'catalogs.json'), 'utf8'))[0];
+  assert.ok(replaced.drive);
+  await page.reload();
+  await expect(page.locator('#ecat-book-title')).toHaveText('ชื่อใหม่');
+  await page.locator('#ecat-edit-link').click();
+  assert.ok(await page.locator('#ecat-add-dialog').evaluate(el => el.scrollWidth <= el.clientWidth));
+  await page.locator('#ecat-add-cancel').click();
   page.once('dialog', d => d.accept());
   await page.locator('#ecat-remove').click();
   await expect(page.locator('#ecat-state')).toContainText('ยังไม่มีแคตตาล็อก');

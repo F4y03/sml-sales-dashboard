@@ -143,10 +143,10 @@ html[data-theme] .ecat-tabs button[aria-selected="true"] {
 /* Upload date: same colours as the selected book tab. */
 .ecat-title #ecat-stamp {
   padding: 2px 9px;
-  border: 1px solid var(--brand-border, #632124);
+  border: 1px solid color-mix(in srgb, var(--positive, #66d699) 45%, transparent);
   border-radius: 6px;
-  background: var(--brand-soft, #311416);
-  color: var(--brand, #ff3b30);
+  background: var(--positive-soft, #15291f);
+  color: var(--positive, #66d699);
   font-weight: 600;
 }
 .ecat-title #ecat-stamp:empty {
@@ -268,7 +268,7 @@ html[data-theme] .ecat-view button {
   white-space: nowrap;
   cursor: pointer;
 }
-html[data-theme] .ecat-view button:hover:not(:disabled) {
+html[data-theme] .ecat-view button:hover:not(:disabled):not([aria-pressed="true"]) {
   background: var(--surface, #141416);
 }
 html[data-theme] .ecat-view button[aria-pressed="true"] {
@@ -1305,7 +1305,7 @@ html[data-theme] .ecat-section-option[aria-selected="true"] {
 .ecat-toast button { flex: none; border: 0; border-radius: 999px; padding: 7px 14px; background: #d40000; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .ecat-toast button:hover { background: #b00000; }
 
-.ecat-source { display: flex; gap: 16px; border: 0; padding: 0; margin: 0 0 8px; }
+.ecat-source { display: flex; flex-wrap: wrap; gap: 16px; border: 0; padding: 0; margin: 0 0 8px; }
 .ecat-source label { display: inline-flex; align-items: center; gap: 6px; flex-direction: row; cursor: pointer; }
 .ecat-dialog [hidden] { display: none !important; }
 

@@ -533,3 +533,42 @@
 #kpi-detail.kd-no-motion .kd-bar > i {
   transition: none;
 }
+
+
+/* ---------- light theme ---------- */
+/* Same layout, light surfaces. The red hero card stays red (white text reads fine on it). */
+html[data-theme='light'] #kpi-detail.kd.kd {
+  --kd-bg: #ffffff;
+  --kd-card: #f6f6f7;
+  --kd-line: rgba(0, 0, 0, 0.1);
+  --kd-ink: #18181b;
+  --kd-muted: #6b6b72;
+  --kd-red-text: #c8141b;
+  --kd-green: #16a34a;
+  --kd-amber: #b45309;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.25);
+}
+html[data-theme='light'] #kpi-detail.kd.kd :is(.kd-title, .kd-section-title, .kd-row-top > span:first-child, .kd-item-copy strong) {
+  color: var(--kd-ink);
+}
+html[data-theme='light'] #kpi-detail .kd-head {
+  background: rgba(255, 255, 255, 0.94);
+}
+html[data-theme='light'] #kpi-detail .kd-close:hover {
+  background: #e9e9ec;
+}
+html[data-theme='light'] #kpi-detail .kd-bar {
+  background: rgba(0, 0, 0, 0.07);
+}
+html[data-theme='light'] #kpi-detail .kd-fill-muted {
+  background: #b5b5bb;
+}
+html[data-theme='light'] #kpi-detail .kd-note {
+  color: #3f3f46;
+}
+html[data-theme='light'] #kpi-detail .kd-note-warn {
+  color: #92400e;
+}
+html[data-theme='light'] #kpi-detail .kd-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}

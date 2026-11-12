@@ -1101,7 +1101,9 @@
     "HEAT SHRINKABLE TUBE": "ท่อหด",
   };
   const sectionTitle = (label) =>
-    /[฀-๿]/.test(label) ? label : THAI[label] ? `${THAI[label]} · ${titleCase(label)}` : titleCase(label);
+    /[฀-๿]/.test(label) ? label : THAI[label] || titleCase(label);
+  // Titles saved earlier as "ไทย · English" show the Thai part only.
+  const thaiOnly = (title) => (/[฀-๿]/.test(title) ? title.replace(/\s*·\s*[^฀-๿]*$/, "") : title);
   function autoSections(labels) {
     const out = [];
     let prev = "";
@@ -1112,7 +1114,7 @@
     return out;
   }
   async function loadSections(entry, token) {
-    if (Array.isArray(entry.sections) && entry.sections.length) sections = entry.sections;
+    if (Array.isArray(entry.sections) && entry.sections.length) sections = entry.sections.map((s) => ({ ...s, title: thaiOnly(s.title) }));
     else {
       try {
         sections = autoSections((await pageTexts()).labels);
@@ -1323,6 +1325,8 @@
     addError = $("ecat-add-error"),
     addSubmit = $("ecat-add-submit"),
     removeBtn = $("ecat-remove");
+  let editingEntry = null;
+  let savingBook = false;
   let canManage = false,
     isSuperAdmin = false;
   // Download PDF + remove book: Super Admin only (the server enforces both too).
@@ -1363,15 +1367,18 @@
   };
   addForm.querySelectorAll("input[name=source]").forEach((r) => r.addEventListener("change", syncSource));
   addBtn.addEventListener("click", () => {
+    editingEntry = null;
+    $("ecat-add-title").textContent = "เพิ่มแคตตาล็อก";
+    $("ecat-keep-source").hidden = true;
     addForm.reset();
     syncSource();
     addError.textContent = "";
     addDialog.showModal();
   });
-  async function uploadPdf(title, file) {
+  async function uploadPdf(title, file, entry = null) {
     if (file.size > 400 * 1024 * 1024) throw new Error("ไฟล์ใหญ่เกิน 400 MB");
-    const response = await fetch("/api/catalogs/upload", {
-      method: "POST",
+    const response = await fetch(entry ? "/api/catalogs/" + encodeURIComponent(entry.id) + "/details" : "/api/catalogs/upload", {
+      method: entry ? "PUT" : "POST",
       headers: { "Content-Type": "application/pdf", "X-PRPlus-Request": "1", "X-Catalog-Title": encodeURIComponent(title) },
       body: file,
     });
@@ -1380,8 +1387,12 @@
     return data;
   }
   $("ecat-add-cancel").addEventListener("click", () => addDialog.close());
+  addDialog.addEventListener("cancel", (event) => { if (savingBook) event.preventDefault(); });
   addForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (savingBook) return;
+    savingBook = true;
+    $("ecat-add-cancel").disabled = true;
     addError.textContent = "";
     addSubmit.disabled = true;
     try {
@@ -1389,16 +1400,23 @@
       const isFile = addForm.elements.source.value === "file";
       if (isFile) addSubmit.textContent = "กำลังอัปโหลด…";
       const { catalog } = isFile
-        ? await uploadPdf(title, addForm.elements.file.files[0])
-        : await send("POST", "/api/catalogs", { title, drive: addForm.elements.drive.value });
-      catalogs.push(catalog);
+        ? await uploadPdf(title, addForm.elements.file.files[0], editingEntry)
+        : editingEntry
+          ? await send("PUT", "/api/catalogs/" + encodeURIComponent(editingEntry.id) + "/details", { title, source: addForm.elements.source.value, drive: addForm.elements.drive.value })
+          : await send("POST", "/api/catalogs", { title, drive: addForm.elements.drive.value });
+      if (editingEntry) {
+        catalogs = catalogs.map((entry) => entry.id === catalog.id ? catalog : entry);
+        current = null;
+      } else catalogs.push(catalog);
       addDialog.close();
       renderTabs();
       selectTab(catalog);
-      showToast("เพิ่ม “" + catalog.title + "” แล้ว");
+      showToast((editingEntry ? "แก้ไข “" : "เพิ่ม “") + catalog.title + "” แล้ว");
     } catch (error) {
       addError.textContent = error.message;
     } finally {
+      savingBook = false;
+      $("ecat-add-cancel").disabled = false;
       addSubmit.textContent = "บันทึก";
       addSubmit.disabled = false;
     }
@@ -1422,24 +1440,17 @@
     }
   });
   const linkBtn = $("ecat-edit-link");
-  linkBtn.addEventListener("click", async () => {
-    const entry = current;
-    if (!entry?.custom) return;
-    const drive = prompt(`ลิงก์ Google Drive ใหม่ของ “${entry.title}”\n(เช่น https://drive.google.com/file/d/…/view — ไฟล์ต้องแชร์แบบทุกคนที่มีลิงก์)`);
-    if (!drive?.trim()) return;
-    linkBtn.disabled = true;
-    try {
-      await send("PUT", "/api/catalogs/" + encodeURIComponent(entry.id) + "/link", { drive: drive.trim() });
-      // Same file name on the server; bust the browser cache so the new PDF loads.
-      entry.pdf = entry.pdf.split("?")[0] + "?v=" + Date.now();
-      current = null;
-      openCatalog(entry);
-      showToast("เปลี่ยนลิงก์ “" + entry.title + "” แล้ว กำลังโหลดไฟล์ใหม่…");
-    } catch (error) {
-      showToast(error.message);
-    } finally {
-      linkBtn.disabled = false;
-    }
+  linkBtn.addEventListener("click", () => {
+    if (!current?.custom || !isSuperAdmin) return;
+    editingEntry = current;
+    addForm.reset();
+    $("ecat-add-title").textContent = "แก้ไขแคตตาล็อก";
+    $("ecat-keep-source").hidden = false;
+    addForm.elements.title.value = current.title;
+    addForm.elements.source.value = "keep";
+    syncSource();
+    addError.textContent = "";
+    addDialog.showModal();
   });
   init();
 })();
