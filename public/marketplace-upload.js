@@ -36,7 +36,9 @@
     const active = activeShops();
     const keep = shopSelect.value || remembered();
     shopAuto.hidden = active.length !== 1;
-    shopSelect.hidden = active.length === 1;
+    shopSelect.hidden = active.length > 0; // shops show as buttons; the select stays as the hidden source of truth
+    const chips = document.getElementById('shop-chips');
+    chips.hidden = active.length < 2;
     if (active.length === 1) shopAuto.textContent = `อัปโหลดเข้าร้าน ${active[0].name} (มีร้านเดียวที่เปิดอยู่)`;
     const options = active.length
       ? [new Option('— เลือกร้าน —', ''), ...active.map(shop => new Option(shop.name, String(shop.id)))]
@@ -44,6 +46,19 @@
     shopSelect.replaceChildren(...options);
     shopSelect.disabled = !active.length || uploading;
     if (active.some(shop => String(shop.id) === keep)) shopSelect.value = keep;
+    chips.replaceChildren(...[{ id: '', name: 'ทุกร้าน' }, ...active].map(shop => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'mp-btn mp-btn-ghost mp-btn-sm';
+      button.textContent = shop.name;
+      button.setAttribute('aria-pressed', String(String(shop.id) === shopSelect.value));
+      button.addEventListener('click', () => {
+        shopSelect.value = String(shop.id);
+        shopSelect.dispatchEvent(new Event('change'));
+        chips.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      });
+      return button;
+    }));
     if (shops && !shops.length) toggleManager(true);
     shopList.replaceChildren(...(shops || []).map(shop => {
       const li = document.createElement('li');

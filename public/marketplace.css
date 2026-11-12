@@ -783,6 +783,19 @@
   border-color: var(--negative);
   background: color-mix(in srgb, var(--negative) 12%, transparent);
 }
+.mp-shop-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mp-shop-chips[hidden] {
+  display: none;
+}
+.mp-shop-chips .mp-btn[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
 .mp-shop-row {
   display: flex;
   flex-wrap: wrap;
