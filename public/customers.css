@@ -943,10 +943,16 @@ body.customer-dialog-open {
   border-color: var(--line, #ffffff30);
 }
 .net-region-dialog .summary-chart-label {
-  grid-template-columns: 8px minmax(0, 1fr) auto;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
   color: var(--ink, #fff);
   padding: 10px 0;
   border-bottom: 1px solid var(--line, #ffffff18);
+}
+/* Segment colors are pale (made for the red card); give dots an outline so they stay visible on the light dialog. */
+.net-region-dialog .summary-legend-dot {
+  width: 12px;
+  height: 12px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink, #fff) 45%, transparent);
 }
 .net-region-dialog .summary-chart-label b {
   grid-column: 3;

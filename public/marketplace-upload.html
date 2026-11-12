@@ -55,7 +55,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="mp-step">
+          <fieldset class="mp-step" hidden style="display:none">
             <legend><span class="mp-step-no">2</span>เลือกแพลตฟอร์ม</legend>
             <div class="mp-platforms" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
               <label class="mp-platform" data-platform="shopee">
@@ -71,7 +71,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="mp-step">
+          <fieldset class="mp-step" hidden style="display:none">
             <legend><span class="mp-step-no">3</span>เลือกไฟล์ Excel หรือ CSV <small>(เลือกได้หลายไฟล์)</small></legend>
             <label id="dropzone" class="mp-dropzone" for="file-input">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
@@ -82,8 +82,8 @@
             <ul id="file-list" class="mp-file-list" aria-live="polite"></ul>
           </fieldset>
 
-          <p id="form-status" class="mp-form-status" role="alert"></p>
-          <div class="mp-actions">
+          <p id="form-status" class="mp-form-status" role="alert" hidden style="display:none"></p>
+          <div class="mp-actions" hidden style="display:none">
             <button type="button" id="clear-files" class="mp-btn mp-btn-ghost" disabled>ล้างรายการ</button>
             <button type="submit" id="upload-button" class="mp-btn mp-btn-primary" disabled>อัปโหลด</button>
           </div>
@@ -93,8 +93,8 @@
           <div class="mp-panel-head">
             <h2 id="history-title">ประวัติการอัปโหลด</h2>
             <select id="history-source" class="mp-btn mp-btn-ghost mp-btn-sm" aria-label="ประเภทประวัติ">
+              <option value="api" selected>ดึงผ่าน API</option>
               <option value="file">ไฟล์ที่อัปโหลด</option>
-              <option value="api">ดึงผ่าน API</option>
               <option value="all">ทั้งหมด</option>
             </select>
             <button type="button" id="refresh-history" class="mp-btn mp-btn-ghost mp-btn-sm">รีเฟรช</button>

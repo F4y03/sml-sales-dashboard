@@ -45,9 +45,11 @@ export function installMarketplace(app, store, audit) {
     if (!['marketplace_upload', 'marketplace_view'].some(p => hasPermission(req.auth, p))) return res.status(403).json({ error: 'ไม่มีสิทธิ์เข้าถึง' });
     // ?source=file | api: hourly API syncs would otherwise push uploaded files out of the latest 50.
     const source = ['file', 'api'].includes(req.query.source) ? req.query.source : 'all';
+    // ?shop=<id> limits to one shop; missing/invalid = every shop.
+    const shopId = Number.isInteger(Number(req.query.shop)) && Number(req.query.shop) > 0 ? Number(req.query.shop) : 0;
     const uploads = store.all(`SELECT u.id,u.platform,u.file_name AS fileName,u.uploaded_by_name AS uploadedBy,u.created_at AS createdAt,s.name AS shop
       FROM marketplace_uploads u LEFT JOIN marketplace_shops s ON s.id=u.shop_id
-      WHERE ?='all' OR (u.file_kinds='api')=(?='api') ORDER BY u.id DESC LIMIT 50`, source, source);
+      WHERE (?='all' OR (u.file_kinds='api')=(?='api')) AND (?=0 OR u.shop_id=?) ORDER BY u.id DESC LIMIT 50`, source, source, shopId, shopId);
     res.json({ uploads });
   });
 

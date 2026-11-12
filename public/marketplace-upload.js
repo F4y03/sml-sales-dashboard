@@ -71,6 +71,7 @@
       if (!response.ok) throw new Error(data.error || 'โหลดรายชื่อร้านไม่สำเร็จ');
       shops = data.shops;
       renderShops();
+      loadHistory(); // the remembered / only shop is known now, so filter history by it
     } catch (error) {
       shopSelect.replaceChildren(new Option('โหลดรายชื่อร้านไม่สำเร็จ', ''));
       shopStatus.dataset.state = 'error';
@@ -101,6 +102,7 @@
   manageButton.addEventListener('click', () => toggleManager());
   shopSelect.addEventListener('change', () => {
     remember(shopSelect.value);
+    loadHistory();
     formStatus.textContent = '';
     // A new shop choice gives files that failed a shop check another try.
     for (const entry of queue) if (entry.state === 'error' && !localCheck(entry.file)) { entry.state = 'ready'; entry.message = ''; }
@@ -241,7 +243,8 @@
     historyStatus.textContent = 'กำลังโหลดประวัติ…';
     historyStatus.dataset.state = 'loading';
     try {
-      const response = await fetch('/api/marketplace/uploads?source=' + document.getElementById('history-source').value, { cache: 'no-store' });
+      const shop = selectedShop();
+      const response = await fetch('/api/marketplace/uploads?source=' + document.getElementById('history-source').value + (shop ? '&shop=' + shop.id : ''), { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'โหลดประวัติไม่สำเร็จ');
       historyBody.replaceChildren(...data.uploads.map(upload => {
