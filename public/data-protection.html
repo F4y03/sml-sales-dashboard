@@ -20,8 +20,10 @@
       .dp-section p, .dp-section ul { margin: 0; line-height: 1.7; }
       .dp-section ul { padding-left: 20px; }
       .dp-th { color: var(--muted, #888); font-size: 13px; }
-      .dp-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      .dp-table th, .dp-table td { padding: 8px 10px; border-bottom: 1px solid var(--line, #333); text-align: left; vertical-align: top; }
+      .dp-section > * { min-width: 0; }
+      .dp-table { white-space: normal; width: 100%; max-width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
+      .dp-table:not(#cleanup-table) th:nth-child(2), .dp-table:not(#cleanup-table) td:nth-child(2) { width: 76px; }
+      .dp-table th, .dp-table td { overflow-wrap: anywhere; padding: 8px 10px; border-bottom: 1px solid var(--line, #333); text-align: left; vertical-align: top; }
       .dp-table th { color: var(--muted, #888); font-size: 12px; font-weight: 600; }
       .dp-no { color: #e5484d; font-weight: 600; }
       .dp-yes { color: #30a46c; font-weight: 600; }
