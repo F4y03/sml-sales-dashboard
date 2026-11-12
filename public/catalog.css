@@ -143,10 +143,10 @@ html[data-theme] .ecat-tabs button[aria-selected="true"] {
 /* Upload date: same colours as the selected book tab. */
 .ecat-title #ecat-stamp {
   padding: 2px 9px;
-  border: 1px solid var(--brand-border, #632124);
+  border: 1px solid color-mix(in srgb, var(--positive, #66d699) 45%, transparent);
   border-radius: 6px;
-  background: var(--brand-soft, #311416);
-  color: var(--brand, #ff3b30);
+  background: var(--positive-soft, #15291f);
+  color: var(--positive, #66d699);
   font-weight: 600;
 }
 .ecat-title #ecat-stamp:empty {
