@@ -205,7 +205,7 @@ html[data-theme] .performance-highlights .ph-segment button[aria-pressed="true"]
 }
 html[data-theme] .performance-highlights .ph-toggle {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto 16px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 12px;
   row-gap: 9px;
@@ -555,7 +555,7 @@ html[data-theme] .performance-highlights .ph-link:hover:not(:disabled) {
     padding: 16px;
   }
   html[data-theme] .performance-highlights .ph-toggle {
-    grid-template-columns: 28px minmax(0, 1fr) 16px;
+    grid-template-columns: 28px minmax(0, 1fr);
     padding: 12px;
   }
   .ph-toggle > .ph-name {
@@ -590,4 +590,67 @@ html[data-theme] .performance-highlights .ph-link:hover:not(:disabled) {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- Row detail popup (replaces inline expand) ---------- */
+.ph-popup {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--ph-line);
+  border-radius: 16px;
+  background: var(--ph-card);
+  color: var(--ph-ink);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.35);
+  overflow: auto;
+}
+.ph-popup::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+.ph-popup[open] {
+  animation: ph-popup-in 0.18s ease-out;
+}
+@keyframes ph-popup-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+.ph-popup-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--ph-line);
+}
+.ph-popup-title {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.ph-popup-title strong {
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+html[data-theme] .performance-highlights .ph-popup-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ph-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ph-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+html[data-theme] .performance-highlights .ph-popup-close:hover {
+  color: var(--ph-ink);
+  border-color: var(--ph-red);
+}
+.ph-popup-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px 20px 20px;
 }

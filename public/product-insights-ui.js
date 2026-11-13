@@ -460,39 +460,61 @@
   }
   function highlightRow(list, row, index) {
     const wrap = node("div", "", "ph-item"),
-      toggle = node("button", "", "ph-toggle"),
-      detail = node("div", "", "ph-detail"),
-      inner = node("div", "", "ph-detail-inner");
+      toggle = node("button", "", "ph-toggle");
     wrap.style.setProperty("--i", index);
     wrap.dataset.sku = row.sku;
     toggle.type = "button";
     toggle.id = `ph-${list}-row-${index}`;
-    detail.id = `ph-${list}-detail-${index}`;
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.setAttribute("aria-controls", detail.id);
-    detail.setAttribute("role", "region");
-    detail.setAttribute("aria-labelledby", toggle.id);
-    detail.inert = true;
-    detail.append(inner);
-    wrap.append(toggle, detail);
-    toggle.addEventListener("click", () =>
-      setHighlightOpen(list, wrap, row, toggle.getAttribute("aria-expanded") !== "true"),
-    );
-    return { wrap, toggle, inner };
+    toggle.setAttribute("aria-haspopup", "dialog");
+    wrap.append(toggle);
+    toggle.addEventListener("click", () => openHighlightPopup(list, row, toggle));
+    return { wrap, toggle };
   }
-  function setHighlightOpen(list, wrap, row, open) {
-    const container = byId(`performance-${list}`);
-    container.querySelectorAll(".ph-item.is-open").forEach((other) => {
-      if (other === wrap) return;
-      other.classList.remove("is-open");
-      other.querySelector(".ph-toggle").setAttribute("aria-expanded", "false");
-      other.querySelector(".ph-detail").inert = true;
+  // Row details open in one shared modal popup instead of expanding inline.
+  let highlightDialog = null;
+  function ensureHighlightDialog() {
+    if (highlightDialog) return highlightDialog;
+    const dialog = node("dialog", "", "ph-popup"),
+      head = node("div", "", "ph-popup-head"),
+      close = node("button", "×", "ph-popup-close");
+    close.type = "button";
+    close.setAttribute("aria-label", "ปิด");
+    close.addEventListener("click", () => dialog.close());
+    head.append(node("div", "", "ph-popup-title"), close);
+    dialog.append(head, node("div", "", "ph-popup-body"));
+    dialog.setAttribute("aria-labelledby", "ph-popup-name");
+    // Clicking the backdrop closes the popup.
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
     });
-    wrap.classList.toggle("is-open", open);
-    wrap.querySelector(".ph-toggle").setAttribute("aria-expanded", String(open));
-    wrap.querySelector(".ph-detail").inert = !open;
-    openHighlight[list] = open ? row.sku : null;
-    if (open) (list === "best" ? fillBest : fillWatch)(wrap.querySelector(".ph-detail-inner"), row);
+    dialog.addEventListener("close", () => {
+      openHighlight.best = openHighlight.watch = null;
+      if (dialog.opener?.isConnected) dialog.opener.focus();
+    });
+    (byId("performance-best")?.closest(".performance-highlights") || document.body).append(dialog);
+    highlightDialog = dialog;
+    return dialog;
+  }
+  function openHighlightPopup(list, row, opener) {
+    const dialog = ensureHighlightDialog(),
+      title = dialog.querySelector(".ph-popup-title"),
+      body = dialog.querySelector(".ph-popup-body"),
+      name = node("strong", row.name),
+      meta = node("small", "", "ph-meta");
+    name.id = "ph-popup-name";
+    meta.append(
+      node("code", skuLabel(row.sku)),
+      document.createTextNode(
+        list === "best"
+          ? ` · ยอดสุทธิ ${money(row.amt)}`
+          : ` · ช่วงก่อน ${money(row.prev)} → ช่วงนี้ ${money(row.now)}`,
+      ),
+    );
+    title.replaceChildren(name, meta);
+    dialog.opener = opener;
+    openHighlight[list] = row.sku;
+    (list === "best" ? fillBest : fillWatch)(body, row);
+    if (!dialog.open) dialog.showModal();
   }
   function nameBlock(row, meta) {
     const block = node("span", "", "ph-name"),
@@ -553,7 +575,6 @@
         rank,
         nameBlock(row, meta),
         amountBlock(money(row.amt), `${pctText(shareOf(row.amt, highlightTotal))} ของยอดขาย`),
-        chevron(),
         bar,
       );
       toggle.setAttribute(
@@ -561,7 +582,6 @@
         `อันดับ ${index + 1} ${row.name} ยอดสุทธิ ${money(row.amt)} · กดเพื่อดูลูกค้าที่ซื้อมากที่สุด`,
       );
       container.append(wrap);
-      if (openHighlight.best === row.sku) setHighlightOpen("best", wrap, row, true);
     });
     if (openHighlight.best && !rows.some((row) => row.sku === openHighlight.best))
       openHighlight.best = null;
@@ -616,7 +636,6 @@
         node("span", String(index + 1), "ph-rank is-watch"),
         nameBlock(row, meta),
         amountBlock(`−${money(row.prev - row.now)}`, `ลดลง ${pctText(drop)}`, "ph-negative"),
-        chevron(),
         bars,
       );
       toggle.setAttribute(
@@ -624,7 +643,6 @@
         `อันดับ ${index + 1} ${row.name} ยอดลดลง ${money(row.prev - row.now)} (${pctText(drop)}) · ช่วงก่อน ${money(row.prev)} ช่วงนี้ ${money(row.now)} · กดเพื่อดูรายละเอียด`,
       );
       container.append(wrap);
-      if (openHighlight.watch === row.sku) setHighlightOpen("watch", wrap, row, true);
     });
     if (openHighlight.watch && !rows.some((row) => row.sku === openHighlight.watch))
       openHighlight.watch = null;
@@ -645,7 +663,10 @@
     link.type = "button";
     link.setAttribute("aria-haspopup", "dialog");
     link.setAttribute("aria-controls", "sku-detail");
-    link.addEventListener("click", () => openSku(item, link));
+    link.addEventListener("click", () => {
+      highlightDialog?.close();
+      openSku(item, link);
+    });
     return link;
   }
   // Top buyers come from the same product-buyers API as the SKU popup, fetched once per product and period.
