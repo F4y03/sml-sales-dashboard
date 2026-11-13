@@ -467,7 +467,7 @@
     toggle.id = `ph-${list}-row-${index}`;
     toggle.setAttribute("aria-haspopup", "dialog");
     wrap.append(toggle);
-    toggle.addEventListener("click", () => openHighlightPopup(list, row, toggle));
+    toggle.addEventListener("click", () => openHighlightPopup(list, row, toggle, index));
     return { wrap, toggle };
   }
   // Row details open in one shared modal popup instead of expanding inline.
@@ -481,7 +481,7 @@
     close.setAttribute("aria-label", "ปิด");
     close.addEventListener("click", () => dialog.close());
     head.append(node("div", "", "ph-popup-title"), close);
-    dialog.append(head, node("div", "", "ph-popup-body"));
+    dialog.append(head, node("div", "", "ph-popup-stats"), node("div", "", "ph-popup-body"));
     dialog.setAttribute("aria-labelledby", "ph-popup-name");
     // Clicking the backdrop closes the popup.
     dialog.addEventListener("click", (event) => {
@@ -495,9 +495,15 @@
     highlightDialog = dialog;
     return dialog;
   }
-  function openHighlightPopup(list, row, opener) {
+  function popupStat(label, value, className = "") {
+    const tile = node("div", "", `ph-popup-stat${className ? ` ${className}` : ""}`);
+    tile.append(node("span", label), node("b", value));
+    return tile;
+  }
+  function openHighlightPopup(list, row, opener, index = 0) {
     const dialog = ensureHighlightDialog(),
       title = dialog.querySelector(".ph-popup-title"),
+      stats = dialog.querySelector(".ph-popup-stats"),
       body = dialog.querySelector(".ph-popup-body"),
       name = node("strong", row.name),
       meta = node("small", "", "ph-meta");
@@ -506,11 +512,33 @@
       node("code", skuLabel(row.sku)),
       document.createTextNode(
         list === "best"
-          ? ` · ยอดสุทธิ ${money(row.amt)}`
-          : ` · ช่วงก่อน ${money(row.prev)} → ช่วงนี้ ${money(row.now)}`,
+          ? ` · ${pctText(shareOf(row.amt, highlightTotal))} ของยอดขาย`
+          : " · ยอดขายลดลงเทียบช่วงก่อน",
       ),
     );
+    const rank = node(
+      "span",
+      String(index + 1),
+      `ph-rank ph-popup-rank${list === "watch" ? " is-watch" : index < 3 ? ` is-top${index + 1}` : ""}`,
+    );
+    rank.setAttribute("aria-hidden", "true");
     title.replaceChildren(name, meta);
+    dialog.querySelector(".ph-popup-head").replaceChildren(rank, title, dialog.querySelector(".ph-popup-close"));
+    dialog.classList.toggle("is-watch", list === "watch");
+    if (list === "best")
+      stats.replaceChildren(
+        popupStat("ยอดสุทธิ", money(row.amt), "is-main"),
+        popupStat("ลูกค้า", num.format(row.cust)),
+        popupStat("บิล", num.format(row.bills)),
+      );
+    else {
+      const drop = dropOf(row);
+      stats.replaceChildren(
+        popupStat("ช่วงก่อน", money(row.prev)),
+        popupStat("ช่วงนี้", money(row.now)),
+        popupStat("ลดลง", pctText(drop), "is-main ph-negative"),
+      );
+    }
     dialog.opener = opener;
     openHighlight[list] = row.sku;
     (list === "best" ? fillBest : fillWatch)(body, row);
@@ -690,7 +718,18 @@
           list = node("ol", "", "ph-buyers");
         topBuyers.forEach((buyer) => {
           const entry = node("li");
-          entry.append(node("span", buyer.name), node("b", money(Number(buyer.net))));
+          const share = row.amt > 0 ? Math.max(0, Math.min(100, (Number(buyer.net) / row.amt) * 100)) : 0,
+            track = node("i", "", "ph-buyer-bar"),
+            fill = node("i");
+          fill.style.width = `${share}%`;
+          track.setAttribute("aria-hidden", "true");
+          track.append(fill);
+          entry.append(
+            node("span", buyer.name),
+            node("b", money(Number(buyer.net))),
+            track,
+            node("small", `${pct1.format(share)}%`),
+          );
           list.append(entry);
         });
         inner.replaceChildren(node("p", "ลูกค้าที่ซื้อมากที่สุด", "ph-detail-title"));
