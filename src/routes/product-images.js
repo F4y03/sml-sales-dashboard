@@ -293,6 +293,24 @@ export function installProductImages(app, store, audit, pool) {
     res.type(row.mime).send(Buffer.from(row.data.buffer, row.data.byteOffset, row.data.byteLength));
   });
 
+  // Same-origin copy of a Drive image so the browser can share/copy it as a file (Drive sends no CORS headers).
+  // Only the fixed Drive thumbnail host is fetched, with a validated id — never a user-supplied URL.
+  app.get('/api/products/images/drive/:id', async (req, res) => {
+    const id = req.params.id;
+    if (!/^[\w-]{20,100}$/.test(id)) return res.status(404).json({ error: 'ไม่พบรูป' });
+    try {
+      const response = await fetch(`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w2000`, { signal: AbortSignal.timeout(15000) });
+      const mime = String(response.headers.get('content-type') || '').split(';')[0].trim();
+      if (!response.ok || !/^image\/(png|jpeg|webp|gif)$/.test(mime)) return res.status(502).json({ error: 'โหลดรูปจาก Drive ไม่ได้' });
+      const data = Buffer.from(await response.arrayBuffer());
+      if (data.length > 20 * 1024 * 1024) return res.status(502).json({ error: 'รูปใหญ่เกินไป' });
+      res.set({ 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+      res.type(mime).send(data);
+    } catch {
+      res.status(502).json({ error: 'โหลดรูปจาก Drive ไม่ได้' });
+    }
+  });
+
   const fileIdOf = link => normalizeImageLink(link).fileId;
   // Deletes this product's uploads that its saved list does not use, except very recent ones.
   function pruneFiles(code) {

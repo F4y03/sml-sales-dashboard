@@ -46,7 +46,7 @@ function card(t, index, current) {
     meta.append(el("small", "territory-current", "เขตปัจจุบัน"));
     b.setAttribute("aria-current", "true");
   }
-  copy.append(meta, el("strong", undefined, t.name), hint);
+  copy.append(meta, el("strong", undefined, String(t.name).replace("กรุงเทพ", "กรุงเทพ​").replace("(", "​(")), hint);
   b.append(mapWrap, copy, go);
   b.onclick = async () => {
     for (const x of choices.children) x.disabled = true;

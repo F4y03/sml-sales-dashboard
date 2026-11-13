@@ -288,20 +288,14 @@
     const edit = byId("pd-edit");
     edit.hidden = !canEdit;
     byId("pd-edit-label").textContent = has ? "แก้ไขรูป" : "เพิ่มรูป";
+    if (!byId("pd-share").hidden) closeShare();
     const copy = byId("pd-copy-link");
     copy.setAttribute("aria-disabled", String(!has));
     copy.title = has
       ? many
-        ? "คลิก: คัดลอกลิงก์รูปนี้ · คลิกขวา: คัดลอกลิงก์ทุกรูป"
-        : "คัดลอกลิงก์รูปนี้"
-      : "ยังไม่มีรูปให้คัดลอก";
-    const drive = byId("pd-open-drive");
-    drive.hidden = !has;
-    if (has) {
-      const result = links.normalizeImageLink(current());
-      drive.href = result.value || current();
-      drive.textContent = result.driveId ? "เปิดใน Google Drive ↗" : "เปิดรูปต้นฉบับ ↗";
-    }
+        ? "คลิก: เลือกรูปที่จะแชร์ · คลิกขวา: คัดลอกลิงก์ทุกรูป"
+        : "แชร์รูปนี้"
+      : "ยังไม่มีรูปให้แชร์";
     const strip = byId("pd-thumbs"),
       thumbHadFocus = strip.contains(document.activeElement);
     strip.replaceChildren();
@@ -344,9 +338,197 @@
     lightbox.showModal();
   };
   lightbox.addEventListener("click", () => lightbox.close());
+  // Same-origin URL of the full image, so it can be fetched as a file (Drive goes through our proxy).
+  function fileUrl(link) {
+    const result = links.normalizeImageLink(link);
+    if (!result.ok) return "";
+    if (result.fileId) return result.value;
+    if (result.driveId) return `/api/products/images/drive/${encodeURIComponent(result.driveId)}`;
+    return "";
+  }
+  async function imageBlob(link) {
+    const url = fileUrl(link);
+    if (!url) throw new Error("unsupported");
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) throw new Error("fetch");
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) throw new Error("type");
+    return blob;
+  }
+  // Clipboard images must be PNG.
+  async function toPng(blob) {
+    if (blob.type === "image/png") return blob;
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    return new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("png"))), "image/png")
+    );
+  }
+  // The clipboard holds one image, so several selected images are joined into one grid image.
+  async function collagePng(list) {
+    if (list.length === 1) return toPng(await imageBlob(list[0]));
+    const bitmaps = await Promise.all(list.map(async (link) => createImageBitmap(await imageBlob(link))));
+    const cols = Math.min(list.length, list.length === 4 ? 2 : 3),
+      rows = Math.ceil(list.length / cols),
+      cell = 900,
+      gap = 16;
+    const canvas = document.createElement("canvas");
+    canvas.width = cols * cell + (cols + 1) * gap;
+    canvas.height = rows * cell + (rows + 1) * gap;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    bitmaps.forEach((bm, i) => {
+      const scale = Math.min(cell / bm.width, cell / bm.height),
+        w = bm.width * scale,
+        h = bm.height * scale,
+        x = gap + (i % cols) * (cell + gap) + (cell - w) / 2,
+        y = gap + Math.floor(i / cols) * (cell + gap) + (cell - h) / 2;
+      ctx.drawImage(bm, x, y, w, h);
+      bm.close?.();
+    });
+    return new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("png"))), "image/png")
+    );
+  }
+  const toPngSafe = (list) => collagePng(list).catch(() => null);
+  const extOf = (type) => ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" })[type] || "jpg";
+  async function shareImages(list) {
+    if (!list.length) return;
+    const title = product?.name || product?.code || "สินค้า";
+    let files;
+    try {
+      toast("กำลังเตรียมรูป…");
+      files = await Promise.all(
+        list.map(async (link, i) => {
+          const blob = await imageBlob(link);
+          const name = `${product?.code || "product"}-${i + 1}.${extOf(blob.type)}`;
+          return new File([blob], name, { type: blob.type });
+        })
+      );
+    } catch {
+      toast("โหลดรูปไม่สำเร็จ · ลองใหม่อีกครั้ง");
+      return;
+    }
+    if (navigator.canShare?.({ files })) {
+      try {
+        await navigator.share({ files, title });
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+    // No file sharing here: download the images instead.
+    for (const file of files) {
+      const a = el("a");
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
+      sharePanel.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    }
+    toast(`เครื่องนี้แชร์รูปไม่ได้ · ดาวน์โหลด ${count(files.length)} รูปแทน`);
+  }
+  async function copyImage(list) {
+    if (!window.ClipboardItem || !navigator.clipboard?.write) {
+      toast("เบราว์เซอร์นี้คัดลอกรูปไม่ได้ · ใช้ปุ่มแชร์แทน");
+      return;
+    }
+    // Phones/tablets: pasting a copied image rarely works; use the share sheet (same as the catalog).
+    if (matchMedia("(pointer: coarse)").matches) return shareImages(list);
+    let png;
+    try {
+      toast("กำลังเตรียมรูป…");
+      png = await collagePng(list);
+    } catch {
+      toast("โหลดรูปไม่สำเร็จ · ลองใหม่อีกครั้ง");
+      return;
+    }
+    try {
+      window.focus();
+      await navigator.clipboard.write([new ClipboardItem({ [png.type]: png })]);
+      toast(
+        list.length > 1
+          ? `คัดลอก ${count(list.length)} รูปรวมเป็นภาพเดียวแล้ว · กด Ctrl+V เพื่อวาง`
+          : "คัดลอกรูปแล้ว · กด Ctrl+V เพื่อวาง"
+      );
+    } catch (error) {
+      console.warn("clipboard image", error);
+      toast("คัดลอกรูปไม่สำเร็จ · ใช้ปุ่มแชร์แทน");
+    }
+  }
+  const sharePanel = byId("pd-share"),
+    shareGrid = byId("pd-share-grid");
+  function shareChecks() {
+    return [...shareGrid.querySelectorAll("input")];
+  }
+  function updateShareCount() {
+    const n = shareChecks().filter((c) => c.checked).length;
+    byId("pd-share-count").textContent = images.length > 1 ? "เลือกได้ครั้งละ 1 รูป" : "";
+    byId("pd-share-go").disabled = n === 0;
+    byId("pd-share-all").hidden = true;
+    byId("pd-share-go").textContent = "แชร์";
+  }
+  function closeShare() {
+    sharePanel.hidden = true;
+    shareGrid.replaceChildren();
+  }
   byId("pd-copy-link").onclick = () => {
     if (!current()) return;
-    copyText(viewLink(current()), "คัดลอกลิงก์รูปแล้ว");
+    if (!sharePanel.hidden) return closeShare();
+    shareGrid.replaceChildren();
+    images.forEach((link, i) => {
+      const label = el("label", "pd-share-item"),
+        box = el("input"),
+        img = el("img"),
+        num = el("span", "pd-share-num", String(i + 1));
+      // One image at a time: picking a picture replaces the previous choice.
+      box.type = "radio";
+      box.name = "pd-share-pick";
+      box.checked = i === index;
+      box.value = String(i);
+      box.setAttribute("aria-label", `รูปที่ ${i + 1}`);
+      box.onchange = updateShareCount;
+      img.alt = "";
+      img.loading = "lazy";
+      img.src = links.imageSource(link, 160);
+      label.append(box, img, num);
+      shareGrid.append(label);
+    });
+    sharePanel.hidden = false;
+    updateShareCount();
+  };
+  byId("pd-share-all").onclick = () => {
+    const checks = shareChecks(),
+      all = checks.every((c) => c.checked);
+    checks.forEach((c) => (c.checked = !all));
+    updateShareCount();
+  };
+  byId("pd-share-cancel").onclick = closeShare;
+  const selectedShare = () =>
+    shareChecks()
+      .filter((c) => c.checked)
+      .map((c) => images[Number(c.value)])
+      .filter(Boolean);
+  byId("pd-share-go").onclick = async () => {
+    const list = selectedShare().slice(0, 1);
+    if (!list.length) return;
+    // Desktop: also put the (first) selected image on the clipboard, so Ctrl+V works even if the share sheet is skipped.
+    let copied = Promise.resolve(false);
+    // Sharing sends each image as its own file; only a single image is also copied (no collage here).
+    if (list.length === 1 && !matchMedia("(pointer: coarse)").matches && window.ClipboardItem && navigator.clipboard?.write)
+      copied = toPngSafe(list).then(
+        (png) => png && navigator.clipboard.write([new ClipboardItem({ [png.type]: png })]).then(() => true),
+      ).catch((error) => (console.warn("clipboard image", error), false));
+    await shareImages(list);
+    if (await copied)
+      toast("คัดลอกรูปไว้ด้วยแล้ว · กด Ctrl+V เพื่อวาง");
+    closeShare();
   };
   byId("pd-copy-link").addEventListener("contextmenu", (event) => {
     if (images.length < 2) return;

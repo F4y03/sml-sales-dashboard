@@ -1359,7 +1359,7 @@ html[data-theme="light"] .role-chip {
   display: grid !important;
   grid-template-columns: 120px minmax(0, 1fr) 46px;
   align-items: center;
-  gap: 22px;
+  gap: 16px;
   min-height: 190px !important;
   padding: 26px 26px 26px 22px !important;
   overflow: hidden;
@@ -1471,15 +1471,23 @@ html[data-theme="light"] .role-chip {
   letter-spacing: 0.02em;
 }
 .territory-choice-copy strong {
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: -0.01em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.territory-go {
+  flex: none;
 }
 .territory-desc {
   color: var(--muted, #a4a4ad);
   font-size: 13px;
   line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .territory-go {
   display: grid;

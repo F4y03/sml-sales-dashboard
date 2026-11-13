@@ -11,12 +11,12 @@
     <script src="product-image-links.js" defer></script>
     <script src="product-fallback-icons.js?v=20260929-icons" defer></script>
     <script src="products-ui.js?v=20260929-icons" defer></script>
-    <script src="product-detail-ui.js?v=20261022-dates4" defer></script>
+    <script src="product-detail-ui.js?v=20261113-share10" defer></script>
     <link rel="stylesheet" href="workspace-nav.css" />
     <script src="workspace-nav.js?v=20261028-reviewer" defer></script>
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
-    <link rel="stylesheet" href="product-detail.css?v=20261022-dates4" />
+    <link rel="stylesheet" href="product-detail.css?v=20261113-share" />
     <script src="/theme-mode.js"></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
@@ -218,10 +218,18 @@
                 <button type="button" class="pd-btn is-primary" id="pd-editor-save">บันทึก</button>
               </div>
             </div>
+            <div class="pd-share" id="pd-share" hidden>
+              <p class="pd-editor-title">เลือกรูปที่จะแชร์ <span id="pd-share-count"></span></p>
+              <div class="pd-share-grid" id="pd-share-grid" role="group" aria-label="รูปที่จะแชร์"></div>
+              <div class="pd-editor-actions">
+                <button type="button" class="pd-btn" id="pd-share-all">เลือกทั้งหมด</button>
+                <button type="button" class="pd-btn" id="pd-share-cancel">ยกเลิก</button>
+                <button type="button" class="pd-btn is-primary" id="pd-share-go">แชร์</button>
+              </div>
+            </div>
             <div class="pd-media-bar">
-              <a id="pd-open-drive" class="pd-drive-link" target="_blank" rel="noopener noreferrer" hidden>เปิดใน Google Drive ↗</a>
               <div class="pd-media-actions">
-                <button type="button" class="pd-btn" id="pd-copy-link"><svg class="pd-btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v10H9zM5 15V5h10"/></svg><span>คัดลอกลิงก์</span></button>
+                <button type="button" class="pd-btn" id="pd-copy-link"><svg class="pd-btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7"/></svg><span>แชร์</span></button>
                 <button type="button" class="pd-btn" id="pd-edit" hidden><svg class="pd-btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg><span id="pd-edit-label">แก้ไขรูป</span></button>
               </div>
             </div>
