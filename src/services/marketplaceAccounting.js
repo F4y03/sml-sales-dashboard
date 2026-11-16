@@ -320,5 +320,9 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   ]);
   notes.getColumn(1).font = { bold: true };
   notes.getColumn(2).alignment = { wrapText: true, vertical: 'top' };
+  // Tab order shown in Excel (sheets are built in a different order because some depend on others).
+  const TAB_ORDER = ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ'];
+  for (const sheet of workbook.worksheets) { const i = TAB_ORDER.indexOf(sheet.name); sheet.orderNo = i < 0 ? TAB_ORDER.length : i; }
+  workbook.views = [{ activeTab: 0, firstSheet: 0 }];
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

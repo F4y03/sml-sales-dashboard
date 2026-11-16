@@ -50,7 +50,7 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
 
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(await buildAccountingWorkbook(store, filter, { by: 'ทดสอบ' }));
-  assert.deepEqual(book.worksheets.map(s => s.name), ['สรุป', 'ทะเบียนขายรายออเดอร์', 'ไม่มีข้อมูลการเงิน', 'ค่าธรรมเนียมตามประเภท', 'ขายรายสินค้า', 'รายการที่ต้องตรวจ', 'หมายเหตุ']);
+  assert.deepEqual(book.worksheets.map(s => s.name), ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ']);
   const register = book.getWorksheet('ทะเบียนขายรายออเดอร์');
   assert.equal(register.rowCount, 7, '4 orders + header + blank + total');
   assert.equal(register.getRow(7).getCell('H').value, 'รวม (ตามตัวกรอง)');
