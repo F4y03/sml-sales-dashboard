@@ -25,7 +25,8 @@
       // Shop name from the on-screen shop filter; characters Windows does not allow in file names are dropped.
       const picked = document.getElementById('shop-filter')?.selectedOptions[0]?.textContent?.trim();
       const shop = (view.shop === 'all' || !picked ? 'ทุกร้าน' : picked).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-      link.download = `รายงานบัญชียอดขายออนไลน์-${view.platform}-${shop}-${view.start}-${view.end}.xlsx`;
+      const dmy = iso => iso.split('-').reverse().join('-'); // YYYY-MM-DD -> DD-MM-YYYY (ค.ศ.)
+      link.download = `รายงานบัญชียอดขายออนไลน์-${view.platform}-${shop}-${dmy(view.start)} ถึง ${dmy(view.end)}.xlsx`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       say('', 'ดาวน์โหลดรายงานแล้ว ตรงตามตัวกรองที่แสดงอยู่');
