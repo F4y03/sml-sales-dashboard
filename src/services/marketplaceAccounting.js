@@ -140,7 +140,9 @@ function addTotalRow(sheet, labelKey, sumKeys, lastDataRow) {
   const row = sheet.getRow(lastDataRow + 2);
   const label = row.getCell(sheet.getColumn(labelKey).number);
   label.value = 'รวม (ตามตัวกรอง)';
-  label.note = 'ผลรวมเฉพาะแถวที่แสดงอยู่ ถ้ากรองคอลัมน์ สถานะ เช่น เลือกเฉพาะ สำเร็จ ยอดรวมจะเปลี่ยนตาม ถ้าไม่กรอง จะรวมทุกสถานะรวมถึงยกเลิก';
+  label.note = sheet.getRow(1).values.includes('สถานะ')
+    ? 'ผลรวมเฉพาะแถวที่แสดงอยู่ ถ้ากรองคอลัมน์ สถานะ เช่น เลือกเฉพาะ สำเร็จ ยอดรวมจะเปลี่ยนตาม ถ้าไม่กรอง จะรวมทุกสถานะในชีตนี้'
+    : 'ผลรวมเฉพาะแถวที่แสดงอยู่ ถ้ากรองข้อมูล (เช่น เลือกช่องทาง) ยอดรวมจะเปลี่ยนตาม';
   for (const key of sumKeys) {
     const col = sheet.getColumn(key), letter = col.letter;
     let result = 0;
@@ -253,9 +255,11 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   // Total row under a blank row (so Excel's filter and sort leave it alone). SUBTOTAL(109) adds only the rows the
   // filter shows, e.g. filter สถานะ = สำเร็จ to get the completed total.
   if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', 'fees', 'net'], data.orders.length + 1);
-  addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
-  addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
+  const unsettledSheet = addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
+  if (data.unsettled.length) addTotalRow(unsettledSheet, 'statusName', ['sales'], data.unsettled.length + 1);
+  const feeSheet = addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
+  if (data.fees.length) addTotalRow(feeSheet, 'type', ['amount'], data.fees.length + 1);
   const SHARED = 'แพลตฟอร์มหักเป็นรายออเดอร์ ถ้าออเดอร์มีหลายสินค้า จะแบ่งให้แต่ละสินค้าตามสัดส่วนยอดขาย';
   // Fee types folded into the three groups shown in the order popup; anything else goes to "other" (shown only if present).
   const productRows = data.products.map(p => {
@@ -264,7 +268,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     return { ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null, settledSales: round2(p.sales - p.unsettledSales) || null,
       ...Object.fromEntries(FEE_GROUPS.map(g => [g.field, sums[g.key] === undefined ? null : round2(sums[g.key])])) };
   });
-  addSheet(workbook, 'ขายรายสินค้า', [
+  const productSheet = addSheet(workbook, 'ขายรายสินค้า', [
     { header: 'ช่องทาง', key: 'name', width: 14, note: 'แพลตฟอร์มที่ขาย' },
     { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าที่ร้านตั้งไว้บนแพลตฟอร์ม' },
     { header: 'ชื่อสินค้า', key: 'productName', width: 48, note: 'ชื่อสินค้าตามที่ลงขายบนแพลตฟอร์ม (อาจไม่ตรงกับชื่อใน SML)' },
@@ -276,8 +280,10 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
       note: `${g.note} (${SHARED})` })),
     { header: 'ค่าธรรมเนียมรวม', key: 'fees', width: 18, money: true, fill: TOTAL_FILL, note: 'ค่าธรรมเนียมทุกคอลัมน์ทางซ้ายรวมกัน คิดเฉพาะยอดขายที่สำเร็จแล้ว ช่องว่าง = ยังไม่มีออเดอร์สำเร็จ' },
   ], productRows);
-  addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
+  if (productRows.length) addTotalRow(productSheet, 'productName', productSheet.columns.slice(3).map(c => c.key), productRows.length + 1);
+  const reviewSheet = addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
+  if (data.review.length) addTotalRow(reviewSheet, 'statusName', ['sales', 'refund', 'fees', 'net'], data.review.length + 1);
 
   const notes = workbook.addWorksheet('หมายเหตุ');
   notes.columns = [{ width: 28 }, { width: 100 }];
