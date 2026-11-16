@@ -21,6 +21,18 @@ const FEE_LABELS = {
   shipping_insurance_fee_amount: 'ค่าประกันการขนส่ง', other_fee_amount: 'ค่าธรรมเนียมอื่น (TikTok ไม่ได้แยกชื่อ)',
 };
 const feeLabel = type => FEE_LABELS[type] || type;
+// Fee columns of the "ขายรายสินค้า" sheet. Types not listed here fall into "other".
+const FEE_GROUPS = [
+  { key: 'commission', field: 'feeCommission', header: 'ค่าคอมมิชชั่น', types: ['commission_fee', 'platform_commission_amount', 'Commission', 'Commission fee - correction for undercharge', 'Reversal Commission'],
+    note: 'ค่าคอมมิชชั่นที่แพลตฟอร์มหักจากการขาย (Shopee: commission_fee, TikTok: platform_commission_amount, Lazada: Commission รวมรายการปรับปรุง/คืน)' },
+  { key: 'service', field: 'feeService', header: 'ค่าบริการ', types: ['service_fee'],
+    note: 'ค่าบริการของแพลตฟอร์ม เช่น โปรแกรมส่งฟรี/โค้ดส่วนลดที่ร้านเข้าร่วม (Shopee: service_fee)' },
+  { key: 'transaction', field: 'feeTransaction', header: 'ค่าธุรกรรมการชำระเงิน', types: ['seller_transaction_fee', 'transaction_fee_amount', 'Payment Fee', 'Payment fee - correction for undercharge', 'Payment Fee Credit'],
+    note: 'ค่าธรรมเนียมการรับชำระเงิน (Shopee: seller_transaction_fee, TikTok: transaction_fee_amount, Lazada: Payment Fee รวมรายการปรับปรุง/คืน)' },
+  { key: 'other', field: 'feeOther', header: 'ค่าธรรมเนียมอื่น', types: [],
+    note: 'ค่าธรรมเนียมประเภทอื่นที่ไม่อยู่ใน 3 กลุ่มข้างต้น เช่น ค่า Affiliate, ค่าแคมเปญ, ค่าโปรแกรมส่งฟรีของ Lazada หรือส่วนที่แพลตฟอร์มไม่ได้แยกชื่อ ดูรายประเภทได้ในชีต ค่าธรรมเนียมตามประเภท' },
+];
+const FEE_GROUP_OF = Object.fromEntries(FEE_GROUPS.flatMap(g => g.types.map(t => [t, g.key])));
 
 const bangkokToday = now => new Date(now + 7 * 3600000).toISOString().slice(0, 10);
 const daysBetween = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
@@ -167,6 +179,13 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
   const SHARED = 'ค่าธรรมเนียมคิดเป็นรายออเดอร์ จึงปันส่วนให้สินค้าแต่ละรายการตามสัดส่วนยอดขายของสินค้านั้นในออเดอร์';
+  // Fee types folded into the three groups shown in the order popup; anything else goes to "other" (shown only if present).
+  const productRows = data.products.map(p => {
+    const sums = {};
+    for (const [type, amount] of Object.entries(p.feeTypes)) { const g = FEE_GROUP_OF[type] || 'other'; sums[g] = (sums[g] || 0) + amount; }
+    return { ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null,
+      ...Object.fromEntries(FEE_GROUPS.map(g => [g.field, sums[g.key] === undefined ? null : round2(sums[g.key])])) };
+  });
   addSheet(workbook, 'ขายรายสินค้า', [
     { header: 'ช่องทาง', key: 'name', width: 14, note: 'แพลตฟอร์มที่ขาย (Shopee / Lazada / TikTok Shop)' },
     { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าของผู้ขาย (Seller SKU) จากไฟล์/API คำสั่งซื้อของแพลตฟอร์ม ตัดช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่ ถ้าแพลตฟอร์มไม่ส่ง SKU มา จะว่าง และรวมยอดตามชื่อสินค้าแทน' },
@@ -174,9 +193,10 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย รวมจากรายการสินค้าของออเดอร์สถานะ สำเร็จ + กำลังดำเนินการ ตามวันที่สั่งซื้อในช่วงรายงาน ไม่รวมรายการที่ยกเลิก/คืนสินค้า' },
     { header: 'ยอดขาย', key: 'sales', money: true, note: 'ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ' },
     { header: 'ค่าธรรมเนียม', key: 'fees', width: 16, money: true, note: `ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0 ดูยอดแยกตามประเภทได้ในชีต ค่าธรรมเนียมตามประเภท` },
-    { header: '% ค่าธรรมเนียม', key: 'feePct', width: 16, style: '0.00', note: 'ค่าธรรมเนียม ÷ ยอดขายของออเดอร์ที่มีข้อมูลการเงินแล้ว × 100 ไม่นับยอดขายที่ยังไม่มีข้อมูลการเงิน' },
+    ...FEE_GROUPS.filter(g => g.key !== 'other' || productRows.some(p => p.feeOther !== null)).map(g => ({ header: g.header, key: g.field, width: 22, money: true,
+      note: `${g.note} ${SHARED} ช่องว่าง = สินค้านี้ไม่มีค่าธรรมเนียมกลุ่มนี้ หรือยังไม่มีข้อมูลการเงิน ผลรวมทุกกลุ่มเท่ากับคอลัมน์ ค่าธรรมเนียม (ต่างได้ไม่กี่สตางค์จากการปัดเศษ)` })),
     { header: 'ยอดขายที่ยังไม่มีข้อมูลการเงิน', key: 'unsettledSales', width: 30, money: true, note: 'ส่วนของยอดขายที่มาจากออเดอร์ซึ่งยังไม่มีข้อมูลการเงินในระบบ (แพลตฟอร์มยังไม่โอน หรือยังไม่ได้นำเข้า) ยอดส่วนนี้ยังไม่ถูกคิดค่าธรรมเนียมในแถวนี้' },
-  ], data.products.map(p => ({ ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null })));
+  ], productRows);
   addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
 
