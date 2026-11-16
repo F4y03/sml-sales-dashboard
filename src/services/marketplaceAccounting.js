@@ -136,6 +136,21 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
 }
 
 const TOTAL_FILL = 'FFE2F0D9'; // light green
+function addTotalRow(sheet, labelKey, sumKeys, lastDataRow) {
+  const row = sheet.getRow(lastDataRow + 2);
+  const label = row.getCell(sheet.getColumn(labelKey).number);
+  label.value = 'รวม (ตามตัวกรอง)';
+  label.note = 'ผลรวมเฉพาะแถวที่แสดงอยู่ ถ้ากรองคอลัมน์ สถานะ เช่น เลือกเฉพาะ สำเร็จ ยอดรวมจะเปลี่ยนตาม ถ้าไม่กรอง จะรวมทุกสถานะรวมถึงยกเลิก';
+  for (const key of sumKeys) {
+    const col = sheet.getColumn(key), letter = col.letter;
+    let result = 0;
+    col.eachCell((cell, n) => { if (n > 1 && n <= lastDataRow && typeof cell.value === 'number') result += cell.value; });
+    row.getCell(col.number).value = { formula: `SUBTOTAL(109,${letter}2:${letter}${lastDataRow})`, result: round2(result) };
+  }
+  row.font = { bold: true };
+  const line = { style: 'thin', color: { argb: 'FF7F7F7F' } };
+  row.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_FILL } }; cell.border = { top: line, bottom: line }; });
+}
 // Plain-language header comments for the accounting team, shared by every sheet (a column's own note wins).
 const HEADER_NOTES = {
   'วันที่สั่งซื้อ': 'วันที่ลูกค้ากดสั่งซื้อ (ไม่ใช่วันส่งของหรือวันที่ได้รับเงิน)',
@@ -235,6 +250,9 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   register.getColumn('productNames').width = Math.min(longest * 1.05 + 2, 110);
   register.eachRow((row, n) => { if (n > 1) row.eachCell({ includeEmpty: true }, cell => { cell.alignment = { ...cell.alignment, vertical: 'top' }; }); });
   for (const key of ['skus', 'productNames']) register.getColumn(key).eachCell((cell, n) => { if (n > 1) cell.alignment = { wrapText: true, vertical: 'top' }; });
+  // Total row under a blank row (so Excel's filter and sort leave it alone). SUBTOTAL(109) adds only the rows the
+  // filter shows, e.g. filter สถานะ = สำเร็จ to get the completed total.
+  if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', 'fees', 'net'], data.orders.length + 1);
   addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));

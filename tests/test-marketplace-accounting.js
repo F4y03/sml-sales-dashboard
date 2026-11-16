@@ -52,7 +52,9 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
   await book.xlsx.load(await buildAccountingWorkbook(store, filter, { by: 'ทดสอบ' }));
   assert.deepEqual(book.worksheets.map(s => s.name), ['สรุป', 'ทะเบียนขายรายออเดอร์', 'ไม่มีข้อมูลการเงิน', 'ค่าธรรมเนียมตามประเภท', 'ขายรายสินค้า', 'รายการที่ต้องตรวจ', 'หมายเหตุ']);
   const register = book.getWorksheet('ทะเบียนขายรายออเดอร์');
-  assert.equal(register.rowCount, 5);
+  assert.equal(register.rowCount, 7, '4 orders + header + blank + total');
+  assert.equal(register.getRow(7).getCell('H').value, 'รวม (ตามตัวกรอง)');
+  assert.deepEqual(register.getRow(7).getCell('I').value, { formula: 'SUBTOTAL(109,I2:I5)', result: 260 });
   assert.equal(register.getRow(3).getCell('L').value, null, 'blank cell for missing net');
   assert.deepEqual([register.getRow(2).getCell('E').value, register.getRow(2).getCell('F').value], ['sku-a', 'สินค้า A × 2'], 'order lists its products');
   assert.equal(register.getRow(3).getCell('E').value, null, 'order without items is blank');
