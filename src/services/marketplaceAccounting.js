@@ -276,9 +276,9 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
     orderColumns[4],
-    { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
+    { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true, fill: 'FFDDEBF7' }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
     ...feeTypeCols,
-    { header: 'ค่าธรรมเนียมรวม', key: 'fees', money: true, note: 'ผลรวมค่าธรรมเนียมทุกประเภททางซ้าย' }, { header: 'เงินสุทธิ', key: 'net', money: true },
+    { header: 'ค่าธรรมเนียมรวม', key: 'fees', money: true, fill: 'FFFCE4D6', note: 'ผลรวมค่าธรรมเนียมทุกประเภททางซ้าย' }, { header: 'เงินสุทธิ', key: 'net', money: true, fill: TOTAL_FILL },
   ], data.orders.map(withFeeTypes));
   // Every cell top-aligned so each order reads on its first line; SKU line N matches product line N, so the name column
   // is made wide enough that a name never wraps onto a second line.
