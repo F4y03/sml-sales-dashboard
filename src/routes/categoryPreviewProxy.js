@@ -54,7 +54,7 @@ export function installCategoryPreviewProxy(app, { host = '127.0.0.1', port = 30
         up.on('end', () => stoppedCodes().then(({ codes }) => {
           if ((up.statusCode || 502) !== 200) return res.end(Buffer.concat(chunks));
           const stopped = new Set(codes), rows = parseCsv(Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '')).filter(r => r.length > 1 || r[0]);
-          const col = rows[0].indexOf('รหัสสินค้า');
+          const col = Math.max(rows[0].indexOf('รหัสสินค้า'), rows[0].indexOf('SKU'), 0); // 'SKU' = ?lang=en header
           const keep = rows.slice(1).filter(r => stopped.has(String(r[col]).trim()) === (split === 'stopped'));
           res.set('Content-Disposition', String(res.get('Content-Disposition') || '').replace('products-all-', split === 'stopped' ? 'products-stopped-' : 'products-active-'));
           res.send(csvText([rows[0], ...keep]));

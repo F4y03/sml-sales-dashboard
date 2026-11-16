@@ -8,6 +8,19 @@ const PLATFORM = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop' };
 const MONEY = '#,##0.00;[Red]-#,##0.00';
 const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
 const AGED_DAYS = 30;
+// Thai names of known fee types (same wording as public/order-fees.js); Lazada names arrive already readable.
+const FEE_LABELS = {
+  commission_fee: 'ค่าคอมมิชชั่น', service_fee: 'ค่าบริการ', seller_transaction_fee: 'ค่าธุรกรรมการชำระเงิน',
+  order_ams_commission_fee: 'ค่าคอมมิชชั่น AMS (Affiliate)', platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานแพลตฟอร์ม',
+  shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง', platform_commission_amount: 'ค่าคอมมิชชั่นแพลตฟอร์ม',
+  transaction_fee_amount: 'ค่าธุรกรรม', affiliate_commission_amount: 'ค่าคอมมิชชั่น Affiliate', referral_fee_amount: 'ค่าธรรมเนียมการแนะนำ',
+  sfp_service_fee_amount: 'ค่าบริการ SFP', voucher_xtra_service_fee_amount: 'ค่าบริการ Voucher Xtra', flash_sales_service_fee_amount: 'ค่าบริการ Flash Sale',
+  live_specials_fee_amount: 'ค่าบริการ LIVE Specials', affiliate_ads_commission_amount: 'ค่าคอมมิชชั่นโฆษณา Affiliate',
+  affiliate_partner_commission_amount: 'ค่าคอมมิชชั่น Affiliate Partner', bonus_cashback_service_fee_amount: 'ค่าบริการ Bonus Cashback',
+  refund_administration_fee_amount: 'ค่าดำเนินการคืนเงิน', fbt_fulfillment_fee_amount: 'ค่าบริการคลัง FBT', signature_confirmation_fee_amount: 'ค่ายืนยันลายเซ็น',
+  shipping_insurance_fee_amount: 'ค่าประกันการขนส่ง', other_fee_amount: 'ค่าธรรมเนียมอื่น (TikTok ไม่ได้แยกชื่อ)',
+};
+const feeLabel = type => FEE_LABELS[type] || type;
 
 const bangkokToday = now => new Date(now + 7 * 3600000).toISOString().slice(0, 10);
 const daysBetween = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
@@ -50,7 +63,7 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
   }
 
   // Fee types come from fee_detail. Whatever the breakdown does not explain gets its own row, so each platform ties to its total.
-  const feeRows = store.all(`SELECT s.platform,s.fees,s.fee_detail AS detail FROM marketplace_settlements s
+  const feeRows = store.all(`SELECT s.platform,s.order_id AS orderId,s.fees,s.fee_detail AS detail FROM marketplace_settlements s
     JOIN marketplace_orders o ON o.platform=s.platform AND o.order_id=s.order_id WHERE ${where}`, ...params);
   const feeTypes = new Map(), UNEXPLAINED = 'ไม่มีรายละเอียดประเภท';
   const addFee = (p, type, amount) => { const key = p + '\u0000' + type; feeTypes.set(key, (feeTypes.get(key) || 0) + amount); };
@@ -64,10 +77,44 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
   const fees = [...feeTypes].map(([key, amount]) => { const [p, type] = key.split('\u0000'); return { platform: p, type, amount: round2(amount) }; })
     .filter(f => f.amount !== 0).sort((a, b) => a.platform.localeCompare(b.platform) || b.amount - a.amount);
 
-  const products = store.all(`SELECT i.platform,COALESCE(NULLIF(UPPER(TRIM(i.sku)),''),'') AS sku,MAX(i.product_name) AS name,SUM(i.quantity) AS quantity,SUM(i.sales) AS sales
+  // Sales by product, plus each order's fees shared out to its sold lines by their share of the order's item sales
+  // (fees are charged per order, not per product). Lines of an order with no money data add to unsettledSales and
+  // leave the fee cells empty: missing is never 0.
+  const orderFees = new Map();
+  for (const r of feeRows) {
+    const key = r.platform + '\u0000' + r.orderId, f = orderFees.get(key) || { total: 0, types: {} };
+    orderFees.set(key, f);
+    f.total += r.fees;
+    let explained = 0;
+    try {
+      for (const [type, amount] of Object.entries(JSON.parse(r.detail || '{}'))) { f.types[type] = (f.types[type] || 0) + Number(amount); explained += Number(amount); }
+    } catch { /* falls into the unexplained column */ }
+    if (Math.abs(r.fees - explained) >= 0.005) f.types[UNEXPLAINED] = (f.types[UNEXPLAINED] || 0) + r.fees - explained;
+  }
+  const lines = store.all(`SELECT i.platform,i.order_id AS orderId,UPPER(TRIM(i.sku)) AS sku,i.product_name AS name,i.quantity,i.sales
     FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
-    WHERE ${where} AND o.status IN ${SOLD} AND i.status IN ${SOLD}
-    GROUP BY i.platform,CASE WHEN TRIM(i.sku)='' THEN i.product_name ELSE UPPER(TRIM(i.sku)) END ORDER BY i.platform,sales DESC`, ...params);
+    WHERE ${where} AND o.status IN ${SOLD} AND i.status IN ${SOLD}`, ...params);
+  const orderLines = new Map();
+  for (const l of lines) { const key = l.platform + '\u0000' + l.orderId, o = orderLines.get(key) || { sales: 0, count: 0 }; orderLines.set(key, o); o.sales += l.sales; o.count += 1; }
+  const productMap = new Map();
+  for (const l of lines) {
+    const key = l.platform + '\u0000' + (l.sku || l.name);
+    const p = productMap.get(key) || { platform: l.platform, sku: l.sku, name: l.name, quantity: 0, sales: 0, fees: null, feeTypes: {}, unsettledSales: 0 };
+    productMap.set(key, p);
+    if (l.name > p.name) p.name = l.name;
+    p.quantity += l.quantity; p.sales += l.sales;
+    const orderKey = l.platform + '\u0000' + l.orderId, f = orderFees.get(orderKey), o = orderLines.get(orderKey);
+    if (!f) { p.unsettledSales += l.sales; continue; }
+    const share = o.sales > 0 ? l.sales / o.sales : 1 / o.count;
+    p.fees = (p.fees || 0) + f.total * share;
+    for (const [type, amount] of Object.entries(f.types)) p.feeTypes[type] = (p.feeTypes[type] || 0) + amount * share;
+  }
+  const products = [...productMap.values()].map(p => {
+    const settledSales = p.sales - p.unsettledSales;
+    return { ...p, sales: round2(p.sales), fees: p.fees === null ? null : round2(p.fees), unsettledSales: round2(p.unsettledSales),
+      feePct: p.fees === null || settledSales <= 0 ? null : round2(p.fees / settledSales * 100),
+      feeTypes: Object.fromEntries(Object.entries(p.feeTypes).map(([t, a]) => [t, round2(a)]).filter(([, a]) => a !== 0)) };
+  }).sort((a, b) => a.platform.localeCompare(b.platform) || b.sales - a.sales);
   const soldWithoutItems = store.get(`SELECT COUNT(*) AS n FROM marketplace_orders o WHERE ${where} AND o.status IN ${SOLD} AND o.has_items=0`, ...params).n;
 
   const unsettled = orders.filter(o => (o.status === 'completed' || o.status === 'pending') && o.fees === null)
@@ -78,9 +125,10 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
 
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
-  sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : {} }));
+  sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : c.style ? { numFmt: c.style } : {} }));
   sheet.getRow(1).font = { bold: true };
   sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+  columns.forEach((c, i) => { if (c.note) sheet.getRow(1).getCell(i + 1).note = c.note; }); // header comment: what the column is
   for (const row of rows) sheet.addRow(row);
   return sheet;
 }
@@ -118,8 +166,24 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
-  addSheet(workbook, 'ขายรายสินค้า', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'SKU', key: 'sku', width: 22 }, { header: 'ชื่อสินค้า', key: 'productName', width: 48 }, { header: 'จำนวน', key: 'quantity', width: 10 }, { header: 'ยอดขาย', key: 'sales', money: true }],
-    data.products.map(p => ({ ...p, productName: p.name, name: PLATFORM[p.platform] })));
+  // One column per fee type found in this report, biggest first. Fees are per order, so each is shared out to the products.
+  const typeTotals = new Map();
+  for (const p of data.products) for (const [type, amount] of Object.entries(p.feeTypes)) typeTotals.set(type, (typeTotals.get(type) || 0) + amount);
+  const feeTypeList = [...typeTotals].sort((a, b) => b[1] - a[1]).map(([type]) => type);
+  const SHARED = 'ค่าธรรมเนียมคิดเป็นรายออเดอร์ จึงปันส่วนให้สินค้าแต่ละรายการตามสัดส่วนยอดขายของสินค้านั้นในออเดอร์';
+  addSheet(workbook, 'ขายรายสินค้า', [
+    { header: 'ช่องทาง', key: 'name', width: 14, note: 'แพลตฟอร์มที่ขาย (Shopee / Lazada / TikTok Shop)' },
+    { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าของผู้ขาย (Seller SKU) จากไฟล์/API คำสั่งซื้อของแพลตฟอร์ม ตัดช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่ ถ้าแพลตฟอร์มไม่ส่ง SKU มา จะว่าง และรวมยอดตามชื่อสินค้าแทน' },
+    { header: 'ชื่อสินค้า', key: 'productName', width: 48, note: 'ชื่อสินค้าตามที่ลงขายบนแพลตฟอร์ม (ไม่ใช่ชื่อใน SML) ถ้า SKU เดียวกันมีหลายชื่อ จะแสดงชื่อเดียว' },
+    { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย รวมจากรายการสินค้าของออเดอร์สถานะ สำเร็จ + กำลังดำเนินการ ตามวันที่สั่งซื้อในช่วงรายงาน ไม่รวมรายการที่ยกเลิก/คืนสินค้า' },
+    { header: 'ยอดขาย', key: 'sales', money: true, note: 'ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ' },
+    { header: 'ค่าธรรมเนียมรวม (ปันส่วน)', key: 'fees', width: 18, money: true, note: `ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0` },
+    { header: '% ค่าธรรมเนียมต่อยอดขาย', key: 'feePct', width: 14, style: '0.00', note: 'ค่าธรรมเนียมรวม (ปันส่วน) ÷ ยอดขายของออเดอร์ที่มีข้อมูลการเงินแล้ว × 100 ไม่นับยอดขายที่ยังไม่มีข้อมูลการเงิน' },
+    ...feeTypeList.map((type, i) => ({ header: feeLabel(type), key: 'fee' + i, width: 18, money: true,
+      note: `ค่าธรรมเนียมประเภท "${feeLabel(type)}"${feeLabel(type) === type ? '' : ` (ชื่อในข้อมูลแพลตฟอร์ม: ${type})`} ${SHARED} ช่องว่าง = สินค้านี้ไม่มีค่าธรรมเนียมประเภทนี้ หรือยังไม่มีข้อมูลการเงิน ผลรวมทุกประเภทเท่ากับค่าธรรมเนียมรวม (ต่างได้ไม่กี่สตางค์จากการปัดเศษ)` })),
+    { header: 'ยอดขายที่ยังไม่มีข้อมูลการเงิน', key: 'unsettledSales', width: 18, money: true, note: 'ส่วนของยอดขายที่มาจากออเดอร์ซึ่งยังไม่มีข้อมูลการเงินในระบบ (แพลตฟอร์มยังไม่โอน หรือยังไม่ได้นำเข้า) ยอดส่วนนี้ยังไม่ถูกคิดค่าธรรมเนียมในแถวนี้' },
+  ], data.products.map(p => ({ ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null,
+    ...Object.fromEntries(feeTypeList.map((type, i) => ['fee' + i, p.feeTypes[type] ?? null])) })));
   addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
 
@@ -137,6 +201,8 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     ['ค่าธรรมเนียม / เงินสุทธิ', 'รวมทุกรายการเงินของออเดอร์ในช่วงนี้ ไม่ว่าเงินจะโอนเมื่อใด ช่องว่าง = ไม่มีข้อมูล ไม่ใช่ 0'],
     ['ยอดที่ไม่มีข้อมูลการเงิน', 'ยังไม่มีข้อมูลการเงินในระบบ อาจยังไม่โอนหรือยังไม่ได้นำเข้า จึงไม่ควรใช้เป็นยอดลูกหนี้โดยไม่ตรวจกับแพลตฟอร์ม'],
     ['ขายรายสินค้า', data.soldWithoutItems ? `ไม่รวม ${data.soldWithoutItems} ออเดอร์ที่ไม่มีรายการสินค้า ยอดรวมของชีตนี้จึงอาจต่ำกว่ายอดขายในชีตสรุป` : 'ออเดอร์ขายในช่วงนี้มีรายการสินค้าครบ'],
+    ['ขายรายสินค้า: ค่าธรรมเนียม', 'แพลตฟอร์มหักค่าธรรมเนียมเป็นรายออเดอร์ ชีตนี้จึงปันส่วนให้สินค้าตามสัดส่วนยอดขายในออเดอร์ (เป็นค่าประมาณต่อสินค้า) นับเฉพาะออเดอร์สำเร็จ + กำลังดำเนินการ ยอดรวมจึงอาจต่ำกว่าค่าธรรมเนียมในชีตสรุปซึ่งนับทุกสถานะ วางเมาส์ที่หัวคอลัมน์เพื่อดูคำอธิบาย'],
+    ['ขายรายสินค้า: ค่าขนส่ง', 'ข้อมูลที่ระบบเก็บไม่มีค่าขนส่งจริงของแต่ละออเดอร์ มีเฉพาะค่าธรรมเนียมที่แพลตฟอร์มหัก ค่าที่เกี่ยวกับการจัดส่ง (เช่น โปรแกรมส่งฟรี) จะแสดงเป็นคอลัมน์ของประเภทนั้นเมื่อแพลตฟอร์มแยกมาให้'],
     ['ไม่มีในรายงานนี้', 'ภาษีขาย/ภาษีซื้อ, ภาษีหัก ณ ที่จ่าย, ค่าส่งที่ผู้ซื้อจ่าย, ส่วนลดจากแพลตฟอร์ม, ต้นทุนสินค้า และวันที่/รอบที่เงินโอนเข้าบัญชี'],
     ['สถานะเอกสาร', 'เป็นเอกสารประกอบการทำงาน ไม่ใช่รายงานภาษีขายหรือใบกำกับภาษี'],
   ]);

@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { readFileSync, writeFileSync, appendFileSync, existsSync, renameSync, copyFileSync, mkdirSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import catEn from "./category-names-en.mjs";
 
 // Program files sit next to this script (in Git); team edits and CSVs live in CATEGORY_DATA_DIR (not in Git).
 const DATA = pathToFileURL((process.env.CATEGORY_DATA_DIR || "C:/category-preview").replace(/[\\/]*$/, "/"));
@@ -16,6 +17,9 @@ const LOG = new URL("./category-edit-log.jsonl", DATA);
 const IMPORT_CSV = new URL("./all-categories-import.csv", DATA);
 const PRICE_CSV = new URL("./all-price-updates.csv", DATA);
 const PRODUCTS_CSV = new URL("./products-ALL_2026-10-30_TH.csv", DATA);
+const PRODUCTS_EN = new URL("./products-en.json", DATA);
+const HEAD_EN = { "รหัสสินค้า": "SKU", "ชื่อสินค้า": "Product Name", "หมวดหมู่": "Category", "แบรนด์": "Brand", "ราคาปกติ (บาท)": "Regular Price (THB)",
+  "น้ำหนัก (กก.)": "Weight (kg)", "ยาว (ซม.)": "Length (cm)", "กว้าง (ซม.)": "Width (cm)", "สูง (ซม.)": "Height (cm)", "รายละเอียดสินค้า": "Description", "รูปภาพ": "Images" };
 const PORT = Number(process.env.CATEGORY_PORT) || 3010;
 // A new server has no data folder yet: create it, and name the files that still have to be copied in.
 mkdirSync(DATA, { recursive: true });
@@ -91,8 +95,23 @@ createServer((req, res) => {
         if (cats.has(r[skuCol])) r[catCol] = cats.get(r[skuCol]);
         if (edits[r[skuCol]]?.priceChanged && edits[r[skuCol]].price !== "") r[priceCol] = edits[r[skuCol]].price;
       }
+      // ?lang=en : หัวคอลัมน์และชื่อหมวดเป็นอังกฤษ (category-names-en.mjs) ชื่อ/รายละเอียดสินค้าใช้คำแปลจาก
+      // products-en.json ในโฟลเดอร์ข้อมูล ({ "รหัส": { "name": "...", "desc": "..." } }) ตัวที่ยังไม่มีคำแปลคงภาษาไทยไว้
+      const en = new URL(req.url, "http://x").searchParams.get("lang") === "en";
+      if (en) {
+        const prodEn = existsSync(PRODUCTS_EN) ? JSON.parse(readFileSync(PRODUCTS_EN, "utf8")) : {};
+        const [nameCol, descCol] = ["ชื่อสินค้า", "รายละเอียดสินค้า"].map((n) => head.indexOf(n));
+        const seg = (s) => catEn[s.trim()] ?? s.trim();
+        for (const r of rows.slice(1)) {
+          r[catCol] = String(r[catCol] ?? "").split(",").map((p) => p.split(" > ").map(seg).join(" > ")).filter(Boolean).join(", ");
+          const t = prodEn[r[skuCol]];
+          if (t?.name) r[nameCol] = t.name;
+          if (t?.desc) r[descCol] = t.desc;
+        }
+        rows[0] = head.map((h) => HEAD_EN[h] ?? h);
+      }
       const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-      res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="products-all-${stamp}.csv"`, "Cache-Control": "no-store" });
+      res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="products-all-${en ? "en-" : ""}${stamp}.csv"`, "Cache-Control": "no-store" });
       return res.end(csvText(rows));
     } catch {
       return send(500, "text/plain; charset=utf-8", "สร้างไฟล์ไม่สำเร็จ");

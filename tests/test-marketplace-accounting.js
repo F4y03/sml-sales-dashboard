@@ -44,6 +44,9 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
   assert.match(data.review.find(o => o.orderId === 'S3').reasons, /ยกเลิกแล้วแต่มีรายการเงิน/);
   assert.match(data.review.find(o => o.orderId === 'S4').reasons, /คืนสินค้า/);
   assert.equal(data.soldWithoutItems, 1);
+  const product = data.products[0];
+  assert.deepEqual([product.sku, product.quantity, product.sales, product.fees, product.feePct, product.unsettledSales], ['SKU-A', 2, 100, 12, 12, 0], 'order fees are shared out to its product');
+  assert.deepEqual(product.feeTypes, { commission_fee: 10, 'ไม่มีรายละเอียดประเภท': 2 }, 'fee types of a product tie to its fees');
 
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(await buildAccountingWorkbook(store, filter, { by: 'ทดสอบ' }));
@@ -51,6 +54,11 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
   const register = book.getWorksheet('ทะเบียนขายรายออเดอร์');
   assert.equal(register.rowCount, 5);
   assert.equal(register.getRow(3).getCell('J').value, null, 'blank cell for missing net');
+  const bySku = book.getWorksheet('ขายรายสินค้า');
+  assert.deepEqual(bySku.getRow(1).values.slice(1), ['ช่องทาง', 'SKU', 'ชื่อสินค้า', 'จำนวน', 'ยอดขาย', 'ค่าธรรมเนียมรวม (ปันส่วน)', '% ค่าธรรมเนียมต่อยอดขาย', 'ค่าคอมมิชชั่น', 'ไม่มีรายละเอียดประเภท', 'ยอดขายที่ยังไม่มีข้อมูลการเงิน']);
+  assert.deepEqual(bySku.getRow(2).values.slice(6, 10), [12, 12, 10, 2]);
+  assert.equal(bySku.getRow(2).getCell(10).value, null, 'no unsettled sales is blank');
+  for (let c = 1; c <= 10; c++) assert.ok(bySku.getRow(1).getCell(c).note, 'every header explains its column');
   store.close();
 });
 
