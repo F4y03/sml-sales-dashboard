@@ -16,7 +16,10 @@
 - อย่ารัน test, browser หรือ diagnostics ซ้ำโดยไม่มีเหตุผล
 
 ## กฎสำคัญของ repository
-- SML เป็น read-only: ห้าม INSERT/UPDATE/DELETE/DDL/migration ในฐาน SML
+- เขียนฐาน SML ได้เฉพาะเมื่อผู้ใช้สั่งชัดเจนเป็นครั้งๆ: แสดงรายการที่จะแก้ + backup ก่อน และรอผู้ใช้ตอบตกลงก่อนรัน; ตัวเว็บ dashboard และ dashboard_user ยังอ่านอย่างเดียว
+  - ใช้ `SML_WRITE_URL` (role `claude_writer`) จาก `.env` เท่านั้น ห้ามพิมพ์ค่าออกมา; ทำใน transaction เดียว ตรวจจำนวนแถวที่แก้ให้ตรงก่อน COMMIT
+  - ต้องบันทึกการแก้ทุกครั้ง: ต่อท้าย `data/sml-changes/sml-changes.jsonl` 1 บรรทัดต่อ 1 แถวที่แก้ `{at, by, request, table, key, column, old, new}` และเก็บ backup ของแถวเดิมไว้ที่ `data/sml-changes/backup-<เวลา>.json` (data/ ไม่เข้า Git)
+  - หลังแก้ตรวจซ้ำจากฐานจริงและรายงานผลเป็นตาราง; ถ้าผิด ใช้ backup ย้อนคืน
 - ใช้ parameterized SQL เสมอ; อย่าเชื่อม input จากผู้ใช้เข้ากับ SQL โดยตรง
 - รักษา business definitions: 4007/4014, trans_flag 44/46/48, YYYY-MM-DD vs พ.ศ./ค.ศ., NULL stock != 0, export ต้องตรง filters
 - อย่าเปลี่ยนนิยามข้อมูลหรือสูตรโดยสมมติเอง
@@ -50,5 +53,5 @@
 
 ## ความสำคัญที่ต้องคงไว้
 - ห้ามปล่อย secrets/database credentials ไป browser หรือ Git
-- คงคุณสมบัติ read-only / SML และ business logic เดิม
+- คง business logic เดิม; ตัวเว็บ dashboard อ่าน SML อย่างเดียว
 - ไม่ทำให้กฎด้านความปลอดภัยหรือ business definition สูญหายเพราะลดเอกสาร
