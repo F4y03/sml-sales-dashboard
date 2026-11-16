@@ -21,6 +21,17 @@ const FEE_LABELS = {
   shipping_insurance_fee_amount: 'ค่าประกันการขนส่ง', other_fee_amount: 'ค่าธรรมเนียมอื่น (TikTok ไม่ได้แยกชื่อ)',
 };
 const feeLabel = type => FEE_LABELS[type] || type;
+// Plain explanation per fee type for the "ค่าธรรมเนียมตามประเภท" sheet (types not listed get an empty cell).
+const FEE_NOTES = {
+  commission_fee: 'ส่วนแบ่งการขายที่แพลตฟอร์มหักทุกออเดอร์ คิดเป็น % ของยอดขาย ตามหมวดสินค้า/ประเภทร้าน',
+  service_fee: 'ค่าโปรแกรมเสริมที่ร้านสมัคร เช่น โค้ดส่วนลด/ส่งฟรี/Coins Cashback คิดเป็น % ของยอดขาย',
+  seller_transaction_fee: 'ค่าธรรมเนียมรับชำระเงิน (บัตร/โอน/ปลายทาง) คิดเป็น % ของยอดที่ลูกค้าจ่าย',
+  seller_order_processing_fee: 'ค่าคงที่ต่อออเดอร์ (Shopee เก็บ 1 บาท/ออเดอร์)',
+  order_ams_commission_fee: 'ค่าคอมมิชชั่นให้ Affiliate ที่ช่วยขาย (เฉพาะออเดอร์ที่มาจาก Affiliate)',
+  platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานของแพลตฟอร์ม',
+  shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง',
+  'ไม่มีรายละเอียดประเภท': 'ส่วนที่แพลตฟอร์มไม่ได้แยกประเภทมา (ค่าธรรมเนียมรวม − ที่แยกได้)',
+};
 // Fee columns of the "ขายรายสินค้า" sheet. Types not listed here fall into "other".
 const FEE_GROUPS = [
   { key: 'commission', field: 'feeCommission', header: 'ค่าคอมมิชชั่น', types: ['commission_fee', 'platform_commission_amount', 'Commission', 'Commission fee - correction for undercharge', 'Reversal Commission'],
@@ -260,8 +271,8 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', 'fees', 'net'], data.orders.length + 1);
   const unsettledSheet = addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   if (data.unsettled.length) addTotalRow(unsettledSheet, 'statusName', ['sales'], data.unsettled.length + 1);
-  const feeSheet = addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
-    data.fees.map(f => ({ ...f, type: feeLabel(f.type), name: PLATFORM[f.platform] })));
+  const feeSheet = addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }, { header: 'คำอธิบาย', key: 'note', width: 70 }],
+    data.fees.map(f => ({ ...f, type: feeLabel(f.type), note: FEE_NOTES[f.type] || null, name: PLATFORM[f.platform] })));
   if (data.fees.length) addTotalRow(feeSheet, 'type', ['amount'], data.fees.length + 1);
   const SHARED = 'แพลตฟอร์มหักเป็นรายออเดอร์ ถ้าออเดอร์มีหลายสินค้า จะแบ่งให้แต่ละสินค้าตามสัดส่วนยอดขาย';
   // Fee types folded into the three groups shown in the order popup; anything else goes to "other" (shown only if present).
