@@ -190,7 +190,7 @@ export function mapShopeeOrder(order) {
 
 // Fees / net payout of one order, same settlement key as the income report upload (income:<order_sn>) so a file and the API
 // never count it twice. net = escrow_amount; fees = sum of the seller-side fee fields Shopee returns (none returned = no row).
-export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee'];
+export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee', 'seller_order_processing_fee'];
 export function mapShopeeEscrow(escrow) {
   const id = clean(escrow?.order_sn), income = escrow?.order_income || {};
   const net = income.escrow_amount;

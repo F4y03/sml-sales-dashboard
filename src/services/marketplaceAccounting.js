@@ -11,7 +11,7 @@ const AGED_DAYS = 30;
 // Thai names of known fee types (same wording as public/order-fees.js); Lazada names arrive already readable.
 const FEE_LABELS = {
   commission_fee: 'ค่าคอมมิชชั่น', service_fee: 'ค่าบริการ', seller_transaction_fee: 'ค่าธุรกรรมการชำระเงิน',
-  order_ams_commission_fee: 'ค่าคอมมิชชั่น AMS (Affiliate)', platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานแพลตฟอร์ม',
+  order_ams_commission_fee: 'ค่าคอมมิชชั่น AMS (Affiliate)', platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานแพลตฟอร์ม', seller_order_processing_fee: 'ค่าดำเนินการคำสั่งซื้อ',
   shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง', platform_commission_amount: 'ค่าคอมมิชชั่นแพลตฟอร์ม',
   transaction_fee_amount: 'ค่าธุรกรรม', affiliate_commission_amount: 'ค่าคอมมิชชั่น Affiliate', referral_fee_amount: 'ค่าธรรมเนียมการแนะนำ',
   sfp_service_fee_amount: 'ค่าบริการ SFP', voucher_xtra_service_fee_amount: 'ค่าบริการ Voucher Xtra', flash_sales_service_fee_amount: 'ค่าบริการ Flash Sale',
