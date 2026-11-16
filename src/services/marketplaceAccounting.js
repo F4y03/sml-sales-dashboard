@@ -183,7 +183,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   const productRows = data.products.map(p => {
     const sums = {};
     for (const [type, amount] of Object.entries(p.feeTypes)) { const g = FEE_GROUP_OF[type] || 'other'; sums[g] = (sums[g] || 0) + amount; }
-    return { ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null,
+    return { ...p, productName: p.name, name: PLATFORM[p.platform], unsettledSales: p.unsettledSales || null, settledSales: round2(p.sales - p.unsettledSales) || null,
       ...Object.fromEntries(FEE_GROUPS.map(g => [g.field, sums[g.key] === undefined ? null : round2(sums[g.key])])) };
   });
   addSheet(workbook, 'ขายรายสินค้า', [
@@ -191,11 +191,12 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าของผู้ขาย (Seller SKU) จากไฟล์/API คำสั่งซื้อของแพลตฟอร์ม ตัดช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่ ถ้าแพลตฟอร์มไม่ส่ง SKU มา จะว่าง และรวมยอดตามชื่อสินค้าแทน' },
     { header: 'ชื่อสินค้า', key: 'productName', width: 48, note: 'ชื่อสินค้าตามที่ลงขายบนแพลตฟอร์ม (ไม่ใช่ชื่อใน SML) ถ้า SKU เดียวกันมีหลายชื่อ จะแสดงชื่อเดียว' },
     { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย รวมจากรายการสินค้าของออเดอร์สถานะ สำเร็จ + กำลังดำเนินการ ตามวันที่สั่งซื้อในช่วงรายงาน ไม่รวมรายการที่ยกเลิก/คืนสินค้า' },
-    { header: 'ยอดขาย', key: 'sales', money: true, note: 'ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ' },
+    { header: 'ยอดขายรวม', key: 'sales', money: true, note: 'ยอดขายทั้งหมด = ยอดขายที่สำเร็จแล้ว + ยอดขายที่ยังไม่สำเร็จ (ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ)' },
+    { header: 'ยอดขายที่สำเร็จแล้ว', key: 'settledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่แพลตฟอร์มแจ้งค่าธรรมเนียมมาแล้ว (ออเดอร์สำเร็จ) ค่าธรรมเนียมในแถวนี้คิดจากยอดส่วนนี้' },
+    { header: 'ยอดขายที่ยังไม่สำเร็จ', key: 'unsettledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่ยังไม่สำเร็จ (ลูกค้ายังไม่กดรับของ) แพลตฟอร์มจึงยังไม่แจ้งค่าธรรมเนียม เมื่อออเดอร์สำเร็จ ระบบดึงค่าธรรมเนียมมาเองภายในราว 1 ชั่วโมง แล้วยอดจะย้ายไปช่อง ยอดขายที่สำเร็จแล้ว ช่องว่าง = ไม่มียอดค้าง' },
     { header: 'ค่าธรรมเนียม', key: 'fees', width: 16, money: true, note: `ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0 ดูยอดแยกตามประเภทได้ในชีต ค่าธรรมเนียมตามประเภท` },
     ...FEE_GROUPS.filter(g => g.key !== 'other' || productRows.some(p => p.feeOther !== null)).map(g => ({ header: g.header, key: g.field, width: 22, money: true,
       note: `${g.note} ${SHARED} ช่องว่าง = สินค้านี้ไม่มีค่าธรรมเนียมกลุ่มนี้ หรือยังไม่มีข้อมูลการเงิน ผลรวมทุกกลุ่มเท่ากับคอลัมน์ ค่าธรรมเนียม (ต่างได้ไม่กี่สตางค์จากการปัดเศษ)` })),
-    { header: 'ยอดขายที่ยังไม่มีข้อมูลการเงิน', key: 'unsettledSales', width: 30, money: true, note: 'ส่วนของยอดขายที่มาจากออเดอร์ซึ่งยังไม่มีข้อมูลการเงินในระบบ (แพลตฟอร์มยังไม่โอน หรือยังไม่ได้นำเข้า) ยอดส่วนนี้ยังไม่ถูกคิดค่าธรรมเนียมในแถวนี้' },
   ], productRows);
   addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));

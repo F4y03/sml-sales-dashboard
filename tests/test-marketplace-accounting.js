@@ -55,10 +55,10 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
   assert.equal(register.rowCount, 5);
   assert.equal(register.getRow(3).getCell('J').value, null, 'blank cell for missing net');
   const bySku = book.getWorksheet('ขายรายสินค้า');
-  assert.deepEqual(bySku.getRow(1).values.slice(1), ['ช่องทาง', 'SKU', 'ชื่อสินค้า', 'จำนวน', 'ยอดขาย', 'ค่าธรรมเนียม', 'ค่าคอมมิชชั่น', 'ค่าบริการ', 'ค่าธุรกรรมการชำระเงิน', 'ค่าธรรมเนียมอื่น', 'ยอดขายที่ยังไม่มีข้อมูลการเงิน']);
-  assert.deepEqual([6, 7, 8, 9, 10].map(c => bySku.getRow(2).getCell(c).value), [12, 10, null, null, 2]);
-  assert.equal(bySku.getRow(2).getCell(11).value, null, 'no unsettled sales is blank');
-  for (let c = 1; c <= 11; c++) assert.ok(bySku.getRow(1).getCell(c).note, 'every header explains its column');
+  assert.deepEqual(bySku.getRow(1).values.slice(1), ['ช่องทาง', 'SKU', 'ชื่อสินค้า', 'จำนวน', 'ยอดขายรวม', 'ยอดขายที่สำเร็จแล้ว', 'ยอดขายที่ยังไม่สำเร็จ', 'ค่าธรรมเนียม', 'ค่าคอมมิชชั่น', 'ค่าบริการ', 'ค่าธุรกรรมการชำระเงิน', 'ค่าธรรมเนียมอื่น']);
+  assert.deepEqual([5, 6, 8, 9, 10, 11, 12].map(c => bySku.getRow(2).getCell(c).value), [100, 100, 12, 10, null, null, 2]);
+  assert.equal(bySku.getRow(2).getCell(7).value, null, 'no unsold-yet sales is blank');
+  for (let c = 1; c <= 12; c++) assert.ok(bySku.getRow(1).getCell(c).note, 'every header explains its column');
   store.close();
 });
 
