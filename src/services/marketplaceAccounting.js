@@ -135,6 +135,7 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
   return { today, orders, summary: [...summary.values()], fees, products, soldWithoutItems, unsettled, review };
 }
 
+const TOTAL_FILL = 'FFE2F0D9'; // light green
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
   sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : c.style ? { numFmt: c.style } : {} }));
@@ -142,6 +143,12 @@ function addSheet(workbook, name, columns, rows) {
   sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
   columns.forEach((c, i) => { if (c.note) sheet.getRow(1).getCell(i + 1).note = c.note; }); // header comment: what the column is
   for (const row of rows) sheet.addRow(row);
+  // Light-green fill for total columns (header + data rows).
+  columns.forEach((c, i) => {
+    if (!c.fill) return;
+    const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.fill } };
+    for (let r = 1; r <= sheet.rowCount; r++) sheet.getRow(r).getCell(i + 1).fill = fill;
+  });
   return sheet;
 }
 
@@ -193,10 +200,10 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย รวมจากรายการสินค้าของออเดอร์สถานะ สำเร็จ + กำลังดำเนินการ ตามวันที่สั่งซื้อในช่วงรายงาน ไม่รวมรายการที่ยกเลิก/คืนสินค้า' },
     { header: 'ยอดขายที่สำเร็จแล้ว', key: 'settledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่แพลตฟอร์มแจ้งค่าธรรมเนียมมาแล้ว (ออเดอร์สำเร็จ) ค่าธรรมเนียมในแถวนี้คิดจากยอดส่วนนี้' },
     { header: 'ยอดขายที่ยังไม่สำเร็จ', key: 'unsettledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่ยังไม่สำเร็จ (ลูกค้ายังไม่กดรับของ) แพลตฟอร์มจึงยังไม่แจ้งค่าธรรมเนียม เมื่อออเดอร์สำเร็จ ระบบดึงค่าธรรมเนียมมาเองภายในราว 1 ชั่วโมง แล้วยอดจะย้ายไปช่อง ยอดขายที่สำเร็จแล้ว ช่องว่าง = ไม่มียอดค้าง' },
-    { header: 'ยอดขายรวม', key: 'sales', money: true, note: 'ยอดขายทั้งหมด = ยอดขายที่สำเร็จแล้ว + ยอดขายที่ยังไม่สำเร็จ (ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ)' },
+    { header: 'ยอดขายรวม', key: 'sales', money: true, fill: TOTAL_FILL, note: 'ยอดขายทั้งหมด = ยอดขายที่สำเร็จแล้ว + ยอดขายที่ยังไม่สำเร็จ (ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ)' },
     ...FEE_GROUPS.filter(g => g.key !== 'other' || productRows.some(p => p.feeOther !== null)).map(g => ({ header: g.header, key: g.field, width: 22, money: true,
       note: `${g.note} ${SHARED} ช่องว่าง = สินค้านี้ไม่มีค่าธรรมเนียมกลุ่มนี้ หรือยังไม่มีข้อมูลการเงิน ผลรวมทุกกลุ่มเท่ากับคอลัมน์ ค่าธรรมเนียมรวม (ต่างได้ไม่กี่สตางค์จากการปัดเศษ)` })),
-    { header: 'ค่าธรรมเนียมรวม', key: 'fees', width: 16, money: true, note: `ผลรวมของค่าธรรมเนียมทุกช่องทางซ้าย = ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0 ดูยอดแยกตามประเภทได้ในชีต ค่าธรรมเนียมตามประเภท` },
+    { header: 'ค่าธรรมเนียมรวม', key: 'fees', width: 16, money: true, fill: TOTAL_FILL, note: `ผลรวมของค่าธรรมเนียมทุกช่องทางซ้าย = ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0 ดูยอดแยกตามประเภทได้ในชีต ค่าธรรมเนียมตามประเภท` },
   ], productRows);
   addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
