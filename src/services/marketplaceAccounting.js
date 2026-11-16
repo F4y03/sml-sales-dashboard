@@ -229,7 +229,12 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
     { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true },
   ], data.orders.map(withItems));
-  for (const key of ['skus', 'productNames']) register.getColumn(key).alignment = { wrapText: true, vertical: 'top' };
+  // Every cell top-aligned so each order reads on its first line; SKU line N matches product line N, so the name column
+  // is made wide enough that a name never wraps onto a second line.
+  const longest = Math.max(20, ...register.getColumn('productNames').values.slice(2).flatMap(v => String(v ?? '').split('\n').map(s => s.length)));
+  register.getColumn('productNames').width = Math.min(longest * 1.05 + 2, 110);
+  register.eachRow((row, n) => { if (n > 1) row.eachCell({ includeEmpty: true }, cell => { cell.alignment = { ...cell.alignment, vertical: 'top' }; }); });
+  for (const key of ['skus', 'productNames']) register.getColumn(key).eachCell((cell, n) => { if (n > 1) cell.alignment = { wrapText: true, vertical: 'top' }; });
   addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
