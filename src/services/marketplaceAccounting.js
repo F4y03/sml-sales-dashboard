@@ -146,8 +146,11 @@ function addSheet(workbook, name, columns, rows) {
   // Light-green fill for total columns (header + data rows).
   columns.forEach((c, i) => {
     if (!c.fill) return;
+    // A fill hides Excel's gridlines, so draw thin lines in the gridline colour.
     const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.fill } };
-    for (let r = 1; r <= sheet.rowCount; r++) sheet.getRow(r).getCell(i + 1).fill = fill;
+    const line = { style: 'thin', color: { argb: 'FFD4D4D4' } };
+    const border = { top: line, left: line, bottom: line, right: line };
+    for (let r = 1; r <= sheet.rowCount; r++) { const cell = sheet.getRow(r).getCell(i + 1); cell.fill = fill; cell.border = border; }
   });
   return sheet;
 }
