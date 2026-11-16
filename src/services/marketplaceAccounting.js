@@ -208,10 +208,28 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   ], summaryRows);
   if (summaryRows.length) summary.getRow(summary.rowCount).font = { bold: true };
 
-  addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [...orderColumns,
+  // One row per order stays (totals tie to the summary); an order with several products lists them in one cell.
+  const itemsOf = new Map();
+  for (const i of store.all(`SELECT i.platform,i.order_id AS orderId,TRIM(i.sku) AS sku,i.product_name AS name,i.quantity
+    FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
+    WHERE ${"o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"} ORDER BY i.line_key`,
+  filter.start, filter.end, filter.platform, filter.platform, filter.shop === 'all' ? null : Number(filter.shop), filter.shop === 'all' ? null : Number(filter.shop))) {
+    const key = i.platform + '\u0000' + i.orderId, list = itemsOf.get(key) || [];
+    itemsOf.set(key, list); list.push(i);
+  }
+  const withItems = o => {
+    const list = itemsOf.get(o.platform + '\u0000' + o.orderId) || [];
+    return { ...withNames(o), skus: list.map(i => i.sku || '-').join('\n') || null,
+      productNames: list.map(i => (list.length > 1 || i.quantity !== 1 ? `${i.name} × ${i.quantity}` : i.name)).join('\n') || null };
+  };
+  const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [...orderColumns.slice(0, 4),
+    { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
+    { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
+    orderColumns[4],
     { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
     { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true },
-  ], data.orders.map(withNames));
+  ], data.orders.map(withItems));
+  for (const key of ['skus', 'productNames']) register.getColumn(key).alignment = { wrapText: true, vertical: 'top' };
   addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
