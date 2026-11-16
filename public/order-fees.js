@@ -8,6 +8,8 @@
   const LABELS = {
     commission_fee: 'ค่าคอมมิชชั่น', service_fee: 'ค่าบริการ', seller_transaction_fee: 'ค่าธุรกรรมการชำระเงิน',
     order_ams_commission_fee: 'ค่าคอมมิชชั่น AMS (Affiliate)', platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานแพลตฟอร์ม', seller_order_processing_fee: 'ค่าดำเนินการคำสั่งซื้อ',
+    ads_escrow_top_up_fee_or_technical_support_fee: 'หักเติมเงินโฆษณา/ค่าบริการทางเทคนิค', seller_shipping_cost: 'ค่าส่งส่วนที่ร้านออก',
+    shopee_other_deduction: 'รายการหักอื่น (Shopee ไม่ได้แยกชื่อ)',
     shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง', platform_commission_amount: 'ค่าคอมมิชชั่นแพลตฟอร์ม',
     transaction_fee_amount: 'ค่าธุรกรรม', affiliate_commission_amount: 'ค่าคอมมิชชั่น Affiliate', referral_fee_amount: 'ค่าธรรมเนียมการแนะนำ',
     sfp_service_fee_amount: 'ค่าบริการ SFP', voucher_xtra_service_fee_amount: 'ค่าบริการ Voucher Xtra', flash_sales_service_fee_amount: 'ค่าบริการ Flash Sale',

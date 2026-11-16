@@ -190,16 +190,28 @@ export function mapShopeeOrder(order) {
 
 // Fees / net payout of one order, same settlement key as the income report upload (income:<order_sn>) so a file and the API
 // never count it twice. net = escrow_amount; fees = sum of the seller-side fee fields Shopee returns (none returned = no row).
-export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee', 'seller_order_processing_fee'];
+// Accountants need fees + net = Shopee's goods amount (cost_of_goods_sold), so "fees" holds every deduction:
+// the named fee fields, the seller's share of shipping, and whatever Shopee deducted without naming it.
+export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee', 'seller_order_processing_fee',
+  'ads_escrow_top_up_fee_or_technical_support_fee'];
+const num = v => (v === undefined || v === null || !Number.isFinite(Number(v)) ? null : Number(v));
 export function mapShopeeEscrow(escrow) {
   const id = clean(escrow?.order_sn), income = escrow?.order_income || {};
-  const net = income.escrow_amount;
-  if (!/^[A-Za-z0-9_-]{5,40}$/.test(id) || net === undefined || net === null || !Number.isFinite(Number(net))) return null;
-  const present = SHOPEE_ESCROW_FEES.filter(k => income[k] !== undefined && income[k] !== null && Number.isFinite(Number(income[k])));
+  const net = num(income.escrow_amount);
+  if (!/^[A-Za-z0-9_-]{5,40}$/.test(id) || net === null) return null;
+  const present = SHOPEE_ESCROW_FEES.filter(k => num(income[k]) !== null);
   if (!present.length) return null; // fees column is NOT NULL: unknown stays missing (blank), never 0
-  const detail = Object.fromEntries(present.map(k => [k, round2(Math.abs(Number(income[k])))]));
-  return { txnId: `income:${id}`, orderId: id, fees: round2(present.reduce((sum, k) => sum + Math.abs(Number(income[k])), 0)),
-    netPayout: round2(Number(net)), detail };
+  const detail = Object.fromEntries(present.map(k => [k, round2(Math.abs(num(income[k])))]));
+  // Shipping the seller paid = final_shipping_fee (negative = seller pays) less what the buyer paid back to the seller.
+  const shipping = round2(-((num(income.final_shipping_fee) ?? 0) + (num(income.buyer_paid_shipping_fee) ?? 0)));
+  if (num(income.final_shipping_fee) !== null && shipping !== 0) detail.seller_shipping_cost = shipping;
+  // Anything else between the goods amount and the payout (Shopee did not name it) keeps the order tied.
+  const goods = num(income.cost_of_goods_sold);
+  if (goods !== null) {
+    const other = round2(goods - net - Object.values(detail).reduce((s, v) => s + v, 0));
+    if (other !== 0) detail.shopee_other_deduction = other;
+  }
+  return { txnId: `income:${id}`, orderId: id, fees: round2(Object.values(detail).reduce((s, v) => s + v, 0)), netPayout: round2(net), detail };
 }
 
 // get_item_base_info (+ get_model_list) -> one row per model (model_id 0 = no variations).

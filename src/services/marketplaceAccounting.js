@@ -12,6 +12,8 @@ const AGED_DAYS = 30;
 const FEE_LABELS = {
   commission_fee: 'ค่าคอมมิชชั่น', service_fee: 'ค่าบริการ', seller_transaction_fee: 'ค่าธุรกรรมการชำระเงิน',
   order_ams_commission_fee: 'ค่าคอมมิชชั่น AMS (Affiliate)', platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานแพลตฟอร์ม', seller_order_processing_fee: 'ค่าดำเนินการคำสั่งซื้อ',
+  ads_escrow_top_up_fee_or_technical_support_fee: 'หักเติมเงินโฆษณา/ค่าบริการทางเทคนิค', seller_shipping_cost: 'ค่าส่งส่วนที่ร้านออก',
+  shopee_other_deduction: 'รายการหักอื่น (Shopee ไม่ได้แยกชื่อ)',
   shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง', platform_commission_amount: 'ค่าคอมมิชชั่นแพลตฟอร์ม',
   transaction_fee_amount: 'ค่าธุรกรรม', affiliate_commission_amount: 'ค่าคอมมิชชั่น Affiliate', referral_fee_amount: 'ค่าธรรมเนียมการแนะนำ',
   sfp_service_fee_amount: 'ค่าบริการ SFP', voucher_xtra_service_fee_amount: 'ค่าบริการ Voucher Xtra', flash_sales_service_fee_amount: 'ค่าบริการ Flash Sale',
@@ -27,6 +29,9 @@ const FEE_NOTES = {
   service_fee: 'ค่าโปรแกรมเสริมที่ร้านสมัคร เช่น โค้ดส่วนลด/ส่งฟรี/Coins Cashback คิดเป็น % ของยอดขาย',
   seller_transaction_fee: 'ค่าธรรมเนียมรับชำระเงิน (บัตร/โอน/ปลายทาง) คิดเป็น % ของยอดที่ลูกค้าจ่าย',
   seller_order_processing_fee: 'ค่าคงที่ต่อออเดอร์ (Shopee เก็บ 1 บาท/ออเดอร์)',
+  ads_escrow_top_up_fee_or_technical_support_fee: 'Shopee หักจากรายได้ไปเติมเครดิตโฆษณาของร้าน (ถ้าตั้งเติมอัตโนมัติ) หรือค่าบริการทางเทคนิค',
+  seller_shipping_cost: 'ค่าส่งจริงส่วนที่ Shopee ไม่ได้ช่วยและลูกค้าไม่ได้จ่าย ร้านจึงออกเอง (ติดลบ = ร้านได้คืน)',
+  shopee_other_deduction: 'ส่วนต่างระหว่างยอดสินค้าของ Shopee กับเงินที่โอน ที่ Shopee ไม่ได้แยกชื่อมา ใส่ไว้ให้ยอดตรงกัน',
   order_ams_commission_fee: 'ค่าคอมมิชชั่นให้ Affiliate ที่ช่วยขาย (เฉพาะออเดอร์ที่มาจาก Affiliate)',
   platform_infrastructure_fee: 'ค่าโครงสร้างพื้นฐานของแพลตฟอร์ม',
   shipping_saver_fee: 'ค่าโปรแกรมประหยัดค่าจัดส่ง',

@@ -70,7 +70,7 @@ export async function syncShopeeFees(store, client, vault, { conn, start, end, u
   const sns = store.all(`SELECT o.order_id AS sn FROM marketplace_orders o WHERE o.platform='shopee' AND o.status='completed' AND o.order_date BETWEEN ? AND ?
     AND o.shop_id IS ? AND NOT EXISTS (SELECT 1 FROM marketplace_settlements s WHERE s.platform='shopee' AND s.order_id=o.order_id
       AND (s.fee_detail IS NOT NULL OR s.txn_id NOT LIKE 'income:%' OR s.upload_id NOT IN (SELECT id FROM marketplace_uploads WHERE file_kinds='api'))
-      AND (s.fee_detail LIKE '%seller_order_processing_fee%' OR s.txn_id NOT LIKE 'income:%' OR s.updated_at >= '2026-11-16'
+      AND (s.txn_id NOT LIKE 'income:%' OR s.updated_at >= '2026-11-16T09:55:00Z'
         OR s.upload_id NOT IN (SELECT id FROM marketplace_uploads WHERE file_kinds='api'))) -- API rows saved before the breakdown / processing fee existed are fetched again (once)
     ORDER BY o.order_date DESC LIMIT ?`, start, end, conn.dashboard_shop_id ?? null, limit).map(r => r.sn);
   if (!sns.length) return { fees: 0 };

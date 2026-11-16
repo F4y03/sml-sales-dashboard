@@ -53,6 +53,12 @@ test('mapping: sales = discounted price × qty, statuses like the export, provin
   for (const value of [...Object.values(PII), 'buyer1']) assert.ok(!json.includes(value));
   assert.equal(mapShopeeOrder({ order_sn: 'bad id!', create_time: 1 }), null);
   assert.equal(mapShopeeEscrow({ order_sn: '261001AAA0001', order_income: { escrow_amount: 10 } }), null); // no fee fields: blank, not 0
+  // Every deduction counts, so fees + net = Shopee's goods amount (processing fee, ads top-up, seller shipping, unnamed rest).
+  const e = mapShopeeEscrow({ order_sn: '261024FEPRDD93', order_income: { cost_of_goods_sold: 350, escrow_amount: 240, commission_fee: 56, service_fee: 30,
+    seller_transaction_fee: 12, seller_order_processing_fee: 1, ads_escrow_top_up_fee_or_technical_support_fee: 3, final_shipping_fee: -16, buyer_paid_shipping_fee: 10 } });
+  assert.deepEqual(e.detail, { commission_fee: 56, service_fee: 30, seller_transaction_fee: 12, seller_order_processing_fee: 1,
+    ads_escrow_top_up_fee_or_technical_support_fee: 3, seller_shipping_cost: 6, shopee_other_deduction: 2 });
+  assert.equal(e.fees + e.netPayout, 350);
 });
 
 test('items: one row per model, missing stock is null (not 0)', () => {
