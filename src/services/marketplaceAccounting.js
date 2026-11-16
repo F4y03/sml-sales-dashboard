@@ -119,6 +119,8 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
     } catch { /* falls into the unexplained column */ }
     if (Math.abs(r.fees - explained) >= 0.005) f.types[UNEXPLAINED] = (f.types[UNEXPLAINED] || 0) + r.fees - explained;
   }
+  // Each order's fee breakdown, for one column per fee type in the order register.
+  for (const o of orders) { const f = orderFees.get(o.platform + '\u0000' + o.orderId); o.feeTypes = f ? f.types : null; }
   const lines = store.all(`SELECT i.platform,i.order_id AS orderId,UPPER(TRIM(i.sku)) AS sku,i.product_name AS name,i.quantity,i.sales
     FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
     WHERE ${where} AND o.status IN ${SOLD} AND i.status IN ${SOLD}`, ...params);
@@ -258,13 +260,25 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     return { ...withNames(o), skus: list.map(i => i.sku || '-').join('\n') || null,
       productNames: list.map(i => (list.length > 1 || i.quantity !== 1 ? `${i.name} × ${i.quantity}` : i.name)).join('\n') || null };
   };
+  // One column per fee type (by Thai name, largest total first), placed before the order's total fee. Empty = not charged / no data.
+  const typeTotals = new Map();
+  for (const o of data.orders) for (const [t, a] of Object.entries(o.feeTypes || {})) typeTotals.set(feeLabel(t), (typeTotals.get(feeLabel(t)) || 0) + a);
+  const feeTypeCols = [...typeTotals].filter(([, a]) => Math.abs(a) >= 0.005).sort((a, b) => b[1] - a[1])
+    .map(([label], i) => ({ header: label, key: `feeType${i}`, width: Math.max(14, label.length + 2), money: true, note: FEE_NOTES[Object.keys(FEE_LABELS).find(k => FEE_LABELS[k] === label) || label] || undefined }));
+  const colOfLabel = new Map(feeTypeCols.map(c => [c.header, c.key]));
+  const withFeeTypes = o => {
+    const out = withItems(o);
+    for (const [t, a] of Object.entries(o.feeTypes || {})) { const k = colOfLabel.get(feeLabel(t)); if (k) out[k] = round2((out[k] || 0) + a); }
+    return out;
+  };
   const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [...orderColumns.slice(0, 4),
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
     orderColumns[4],
     { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
-    { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true },
-  ], data.orders.map(withItems));
+    ...feeTypeCols,
+    { header: 'ค่าธรรมเนียมรวม', key: 'fees', money: true, note: 'ผลรวมค่าธรรมเนียมทุกประเภททางซ้าย' }, { header: 'เงินสุทธิ', key: 'net', money: true },
+  ], data.orders.map(withFeeTypes));
   // Every cell top-aligned so each order reads on its first line; SKU line N matches product line N, so the name column
   // is made wide enough that a name never wraps onto a second line.
   const longest = Math.max(20, ...register.getColumn('productNames').values.slice(2).flatMap(v => String(v ?? '').split('\n').map(s => s.length)));
@@ -273,7 +287,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   for (const key of ['skus', 'productNames']) register.getColumn(key).eachCell((cell, n) => { if (n > 1) cell.alignment = { wrapText: true, vertical: 'top' }; });
   // Total row under a blank row (so Excel's filter and sort leave it alone). SUBTOTAL(109) adds only the rows the
   // filter shows, e.g. filter สถานะ = สำเร็จ to get the completed total.
-  if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', 'fees', 'net'], data.orders.length + 1);
+  if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', ...feeTypeCols.map(c => c.key), 'fees', 'net'], data.orders.length + 1);
   const unsettledSheet = addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   if (data.unsettled.length) addTotalRow(unsettledSheet, 'statusName', ['sales'], data.unsettled.length + 1);
   const feeSheet = addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }, { header: 'คำอธิบาย', key: 'note', width: 70 }],
