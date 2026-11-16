@@ -261,7 +261,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   const unsettledSheet = addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   if (data.unsettled.length) addTotalRow(unsettledSheet, 'statusName', ['sales'], data.unsettled.length + 1);
   const feeSheet = addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
-    data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
+    data.fees.map(f => ({ ...f, type: feeLabel(f.type), name: PLATFORM[f.platform] })));
   if (data.fees.length) addTotalRow(feeSheet, 'type', ['amount'], data.fees.length + 1);
   const SHARED = 'แพลตฟอร์มหักเป็นรายออเดอร์ ถ้าออเดอร์มีหลายสินค้า จะแบ่งให้แต่ละสินค้าตามสัดส่วนยอดขาย';
   // Fee types folded into the three groups shown in the order popup; anything else goes to "other" (shown only if present).
