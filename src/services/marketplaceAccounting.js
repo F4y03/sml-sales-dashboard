@@ -24,13 +24,13 @@ const feeLabel = type => FEE_LABELS[type] || type;
 // Fee columns of the "ขายรายสินค้า" sheet. Types not listed here fall into "other".
 const FEE_GROUPS = [
   { key: 'commission', field: 'feeCommission', header: 'ค่าคอมมิชชั่น', types: ['commission_fee', 'platform_commission_amount', 'Commission', 'Commission fee - correction for undercharge', 'Reversal Commission'],
-    note: 'ค่าคอมมิชชั่นที่แพลตฟอร์มหักจากการขาย (Shopee: commission_fee, TikTok: platform_commission_amount, Lazada: Commission รวมรายการปรับปรุง/คืน)' },
+    note: 'ค่าคอมมิชชั่นการขายที่แพลตฟอร์มหัก' },
   { key: 'service', field: 'feeService', header: 'ค่าบริการ', types: ['service_fee'],
-    note: 'ค่าบริการของแพลตฟอร์ม เช่น โปรแกรมส่งฟรี/โค้ดส่วนลดที่ร้านเข้าร่วม (Shopee: service_fee)' },
+    note: 'ค่าบริการโปรแกรมที่ร้านเข้าร่วม เช่น ส่งฟรี หรือโค้ดส่วนลด' },
   { key: 'transaction', field: 'feeTransaction', header: 'ค่าธุรกรรมการชำระเงิน', types: ['seller_transaction_fee', 'transaction_fee_amount', 'Payment Fee', 'Payment fee - correction for undercharge', 'Payment Fee Credit'],
-    note: 'ค่าธรรมเนียมการรับชำระเงิน (Shopee: seller_transaction_fee, TikTok: transaction_fee_amount, Lazada: Payment Fee รวมรายการปรับปรุง/คืน)' },
+    note: 'ค่าธรรมเนียมรับชำระเงินจากลูกค้า' },
   { key: 'other', field: 'feeOther', header: 'ค่าธรรมเนียมอื่น', types: [],
-    note: 'ค่าธรรมเนียมประเภทอื่นที่ไม่อยู่ใน 3 กลุ่มข้างต้น เช่น ค่า Affiliate, ค่าแคมเปญ, ค่าโปรแกรมส่งฟรีของ Lazada หรือส่วนที่แพลตฟอร์มไม่ได้แยกชื่อ ดูรายประเภทได้ในชีต ค่าธรรมเนียมตามประเภท' },
+    note: 'ค่าธรรมเนียมอื่นที่ไม่ใช่ 3 คอลัมน์ข้างหน้า เช่น ค่า Affiliate ค่าแคมเปญ ดูรายการละเอียดในชีต ค่าธรรมเนียมตามประเภท' },
 ];
 const FEE_GROUP_OF = Object.fromEntries(FEE_GROUPS.flatMap(g => g.types.map(t => [t, g.key])));
 
@@ -188,7 +188,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   addSheet(workbook, 'ไม่มีข้อมูลการเงิน', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'อายุ (วัน)', key: 'age', width: 10 }], data.unsettled.map(withNames));
   addSheet(workbook, 'ค่าธรรมเนียมตามประเภท', [{ header: 'ช่องทาง', key: 'name', width: 14 }, { header: 'ประเภทค่าธรรมเนียม', key: 'type', width: 36 }, { header: 'จำนวนเงิน', key: 'amount', money: true }],
     data.fees.map(f => ({ ...f, name: PLATFORM[f.platform] })));
-  const SHARED = 'ค่าธรรมเนียมคิดเป็นรายออเดอร์ จึงปันส่วนให้สินค้าแต่ละรายการตามสัดส่วนยอดขายของสินค้านั้นในออเดอร์';
+  const SHARED = 'แพลตฟอร์มหักเป็นรายออเดอร์ ถ้าออเดอร์มีหลายสินค้า จะแบ่งให้แต่ละสินค้าตามสัดส่วนยอดขาย';
   // Fee types folded into the three groups shown in the order popup; anything else goes to "other" (shown only if present).
   const productRows = data.products.map(p => {
     const sums = {};
@@ -197,16 +197,16 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
       ...Object.fromEntries(FEE_GROUPS.map(g => [g.field, sums[g.key] === undefined ? null : round2(sums[g.key])])) };
   });
   addSheet(workbook, 'ขายรายสินค้า', [
-    { header: 'ช่องทาง', key: 'name', width: 14, note: 'แพลตฟอร์มที่ขาย (Shopee / Lazada / TikTok Shop)' },
-    { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าของผู้ขาย (Seller SKU) จากไฟล์/API คำสั่งซื้อของแพลตฟอร์ม ตัดช่องว่างและแปลงเป็นตัวพิมพ์ใหญ่ ถ้าแพลตฟอร์มไม่ส่ง SKU มา จะว่าง และรวมยอดตามชื่อสินค้าแทน' },
-    { header: 'ชื่อสินค้า', key: 'productName', width: 48, note: 'ชื่อสินค้าตามที่ลงขายบนแพลตฟอร์ม (ไม่ใช่ชื่อใน SML) ถ้า SKU เดียวกันมีหลายชื่อ จะแสดงชื่อเดียว' },
-    { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย รวมจากรายการสินค้าของออเดอร์สถานะ สำเร็จ + กำลังดำเนินการ ตามวันที่สั่งซื้อในช่วงรายงาน ไม่รวมรายการที่ยกเลิก/คืนสินค้า' },
-    { header: 'ยอดขายที่สำเร็จแล้ว', key: 'settledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่แพลตฟอร์มแจ้งค่าธรรมเนียมมาแล้ว (ออเดอร์สำเร็จ) ค่าธรรมเนียมในแถวนี้คิดจากยอดส่วนนี้' },
-    { header: 'ยอดขายที่ยังไม่สำเร็จ', key: 'unsettledSales', width: 20, money: true, note: 'ยอดขายของออเดอร์ที่ยังไม่สำเร็จ (ลูกค้ายังไม่กดรับของ) แพลตฟอร์มจึงยังไม่แจ้งค่าธรรมเนียม เมื่อออเดอร์สำเร็จ ระบบดึงค่าธรรมเนียมมาเองภายในราว 1 ชั่วโมง แล้วยอดจะย้ายไปช่อง ยอดขายที่สำเร็จแล้ว ช่องว่าง = ไม่มียอดค้าง' },
-    { header: 'ยอดขายรวม', key: 'sales', money: true, fill: TOTAL_FILL, note: 'ยอดขายทั้งหมด = ยอดขายที่สำเร็จแล้ว + ยอดขายที่ยังไม่สำเร็จ (ราคาสินค้าหลังหักส่วนลดจากร้าน ไม่รวมค่าส่ง และไม่หักส่วนลดจากแพลตฟอร์ม เฉพาะรายการสถานะ สำเร็จ + กำลังดำเนินการ)' },
+    { header: 'ช่องทาง', key: 'name', width: 14, note: 'แพลตฟอร์มที่ขาย' },
+    { header: 'SKU', key: 'sku', width: 22, note: 'รหัสสินค้าที่ร้านตั้งไว้บนแพลตฟอร์ม' },
+    { header: 'ชื่อสินค้า', key: 'productName', width: 48, note: 'ชื่อสินค้าตามที่ลงขายบนแพลตฟอร์ม (อาจไม่ตรงกับชื่อใน SML)' },
+    { header: 'จำนวน', key: 'quantity', width: 10, note: 'จำนวนชิ้นที่ขาย ไม่รวมออเดอร์ที่ยกเลิกหรือคืนสินค้า' },
+    { header: 'ยอดขายที่สำเร็จแล้ว', key: 'settledSales', width: 22, money: true, note: 'ลูกค้ารับของแล้ว และแพลตฟอร์มแจ้งค่าธรรมเนียมแล้ว ค่าธรรมเนียมในแถวนี้คิดจากยอดนี้' },
+    { header: 'ยอดขายที่ยังไม่สำเร็จ', key: 'unsettledSales', width: 22, money: true, note: 'ลูกค้ายังไม่รับของ จึงยังไม่รู้ค่าธรรมเนียม เมื่อสำเร็จ ยอดจะย้ายไปช่อง ยอดขายที่สำเร็จแล้ว เอง' },
+    { header: 'ยอดขายรวม', key: 'sales', width: 16, money: true, fill: TOTAL_FILL, note: 'ยอดขายที่สำเร็จแล้ว + ยอดขายที่ยังไม่สำเร็จ (ราคาหลังหักส่วนลดร้าน ไม่รวมค่าส่ง)' },
     ...FEE_GROUPS.filter(g => g.key !== 'other' || productRows.some(p => p.feeOther !== null)).map(g => ({ header: g.header, key: g.field, width: 22, money: true,
-      note: `${g.note} ${SHARED} ช่องว่าง = สินค้านี้ไม่มีค่าธรรมเนียมกลุ่มนี้ หรือยังไม่มีข้อมูลการเงิน ผลรวมทุกกลุ่มเท่ากับคอลัมน์ ค่าธรรมเนียมรวม (ต่างได้ไม่กี่สตางค์จากการปัดเศษ)` })),
-    { header: 'ค่าธรรมเนียมรวม', key: 'fees', width: 16, money: true, fill: TOTAL_FILL, note: `ผลรวมของค่าธรรมเนียมทุกช่องทางซ้าย = ค่าธรรมเนียมทุกประเภทที่แพลตฟอร์มหักจากออเดอร์ที่มีสินค้านี้ มาจากข้อมูลการเงินของแพลตฟอร์ม ${SHARED} ช่องว่าง = ออเดอร์ของสินค้านี้ยังไม่มีข้อมูลการเงิน ไม่ใช่ 0 ดูยอดแยกตามประเภทได้ในชีต ค่าธรรมเนียมตามประเภท` },
+      note: `${g.note} (${SHARED})` })),
+    { header: 'ค่าธรรมเนียมรวม', key: 'fees', width: 18, money: true, fill: TOTAL_FILL, note: 'ค่าธรรมเนียมทุกคอลัมน์ทางซ้ายรวมกัน คิดเฉพาะยอดขายที่สำเร็จแล้ว ช่องว่าง = ยังไม่มีออเดอร์สำเร็จ' },
   ], productRows);
   addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
