@@ -231,8 +231,11 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
     WHERE ${"o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"} ORDER BY i.line_key`,
   filter.start, filter.end, filter.platform, filter.platform, filter.shop === 'all' ? null : Number(filter.shop), filter.shop === 'all' ? null : Number(filter.shop))) {
+    // Lines of the same SKU in one order (Lazada sends one line per piece) are shown once with their quantities added.
     const key = i.platform + '\u0000' + i.orderId, list = itemsOf.get(key) || [];
-    itemsOf.set(key, list); list.push(i);
+    itemsOf.set(key, list);
+    const same = list.find(x => (i.sku ? x.sku === i.sku : !x.sku && x.name === i.name));
+    if (same) same.quantity += i.quantity; else list.push({ ...i });
   }
   const withItems = o => {
     const list = itemsOf.get(o.platform + '\u0000' + o.orderId) || [];
