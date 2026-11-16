@@ -193,7 +193,7 @@ export function mapShopeeOrder(order) {
 // Accountants need fees + net = Shopee's goods amount (cost_of_goods_sold), so "fees" holds every deduction:
 // the named fee fields, the seller's share of shipping, and whatever Shopee deducted without naming it.
 export const SHOPEE_ESCROW_FEES = ['commission_fee', 'service_fee', 'seller_transaction_fee', 'order_ams_commission_fee', 'seller_order_processing_fee',
-  'ads_escrow_top_up_fee_or_technical_support_fee'];
+  'ads_escrow_top_up_fee_or_technical_support_fee', 'reverse_shipping_fee'];
 const num = v => (v === undefined || v === null || !Number.isFinite(Number(v)) ? null : Number(v));
 export function mapShopeeEscrow(escrow) {
   const id = clean(escrow?.order_sn), income = escrow?.order_income || {};
