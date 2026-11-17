@@ -19,7 +19,7 @@ export function signRequest(secret, path, query, body = '') {
   return createHmac('sha256', secret).update(secret + path + params + body + secret).digest('hex');
 }
 
-const RATE_LIMITED = /too many requests|rate limit/i;
+const RATE_LIMITED = /too many requests|rate limit|internal error|please try again/i;
 export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now = () => Date.now(), sleep = ms => new Promise(r => setTimeout(r, ms)) }) {
   if (!appKey || !appSecret) throw new TikTokApiError('ยังไม่ได้ตั้งค่า TIKTOK_APP_KEY / TIKTOK_APP_SECRET ใน .env');
   const unwrap = async response => {
@@ -27,7 +27,8 @@ export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now =
     try { json = await response.json(); } catch { throw new TikTokApiError(`TikTok ตอบกลับไม่ถูกต้อง (HTTP ${response.status})`); }
     if (json.code !== 0) {
       const error = new TikTokApiError(`TikTok: ${json.message || 'ไม่ทราบสาเหตุ'}`, json.code ?? null);
-      error.rateLimited = response.status === 429 || RATE_LIMITED.test(String(json.message || ''));
+      // Rate limits and TikTok's own transient failures (HTTP 5xx, "Internal error" 36009003) are retried with back-off.
+      error.rateLimited = response.status === 429 || response.status >= 500 || RATE_LIMITED.test(String(json.message || ''));
       throw error;
     }
     return json.data || {};
