@@ -212,11 +212,15 @@ const HEADER_NOTES = {
 };
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
-  sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : c.style ? { numFmt: c.style } : {} }));
+  sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : c.date ? { numFmt: 'yyyy-mm-dd' } : c.style ? { numFmt: c.style } : {} }));
   sheet.getRow(1).font = { bold: true };
   sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
   columns.forEach((c, i) => { const note = c.note ?? HEADER_NOTES[c.header]; if (note) sheet.getRow(1).getCell(i + 1).note = note; }); // header comment: what the column is
-  for (const row of rows) sheet.addRow(row);
+  const dateKeys = columns.filter(c => c.date).map(c => c.key);
+  // Dates go in as real Excel dates (not text) so the filter groups them by year › month: ticking the year = rows that
+  // have a date, (Blanks) = rows without one. The cell still shows YYYY-MM-DD.
+  const asDate = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + 'T00:00:00Z') : v);
+  for (const row of rows) sheet.addRow(dateKeys.length ? { ...row, ...Object.fromEntries(dateKeys.map(k => [k, asDate(row[k])])) } : row);
   // Light-green fill for total columns (header + data rows).
   columns.forEach((c, i) => {
     if (!c.fill) return;
@@ -230,7 +234,7 @@ function addSheet(workbook, name, columns, rows) {
 }
 
 const orderColumns = [
-  { header: 'วันที่สั่งซื้อ', key: 'date', width: 13 }, { header: 'ช่องทาง', key: 'platformName', width: 13 }, { header: 'ร้าน', key: 'shop', width: 20 },
+  { header: 'วันที่สั่งซื้อ', key: 'date', width: 13, date: true }, { header: 'ช่องทาง', key: 'platformName', width: 13 }, { header: 'ร้าน', key: 'shop', width: 20 },
   { header: 'เลขออเดอร์', key: 'orderId', width: 24 }, { header: 'สถานะ', key: 'statusName', width: 15 },
 ];
 const withNames = o => ({ ...o, platformName: PLATFORM[o.platform] || o.platform, statusName: STATUS[o.status] || o.status });
@@ -288,7 +292,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   };
   const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [orderColumns[0],
     { header: 'เวลาสั่งซื้อ', key: 'time', width: 10, note: 'เวลาที่ลูกค้าสั่งซื้อ (เวลาไทย) ช่องว่าง = ข้อมูลที่ได้มามีแค่วันที่ (เช่น รายงานรายรับของ Shopee)' },
-    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, note: 'วันที่แพลตฟอร์มโอนเงินของออเดอร์นี้ให้ร้าน (ตอนนี้มีเฉพาะ Shopee) ช่องว่าง = ยังไม่โอน หรือแพลตฟอร์มไม่ได้ให้ข้อมูล' },
+    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, date: true, note: 'วันที่แพลตฟอร์มโอนเงินของออเดอร์นี้ให้ร้าน (ตอนนี้มีเฉพาะ Shopee) ช่องว่าง = ยังไม่โอน หรือแพลตฟอร์มไม่ได้ให้ข้อมูล' },
     ...orderColumns.slice(1, 4),
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
@@ -342,7 +346,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   // Only Shopee gives a payout day, so this sheet lists Shopee orders only.
   const paidOrders = filter.basis === 'paid' ? data.orders : accountingData(store, { ...filter, basis: 'paid' }).orders;
   const paidSheet = addSheet(workbook, 'โอนเงินในช่วงนี้', [
-    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13 }, orderColumns[0], ...orderColumns.slice(1),
+    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, date: true }, orderColumns[0], ...orderColumns.slice(1),
     { header: 'ยอดขาย', key: 'sales', money: true, fill: 'FFDDEBF7' }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
     { header: 'ค่าธรรมเนียมรวม', key: 'fees', money: true, fill: 'FFFCE4D6' }, { header: 'เงินสุทธิ', key: 'net', money: true, fill: TOTAL_FILL,
       note: 'เงินที่แพลตฟอร์มโอนให้ร้าน ยอดรวมตรงกับ "จำนวนเงินทั้งหมดที่โอนแล้ว" ในรายงานรายรับของ Shopee ช่วงวันที่เดียวกัน' },
