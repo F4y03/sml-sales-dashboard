@@ -186,6 +186,11 @@ export function installLazadaShop(app, store, audit, env = process.env, { fetchI
     store.run('DELETE FROM system_settings WHERE key=?', 'lazada_backfill_done');
     store.run('INSERT INTO system_settings(key,value) VALUES(?,?)', 'lazada_province_refill_v1', 'true');
   }
+  // Finance lines saved before the payout date existed have none: re-run the backfill once to date them.
+  if (!store.get('SELECT 1 FROM system_settings WHERE key=?', 'lazada_paid_date_refill_v1')) {
+    store.run('DELETE FROM system_settings WHERE key=?', 'lazada_backfill_done');
+    store.run('INSERT INTO system_settings(key,value) VALUES(?,?)', 'lazada_paid_date_refill_v1', 'true');
+  }
   // Optional: LAZADA_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
   if (configured()) startBackfill({ store, name: 'lazada', from: env.LAZADA_BACKFILL_FROM, today: () => bangkokToday(),
     runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER });

@@ -155,6 +155,13 @@ export function mapLazadaOrder(order, items = []) {
 // One finance transaction line -> a settlement row. Per order the rows sum to the statement file's figures:
 // net = Σ amount, fees = Σ product lines (ยอดรวมค่าสินค้า / หักเงินค่าสินค้า) − net. Lines without an order are skipped.
 const PRODUCT_LINES = /^(ยอดรวมค่าสินค้า|หักเงินค่าสินค้า|item price credit|reversal item price)/i;
+const MONTHS = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+// transaction_date ("19 Oct 2026" or "2026-10-19…") -> YYYY-MM-DD (ค.ศ.); anything else -> null.
+export function lazadaTxDate(value) {
+  const s = clean(value), iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/), dmy = s.match(/^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*[ -](\d{4})$/);
+  const day = iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : dmy && MONTHS[dmy[2].toLowerCase()] ? `${dmy[3]}-${MONTHS[dmy[2].toLowerCase()]}-${dmy[1].padStart(2, '0')}` : null;
+  return day && Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day ? day : null;
+}
 export function mapLazadaTransaction(tx) {
   const orderId = clean(tx?.order_no), txn = clean(tx?.transaction_number);
   if (!/^[A-Za-z0-9_-]{5,40}$/.test(orderId) || !txn) return null;
@@ -162,5 +169,7 @@ export function mapLazadaTransaction(tx) {
   // Lazada gives every line of one item (price credit, commission, payment fee…) the same transaction_number and
   // orderItem_no, so the fee type and date are needed to keep each line as its own row.
   return { txnId: `api:${txn}:${clean(tx.orderItem_no)}:${clean(tx.fee_type || tx.fee_name)}:${clean(tx.transaction_date)}`.slice(0, 120), orderId, fees: round2(product - amount), netPayout: round2(amount),
-    detail: product ? null : { [clean(tx.fee_name || tx.fee_type) || 'อื่น ๆ']: round2(-amount) } };
+    detail: product ? null : { [clean(tx.fee_name || tx.fee_type) || 'อื่น ๆ']: round2(-amount) },
+    // วันที่เงินเข้ายอดเงินผู้ขาย (Lazada transaction date) ใช้เป็น "วันที่โอนเงิน"
+    paidDate: lazadaTxDate(tx.transaction_date) };
 }

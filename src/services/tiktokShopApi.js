@@ -107,13 +107,13 @@ export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now =
     // Settled money (Finance API, scope seller.finance.info): every transaction of the daily statements
     // whose statement_time is in [fromMs, toMs). Orders settle days after they are created, so callers pass toMs = now.
     async statementTransactions({ accessToken, shopCipher, fromMs, toMs, maxPages = 400 }) {
-      const ids = [];
+      const ids = [], times = new Map();
       let pageToken = '', page = 0;
       do {
         const query = { page_size: '100', sort_field: 'statement_time', statement_time_ge: String(Math.floor(fromMs / 1000)),
           statement_time_lt: String(Math.floor(toMs / 1000)), ...(pageToken && { page_token: pageToken }) };
         const data = await call('GET', '/finance/202309/statements', { accessToken, shopCipher, query });
-        ids.push(...(data.statements || []).map(st => String(st.id)));
+        for (const st of data.statements || []) { ids.push(String(st.id)); times.set(String(st.id), st.statement_time); }
         pageToken = data.next_page_token || '';
       } while (pageToken && ++page < maxPages);
       const transactions = [];
@@ -123,7 +123,8 @@ export function createTikTokClient({ appKey, appSecret, fetchImpl = fetch, now =
         do {
           const query = { page_size: '100', sort_field: 'order_create_time', ...(pageToken && { page_token: pageToken }) };
           const data = await call('GET', `/finance/202309/statements/${encodeURIComponent(id)}/statement_transactions`, { accessToken, shopCipher, query });
-          transactions.push(...(data.statement_transactions || []));
+          // statement_time (money reached the seller balance) is on the statement, not the transaction.
+          transactions.push(...(data.statement_transactions || []).map(tx => ({ ...tx, statement_time: times.get(id) })));
           pageToken = data.next_page_token || '';
         } while (pageToken && ++page < maxPages);
       }
@@ -158,7 +159,9 @@ function tiktokFeeDetail(tx) {
 export function mapTikTokSettlement(tx) {
   const txnId = clean(tx?.id), orderId = clean(tx?.order_id);
   if (!txnId || !orderId) return null;
-  return { txnId, orderId, fees: round2(-money(tx.fee_amount)), netPayout: round2(money(tx.settlement_amount)), detail: tiktokFeeDetail(tx) };
+  return { txnId, orderId, fees: round2(-money(tx.fee_amount)), netPayout: round2(money(tx.settlement_amount)), detail: tiktokFeeDetail(tx),
+    // วันที่ของ statement (เงินเข้ายอดเงินผู้ขาย) ใช้เป็น "วันที่โอนเงิน"
+    paidDate: Number(tx.statement_time) > 0 ? bangkokDate(Number(tx.statement_time)) : null };
 }
 
 // Order create_time (unix seconds) as the Thai calendar day, ค.ศ. YYYY-MM-DD — same day the Seller Center export shows.

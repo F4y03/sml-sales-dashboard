@@ -74,7 +74,7 @@ function reviewReasons(o, today) {
 }
 
 // Which day the start..end range filters on: the order's creation day (default) or the day the platform paid out
-// (marketplace_settlements.paid_date; known for Shopee only, so other platforms have no rows by payout day).
+// (marketplace_settlements.paid_date; known for Shopee, Lazada and TikTok; orders without it have no rows by payout day).
 export const accountingWhere = basis => basis === 'paid'
   ? "EXISTS (SELECT 1 FROM marketplace_settlements ps WHERE ps.platform=o.platform AND ps.order_id=o.order_id AND ps.paid_date BETWEEN ? AND ?) AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"
   : "o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)";
@@ -292,7 +292,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   };
   const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [orderColumns[0],
     { header: 'เวลาสั่งซื้อ', key: 'time', width: 10, note: 'เวลาที่ลูกค้าสั่งซื้อ (เวลาไทย) ช่องว่าง = ข้อมูลที่ได้มามีแค่วันที่ (เช่น รายงานรายรับของ Shopee)' },
-    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, date: true, note: 'วันที่แพลตฟอร์มโอนเงินของออเดอร์นี้ให้ร้าน (ตอนนี้มีเฉพาะ Shopee) ช่องว่าง = ยังไม่โอน หรือแพลตฟอร์มไม่ได้ให้ข้อมูล' },
+    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, date: true, note: 'วันที่แพลตฟอร์มโอนเงินของออเดอร์นี้ให้ร้าน (Shopee = วันที่ปล่อยเงิน, Lazada, TikTok = วันที่เงินเข้ายอดเงินผู้ขาย) ช่องว่าง = ยังไม่โอน หรือแพลตฟอร์มไม่ได้ให้ข้อมูล' },
     ...orderColumns.slice(1, 4),
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },

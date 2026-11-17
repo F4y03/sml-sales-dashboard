@@ -212,6 +212,11 @@ export function installTikTokShop(app, store, audit, env = process.env, { fetchI
     timer.unref();
   }
   // Optional: TIKTOK_BACKFILL_FROM=YYYY-MM-DD imports the history from that day to today by itself (92-day chunks, resumable).
+  // Statement lines saved before the payout date existed have none: re-run the backfill once to date them.
+  if (!store.get('SELECT 1 FROM system_settings WHERE key=?', 'tiktok_paid_date_refill_v1')) {
+    store.run('DELETE FROM system_settings WHERE key=?', 'tiktok_backfill_done');
+    store.run('INSERT INTO system_settings(key,value) VALUES(?,?)', 'tiktok_paid_date_refill_v1', 'true');
+  }
   if (configured()) startBackfill({ store, name: 'tiktok', from: env.TIKTOK_BACKFILL_FROM, today: () => bangkokDate(Date.now() / 1000),
     runSync, isBusy: () => !!running, hasConnections: () => connections().length > 0, user: SYSTEM_USER });
 }
