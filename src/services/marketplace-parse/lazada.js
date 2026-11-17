@@ -1,5 +1,5 @@
 // Lazada readers: order export and Income Overview statement.
-import { fail, norm, text, round2, money, amount, orderDate, orderId, province, getter } from './common.js';
+import { fail, norm, text, round2, money, amount, orderDate, orderTime, orderId, province, getter } from './common.js';
 
 export function lazadaItemStatus(status, refund) {
   const s = norm(status);
@@ -17,7 +17,7 @@ export function readLazadaOrders(rows, start, cols) {
     let order = orders.get(id);
     if (!order) {
       const ship = province(get('shipProvince'));
-      order = { orderId: id, orderDate: orderDate(get('createTime')), province: ship || province(get('billProvince')), items: [] };
+      order = { orderId: id, orderDate: orderDate(get('createTime')), orderTime: orderTime(get('createTime')), province: ship || province(get('billProvince')), items: [] };
       orders.set(id, order);
     }
     const refund = Math.abs(amount(get('refund'))), statusRaw = text(get('status'));

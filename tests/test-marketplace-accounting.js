@@ -50,14 +50,18 @@ test('figures tie to the dashboard, follow the filters, and missing money stays 
 
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(await buildAccountingWorkbook(store, filter, { by: 'ทดสอบ' }));
-  assert.deepEqual(book.worksheets.map(s => s.name), ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ']);
+  assert.deepEqual(book.worksheets.map(s => s.name), ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'โอนเงินในช่วงนี้', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ']);
   const register = book.getWorksheet('ทะเบียนขายรายออเดอร์');
   assert.equal(register.rowCount, 7, '4 orders + header + blank + total');
-  assert.equal(register.getRow(7).getCell('J').value, 'รวม (ตามตัวกรอง)');
-  assert.deepEqual(register.getRow(7).getCell('K').value, { formula: 'SUBTOTAL(109,K2:K5)', result: 260 });
-  assert.equal(register.getRow(3).getCell('N').value, null, 'blank cell for missing net');
-  assert.deepEqual([register.getRow(2).getCell('E').value, register.getRow(2).getCell('F').value], ['sku-a', 'สินค้า A × 2'], 'order lists its products');
-  assert.equal(register.getRow(3).getCell('E').value, null, 'order without items is blank');
+  // Columns found by header so adding a column does not break the test.
+  const col = header => { const i = register.getRow(1).values.indexOf(header); assert.ok(i > 0, header); return i; };
+  const letter = n => String.fromCharCode(64 + n);
+  assert.equal(register.getRow(7).getCell(col('สถานะจากแพลตฟอร์ม')).value, 'รวม (ตามตัวกรอง)');
+  const S = letter(col('ยอดขาย'));
+  assert.deepEqual(register.getRow(7).getCell(col('ยอดขาย')).value, { formula: `SUBTOTAL(109,${S}2:${S}5)`, result: 260 });
+  assert.equal(register.getRow(3).getCell(col('เงินสุทธิ')).value, null, 'blank cell for missing net');
+  assert.deepEqual([register.getRow(2).getCell(col('SKU')).value, register.getRow(2).getCell(col('ชื่อสินค้า')).value], ['sku-a', 'สินค้า A × 2'], 'order lists its products');
+  assert.equal(register.getRow(3).getCell(col('SKU')).value, null, 'order without items is blank');
   const bySku = book.getWorksheet('ขายรายสินค้า');
   assert.deepEqual(bySku.getRow(1).values.slice(1), ['ช่องทาง', 'SKU', 'ชื่อสินค้า', 'จำนวน', 'ยอดขายที่สำเร็จแล้ว', 'ยอดขายที่ยังไม่สำเร็จ', 'ยอดขายรวม', 'ค่าคอมมิชชั่น', 'ค่าบริการ', 'ค่าธุรกรรมการชำระเงิน', 'ค่าธรรมเนียมอื่น', 'ค่าธรรมเนียมรวม']);
   assert.deepEqual([5, 7, 8, 9, 10, 11, 12].map(c => bySku.getRow(2).getCell(c).value), [100, 100, 10, null, null, 2, 12]);

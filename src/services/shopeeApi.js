@@ -2,6 +2,7 @@
 // Buyer PII access is off for this app, and nothing personal is read anyway: from the order only order_sn, status,
 // create_time, item lines and the recipient province (only when Shopee does not mask it) are kept.
 import { createHmac } from 'node:crypto';
+import { bangkokTime } from './marketplace-parse/common.js';
 import { provinceFromPostcode } from './thaiPostcode.js';
 
 // SHOPEE_ENV=sandbox | live. Hosts per Shopee Open Platform › Developer Guide › API Calls (check after Shopee changes).
@@ -122,6 +123,16 @@ export function createShopeeClient({ partnerId, partnerKey, env = 'sandbox', hos
     async escrow({ shop, orderSn }) {
       return (await call('GET', '/api/v2/payment/get_escrow_detail', { shop, query: { order_sn: orderSn } })).response || null;
     },
+    // Payment › get_escrow_list: orders whose money was released (paid out) in fromS..toS, with escrow_release_time.
+    async escrowList({ shop, fromS, toS, maxPages = 200 }) {
+      const out = [];
+      for (let page = 1; page <= maxPages; page++) {
+        const r = (await call('GET', '/api/v2/payment/get_escrow_list', { shop, query: { release_time_from: fromS, release_time_to: toS, page_size: 100, page_no: page } })).response || {};
+        out.push(...(r.escrow_list || []));
+        if (!r.more) return out;
+      }
+      throw new ShopeeApiError('รายการโอนเงินมากเกินไป');
+    },
     // Every NORMAL/UNLIST item id (100 per page), then base info 50 per call, then models for items that have them.
     async items({ shop, maxPages = 200 }) {
       const ids = [];
@@ -183,7 +194,7 @@ export function mapShopeeOrder(order) {
   const named = clean(address.state).replace(/^จังหวัด\s*/, '');
   const fromCode = /^\d{5}$/.test(clean(address.zipcode)) ? provinceFromPostcode(clean(address.zipcode)) : null;
   const province = named && !named.includes('*') ? named : fromCode;
-  return { orderId: id, orderDate: bangkokToday(created * 1000), status, statusRaw: statusRaw.slice(0, 120), refund: 0,
+  return { orderId: id, orderDate: bangkokToday(created * 1000), orderTime: bangkokTime(created), status, statusRaw: statusRaw.slice(0, 120), refund: 0,
     sales: round2(items.reduce((sum, l) => sum + l.sales, 0)), province: province && !province.includes('*') ? province.slice(0, 60) : null,
     source: 'api', items: items.length ? items : null };
 }
@@ -211,7 +222,18 @@ export function mapShopeeEscrow(escrow) {
     const other = round2(goods - net - Object.values(detail).reduce((s, v) => s + v, 0));
     if (other !== 0) detail.shopee_other_deduction = other;
   }
-  return { txnId: `income:${id}`, orderId: id, fees: round2(Object.values(detail).reduce((s, v) => s + v, 0)), netPayout: round2(net), detail };
+  // Sales per product as MARKETPLACE.md defines it (price after the seller's discount, Shopee's own discount NOT deducted)
+  // = discounted_price + shopee_discount; the order API's price already has Shopee's discount taken off.
+  const items = {};
+  for (const it of Array.isArray(income.items) ? income.items : []) {
+    const sku = clean(it.model_sku) || clean(it.item_sku), price = num(it.discounted_price);
+    if (!sku || price === null) continue;
+    items[sku] = round2((items[sku] || 0) + price + Math.abs(num(it.shopee_discount) ?? 0));
+  }
+  const goodsSales = Object.keys(items).length ? round2(Object.values(items).reduce((s, v) => s + v, 0)) : null;
+  const refund = round2(Math.abs(num(income.seller_return_refund) ?? 0));
+  const money = { goods: goodsSales, refund, items: Object.keys(items).length ? items : null };
+  return { txnId: `income:${id}`, orderId: id, fees: round2(Object.values(detail).reduce((s, v) => s + v, 0)), netPayout: round2(net), detail, money };
 }
 
 // get_item_base_info (+ get_model_list) -> one row per model (model_id 0 = no variations).

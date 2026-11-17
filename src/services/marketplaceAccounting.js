@@ -64,21 +64,31 @@ function reviewReasons(o, today) {
   if (o.status === 'completed' && !settled) reasons.push('สำเร็จแล้วแต่ไม่มีข้อมูลการเงิน');
   if (o.status === 'pending' && !settled && daysBetween(o.date, today) > AGED_DAYS) reasons.push(`กำลังดำเนินการเกิน ${AGED_DAYS} วัน`);
   if (settled && o.net < 0) reasons.push('เงินสุทธิติดลบ');
+  // Sales − refund − fees should equal what the platform paid; a gap means a deduction (or refund) the system does not know.
+  if (settled && (o.status === 'completed' || o.status === 'pending' || o.status === 'returned')) {
+    const gap = Math.round((o.sales - (o.refund || 0) - o.fees - o.net) * 100) / 100;
+    if (gap !== 0) reasons.push(`ยอดไม่ตรง: ยอดขาย − คืนเงิน − ค่าธรรมเนียม ต่างจากเงินสุทธิ ${gap.toLocaleString('en-US', { minimumFractionDigits: 2 })} บาท`);
+  }
   if (!o.shop) reasons.push('ไม่ระบุร้าน');
   return reasons;
 }
 
-export function accountingData(store, { platform = 'all', shop = 'all', start, end, now = Date.now() }) {
+// Which day the start..end range filters on: the order's creation day (default) or the day the platform paid out
+// (marketplace_settlements.paid_date; known for Shopee only, so other platforms have no rows by payout day).
+export const accountingWhere = basis => basis === 'paid'
+  ? "EXISTS (SELECT 1 FROM marketplace_settlements ps WHERE ps.platform=o.platform AND ps.order_id=o.order_id AND ps.paid_date BETWEEN ? AND ?) AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"
+  : "o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)";
+export function accountingData(store, { platform = 'all', shop = 'all', start, end, basis = 'order', now = Date.now() }) {
   const shopId = shop === 'all' ? null : Number(shop);
-  const where = "o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)";
+  const where = accountingWhere(basis);
   const params = [start, end, platform, platform, shopId, shopId];
   const today = bangkokToday(now);
-  const orders = store.all(`SELECT o.order_date AS date,o.platform,sh.name AS shop,o.order_id AS orderId,o.status,o.status_raw AS statusRaw,o.sales,o.refund,s.fees,s.net
+  const orders = store.all(`SELECT o.order_date AS date,o.order_time AS time,s.paidDate,o.platform,sh.name AS shop,o.order_id AS orderId,o.status,o.status_raw AS statusRaw,o.sales,o.refund,s.fees,s.net
     FROM marketplace_orders o
     LEFT JOIN marketplace_shops sh ON sh.id=o.shop_id
-    LEFT JOIN (SELECT platform,order_id,SUM(fees) AS fees,SUM(net_payout) AS net FROM marketplace_settlements GROUP BY platform,order_id) s
+    LEFT JOIN (SELECT platform,order_id,SUM(fees) AS fees,SUM(net_payout) AS net,MAX(paid_date) AS paidDate FROM marketplace_settlements GROUP BY platform,order_id) s
       ON s.platform=o.platform AND s.order_id=o.order_id
-    WHERE ${where} ORDER BY o.order_date,o.platform,o.order_id`, ...params);
+    WHERE ${where} ORDER BY o.order_date,o.order_time IS NULL,o.order_time,o.platform,o.order_id`, ...params);
 
   const summary = new Map();
   for (const o of orders) {
@@ -249,7 +259,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   const itemsOf = new Map();
   for (const i of store.all(`SELECT i.platform,i.order_id AS orderId,TRIM(i.sku) AS sku,i.product_name AS name,i.quantity,i.sales
     FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
-    WHERE ${"o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"} ORDER BY i.line_key`,
+    WHERE ${accountingWhere(filter.basis)} ORDER BY i.line_key`,
   filter.start, filter.end, filter.platform, filter.platform, filter.shop === 'all' ? null : Number(filter.shop), filter.shop === 'all' ? null : Number(filter.shop))) {
     // Lines of the same SKU in one order (Lazada sends one line per piece) are shown once with their quantities added.
     const key = i.platform + '\u0000' + i.orderId, list = itemsOf.get(key) || [];
@@ -276,7 +286,10 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     for (const [t, a] of Object.entries(o.feeTypes || {})) { const k = colOfLabel.get(feeLabel(t)); if (k) out[k] = round2((out[k] || 0) + a); }
     return out;
   };
-  const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [...orderColumns.slice(0, 4),
+  const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [orderColumns[0],
+    { header: 'เวลาสั่งซื้อ', key: 'time', width: 10, note: 'เวลาที่ลูกค้าสั่งซื้อ (เวลาไทย) ช่องว่าง = ข้อมูลที่ได้มามีแค่วันที่ (เช่น รายงานรายรับของ Shopee)' },
+    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13, note: 'วันที่แพลตฟอร์มโอนเงินของออเดอร์นี้ให้ร้าน (ตอนนี้มีเฉพาะ Shopee) ช่องว่าง = ยังไม่โอน หรือแพลตฟอร์มไม่ได้ให้ข้อมูล' },
+    ...orderColumns.slice(1, 4),
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
     { header: 'ราคา/ชิ้น', key: 'unitPrices', width: 13, note: 'ราคาขายต่อชิ้นของแต่ละสินค้า (บรรทัดตรงกับ SKU) = ยอดขายรายสินค้า ÷ จำนวนชิ้น' },
@@ -325,11 +338,23 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   const reviewSheet = addSheet(workbook, 'รายการที่ต้องตรวจ', [...orderColumns, { header: 'ยอดขาย', key: 'sales', money: true }, { header: 'ยอดคืนเงิน', key: 'refund', money: true }, { header: 'ค่าธรรมเนียม', key: 'fees', money: true }, { header: 'เงินสุทธิ', key: 'net', money: true }, { header: 'เหตุผล', key: 'reasons', width: 48 }],
     data.review.map(withNames));
   if (data.review.length) addTotalRow(reviewSheet, 'statusName', ['sales', 'refund', 'fees', 'net'], data.review.length + 1);
+  // Same date range by payout day instead of order day: ties to the platform's income report and the bank deposits.
+  // Only Shopee gives a payout day, so this sheet lists Shopee orders only.
+  const paidOrders = filter.basis === 'paid' ? data.orders : accountingData(store, { ...filter, basis: 'paid' }).orders;
+  const paidSheet = addSheet(workbook, 'โอนเงินในช่วงนี้', [
+    { header: 'วันที่โอนเงิน', key: 'paidDate', width: 13 }, orderColumns[0], ...orderColumns.slice(1),
+    { header: 'ยอดขาย', key: 'sales', money: true, fill: 'FFDDEBF7' }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
+    { header: 'ค่าธรรมเนียมรวม', key: 'fees', money: true, fill: 'FFFCE4D6' }, { header: 'เงินสุทธิ', key: 'net', money: true, fill: TOTAL_FILL,
+      note: 'เงินที่แพลตฟอร์มโอนให้ร้าน ยอดรวมตรงกับ "จำนวนเงินทั้งหมดที่โอนแล้ว" ในรายงานรายรับของ Shopee ช่วงวันที่เดียวกัน' },
+  ], [...paidOrders].sort((a, b) => String(a.paidDate).localeCompare(String(b.paidDate)) || String(a.date).localeCompare(String(b.date))).map(withNames));
+  if (paidOrders.length) addTotalRow(paidSheet, 'statusName', ['sales', 'refund', 'fees', 'net'], paidOrders.length + 1);
 
   const notes = workbook.addWorksheet('หมายเหตุ');
   notes.columns = [{ width: 28 }, { width: 100 }];
   notes.addRows([
-    ['ช่วงวันที่สั่งซื้อ', `${filter.start} ถึง ${filter.end}`],
+    [filter.basis === 'paid' ? 'ช่วงวันที่โอนเงิน' : 'ช่วงวันที่สั่งซื้อ', `${filter.start} ถึง ${filter.end}`],
+    ...(filter.basis === 'paid' ? [['เกณฑ์วันที่', 'ตามวันที่แพลตฟอร์มโอนเงิน (ตรงกับรายงานรายรับของ Shopee) มีข้อมูลเฉพาะ Shopee ช่องทางอื่นจึงไม่มีรายการ']] : []),
+    ['โอนเงินในช่วงนี้', 'ออเดอร์ที่แพลตฟอร์มโอนเงินในช่วงวันที่นี้ (ไม่ว่าสั่งซื้อเมื่อไร) ยอดรวมตรงกับรายงานรายรับของ Shopee ใช้กระทบยอดกับเงินเข้าบัญชี ตอนนี้มีเฉพาะ Shopee เพราะช่องทางอื่นยังไม่ส่งวันที่โอนมา'],
     ['ช่องทาง', filter.platform === 'all' ? 'ทุกช่องทาง' : PLATFORM[filter.platform]],
     ['ร้าน', shopName],
     ['ออกรายงานเมื่อ', new Date(filter.now ?? Date.now()).toISOString()],
@@ -348,7 +373,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   notes.getColumn(1).font = { bold: true };
   notes.getColumn(2).alignment = { wrapText: true, vertical: 'top' };
   // Tab order shown in Excel (sheets are built in a different order because some depend on others).
-  const TAB_ORDER = ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ'];
+  const TAB_ORDER = ['ทะเบียนขายรายออเดอร์', 'ขายรายสินค้า', 'ค่าธรรมเนียมตามประเภท', 'โอนเงินในช่วงนี้', 'รายการที่ต้องตรวจ', 'ไม่มีข้อมูลการเงิน', 'สรุป', 'หมายเหตุ'];
   for (const sheet of workbook.worksheets) { const i = TAB_ORDER.indexOf(sheet.name); sheet.orderNo = i < 0 ? TAB_ORDER.length : i; }
   workbook.views = [{ activeTab: 0, firstSheet: 0 }];
   return Buffer.from(await workbook.xlsx.writeBuffer());

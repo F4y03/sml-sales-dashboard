@@ -12,6 +12,12 @@ export function createAccessStore(path = ':memory:', env = {}) {
   // Per-account 2FA exemption (e.g. a marketplace app-review account); off for everyone unless set explicitly.
   // Fee breakdown per settlement row: JSON {fee type: positive amount deducted}; NULL = the source gave no breakdown.
   if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_settlements') WHERE name='fee_detail'").get()) db.exec('ALTER TABLE marketplace_settlements ADD COLUMN fee_detail TEXT');
+  // Shopee API only: {goods, refund, items:{sku: sales}} from get_escrow_detail, used to correct the order's sales/refund/status.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_settlements') WHERE name='order_money'").get()) db.exec('ALTER TABLE marketplace_settlements ADD COLUMN order_money TEXT');
+  // Day the platform paid the money out (YYYY-MM-DD, Bangkok), for reports by payout date. Shopee only for now.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_settlements') WHERE name='paid_date'").get()) db.exec('ALTER TABLE marketplace_settlements ADD COLUMN paid_date TEXT');
+  // Time of day the order was placed ("HH:MM:SS", Thai time), null when the source gives only a date.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('marketplace_orders') WHERE name='order_time'").get()) db.exec('ALTER TABLE marketplace_orders ADD COLUMN order_time TEXT');
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='two_factor_exempt'").get()) db.exec("ALTER TABLE users ADD COLUMN two_factor_exempt INTEGER NOT NULL DEFAULT 0 CHECK(two_factor_exempt IN (0,1))");
   if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='scope_override'").get()) db.exec("ALTER TABLE users ADD COLUMN scope_override TEXT CHECK(scope_override IN ('territory'))");
   // TikTok app a connection / OAuth state belongs to ('' = TIKTOK_APP_KEY, '2' = TIKTOK_APP_KEY_2, …): each seller company has its own in-house app.

@@ -296,3 +296,18 @@ test('HTTP: admin uploads but sees no numbers and cannot open the dashboard; own
   const byBest = await (await get(owner, `${summaryPath}&shop=${best.id}`)).json();
   assert.deepEqual(byBest.platforms, []);
 });
+
+test('Shopee API: income data corrects sales (Shopee discount not deducted), refund and status, and a later order sync keeps it', async () => {
+  const { saveMarketplaceUpload } = await import('../src/services/marketplaceStore.js');
+  const store = createAccessStore(':memory:', {});
+  const order = (sales, status = 'completed') => ({ kinds: ['api'], orders: [{ orderId: 'SP1', orderDate: '2026-04-27', status, statusRaw: 'COMPLETED', sales, refund: 0,
+    province: null, source: 'api', items: [{ lineKey: 'a', sku: 'X1', name: 'สินค้า', quantity: 1, sales, status }] }], settlements: [] });
+  saveMarketplaceUpload(store, { platform: 'shopee', fileName: 'o1', sha256: 'o1', user: null, parsed: order(266) });
+  saveMarketplaceUpload(store, { platform: 'shopee', fileName: 'f1', sha256: 'f1', user: null, parsed: { kinds: ['api'], orders: [],
+    settlements: [{ txnId: 'income:SP1', orderId: 'SP1', fees: 48, netPayout: -48, detail: null, money: { goods: 280, refund: 280, items: { X1: 280 } } }] } });
+  const read = () => [store.get("SELECT sales,refund,status FROM marketplace_orders WHERE order_id='SP1'"), store.get("SELECT sales,status FROM marketplace_order_items WHERE order_id='SP1'")];
+  const want = [{ sales: 280, refund: 280, status: 'returned' }, { sales: 280, status: 'returned' }];
+  assert.deepEqual(read().map(r => ({ ...r })), want);
+  saveMarketplaceUpload(store, { platform: 'shopee', fileName: 'o2', sha256: 'o2', user: null, parsed: order(266) }); // hourly order sync again
+  assert.deepEqual(read().map(r => ({ ...r })), want);
+});

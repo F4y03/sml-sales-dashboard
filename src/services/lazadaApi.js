@@ -3,6 +3,7 @@
 // address_shipping is reduced to the province (address3, or from the postcode when Lazada masks it), like the Seller Center export.
 import { createHmac } from 'node:crypto';
 import { lazadaItemStatus } from './marketplaceParser.js';
+import { orderTime } from './marketplace-parse/common.js';
 import { provinceFromPostcode } from './thaiPostcode.js';
 
 export const API_BASE = 'https://api.lazada.co.th/rest';
@@ -145,7 +146,7 @@ export function mapLazadaOrder(order, items = []) {
   const address = order.address_shipping || order.address_billing || {};
   const named = clean(address.address3).split('/')[0].replace(/^จังหวัด\s*/, '').trim();
   const province = named && !named.includes('*') ? named : provinceFromPostcode(address.post_code);
-  return { orderId: id, orderDate, status, statusRaw: [...new Set(lines.map(l => l.statusRaw))].join(', ').slice(0, 120),
+  return { orderId: id, orderDate, orderTime: orderTime(order?.created_at), status, statusRaw: [...new Set(lines.map(l => l.statusRaw))].join(', ').slice(0, 120),
     sales: round2(counted.reduce((sum, l) => sum + l.sales, 0)), refund: 0,
     province: !province || province.includes('*') ? null : province.slice(0, 60), source: 'api',
     items: items.length ? lines.map(({ statusRaw, ...l }) => l) : null };

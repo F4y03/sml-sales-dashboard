@@ -2,8 +2,7 @@
 // Hiding the button is only for tidiness; the API checks marketplace_accounting itself.
 (() => {
   const button = document.getElementById('accounting-export');
-  const note = document.getElementById('accounting-note');
-  let view = null;
+  const note = document.getElementById('accounting-note');  let view = null;
   const say = (state, text) => { note.dataset.state = state; note.textContent = text; };
 
   document.addEventListener('marketplace:view', event => { view = event.detail; });

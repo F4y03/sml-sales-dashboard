@@ -2,6 +2,7 @@
 // Only the order fields the marketplace tables already store are read: no buyer name, phone, address or email —
 // recipient_address is reduced to the province name, like the Seller Center export.
 import { createHmac } from 'node:crypto';
+import { bangkokTime } from './marketplace-parse/common.js';
 
 export const API_BASE = 'https://open-api.tiktokglobalshop.com';
 export const AUTH_BASE = 'https://auth.tiktok-shops.com';
@@ -191,6 +192,6 @@ export function mapTikTokOrder(order, returns = []) {
   const items = [...lines.values()];
   const province = clean((order.recipient_address?.district_info || []).find(d => d.address_level === 'L1')?.address_name)
     .replace(/^จังหวัด\s*/, '').slice(0, 60) || null;
-  return { orderId: id, orderDate: bangkokDate(order.create_time), status, statusRaw: statusRaw.slice(0, 120),
+  return { orderId: id, orderDate: bangkokDate(order.create_time), orderTime: bangkokTime(order.create_time), status, statusRaw: statusRaw.slice(0, 120),
     sales: round2(items.reduce((sum, item) => sum + item.sales, 0)), refund, province, source: 'api', items };
 }

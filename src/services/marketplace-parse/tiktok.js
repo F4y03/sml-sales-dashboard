@@ -1,5 +1,5 @@
 // TikTok Shop readers: order export and settlement report.
-import { norm, text, round2, amount, orderDate, orderId, province, getter } from './common.js';
+import { norm, text, round2, amount, orderDate, orderTime, orderId, province, getter } from './common.js';
 
 // ---------- status buckets: completed (สำเร็จ) / pending (กำลังดำเนินการ) / cancelled (ยกเลิก) / returned (คืนสินค้า)
 export function tiktokStatus(status, substatus, cancelType, refund, returnQty) {
@@ -17,7 +17,7 @@ export function readTiktokOrders(rows, start, cols) {
     if (!id) continue;
     let order = orders.get(id);
     if (!order) {
-      order = { orderId: id, orderDate: orderDate(get('created')), statusRaw: text(get('status')), substatus: text(get('substatus')),
+      order = { orderId: id, orderDate: orderDate(get('created')), orderTime: orderTime(get('created')), statusRaw: text(get('status')), substatus: text(get('substatus')),
         cancelType: text(get('cancelType')), refund: Math.abs(amount(get('refund'))), province: province(get('province')), returnQty: 0, items: [] };
       orders.set(id, order);
     }

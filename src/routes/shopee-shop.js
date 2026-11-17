@@ -64,14 +64,31 @@ export async function syncShopeeOrders(store, client, vault, { conn, start, end,
   }
 }
 
+// Payout day (get_escrow_list release time) of orders created start..end: money is released after the order, so the
+// release window runs from start to 60 days after end (capped at today), in 14-day chunks. Only rows that exist are dated.
+export async function syncShopeePayouts(store, client, vault, { conn, start, end, now = Date.now() }) {
+  const fromMs = bangkokDayStart(start), toMs = Math.min(bangkokDayStart(end) + 61 * DAY_MS, now);
+  let dated = 0;
+  await withShop(store, client, vault, conn, async shop => {
+    for (let t = fromMs; t < toMs; t += 14 * DAY_MS) {
+      const list = await client.escrowList({ shop, fromS: Math.floor(t / 1000), toS: Math.floor(Math.min(t + 14 * DAY_MS, toMs) / 1000) - 1 });
+      for (const e of list) {
+        const day = bangkokToday(Number(e.escrow_release_time) * 1000);
+        dated += store.run("UPDATE marketplace_settlements SET paid_date=? WHERE platform='shopee' AND order_id=? AND paid_date IS NOT ?", day, String(e.order_sn), day).changes;
+      }
+    }
+  }, now);
+  return { dated };
+}
+
 // Fees / net payout (Payment API) for completed orders created start..end that have none yet; at most `limit` per run,
 // so hourly syncs catch up gradually. Saved as one upload row like the orders.
 export async function syncShopeeFees(store, client, vault, { conn, start, end, user, limit = 1000, now = Date.now() }) {
   const sns = store.all(`SELECT o.order_id AS sn FROM marketplace_orders o WHERE o.platform='shopee' AND o.status='completed' AND o.order_date BETWEEN ? AND ?
     AND o.shop_id IS ? AND NOT EXISTS (SELECT 1 FROM marketplace_settlements s WHERE s.platform='shopee' AND s.order_id=o.order_id
       AND (s.fee_detail IS NOT NULL OR s.txn_id NOT LIKE 'income:%' OR s.upload_id NOT IN (SELECT id FROM marketplace_uploads WHERE file_kinds='api'))
-      AND (s.txn_id NOT LIKE 'income:%' OR s.updated_at >= '2026-11-16T09:55:00Z'
-        OR s.upload_id NOT IN (SELECT id FROM marketplace_uploads WHERE file_kinds='api'))) -- API rows saved before the breakdown / processing fee existed are fetched again (once)
+      AND (s.txn_id NOT LIKE 'income:%' OR s.updated_at >= '2026-11-17T04:05:00Z'
+        OR s.upload_id NOT IN (SELECT id FROM marketplace_uploads WHERE file_kinds='api'))) -- API rows saved before the full breakdown (fees, refund, sales per product) existed are fetched again (once)
     ORDER BY o.order_date DESC LIMIT ?`, start, end, conn.dashboard_shop_id ?? null, limit).map(r => r.sn);
   if (!sns.length) return { fees: 0 };
   const settlements = await withShop(store, client, vault, conn, async shop => {
@@ -139,6 +156,7 @@ export function installShopeeShop(app, store, audit, env = process.env, { fetchI
         if (!(error instanceof ShopeeApiError)) throw error;
         store.run('UPDATE shopee_connections SET last_sync_error=? WHERE shop_id=?', `ดึงออเดอร์สำเร็จ แต่ดึงค่าธรรมเนียมไม่สำเร็จ (${error.message})`.slice(0, 300), conn.shop_id);
       });
+      await syncShopeePayouts(store, c, vault, { conn, start, end }).catch(error => { if (!(error instanceof ShopeeApiError)) throw error; });
       if (items) await syncShopeeItems(store, c, vault, { conn }).catch(error => {
         if (!(error instanceof ShopeeApiError)) throw error;
         throw new ShopeeApiError(`ดึงออเดอร์สำเร็จ แต่ดึงสินค้า/สต็อกไม่สำเร็จ (${error.message})`, error.code);

@@ -67,6 +67,21 @@ export function parseDate(value) {
   if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
   return `${y}-${pad(m)}-${pad(d)}`;
 }
+// Time of day the order was placed, "HH:MM:SS" (Thai time as the file/API shows it), or null when the source has none.
+// Only used to sort orders within a day; a missing time never blocks an upload.
+export function orderTime(value) {
+  const v = cellValue(value);
+  const pad = n => String(n).padStart(2, '0');
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    if (!v.getUTCHours() && !v.getUTCMinutes() && !v.getUTCSeconds()) return null; // date-only cell
+    return `${pad(v.getUTCHours())}:${pad(v.getUTCMinutes())}:${pad(v.getUTCSeconds())}`;
+  }
+  const r = String(v ?? '').match(/(?:^|\D)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!r || +r[1] > 23 || +r[2] > 59) return null;
+  return `${pad(+r[1])}:${r[2]}:${r[3] || '00'}`;
+}
+// Unix seconds -> Bangkok "HH:MM:SS" (API create_time).
+export const bangkokTime = seconds => (Number.isFinite(Number(seconds)) && Number(seconds) > 0 ? new Date(Number(seconds) * 1000 + 7 * 3600000).toISOString().slice(11, 19) : null);
 export function orderDate(value) {
   return parseDate(value) || fail('พบวันที่สั่งซื้อในไฟล์ไม่ถูกต้อง ไฟล์อาจถูกแก้ไขหลัง export กรุณา export ไฟล์ใหม่จาก Seller Center');
 }

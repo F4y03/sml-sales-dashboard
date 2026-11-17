@@ -34,23 +34,48 @@ export function saveMarketplaceUpload(store, { platform, fileName, sha256, user,
     for (const o of parsed.orders) {
       // Same order uploaded again (re-export, overlapping date range) replaces the old row: never counted twice.
       // A source without product lines (Shopee income report) keeps lines another file already supplied.
-      store.run(`INSERT INTO marketplace_orders(platform,order_id,order_date,status,status_raw,sales,refund,province,has_items,source,upload_id,updated_at,shop_id)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON CONFLICT(platform,order_id) DO UPDATE SET order_date=excluded.order_date,status=excluded.status,status_raw=excluded.status_raw,
+      store.run(`INSERT INTO marketplace_orders(platform,order_id,order_date,status,status_raw,sales,refund,province,has_items,source,upload_id,updated_at,shop_id,order_time)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(platform,order_id) DO UPDATE SET order_date=excluded.order_date,order_time=COALESCE(excluded.order_time,marketplace_orders.order_time),status=excluded.status,status_raw=excluded.status_raw,
           sales=excluded.sales,refund=excluded.refund,province=COALESCE(excluded.province,marketplace_orders.province),
           has_items=MAX(excluded.has_items,marketplace_orders.has_items),source=excluded.source,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id`,
-        platform, o.orderId, o.orderDate, o.status, String(o.statusRaw || '').slice(0, 120), o.sales, o.refund || 0, o.province, o.items ? 1 : 0, o.source, uploadId, now, shopId);
+        platform, o.orderId, o.orderDate, o.status, String(o.statusRaw || '').slice(0, 120), o.sales, o.refund || 0, o.province, o.items ? 1 : 0, o.source, uploadId, now, shopId, o.orderTime || null);
       if (!o.items) continue;
       store.run('DELETE FROM marketplace_order_items WHERE platform=? AND order_id=?', platform, o.orderId);
       for (const item of o.items) store.run('INSERT INTO marketplace_order_items(platform,order_id,line_key,sku,product_name,quantity,sales,status) VALUES(?,?,?,?,?,?,?,?)',
         platform, o.orderId, item.lineKey.slice(0, 120), item.sku.slice(0, 80), item.name.slice(0, 300), item.quantity, item.sales, item.status);
     }
-    for (const s of parsed.settlements) store.run(`INSERT INTO marketplace_settlements(platform,txn_id,order_id,fees,net_payout,upload_id,updated_at,shop_id,fee_detail) VALUES(?,?,?,?,?,?,?,?,?)
+    for (const s of parsed.settlements) store.run(`INSERT INTO marketplace_settlements(platform,txn_id,order_id,fees,net_payout,upload_id,updated_at,shop_id,fee_detail,order_money,paid_date) VALUES(?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(platform,txn_id) DO UPDATE SET order_id=excluded.order_id,fees=excluded.fees,net_payout=excluded.net_payout,upload_id=excluded.upload_id,updated_at=excluded.updated_at,shop_id=excluded.shop_id,
-        fee_detail=COALESCE(excluded.fee_detail,marketplace_settlements.fee_detail)`,
-      platform, s.txnId, s.orderId, s.fees, s.netPayout, uploadId, now, shopId, feeDetailJson(s.detail));
+        fee_detail=COALESCE(excluded.fee_detail,marketplace_settlements.fee_detail),order_money=excluded.order_money,paid_date=COALESCE(excluded.paid_date,marketplace_settlements.paid_date)`,
+      platform, s.txnId, s.orderId, s.fees, s.netPayout, uploadId, now, shopId, feeDetailJson(s.detail), s.money ? JSON.stringify(s.money) : null, s.paidDate || null);
+    if (platform === 'shopee') applyShopeeOrderMoney(store, [...parsed.orders.map(o => o.orderId), ...parsed.settlements.map(s => s.orderId)]);
     return { uploadId, duplicate };
   });
+}
+
+// Shopee API orders: the order API's line price has Shopee's own discount taken off and knows nothing of refunds, so once the
+// income data (get_escrow_detail) is in, it decides: sales = price after seller discount (Shopee discount not deducted),
+// refund = amount refunded to the buyer, and a refunded order is คืนสินค้า (MARKETPLACE.md status rules). Runs after
+// both order and fee syncs, so a later order sync never undoes it. Uploaded files are left as they are.
+export function applyShopeeOrderMoney(store, orderIds) {
+  for (const id of new Set(orderIds)) {
+    const row = store.get(`SELECT o.status, s.order_money AS money FROM marketplace_orders o JOIN marketplace_settlements s ON s.platform=o.platform AND s.order_id=o.order_id
+      WHERE o.platform='shopee' AND o.order_id=? AND o.source='api' AND s.order_money IS NOT NULL`, id);
+    if (!row) continue;
+    let money; try { money = JSON.parse(row.money); } catch { continue; }
+    const returned = money.refund > 0 && row.status !== 'cancelled';
+    store.run(`UPDATE marketplace_orders SET sales=COALESCE(?,sales), refund=?, status=? WHERE platform='shopee' AND order_id=?`,
+      money.goods, money.refund || 0, returned ? 'returned' : row.status, id);
+    for (const [sku, sales] of Object.entries(money.items || {})) {
+      // Several lines of one SKU share its amount by quantity.
+      const lines = store.all(`SELECT line_key, quantity FROM marketplace_order_items WHERE platform='shopee' AND order_id=? AND UPPER(TRIM(sku))=UPPER(TRIM(?))`, id, sku);
+      const qty = lines.reduce((s, l) => s + (l.quantity || 0), 0);
+      for (const l of lines) store.run('UPDATE marketplace_order_items SET sales=? WHERE platform=\'shopee\' AND order_id=? AND line_key=?',
+        Math.round((qty ? sales * l.quantity / qty : sales / lines.length) * 100) / 100, id, l.line_key);
+    }
+    if (returned) store.run(`UPDATE marketplace_order_items SET status='returned' WHERE platform='shopee' AND order_id=? AND status<>'cancelled'`, id);
+  }
 }
 
 export function orderDetail(store, platform, id) {

@@ -140,13 +140,13 @@ export function installMarketplace(app, store, audit) {
   app.get('/api/marketplace/accounting-report', requirePermission('marketplace_accounting'), async (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (req.auth.scope === 'territory') return res.status(403).json({ error: 'ยอดขายออนไลน์ไม่รองรับบัญชีที่จำกัดเขต' });
-    const { start, end } = req.query, platform = String(req.query.platform || 'all'), shop = String(req.query.shop || 'all');
+    const { start, end } = req.query, platform = String(req.query.platform || 'all'), shop = String(req.query.shop || 'all'), basis = req.query.basis === 'paid' ? 'paid' : 'order';
     if (platform !== 'all' && !PLATFORMS[platform]) return res.status(400).json({ error: 'แพลตฟอร์มไม่ถูกต้อง' });
     if (shop !== 'all' && !/^[1-9]\d{0,8}$/.test(shop)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
     if (!validPeriod(start, end)) return res.status(400).json({ error: 'กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน' });
     try {
-      const body = await buildAccountingWorkbook(store, { platform, shop, start, end }, { by: req.auth.full_name || req.auth.username });
-      audit.record(req.auth, 'marketplace.accounting_report', 'marketplace', { platform, shop, start, end }, null, req.socket.remoteAddress);
+      const body = await buildAccountingWorkbook(store, { platform, shop, start, end, basis }, { by: req.auth.full_name || req.auth.username });
+      audit.record(req.auth, 'marketplace.accounting_report', 'marketplace', { platform, shop, start, end, basis }, null, req.socket.remoteAddress);
       res.set({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="online-sales-accounting-${platform}-${start}-${end}.xlsx"` }).send(body);
     } catch (error) {
       console.error('Marketplace accounting report failed:', error.code || error.name);
