@@ -8,6 +8,7 @@ const PLATFORM = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop' };
 const MONEY = '#,##0.00;[Red]-#,##0.00';
 const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
 const AGED_DAYS = 30;
+const fmtMoney = v => round2(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Thai names of known fee types (same wording as public/order-fees.js); Lazada names arrive already readable.
 const FEE_LABELS = {
   commission_fee: 'ค่าคอมมิชชั่น', service_fee: 'ค่าบริการ', seller_transaction_fee: 'ค่าธุรกรรมการชำระเงิน',
@@ -246,7 +247,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
 
   // One row per order stays (totals tie to the summary); an order with several products lists them in one cell.
   const itemsOf = new Map();
-  for (const i of store.all(`SELECT i.platform,i.order_id AS orderId,TRIM(i.sku) AS sku,i.product_name AS name,i.quantity
+  for (const i of store.all(`SELECT i.platform,i.order_id AS orderId,TRIM(i.sku) AS sku,i.product_name AS name,i.quantity,i.sales
     FROM marketplace_order_items i JOIN marketplace_orders o ON o.platform=i.platform AND o.order_id=i.order_id
     WHERE ${"o.order_date BETWEEN ? AND ? AND (? = 'all' OR o.platform = ?) AND (? IS NULL OR o.shop_id = ?)"} ORDER BY i.line_key`,
   filter.start, filter.end, filter.platform, filter.platform, filter.shop === 'all' ? null : Number(filter.shop), filter.shop === 'all' ? null : Number(filter.shop))) {
@@ -254,12 +255,15 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
     const key = i.platform + '\u0000' + i.orderId, list = itemsOf.get(key) || [];
     itemsOf.set(key, list);
     const same = list.find(x => (i.sku ? x.sku === i.sku : !x.sku && x.name === i.name));
-    if (same) same.quantity += i.quantity; else list.push({ ...i });
+    if (same) { same.quantity += i.quantity; same.sales = same.sales === null || i.sales === null ? null : same.sales + i.sales; } else list.push({ ...i });
   }
   const withItems = o => {
     const list = itemsOf.get(o.platform + '\u0000' + o.orderId) || [];
     return { ...withNames(o), skus: list.map(i => i.sku || '-').join('\n') || null,
-      productNames: list.map(i => (list.length > 1 || i.quantity !== 1 ? `${i.name} × ${i.quantity}` : i.name)).join('\n') || null };
+      productNames: list.map(i => (list.length > 1 || i.quantity !== 1 ? `${i.name} × ${i.quantity}` : i.name)).join('\n') || null,
+      // Line N = product line N. Shown as text because one cell holds several lines; "-" = platform sent no amount.
+      unitPrices: list.map(i => (i.sales === null || !i.quantity ? '-' : fmtMoney(i.sales / i.quantity))).join('\n') || null,
+      lineSales: list.map(i => (i.sales === null ? '-' : fmtMoney(i.sales))).join('\n') || null };
   };
   // One column per fee type (by Thai name, largest total first), placed before the order's total fee. Empty = not charged / no data.
   const typeTotals = new Map();
@@ -275,6 +279,8 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   const register = addSheet(workbook, 'ทะเบียนขายรายออเดอร์', [...orderColumns.slice(0, 4),
     { header: 'SKU', key: 'skus', width: 18, note: 'รหัสสินค้าในออเดอร์ ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ช่องว่าง = แพลตฟอร์มไม่ได้ส่งรายการสินค้ามา' },
     { header: 'ชื่อสินค้า', key: 'productNames', width: 48, note: 'ชื่อสินค้าในออเดอร์ (× จำนวนชิ้น) ถ้ามีหลายสินค้าจะอยู่คนละบรรทัดในช่องเดียว ยอดขายของแถวเป็นยอดรวมทั้งออเดอร์' },
+    { header: 'ราคา/ชิ้น', key: 'unitPrices', width: 13, note: 'ราคาขายต่อชิ้นของแต่ละสินค้า (บรรทัดตรงกับ SKU) = ยอดขายรายสินค้า ÷ จำนวนชิ้น' },
+    { header: 'ยอดขายรายสินค้า', key: 'lineSales', width: 15, note: 'ยอดขายของแต่ละสินค้าในออเดอร์ (บรรทัดตรงกับ SKU) รวมกันเท่ากับคอลัมน์ ยอดขาย' },
     orderColumns[4],
     { header: 'สถานะจากแพลตฟอร์ม', key: 'statusRaw', width: 20 }, { header: 'ยอดขาย', key: 'sales', money: true, fill: 'FFDDEBF7' }, { header: 'ยอดคืนเงิน', key: 'refund', money: true },
     ...feeTypeCols,
@@ -286,6 +292,7 @@ export async function buildAccountingWorkbook(store, filter, meta = {}) {
   register.getColumn('productNames').width = Math.min(longest * 1.05 + 2, 110);
   register.eachRow((row, n) => { if (n > 1) row.eachCell({ includeEmpty: true }, cell => { cell.alignment = { ...cell.alignment, vertical: 'top' }; }); });
   for (const key of ['skus', 'productNames']) register.getColumn(key).eachCell((cell, n) => { if (n > 1) cell.alignment = { wrapText: true, vertical: 'top' }; });
+  for (const key of ['unitPrices', 'lineSales']) register.getColumn(key).eachCell((cell, n) => { if (n > 1) cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' }; });
   // Total row under a blank row (so Excel's filter and sort leave it alone). SUBTOTAL(109) adds only the rows the
   // filter shows, e.g. filter สถานะ = สำเร็จ to get the completed total.
   if (data.orders.length) addTotalRow(register, 'statusRaw', ['sales', 'refund', ...feeTypeCols.map(c => c.key), 'fees', 'net'], data.orders.length + 1);
