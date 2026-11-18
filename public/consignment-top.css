@@ -21,8 +21,8 @@
   font-variant-numeric: tabular-nums;
 }
 html[data-theme="light"] #cs-top {
-  --cs-red-text: #c42a20;
-  --cs-up: #15803d;
+  --cs-red-text: #b42318;
+  --cs-up: #166534;
   --cs-down: #c22b38;
   --cs-warn: #a86400;
 }

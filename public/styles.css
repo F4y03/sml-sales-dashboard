@@ -1257,7 +1257,7 @@ select:focus-visible {
   justify-content: space-between;
   margin-top: 6px;
   font-size: 11px;
-  color: #6f6f6f;
+  color: #9a9a9a;
 }
 .cs-bill-toolbar {
   flex: none;
@@ -1314,7 +1314,7 @@ select:focus-visible {
   gap: 10px;
   padding: 14px 24px 6px;
   font-size: 11px;
-  color: #6f6f6f;
+  color: #9a9a9a;
 }
 .cs-bill-list-head span:nth-child(3),
 .cs-bill-list-head span:nth-child(4) {
@@ -1358,7 +1358,7 @@ select:focus-visible {
   display: block;
   margin-top: 2px;
   font-size: 11px;
-  color: #6f6f6f;
+  color: #9a9a9a;
 }
 .cs-bill-row-doc {
   min-width: 0;
@@ -1432,7 +1432,7 @@ select:focus-visible {
   margin: 0;
   padding: 40px 24px;
   text-align: center;
-  color: #6f6f6f;
+  color: #9a9a9a;
   font-size: 13px;
 }
 .cs-bill-foot {
@@ -1446,7 +1446,7 @@ select:focus-visible {
 }
 .cs-bill-hint {
   font-size: 12px;
-  color: #6f6f6f;
+  color: #9a9a9a;
   font-variant-numeric: tabular-nums;
 }
 .cs-bill-csv {
@@ -1532,4 +1532,40 @@ select:focus-visible {
   .cs-bill-row-qty {
     display: none;
   }
+}
+/* theme-modes.css restyles h2/button in light mode; keep this fixed-dark popup readable. */
+#product-invoices.cs-bill.cs-bill .cs-bill-head h2 {
+  color: #f2f2f2;
+}
+#product-invoices.cs-bill.cs-bill .cs-doc-btn {
+  background: transparent;
+  color: #f2f2f2;
+  box-shadow: none;
+}
+#product-invoices.cs-bill.cs-bill .cs-doc-btn:hover {
+  color: #ff6b6b;
+}
+#product-invoices.cs-bill.cs-bill .cs-bill-close,
+#product-invoices.cs-bill.cs-bill .cs-bill-csv,
+#product-invoices.cs-bill.cs-bill .cs-bill-tag-code {
+  border-color: #333;
+  background: #181818;
+  color: #f2f2f2;
+  box-shadow: none;
+}
+#product-invoices.cs-bill.cs-bill .cs-bill-close:hover,
+#product-invoices.cs-bill.cs-bill .cs-bill-csv:hover,
+#product-invoices.cs-bill.cs-bill .cs-bill-tag-code:hover {
+  background: #232323;
+}
+#product-invoices.cs-bill.cs-bill .cs-bill-sort button {
+  border-color: transparent;
+  background: transparent;
+  color: #a8a8a8;
+  box-shadow: none;
+}
+#product-invoices.cs-bill.cs-bill .cs-bill-sort button[aria-pressed="true"] {
+  border-color: #444;
+  background: #2a2a2a;
+  color: #f2f2f2;
 }

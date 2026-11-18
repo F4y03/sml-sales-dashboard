@@ -1,7 +1,11 @@
 // Runs in the browser. Inspect rendered text against its composited solid background.
 // Gradients and SVG/chart text are checked in screenshots instead.
 export function findContrastIssues(root = document.body) {
-  const rgba = color => (color.match(/[\d.]+/g) || []).map(Number);
+  // color-mix() computes to `color(srgb r g b / a)` with 0–1 channels; rgb()/rgba() use 0–255.
+  const rgba = color => {
+    const values = (color.match(/[\d.]+/g) || []).map(Number);
+    return color.startsWith('color(srgb') ? values.map((v, i) => (i < 3 ? v * 255 : v)) : values;
+  };
   const composite = (front, back) => {
     const alpha = front[3] ?? 1;
     return front.slice(0, 3).map((channel, i) => channel * alpha + back[i] * (1 - alpha));

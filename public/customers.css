@@ -1961,3 +1961,7 @@ html[data-theme] .net-region-dialog.net-region-dialog .net-region-note {
     grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(200px, 1.8fr) auto;
   }
 }
+/* Light theme: sort arrows need ≥4.5:1 on the white table header. */
+html[data-theme="light"] .customer-sort-icon { color: #6b7280; }
+html[data-theme="light"] th[aria-sort="ascending"] .customer-sort-icon,
+html[data-theme="light"] th[aria-sort="descending"] .customer-sort-icon { color: #c22b38; }

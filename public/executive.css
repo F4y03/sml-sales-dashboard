@@ -446,7 +446,7 @@ html[data-theme] #summary .exec-kpis .kpi-target-save,
   padding: 0 14px;
   border: 0;
   border-radius: 9px;
-  background: #ff3b30;
+  background: #d92d20; /* white text needs ≥4.5:1 */
   color: #fff;
   font: inherit;
   font-size: 13px;
@@ -455,7 +455,7 @@ html[data-theme] #summary .exec-kpis .kpi-target-save,
   cursor: pointer;
 }
 html[data-theme] #summary .exec-kpis .kpi-target-save:hover:not(:disabled) {
-  background: #e22d22;
+  background: #b8241a;
   color: #fff;
 }
 .kpi-target-actions {

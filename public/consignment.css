@@ -1281,3 +1281,7 @@ html[data-theme] .regional-table tfoot :is(th, td):not(:first-child) {
 .regional-plot .rg-name.rg-selected {
   font-weight: 800;
 }
+/* Light theme: sort arrows need ≥4.5:1 on the white table header. */
+html[data-theme="light"] .consignment-sort-icon { color: #6b7280; }
+html[data-theme="light"] th[aria-sort="ascending"] .consignment-sort-icon,
+html[data-theme="light"] th[aria-sort="descending"] .consignment-sort-icon { color: #c22b38; }
