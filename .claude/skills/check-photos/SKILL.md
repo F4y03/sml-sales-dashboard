@@ -9,17 +9,17 @@ Rules: `AGENTS.md` (SML read-only, never print `.env`). Reply in Thai, report pr
 
 **Never apply without showing the preview first and getting "ตกลง/ใส่เลย".**
 
-## Checklist (copy into reply)
+## Checklist (copy into reply — Thai, use ✅ done · ⏳ in progress · ⬜ not started; never [x]/[ ])
 ```
-- [ ] 1. Start dashboard if not running (sml-dashboard → run-server.md)
-- [ ] 2. status.mjs → test-results/no-image-codes.txt (note the "before" count)
-- [ ] 3. Find photos
-- [ ] 4. Make images (podium bg / recolour / sibling reuse)
-- [ ] 5. Preview → wait for user approval
-- [ ] 6. Copy to G:, drive-ids --save (until 100%), apply.mjs (dry, then --apply)
-- [ ] 7. backup.mjs to NAS (background) + status.mjs "after"
-- [ ] 8. SKISERVER delivery
-- [ ] 9. Report table
+⬜ 1. Start dashboard if not running (sml-dashboard → run-server.md)
+⬜ 2. status.mjs → test-results/no-image-codes.txt (note the "before" count)
+⬜ 3. Find photos
+⬜ 4. Make images (podium bg / recolour / sibling reuse)
+⬜ 5. Preview → wait for user approval
+⬜ 6. Copy to G:, drive-ids --save (until 100%), apply.mjs (dry, then --apply)
+⬜ 7. backup.mjs to NAS (background) + status.mjs "after"
+⬜ 8. SKISERVER delivery
+⬜ 9. Report table
 ```
 
 ## 3. Find photos
