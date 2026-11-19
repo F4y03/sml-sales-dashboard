@@ -80,9 +80,10 @@ const kids={}; T.forEach(p=>{const a=p.split(" > ");const par=a.slice(0,-1).join
 const ORDER=T.filter(p=>!p.includes(" > ")); // top level in the same order as the category sheet
 (kids[""]||[]).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
 let STOP=null, EDITS={}, LOG=[], sel="", shown=60, open=null;
-const effCats=pr=>EDITS[pr.s]?.cats||pr.c;
+const spCats=pr=>typeof SPECIAL==="undefined"?[]:Object.keys(SPECIAL).filter(k=>SPECIAL[k].includes(pr.s));
+const effCats=pr=>{const c=EDITS[pr.s]?.cats||pr.c;return [...spCats(pr).filter(k=>!c.includes(k)),...c]};
 const effPrice=pr=>EDITS[pr.s]?(EDITS[pr.s].price):pr.p;
-const inCat=(pr,c)=>effCats(pr).some(l=>l===c||l.startsWith(c+" > "));
+const inCat=(pr,c)=>(typeof SPECIAL!=="undefined"&&SPECIAL[c]?.includes(pr.s))||effCats(pr).some(l=>l===c||l.startsWith(c+" > "));
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function passF(pr){return (!STOP||!$("fs").value||($("fs").value==="s")===STOP.has(pr.s))&&(!$("fl").checked||pr.m)&&(!$("fe").checked||EDITS[pr.s])&&(!$("fi").value||($("fi").value==="y")===!!pr.i)}
