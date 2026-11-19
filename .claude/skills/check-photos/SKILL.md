@@ -30,6 +30,11 @@ Rules: `AGENTS.md` (SML read-only, never print `.env`). Reply in Thai, report pr
   2. Manifest item with `rect: [x, y, w, h]` in page pixels (pages 2480×3508; Read shows them scaled → multiply by the reported scale). Crop the product only — no text, price, icons or neighbouring products. Out: `<code>-C<n>.jpg`.
   3. `powershell -File tools\product-images\render.ps1 -Manifest … -Root <scratchpad>\cat\ -Whiten`, Read the contact sheet, re-crop until clean.
   4. Put the crop on the brand podium (step 4, Comp6) like any other photo. Too small/blurry (<~400 px wide) or overlapped by other items → skip and list it.
+- **Spare-part trap** (confirmed 2026-11-19): parts (910V วอยซ์, 922B แบต, 922C ที่ชาร์จ, 905C ฝา/ด้าม/บอร์ด, 923A อแด็ปเตอร์, 911R12) match photos of the whole product by model name (RM-888, MP-25, K-15, R-12, MU-12) → never use; drop without asking. Also drop name clashes (GX-12P≠GX-12, M-600≠UM-600) and spec mismatches (901AVT6 500W vs ADVENTURE 6.5X 600W) unless the user confirms.
+- **Check SML for every no-photo code** (read-only, right after step 2): code exists in `ic_inventory`, `balance_qty` (NULL ≠ 0), last sale + sale count in the past year (trans_flag 44). Save `test-results/no-image-sml-activity.tsv` and report 4 groups: missing in SML / still selling / no sales but stock > 0 / no sales + stock ≤0 or NULL. Search photos for "still selling" first. (2026-11-19: 0 missing / 78 / 24 / 99 of 201.)
+- **Check sales before offering**: show last sale date + sale count over the past year for each candidate. Codes with 0 sales in a year (e.g. many last sold 2025-01-22) → the user declined them on 2026-11-19; list them as "ไม่ขายแล้ว" and don't make images unless asked.
+- Box art / silkscreen panel drawings (905UM9 box, 902MPQ15 panel) are not product photos → skip.
+- Open found images on the user's machine (`Invoke-Item`) with the report — they want to see them, not just read about them.
 - No photo anywhere → candidates:
   - **Sibling reuse**: same product, other length/spec/colour code already has photos (e.g. 940R2-1.0 ← 940R2-1.5). Copy Drive IDs into `product_images` + `image-overrides.json`, source `"same product, other length/spec (<sib>)"`. Back up both to `data/backups/` first.
   - **Recolour**: sibling differs only by colour and the colour is a clean single hue.
