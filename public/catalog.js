@@ -254,6 +254,7 @@
       b.setAttribute("aria-pressed", String((b.dataset.view === "1") === pickedSingle));
     });
     syncSectionSelect();
+    syncMarks();
     stage.classList.toggle("is-zoomed", zoom > ZOOM_MIN);
     zoomIn.disabled = !doc || zoom >= ZOOM_MAX;
     zoomOut.disabled = !doc || zoom <= ZOOM_MIN;
@@ -677,6 +678,118 @@
   document.addEventListener("fullscreenchange", () => {
     syncFullscreenButton();
     relayout();
+  });
+
+  // ---------- "ที่คั่น": bookmark pages of each book, kept in this browser only ----------
+  const marksBtn = $("ecat-marks"),
+    marksMenu = $("ecat-marks-menu");
+  const marksKey = () => "ecat-marks:" + (current?.id || "");
+  function readMarks() {
+    try {
+      const list = JSON.parse(localStorage.getItem(marksKey()) || "[]");
+      return Array.isArray(list) ? list.filter((m) => Number.isInteger(m?.page) && m.page > 0) : [];
+    } catch {
+      return [];
+    }
+  }
+  function writeMarks(list) {
+    try {
+      localStorage.setItem(marksKey(), JSON.stringify(list.sort((a, b) => a.page - b.page)));
+    } catch {
+      showToast("บันทึกที่คั่นไม่สำเร็จ (เบราว์เซอร์ไม่อนุญาตให้เก็บข้อมูล)");
+    }
+  }
+  const spreadPages = (s) => [s?.left, s?.right].filter(Boolean);
+  const markedHere = () => {
+    const pages = spreadPages(spreads[index]);
+    return readMarks().filter((m) => pages.includes(m.page));
+  };
+  function syncMarks() {
+    marksBtn.disabled = !doc;
+    const on = Boolean(doc && markedHere().length);
+    marksBtn.setAttribute("aria-pressed", String(on));
+    marksBtn.classList.toggle("is-marked", on);
+  }
+  function openMarksMenu(open) {
+    marksMenu.hidden = !open;
+    marksBtn.setAttribute("aria-expanded", String(open));
+    if (!open) return;
+    const here = markedHere();
+    const s = spreads[index] || {};
+    const page = s.left || s.right;
+    const item = (text, attrs) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.textContent = text;
+      Object.assign(b.dataset, attrs);
+      return b;
+    };
+    const nodes = [
+      here.length
+        ? item("เอาที่คั่นหน้านี้ออก", { act: "remove-here" })
+        : item("คั่นหน้านี้ · หน้า " + spreadLabel(s), { act: "add", page: String(page) }),
+    ];
+    const list = readMarks();
+    nodes.push(document.createElement("hr"));
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "ecat-marks-empty";
+      empty.textContent = "ยังไม่มีที่คั่นในเล่มนี้";
+      nodes.push(empty);
+    }
+    for (const m of list) {
+      const row = document.createElement("div");
+      row.className = "ecat-marks-row";
+      const sec = sections.filter((x) => x.page <= m.page).pop();
+      row.append(
+        item("หน้า " + m.page + (sec ? " · " + sec.title : ""), { act: "go", page: String(m.page) }),
+        item("×", { act: "delete", page: String(m.page) }),
+      );
+      row.lastChild.setAttribute("aria-label", "ลบที่คั่นหน้า " + m.page);
+      row.lastChild.title = "ลบที่คั่น";
+      nodes.push(row);
+    }
+    marksMenu.replaceChildren(...nodes);
+    marksMenu.querySelector("button")?.focus();
+  }
+  marksBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (current && doc) openMarksMenu(marksMenu.hidden);
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".ecat-marks")) openMarksMenu(false);
+  });
+  marksMenu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      openMarksMenu(false);
+      marksBtn.focus();
+    }
+  });
+  marksMenu.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const button = event.target.closest("[data-act]");
+    if (!button || !current || !doc) return;
+    const page = Number(button.dataset.page);
+    const list = readMarks();
+    if (button.dataset.act === "add") {
+      writeMarks([...list.filter((m) => m.page !== page), { page, at: new Date().toISOString() }]);
+      showToast("คั่นหน้า " + page + " แล้ว");
+    } else if (button.dataset.act === "remove-here") {
+      const pages = spreadPages(spreads[index]);
+      writeMarks(list.filter((m) => !pages.includes(m.page)));
+      showToast("เอาที่คั่นออกแล้ว");
+    } else if (button.dataset.act === "delete") {
+      writeMarks(list.filter((m) => m.page !== page));
+      openMarksMenu(true);
+      syncMarks();
+      return;
+    } else if (button.dataset.act === "go") {
+      const target = spreads.findIndex((s) => spreadPages(s).includes(page));
+      if (target >= 0) go(target);
+    }
+    openMarksMenu(false);
+    syncMarks();
   });
 
   // ---------- "แชร์หน้านี้": pick left / right / both -> save or share those pages as one PNG image ----------
