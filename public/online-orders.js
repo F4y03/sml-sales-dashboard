@@ -18,7 +18,9 @@
     completed: ['สำเร็จ / ส่งแล้ว', 'green'], cancelled: ['ยกเลิก', 'neutral'], refunded: ['คืนเงิน', 'red'],
     failed: ['ชำระไม่สำเร็จ', 'red'], 'checkout-draft': ['ร่าง', 'neutral'],
   };
-  const TAB_LABEL = { processing: 'รอจัด', pending: 'รอชำระ', 'on-hold': 'พักไว้', completed: 'สำเร็จ', cancelled: 'ยกเลิก', refunded: 'คืนเงิน', failed: 'ล้มเหลว', any: 'ทั้งหมด' };
+  const TAB_LABEL = { verify: 'ตรวจชำระ', processing: 'รอจัดส่ง', completed: 'ส่งแล้ว', closed: 'ยกเลิก/คืนเงิน', any: 'ทั้งหมด' };
+  // Single WooCommerce statuses (e.g. from a ยอดขายเว็บไซต์ chart link) open the tab that contains them.
+  const TAB_OF = { pending: 'verify', 'on-hold': 'verify', processing: 'processing', completed: 'completed', cancelled: 'closed', refunded: 'closed', failed: 'closed', 'checkout-draft': 'any' };
   const CARRIERS = ['Kerry Express', 'Flash Express', 'J&T Express', 'ไปรษณีย์ไทย (EMS)', 'ไปรษณีย์ไทย (ลงทะเบียน)', 'Best Express', 'Ninja Van', 'DHL eCommerce', 'SCG Express', 'Nim Express', 'Lalamove', 'ขนส่งของร้านเอง'];
   const badge = status => { const [label, tone] = STATUS[status] || [status, 'neutral']; const b = el('span', 'oo-badge', label); b.dataset.tone = tone; return b; };
 
@@ -46,7 +48,7 @@
     if (ymd.test(p.get('start') || '') || /^d+$/.test(p.get('product') || '')) {
       state.filter = { start: ymd.test(p.get('start') || '') ? p.get('start') : '', end: ymd.test(p.get('end') || '') ? p.get('end') : '', product: /^d+$/.test(p.get('product') || '') ? p.get('product') : '', pname: (p.get('pname') || '').slice(0, 120) };
       const st = p.get('status');
-      if (st && (st === 'any' || STATUS[st])) state.status = st;
+      if (st && (TAB_LABEL[st] || TAB_OF[st])) state.status = TAB_LABEL[st] ? st : TAB_OF[st];
     }
   }
   const thShort = ymd => new Date(ymd + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
@@ -274,6 +276,8 @@
     if (o.transactionId) pay.append(line('เลขอ้างอิง', o.transactionId));
     if (o.billing.email) pay.append(line('อีเมล', o.billing.email));
     if (o.billing.phone && o.billing.phone !== o.shipping.phone) { const d = line('เบอร์ผู้สั่งซื้อ', ''); const a = el('a', 'oo-tel', o.billing.phone); a.href = telHref(o.billing.phone); d.lastChild.append(a); pay.append(d); }
+    // ตรวจการชำระเงิน: shown first while the order waits for payment / slip check.
+    if (['pending', 'on-hold'].includes(o.status)) parts.splice(o.customerNote ? 1 : 0, 0, paymentCheck(o, canUpdate));
     parts.push(section('การชำระเงิน', pay));
 
     // Actions
@@ -298,6 +302,46 @@
     }
     parts.push(section('โน้ตของออเดอร์', notesList));
     body.replaceChildren(...parts);
+  }
+
+  function paymentCheck(o, canUpdate) {
+    const box = el('section', 'od-card oo-sec oo-paycheck');
+    box.append(el('h3', 'od-h', '💳 ตรวจการชำระเงิน'));
+    const amt = el('div', 'oo-pay-amount'); amt.append(el('small', '', 'ยอดที่ต้องได้รับ'), el('strong', '', money(o.total)));
+    const meta = el('div', 'od-money');
+    meta.append(line('วิธีชำระ', o.paymentMethod || '—'), line('สั่งซื้อเมื่อ', thaiDateTime(o.dateCreated)), line('ชื่อผู้สั่งซื้อ', o.billing.name || o.shipping.name || '—'));
+    box.append(amt, meta);
+    const slips = el('div', 'oo-slips');
+    if (o.slips?.length) for (const u of o.slips) { const a = el('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; const img = el('img'); img.src = u; img.alt = 'สลิปการโอน'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; a.append(img); slips.append(a); }
+    else slips.append(el('p', 'od-note', 'ไม่พบรูปสลิปแนบในออเดอร์นี้ — ตรวจยอดเงินเข้าจากแอปธนาคาร หรือดูสลิปที่ลูกค้าส่งทางแชท/LINE'));
+    box.append(slips);
+    if (!canUpdate) { box.append(el('p', 'od-note', 'ต้องมีสิทธิ์ "ดู + อัปเดต" จึงยืนยันการชำระเงินได้')); return box; }
+    const form = el('form', 'oo-form');
+    const at = el('input', 'mp-input'); at.maxLength = 40; at.placeholder = 'เช่น 20/11 14:32 น.';
+    const l1 = el('label', '', 'เวลาโอนตามสลิป (ไม่บังคับ)'); l1.append(at);
+    const note = el('input', 'mp-input'); note.maxLength = 500; note.placeholder = 'เช่น ธนาคาร/เลขอ้างอิง หรือเหตุผลที่ไม่พบยอด';
+    const l2 = el('label', '', 'หมายเหตุ'); l2.append(note);
+    const ok = el('button', 'mp-btn mp-btn-sm mp-btn-primary', '✓ ยืนยันรับเงินแล้ว'); ok.type = 'button';
+    const no = el('button', 'mp-btn mp-btn-sm', '✕ ไม่พบยอดเงิน'); no.type = 'button';
+    const notifyWrap = el('label', 'oo-check'); const notify = el('input'); notify.type = 'checkbox'; notifyWrap.append(notify, document.createTextNode(' แจ้งลูกค้าว่ายังไม่พบยอด (ลูกค้าได้รับอีเมล)'));
+    const msg = formStatus();
+    form.append(l1, l2, ok, no, notifyWrap, msg);
+    const send = async (action) => {
+      if (action === 'reject' && !note.value.trim()) { msg.dataset.state = 'error'; msg.textContent = 'กรุณาระบุเหตุผลที่ไม่พบยอดเงินในช่องหมายเหตุ'; note.focus(); return; }
+      const yes = await confirmChange(action === 'confirm'
+        ? `ยืนยันว่าได้รับเงิน ${money(o.total)} ของออเดอร์ #${o.number} แล้ว?\n\nสถานะจะเปลี่ยนเป็น "รอจัดส่ง" และบันทึกว่าคุณเป็นผู้ตรวจ`
+        : `บันทึกว่าไม่พบยอดเงินของออเดอร์ #${o.number}?\nสถานะยังคงเดิม${notify.checked ? '\nลูกค้าจะได้รับอีเมลแจ้ง' : ''}`);
+      if (!yes) return;
+      setBusy(form, true); msg.dataset.state = ''; msg.textContent = 'กำลังบันทึก…';
+      try {
+        await api(`/api/online-orders/${o.id}/payment`, { method: 'POST', body: { action, note: note.value.trim(), transferAt: at.value.trim(), notifyCustomer: notify.checked } });
+        await refreshNotes(); renderDetail(); loadOrders({ quiet: true }); loadSummary();
+      } catch (error) { msg.dataset.state = 'error'; msg.textContent = 'บันทึกไม่สำเร็จ: ' + error.message; setBusy(form, false); }
+    };
+    ok.addEventListener('click', () => send('confirm'));
+    no.addEventListener('click', () => send('reject'));
+    box.append(form);
+    return box;
   }
 
   const formStatus = () => el('p', 'oo-form-status', '');

@@ -60,6 +60,18 @@ export function detailOrder(o) {
   };
 }
 
+// Payment slips: slip plugins keep the image URL in order meta (keys vary by plugin) or link it in an order note.
+// Only https image links are passed on; nothing else from meta reaches the browser.
+const IMG = /https:\/\/[^\s"'<>]+\.(?:jpe?g|png|webp|gif)(?:\?[^\s"'<>]*)?/gi;
+export function findSlips(order, notes = []) {
+  const urls = new Set();
+  for (const m of order.meta_data || []) {
+    const v = typeof m.value === 'string' ? m.value : JSON.stringify(m.value ?? '');
+    if (/slip|payment|transfer|proof|receipt|สลิป/i.test(String(m.key)) || /slip/i.test(v)) for (const u of v.match(IMG) || []) urls.add(u);
+  }
+  for (const n of notes) for (const u of String(n.note || '').match(IMG) || []) urls.add(u);
+  return [...urls].slice(0, 6);
+}
 const mapNote = n => ({ id: n.id, author: n.author || '', date: gmt(n.date_created_gmt), note: plain(n.note), customerNote: Boolean(n.customer_note) });
 
 export function installOnlineOrders(app, store, audit, { env = process.env, fetchImpl } = {}) {
@@ -104,7 +116,10 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   }));
 
   app.get('/api/online-orders', handle(async (req, res) => {
-    const status = req.query.status === 'any' ? 'any' : STATUSES.includes(req.query.status) ? req.query.status : 'processing';
+    // 'verify' = ตรวจชำระ queue: waiting for payment or for the slip to be checked.
+    // Tab groups: verify = ตรวจชำระ, closed = ยกเลิก/คืนเงิน/ชำระไม่สำเร็จ.
+    const GROUPS = { verify: 'on-hold,pending', closed: 'cancelled,refunded,failed' };
+    const status = req.query.status === 'any' || GROUPS[req.query.status] ? req.query.status : STATUSES.includes(req.query.status) ? req.query.status : 'processing';
     const page = Math.min(1000, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
     const perPage = Math.min(100, Math.max(10, Number.parseInt(req.query.per_page, 10) || 50));
     const search = text(req.query.q, 80);
@@ -113,7 +128,7 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     const end = validDate(req.query.end) ? req.query.end : start;
     if (start && end < start) throw bad('ช่วงวันที่ไม่ถูกต้อง');
     const product = orderId(req.query.product);
-    const r = await woo.wc('orders', { query: { status, page, per_page: perPage, search, orderby: 'date', order: 'desc',
+    const r = await woo.wc('orders', { query: { status: GROUPS[status] || status, page, per_page: perPage, search, orderby: 'date', order: 'desc',
       after: start ? start + 'T00:00:00' : undefined, before: end ? end + 'T23:59:59' : undefined, product: product || undefined } });
     res.json({ status, page, perPage, search, start, end, product, total: r.total, totalPages: r.totalPages, orders: (r.data || []).map(summarizeOrder) });
   }));
@@ -191,7 +206,36 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     const id = orderId(req.params.id);
     if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
     const [order, notes] = await Promise.all([woo.wc(`orders/${id}`), woo.wc(`orders/${id}/notes`, { query: { type: 'any' } })]);
-    res.json({ order: detailOrder(order.data), notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
+    res.json({ order: { ...detailOrder(order.data), slips: findSlips(order.data, notes.data || []) }, notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
+  }));
+
+  // ตรวจการชำระเงิน: confirm → mark paid (sets date_paid) and move to processing, with an internal note of who checked;
+  // reject → note only (status unchanged), optionally visible to the customer. Only for pending / on-hold orders.
+  app.post('/api/online-orders/:id/payment', requirePermission('orders_update'), handle(async (req, res) => {
+    const id = orderId(req.params.id), action = req.body?.action;
+    if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
+    if (!['confirm', 'reject'].includes(action)) throw bad('คำสั่งไม่ถูกต้อง');
+    const extra = text(req.body.note, 500), transferAt = text(req.body.transferAt, 40);
+    const cur = (await woo.wc(`orders/${id}`, { query: { _fields: 'id,status,total' } })).data;
+    if (!['pending', 'on-hold'].includes(cur?.status)) throw bad('ออเดอร์นี้ไม่ได้อยู่ในสถานะรอชำระ/รอตรวจสลิปแล้ว กรุณารีเฟรช');
+    const who = req.auth.full_name || req.auth.username;
+    const amount = Number(cur.total || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+    let order = null;
+    if (action === 'confirm') {
+      order = (await woo.wc(`orders/${id}`, { method: 'PUT', body: { set_paid: true, status: 'processing' } })).data;
+      await woo.wc(`orders/${id}/notes`, { method: 'POST', body: { customer_note: false, note: `ตรวจสอบการชำระเงินแล้ว ยอด ฿${amount}${transferAt ? `
+เวลาโอนตามสลิป: ${transferAt}` : ''}${extra ? `
+หมายเหตุ: ${extra}` : ''}
+โดย ${who} (Dashboard)` } });
+    } else {
+      if (!extra) throw bad('กรุณาระบุเหตุผลที่ไม่พบยอดเงิน');
+      const notify = req.body.notifyCustomer === true;
+      await woo.wc(`orders/${id}/notes`, { method: 'POST', body: { customer_note: notify, note: notify ? `ร้านยังตรวจไม่พบยอดชำระของคำสั่งซื้อนี้: ${extra}
+กรุณาติดต่อร้านหรือส่งหลักฐานการโอนอีกครั้ง` : `ตรวจไม่พบยอดเงิน: ${extra}
+โดย ${who} (Dashboard)` } });
+    }
+    audit.record(req.auth, action === 'confirm' ? 'orders.payment_confirm' : 'orders.payment_reject', 'online_orders', { orderId: id, from: cur.status }, null, req.socket.remoteAddress);
+    res.json({ ok: true, status: order?.status || cur.status });
   }));
 
   app.put('/api/online-orders/:id/status', requirePermission('orders_update'), handle(async (req, res) => {

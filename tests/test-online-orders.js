@@ -143,3 +143,22 @@ test('รายงานบัญชี (website): marketplace_accounting requir
   assert.equal(d.productRows.find(p => p.sku === 'A').quantity, 2); // cancelled order not counted
   assert.match(d.review.find(x => x.orderId === '3').reasons, /ไม่มี SKU/);
 });
+
+test('ตรวจการชำระเงิน: verify queue, slip links, confirm only for pending/on-hold, update permission required', async t => {
+  const { findSlips } = await import('../src/routes/online-orders.js');
+  const f = await fixture(t);
+  const viewer = await f.create('viewer1', 'sales');
+  const root = await f.login('root');
+  await f.request('/api/online-orders?status=verify', root);
+  assert.equal(new URL(f.calls.at(-1).url).searchParams.get('status'), 'on-hold,pending');
+  await f.request('/api/online-orders?status=closed', root);
+  assert.equal(new URL(f.calls.at(-1).url).searchParams.get('status'), 'cancelled,refunded,failed');
+  // order 501 in the fixture is "processing": nothing to verify
+  assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'confirm' })).status, 400);
+  assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'bogus' })).status, 400);
+  await f.request('/api/admin/order-permissions/' + viewer.id, root, 'PUT', { level: 'view' });
+  assert.equal((await f.request('/api/online-orders/501/payment', await f.login('viewer1'), 'POST', { action: 'confirm' })).status, 403);
+  assert.deepEqual(findSlips({ meta_data: [{ key: '_payment_slip', value: 'https://proplusaudio.com/wp-content/uploads/slip-1.jpg' }, { key: 'color', value: 'https://x.com/a.jpg' }, { key: '_slip', value: 'http://insecure/a.png' }] },
+    [{ note: 'แนบสลิป <a href="https://proplusaudio.com/u/s2.png">ดู</a>' }]),
+  ['https://proplusaudio.com/wp-content/uploads/slip-1.jpg', 'https://proplusaudio.com/u/s2.png']);
+});

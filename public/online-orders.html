@@ -13,12 +13,12 @@
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
-    <link rel="stylesheet" href="online-orders.css?v=20261120-4" />
+    <link rel="stylesheet" href="online-orders.css?v=20261120-6" />
     <script src="/theme-mode.js"></script>
     <script src="date-dmy.js?v=20261020-range4" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261120-web" defer></script>
-    <script src="online-orders.js?v=20261120-3" defer></script>
+    <script src="online-orders.js?v=20261120-5" defer></script>
     <script src="online-orders-accounting.js?v=20261120-1" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
@@ -77,7 +77,7 @@
           <!-- ===== Orders ===== -->
           <div id="view-orders" role="tabpanel" aria-labelledby="tab-orders">
             <section class="ov-kpis oo-kpis" aria-label="สรุปออเดอร์">
-              <article class="ov-card is-clickable" data-filter="pending" tabindex="0" role="button" aria-label="รอชำระ — ดูรายการ">
+              <article class="ov-card is-clickable" data-filter="verify" tabindex="0" role="button" aria-label="รอชำระ — ดูคิวตรวจการชำระเงิน">
                 <div class="ov-head"><span class="ov-name">รอชำระ</span></div>
                 <div class="ov-value" id="kpi-awaiting">—</div>
                 <div class="ov-foot"><span id="kpi-awaiting-foot">รอชำระเงิน + พักไว้ (รอตรวจสลิป)</span></div>
@@ -103,13 +103,10 @@
             <section class="ov-filters oo-filters" aria-label="กรองออเดอร์">
               <div class="ov-filter-row">
                 <div class="ov-presets oo-status-tabs" role="group" aria-label="กรองตามสถานะ">
-                  <button type="button" data-status="processing" aria-pressed="true">รอจัด</button
-                  ><button type="button" data-status="pending" aria-pressed="false">รอชำระ</button
-                  ><button type="button" data-status="on-hold" aria-pressed="false">พักไว้</button
-                  ><button type="button" data-status="completed" aria-pressed="false">สำเร็จ</button
-                  ><button type="button" data-status="cancelled" aria-pressed="false">ยกเลิก</button
-                  ><button type="button" data-status="refunded" aria-pressed="false">คืนเงิน</button
-                  ><button type="button" data-status="failed" aria-pressed="false">ล้มเหลว</button
+                  <button type="button" data-status="verify" aria-pressed="false" title="รอลูกค้าชำระเงิน หรือรอร้านตรวจสลิป">ตรวจชำระ</button
+                  ><button type="button" data-status="processing" aria-pressed="true" title="ชำระแล้ว รอแพ็คและจัดส่ง">รอจัดส่ง</button
+                  ><button type="button" data-status="completed" aria-pressed="false" title="จัดส่งแล้ว / ออเดอร์สำเร็จ">ส่งแล้ว</button
+                  ><button type="button" data-status="closed" aria-pressed="false" title="ยกเลิก คืนเงิน หรือชำระไม่สำเร็จ">ยกเลิก/คืนเงิน</button
                   ><button type="button" data-status="any" aria-pressed="false">ทั้งหมด</button>
                 </div>
                 <form id="search-form" class="oo-search" role="search">

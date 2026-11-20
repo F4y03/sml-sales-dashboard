@@ -30,3 +30,8 @@
 - กราฟสถานะ / จังหวัด คำนวณจาก `wc/v3/orders` (สูงสุด 5,000 ออเดอร์ต่อช่วง; เกินนั้นมีหมายเหตุ); จังหวัดจากรหัสไปรษณีย์ (`thaiPostcode.js`), ภาคจากรายชื่อจังหวัดใน `REGIONS`; จังหวัดนับเฉพาะ processing/completed/on-hold และใช้ยอดออเดอร์ (รวมค่าส่ง)
 - คลิกกราฟ → `online-orders.html?start=&end=&product=&status=` (เฉพาะคนที่มีสิทธิ์ดูออเดอร์)
 - ทดสอบ: `node --test tests/test-exec-sales.js`
+
+## ตรวจการชำระเงิน
+- แท็บ/การ์ด "ตรวจชำระ" = สถานะ pending + on-hold (`status=verify`)
+- หน้ารายละเอียดแสดงยอดที่ต้องได้รับ + รูปสลิป (`findSlips`: URL รูป https จาก meta ที่ชื่อเกี่ยวกับ slip/payment หรือจากโน้ต)
+- `POST /api/online-orders/:id/payment` (orders_update): confirm = `set_paid` + processing + โน้ตภายในว่าใครตรวจ; reject = โน้ต (เลือกแจ้งลูกค้าได้) สถานะคงเดิม; log `orders.payment_confirm|reject`
