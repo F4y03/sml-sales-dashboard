@@ -165,8 +165,8 @@ export function accountingData(store, { platform = 'all', shop = 'all', start, e
   return { today, orders, summary: [...summary.values()], fees, products, soldWithoutItems, unsettled, review };
 }
 
-const TOTAL_FILL = 'FFE2F0D9'; // light green
-function addTotalRow(sheet, labelKey, sumKeys, lastDataRow) {
+export const TOTAL_FILL = 'FFE2F0D9'; // light green
+export function addTotalRow(sheet, labelKey, sumKeys, lastDataRow) {
   const row = sheet.getRow(lastDataRow + 2);
   const label = row.getCell(sheet.getColumn(labelKey).number);
   label.value = 'รวม (ตามตัวกรอง)';
@@ -210,7 +210,7 @@ const HEADER_NOTES = {
   'ออเดอร์ขายที่ไม่มีข้อมูลการเงิน': 'จำนวนออเดอร์ที่ยังไม่สำเร็จ แพลตฟอร์มจึงยังไม่แจ้งค่าธรรมเนียม',
   'ยอดขายที่ไม่มีข้อมูลการเงิน': 'ยอดขายของออเดอร์ที่ยังไม่สำเร็จ ยังไม่รู้ค่าธรรมเนียม',
 };
-function addSheet(workbook, name, columns, rows) {
+export function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
   sheet.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width || 16, style: c.money ? { numFmt: MONEY } : c.date ? { numFmt: 'yyyy-mm-dd' } : c.style ? { numFmt: c.style } : {} }));
   sheet.getRow(1).font = { bold: true };

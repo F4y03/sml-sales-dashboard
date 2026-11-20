@@ -117,3 +117,29 @@ test('missing WooCommerce keys answer a Thai 503 instead of calling the site', a
   assert.match((await r.json()).error, /WC_KEY/);
   assert.equal(called, false);
 });
+
+test('รายงานบัญชี (website): marketplace_accounting required; workbook has the same sheet layout', async t => {
+  const { default: ExcelJS } = await import('exceljs');
+  const { wooAccountingData } = await import('../src/services/wooAccounting.js');
+  const f = await fixture(t);
+  await f.create('admin2', 'admin');
+  const [root, admin] = [await f.login('root'), await f.login('admin2')];
+  const q = '/api/online-orders/accounting-report?start=2026-11-01&end=2026-11-20';
+  assert.equal((await f.request(q, admin)).status, 403); // admin sees orders but has no accounting permission
+  assert.equal((await f.request('/api/online-orders/accounting-report?start=2026-11-20&end=2026-11-01', root)).status, 400);
+  const r = await f.request(q, root);
+  assert.equal(r.status, 200);
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.load(Buffer.from(await r.arrayBuffer()));
+  assert.deepEqual(wb.worksheets.map(s => s.name).sort(), ['ขายรายสินค้า', 'ชำระเงินในช่วงนี้', 'ทะเบียนขายรายออเดอร์', 'ยังไม่ชำระเงิน', 'รายการที่ต้องตรวจ', 'สรุป', 'หมายเหตุ'].sort());
+  const reg = wb.getWorksheet('ทะเบียนขายรายออเดอร์');
+  assert.equal(reg.getRow(2).getCell(reg.getRow(1).values.indexOf('เลขออเดอร์')).value, '501');
+  const d = wooAccountingData([
+    { id: 1, number: '1', status: 'completed', date_created_gmt: '2026-11-01T20:00:00', line_items: [{ sku: 'A', name: 'A', quantity: 2, total: '200' }], shipping_total: '50', total: '250', refunds: [] },
+    { id: 2, number: '2', status: 'cancelled', date_created_gmt: '2026-11-02T01:00:00', line_items: [{ sku: 'A', name: 'A', quantity: 1, total: '100' }], total: '100', refunds: [] },
+    { id: 3, number: '3', status: 'processing', date_created_gmt: '2026-11-02T01:00:00', line_items: [{ sku: '', name: 'B', quantity: 1, total: '80' }], total: '80', refunds: [{ total: '-30' }] },
+  ], { now: Date.parse('2026-11-20T00:00:00Z') });
+  assert.equal(d.rows[0].date, '2026-11-02'); // 20:00Z = next day in Bangkok
+  assert.deepEqual([d.summary[0].sales, d.summary[0].orders, d.summary[0].cancelled, d.summary[0].refund], [280, 2, 1, 30]);
+  assert.equal(d.productRows.find(p => p.sku === 'A').quantity, 2); // cancelled order not counted
+  assert.match(d.review.find(x => x.orderId === '3').reasons, /ไม่มี SKU/);
+});

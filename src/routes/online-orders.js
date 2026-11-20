@@ -6,6 +6,7 @@ import { ORDER_PERMISSIONS } from '../config/access.js';
 import { requirePermission, requireSuperAdmin, canViewOrders } from '../middleware/access.js';
 import { hasPermission } from '../services/permissionService.js';
 import { createWooClient, WooError } from '../services/wooCommerceApi.js';
+import { buildWooAccountingWorkbook } from '../services/wooAccounting.js';
 
 const STATUSES = ['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
 const LEVELS = ['none', 'view', 'update'];
@@ -77,6 +78,7 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
 
   app.get('/api/online-orders/me', handle((req, res) => res.json({
     canUpdate: canUpdate(req.auth), canManagePermissions: req.auth.role === 'super_admin', configured: woo.configured(),
+    canAccounting: hasPermission(req.auth, 'marketplace_accounting'),
   })));
 
   app.get('/api/online-orders/summary', handle(async (_req, res) => {
@@ -164,6 +166,25 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
       daily, dailySource,
       topSellers: top.map(t => { const p = products.get(t.product_id); return { productId: t.product_id, name: plain(t.name), quantity: num(t.quantity), sku: p?.sku || '', price: num(p?.price), image: httpsUrl(p?.images?.[0]?.src) }; }),
     });
+  }));
+
+  // รายงานบัญชี (same workbook layout as the marketplace one; same marketplace_accounting permission, on top of the
+  // order-page permission checked in access.js). Orders by order date (shop time), every status.
+  app.get('/api/online-orders/accounting-report', requirePermission('marketplace_accounting'), handle(async (req, res) => {
+    const { start, end } = req.query;
+    if (!validDate(start) || !validDate(end) || start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 366) throw bad('กรุณาระบุวันที่ให้ถูกต้อง ช่วงเวลาไม่เกิน 366 วัน');
+    const orders = [];
+    let truncated = false;
+    for (let page = 1; page <= 50; page++) {
+      const r = await woo.wc('orders', { query: { status: 'any', after: start + 'T00:00:00', before: end + 'T23:59:59', per_page: 100, page, orderby: 'date', order: 'asc',
+        _fields: 'id,number,status,date_created_gmt,date_paid_gmt,payment_method,payment_method_title,line_items,discount_total,shipping_total,total_tax,total,refunds' } });
+      orders.push(...(r.data || []));
+      if (page >= r.totalPages) break;
+      if (page === 50) truncated = true;
+    }
+    const body = await buildWooAccountingWorkbook(orders, { start, end, truncated }, { by: req.auth.full_name || req.auth.username });
+    audit.record(req.auth, 'orders.accounting_report', 'online_orders', { start, end, orders: orders.length }, null, req.socket.remoteAddress);
+    res.set({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="website-accounting-${start}-${end}.xlsx"` }).send(body);
   }));
 
   app.get('/api/online-orders/:id', handle(async (req, res) => {

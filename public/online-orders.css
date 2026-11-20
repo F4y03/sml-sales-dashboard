@@ -137,3 +137,12 @@
 
 /* Drill-down filter from เว็บไซต์ (exec-sales) */
 .oo-filter-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--tone-blue-soft-border); border-radius: 12px; background: var(--tone-blue-soft-bg); color: var(--tone-blue-soft-text); font-size: 13px; font-weight: 600; }
+
+/* รายงานบัญชี dialog (inside #overview-top so the shared preset / date-range styles apply) */
+.oo-acc { width: min(520px, calc(100vw - 24px)); }
+.oo-acc .od-body { display: grid; gap: 12px; }
+.oo-acc .ov-dates { width: fit-content; max-width: 100%; }
+.oo-acc .oo-form-status[data-state="loading"] { color: var(--muted); }
+#overview-top .oo-acc .mp-btn-primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+#overview-top .oo-acc .mp-btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
+#overview-top .oo-acc .ov-presets { width: fit-content; }

@@ -13,12 +13,13 @@
     <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="/theme-modes.css" />
     <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
-    <link rel="stylesheet" href="online-orders.css?v=20261120-2" />
+    <link rel="stylesheet" href="online-orders.css?v=20261120-4" />
     <script src="/theme-mode.js"></script>
     <script src="date-dmy.js?v=20261020-range4" defer></script>
     <script src="assets/chart.umd.js" defer></script>
     <script src="workspace-nav.js?v=20261120-web" defer></script>
-    <script src="online-orders.js?v=20261120-2" defer></script>
+    <script src="online-orders.js?v=20261120-3" defer></script>
+    <script src="online-orders-accounting.js?v=20261120-1" defer></script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#e11d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -39,8 +40,32 @@
             <div class="ov-actions">
               <a class="ov-btn ov-btn-ghost" href="order-permissions.html" id="perm-link" hidden>จัดการสิทธิ์</a>
               <button type="button" class="ov-btn ov-btn-ghost" id="refresh">↻ รีเฟรช</button>
+              <button type="button" id="accounting-export" class="ov-btn ov-btn-ghost" title="ดาวน์โหลด Excel สำหรับงานบัญชี ตามช่วงวันที่สั่งซื้อที่เลือก" hidden>รายงานบัญชี</button>
             </div>
           </header>
+
+          <dialog id="accounting-dialog" class="od oo-confirm oo-acc" aria-labelledby="acc-title">
+            <form id="accounting-form" method="dialog">
+              <header class="od-head"><div class="od-title"><h2 id="acc-title">รายงานบัญชี · เว็บไซต์</h2><p>เลือกช่วงวันที่สั่งซื้อ แล้วดาวน์โหลด Excel</p></div><button type="button" class="od-x" id="acc-close" aria-label="ปิด">✕</button></header>
+              <div class="od-body">
+                <div class="ov-presets" role="group" aria-label="เลือกช่วงวันที่อย่างรวดเร็ว">
+                  <button type="button" data-acc="month" aria-pressed="true">เดือนนี้</button
+                  ><button type="button" data-acc="prev-month" aria-pressed="false">เดือนก่อน</button
+                  ><button type="button" data-acc="year" aria-pressed="false">ปีนี้</button>
+                </div>
+                <div class="ov-dates">
+                  <label><span>จากวันที่</span><input type="date" id="acc-start" required /></label>
+                  <span class="ov-dates-arrow" aria-hidden="true">→</span>
+                  <label><span>ถึงวันที่</span><input type="date" id="acc-end" required /></label>
+                </div>
+                <p id="accounting-note" class="oo-form-status" role="status"></p>
+              </div>
+              <div class="oo-dialog-actions">
+                <button type="button" class="mp-btn mp-btn-sm" id="acc-cancel">ยกเลิก</button>
+                <button type="submit" class="mp-btn mp-btn-sm mp-btn-primary" id="acc-download">ดาวน์โหลด Excel</button>
+              </div>
+            </form>
+          </dialog>
 
           <div class="mp-tabs" role="tablist" aria-label="เลือกมุมมอง">
             <button type="button" role="tab" id="tab-orders" data-view="orders" aria-selected="true" aria-controls="view-orders">รายการออเดอร์</button>
