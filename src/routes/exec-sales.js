@@ -1,13 +1,13 @@
 // หน้าเว็บไซต์ — WooCommerce (proplusaudio.com) sales analytics. Access is checked in src/middleware/access.js
 // (canViewExecSales: Super Admin or a per-user grant by Super Admin) for the page and every /api/exec-sales route.
-// Keys stay on the server (wooCommerceApi.js). Results are cached in memory for 5 minutes per query so the shop
+// Keys stay on the server (wooCommerceApi.js). Results are cached in memory for 1 minute per query so the shop
 // is not hammered. Nothing touches SML.
 import ExcelJS from 'exceljs';
 import { canViewOrders } from '../middleware/access.js';
 import { createWooClient, WooError } from '../services/wooCommerceApi.js';
 import { provinceFromPostcode } from '../services/thaiPostcode.js';
 
-const TTL = 5 * 60 * 1000;
+const TTL = 60 * 1000; // matches the page auto-refresh
 const PAID = new Set(['processing', 'completed', 'on-hold']); // statuses WooCommerce Analytics counts as sales
 const INTERVALS = ['hour', 'day', 'week', 'month'];
 const MAX_ORDER_PAGES = 50; // 5,000 orders per range; beyond that the order-based charts say they are partial

@@ -1,5 +1,5 @@
 // หน้าเว็บไซต์ — WooCommerce analytics. Data: /api/exec-sales/* (server checks the permission on every call and
-// caches the shop's answers for 5 minutes). Charts: Chart.js (same bundle as the rest of the app).
+// caches the shop's answers for 1 minute). Charts: Chart.js (same bundle as the rest of the app).
 (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, className, text) => { const n = document.createElement(tag); if (className) n.className = className; if (text != null) n.textContent = text; return n; };
@@ -32,7 +32,7 @@
   }
 
   // ---------- state & period
-  const state = { start: '', end: '', preset: '7d', interval: 'day', metric: 'net', provinceMode: 'province', ov: null, tl: null, canViewOrders: false, req: 0, tlReq: 0 };
+  const state = { loadedAt: 0, start: '', end: '', preset: '7d', interval: 'day', metric: 'net', provinceMode: 'province', ov: null, tl: null, canViewOrders: false, req: 0, tlReq: 0 };
   const presets = [...document.querySelectorAll('[data-preset]')];
   function presetRange(name) {
     const t = new Date(), y = t.getFullYear(), m = t.getMonth(), d = t.getDate();
@@ -87,24 +87,36 @@
   const EMPTY = 'ไม่มีข้อมูลในช่วงนี้';
 
   // ---------- load
-  async function load() {
+  async function load({ quiet = false } = {}) {
     const id = ++state.req;
     $('display-period').textContent = state.start === state.end ? thDate(state.start, { day: 'numeric', month: 'long', year: 'numeric' }) : `${thDate(state.start)} – ${thDate(state.end)}`;
-    setStatus('');
-    $('kpi-error').textContent = '';
-    document.querySelector('.es-kpis').classList.add('is-loading');
-    for (const p of document.querySelectorAll('.es-panel')) panelState(p.dataset.chart, { loading: true });
-    loadTimeline();
+    // Auto-refresh (quiet) keeps the current charts on screen until the new numbers arrive: no skeleton flash.
+    if (!quiet) {
+      setStatus('');
+      $('kpi-error').textContent = '';
+      document.querySelector('.es-kpis').classList.add('is-loading');
+      for (const p of document.querySelectorAll('.es-panel')) panelState(p.dataset.chart, { loading: true });
+    }
+    loadTimeline({ quiet });
     try {
       const ov = await api(`/api/exec-sales/overview?start=${state.start}&end=${state.end}`);
       if (id !== state.req) return;
       state.ov = ov;
       $('display-prev').textContent = `${thDate(ov.prevStart)} – ${thDate(ov.prevEnd)}`;
+      if (quiet) { setStatus(''); $('kpi-error').textContent = ''; }
       renderAll();
-      $('live').textContent = 'อัปเดต ' + new Date(ov.generatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+      state.loadedAt = Date.now();
+      $('live').textContent = 'อัปเดตอัตโนมัติทุก 1 นาที · ล่าสุด ' + new Date(ov.generatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
       $('live').dataset.state = 'connected';
     } catch (error) {
       if (id !== state.req) return;
+      if (quiet && state.ov) {
+        // Keep showing the last good numbers; try again on the next tick.
+        state.loadedAt = Date.now() - AUTO_MS + 30000;
+        $('live').textContent = 'ดึงอัตโนมัติไม่สำเร็จ · แสดงข้อมูลเมื่อ ' + new Date(state.ov.generatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+        $('live').dataset.state = 'failed';
+        return;
+      }
       state.ov = null;
       document.querySelector('.es-kpis').classList.remove('is-loading');
       document.querySelectorAll('.es-kpis .ov-value').forEach(v => { v.textContent = '—'; });
@@ -113,10 +125,10 @@
       for (const p of document.querySelectorAll('.es-panel')) if (p.dataset.chart !== 'timeline') panelState(p.dataset.chart, { message: 'โหลดข้อมูลไม่สำเร็จ', error: true });
     }
   }
-  async function loadTimeline() {
+  async function loadTimeline({ quiet = false } = {}) {
     const id = ++state.tlReq;
     syncIntervalButtons();
-    panelState('timeline', { loading: true });
+    if (!quiet) panelState('timeline', { loading: true });
     try {
       const tl = await api(`/api/exec-sales/timeline?start=${state.start}&end=${state.end}&interval=${state.interval}`);
       if (id !== state.tlReq) return;
@@ -124,6 +136,7 @@
       renderTimeline();
     } catch (error) {
       if (id !== state.tlReq) return;
+      if (quiet && state.tl) return; // keep the last good chart
       state.tl = null;
       panelState('timeline', { message: 'โหลดกราฟไม่สำเร็จ: ' + (error instanceof TypeError ? 'ข้อมูลที่ได้รับไม่ถูกต้อง' : error.message), error: true });
     }
@@ -349,6 +362,19 @@
   // ---------- theme / resize
   const rerender = () => { if (state.ov) renderAll(); if (state.tl) renderTimeline(); };
   window.addEventListener('dashboard-theme-change', () => requestAnimationFrame(rerender));
+
+  // ---------- auto refresh: every minute while the page is open and visible (the server keeps answers for
+  // 1 minute, so polling faster would only return the same numbers). Rolling presets (วันนี้ / 7 วัน / เดือนนี้ …)
+  // move with the clock, so a page left open past midnight shows the new day.
+  const AUTO_MS = 60 * 1000 + 5000;
+  function autoRefresh() {
+    if (document.hidden || !state.loadedAt || Date.now() - state.loadedAt < AUTO_MS) return;
+    if (state.preset !== 'custom') [state.start, state.end] = presetRange(state.preset);
+    state.loadedAt = Date.now(); // no double fire while this request runs
+    load({ quiet: true });
+  }
+  setInterval(autoRefresh, 15000);
+  document.addEventListener('visibilitychange', autoRefresh);
 
   // ---------- boot
   api('/api/exec-sales/me').then(me => {
