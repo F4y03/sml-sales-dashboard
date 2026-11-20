@@ -18,6 +18,7 @@ const IMPORT_CSV = new URL("./all-categories-import.csv", DATA);
 const PRICE_CSV = new URL("./all-price-updates.csv", DATA);
 const PRODUCTS_CSV = new URL("./products-ALL_2026-10-30_TH.csv", DATA);
 const PRODUCTS_EN = new URL("./products-en.json", DATA);
+const SPECIAL = new URL("./special-categories.json", DATA);
 const HEAD_EN = { "รหัสสินค้า": "SKU", "ชื่อสินค้า": "Product Name", "หมวดหมู่": "Category", "แบรนด์": "Brand", "ราคาปกติ (บาท)": "Regular Price (THB)",
   "น้ำหนัก (กก.)": "Weight (kg)", "ยาว (ซม.)": "Length (cm)", "กว้าง (ซม.)": "Width (cm)", "สูง (ซม.)": "Height (cm)", "รายละเอียดสินค้า": "Description", "รูปภาพ": "Images" };
 const PORT = Number(process.env.CATEGORY_PORT) || 3010;
@@ -80,7 +81,14 @@ createServer((req, res) => {
   };
   const json = (code, data) => send(code, "application/json; charset=utf-8", JSON.stringify(data));
   const path = new URL(req.url, "http://x").pathname;
-  if (req.method === "GET" && path === "/") return send(200, "text/html; charset=utf-8", readFileSync(PAGE));
+  // หมวดพิเศษ (สินค้าขายดี / สินค้าใหม่) ฝังลงหน้าเว็บตอนส่ง ให้แถบหมวดนับและกรองได้
+  if (req.method === "GET" && path === "/") {
+    let special = {};
+    try { if (existsSync(SPECIAL)) special = JSON.parse(readFileSync(SPECIAL, "utf8")); } catch {}
+    const inject = "const SPECIAL=" + JSON.stringify(special).split("<").join("") + ";const P=D.products,";
+    const html = readFileSync(PAGE, "utf8").replace("const P=D.products,", () => inject);
+    return send(200, "text/html; charset=utf-8", html);
+  }
   if (req.method === "GET" && path === "/api/edits") return json(200, loadEdits());
   if (req.method === "GET" && path === "/api/log") return json(200, readLog());
   // CSV สินค้าทั้งหมด = ไฟล์สินค้าต้นฉบับทุกคอลัมน์ แทนหมวดด้วยหมวดใหม่ และราคาด้วยราคาที่แก้ในหน้านี้
@@ -94,6 +102,14 @@ createServer((req, res) => {
       for (const r of rows.slice(1)) {
         if (cats.has(r[skuCol])) r[catCol] = cats.get(r[skuCol]);
         if (edits[r[skuCol]]?.priceChanged && edits[r[skuCol]].price !== "") r[priceCol] = edits[r[skuCol]].price;
+      }
+      // หมวดพิเศษ (สินค้าขายดี / สินค้าใหม่) จาก special-categories.json ในโฟลเดอร์ข้อมูล { "หมวด": ["รหัส", ...] } ต่อท้ายหมวดเดิม
+      const special = existsSync(SPECIAL) ? JSON.parse(readFileSync(SPECIAL, "utf8")) : {};
+      for (const r of rows.slice(1)) {
+        const add = Object.keys(special).filter((k) => special[k].includes(r[skuCol]));
+        if (!add.length) continue;
+        const cur = String(r[catCol] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+        r[catCol] = [...add.filter((k) => !cur.includes(k)), ...cur].join(", ");
       }
       // ?lang=en : หัวคอลัมน์และชื่อหมวดเป็นอังกฤษ (category-names-en.mjs) ชื่อ/รายละเอียดสินค้าใช้คำแปลจาก
       // products-en.json ในโฟลเดอร์ข้อมูล ({ "รหัส": { "name": "...", "desc": "..." } }) ตัวที่ยังไม่มีคำแปลคงภาษาไทยไว้
