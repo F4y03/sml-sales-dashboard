@@ -37,7 +37,7 @@ function accessTokenFor(store, client, vault, conn, now = Date.now()) {
     refresh: token => client.refresh(token),
     save: t => store.run('UPDATE tiktok_connections SET access_token=?,access_expires=?,refresh_token=?,refresh_expires=? WHERE tiktok_shop_id=?',
       vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, conn.tiktok_shop_id),
-    expired: () => new TikTokApiError('การเชื่อมต่อ TikTok หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่') });
+    expired: () => new TikTokApiError(`การเชื่อมต่อ TikTok ร้าน "${conn.shop_name || conn.tiktok_shop_id}" หมดอายุ กรุณาให้ Super Admin เลือกร้านนี้แล้วกดเชื่อมต่อใหม่`) });
 }
 
 // Pulls orders created on Bangkok days start..end (inclusive) and saves them. Returns { orders } for logging only.

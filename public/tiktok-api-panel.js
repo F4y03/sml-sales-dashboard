@@ -46,7 +46,7 @@
       const last = conns.map(c => c.lastSyncAt).filter(Boolean).sort().pop();
       meta.textContent = [last ? 'ดึงล่าสุด ' + when(last) : conns.length ? 'ยังไม่เคยดึงข้อมูล' : '',
         conns.length && data.autoSyncMinutes ? `อัตโนมัติทุก ${data.autoSyncMinutes} นาที` : ''].filter(Boolean).join(' · ');
-      if (failed && !status.dataset.state) say('error', 'ครั้งล่าสุดผิดพลาด: ' + failed.lastSyncError);
+      if (failed && !status.dataset.state) say('error', `ครั้งล่าสุดผิดพลาด (ร้าน ${failed.tiktokShop || failed.shop}): ${failed.lastSyncError}`);
       else if (!conns.length && data.configured && !data.canConnect && !status.dataset.state) say('', 'กรุณาให้ Super Admin เชื่อมต่อร้าน');
     } catch (error) {
       panel.hidden = false;

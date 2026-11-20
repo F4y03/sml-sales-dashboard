@@ -26,7 +26,7 @@ function accessTokenFor(store, client, vault, conn, now = Date.now()) {
     refresh: token => client.refresh(token),
     save: t => store.run('UPDATE lazada_connections SET access_token=?,access_expires=?,refresh_token=?,refresh_expires=? WHERE seller_id=?',
       vault.seal(t.accessToken), t.accessExpires, vault.seal(t.refreshToken), t.refreshExpires, conn.seller_id),
-    expired: () => new LazadaApiError('การเชื่อมต่อ Lazada หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่') });
+    expired: () => new LazadaApiError(`การเชื่อมต่อ Lazada ร้าน "${conn.shop_name || conn.seller_id}" หมดอายุ กรุณาให้ Super Admin เลือกร้านนี้แล้วกดเชื่อมต่อใหม่`) });
 }
 
 // Pulls orders created on Bangkok days start..end (inclusive) and saves them. Returns counts for logging only.

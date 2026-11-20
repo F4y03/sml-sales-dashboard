@@ -31,7 +31,7 @@ function tokenFor(store, client, vault, conn, now = Date.now(), force = false) {
     reload: () => store.get('SELECT * FROM shopee_connections WHERE shop_id=?', conn.shop_id),
     refresh: token => client.refresh(token, conn.shop_id),
     save: t => saveToken(store, vault, conn.shop_id, t),
-    expired: () => new ShopeeApiError('การเชื่อมต่อ Shopee หมดอายุ กรุณาให้ Super Admin กดเชื่อมต่อใหม่') });
+    expired: () => new ShopeeApiError(`การเชื่อมต่อ Shopee ร้าน "${conn.shop_name || conn.shop_id}" หมดอายุ กรุณาให้ Super Admin เลือกร้านนี้แล้วกดเชื่อมต่อใหม่`) });
 }
 
 // Runs fn(shop) with a valid token; an access-token-expired answer refreshes and retries once.
