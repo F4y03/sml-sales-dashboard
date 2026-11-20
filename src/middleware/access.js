@@ -1,9 +1,11 @@
-import { MODULES, REVIEWER_APIS, REVIEWER_PAGES, isReviewer } from '../config/access.js';
+import { MODULES, ORDER_PERMISSIONS, REVIEWER_APIS, REVIEWER_PAGES, isReviewer } from '../config/access.js';
 import { canAdmin,hasPermission,landingPage } from '../services/permissionService.js';
 import { accessContext } from '../services/territoryService.js';
 import { isProductSheetPublicRead } from '../routes/productSheetProxy.js';
 import { isCatalogPublicRead } from '../routes/catalog.js';
 export const CUSTOMER_STOCK_ROLES=['super_admin','executive'];
+// จัดการออเดอร์ออนไลน์ (WooCommerce): orders_view or orders_update (update implies view). Company-wide website orders, not territory data.
+export const canViewOrders=user=>ORDER_PERMISSIONS.some(p=>hasPermission(user,p));
 export const requireLogin=(req,res,next)=>req.auth?next():res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
 export const requireRole=(...roles)=>(req,res,next)=>roles.includes(req.auth?.role)?next():res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'});
 export const requireSuperAdmin=requireRole('super_admin');
@@ -35,6 +37,10 @@ export function installAccess(app) {
     // Every signed-in user may read their own activity and the data-protection page.
     if(['/my-activity.html','/data-protection.html','/api/me/activity','/api/data-protection/cleanup'].includes(path))return next();
     if(['/select-territory.html','/access-denied.html'].includes(path))return next();
+    // จัดการออเดอร์ออนไลน์: page + every /api/online-orders route need an order permission (403 even when the URL is typed directly);
+    // updates additionally need orders_update (route middleware). The permission page is Super Admin only.
+    if(path==='/online-orders.html'||path==='/api/online-orders'||path.startsWith('/api/online-orders/'))return canViewOrders(req.auth)?next():forbidden();
+    if(path==='/order-permissions.html')return req.auth.role==='super_admin'?next():forbidden();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();
     // ลูกค้า & สต็อก: Super Admin / ผู้บริหาร that see every territory (whole-company stock and movements).

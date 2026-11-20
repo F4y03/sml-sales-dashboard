@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>สิทธิ์จัดการออเดอร์ · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
+    <link rel="stylesheet" href="online-orders.css?v=20261120-1" />
+    <script src="/theme-mode.js"></script>
+    <script src="workspace-nav.js?v=20261120-orders" defer></script>
+    <script src="order-permissions.js?v=20261120-1" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">SUPER ADMIN</p>
+              <h1>สิทธิ์จัดการออเดอร์<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">เลือกว่าใครเห็นเมนู "จัดการออเดอร์ออนไลน์" และทำอะไรได้บ้าง · มีผลทันทีโดยไม่ต้องเข้าสู่ระบบใหม่</p>
+            </div>
+            <div class="ov-actions"><a class="ov-btn ov-btn-ghost" href="online-orders.html">← ไปหน้าจัดการออเดอร์</a></div>
+          </header>
+        </div>
+
+        <section class="mp-panel" aria-labelledby="users-title">
+          <div class="mp-panel-head"><h2 id="users-title">ผู้ใช้ทั้งหมด</h2><small class="mp-muted oo-count">Super Admin และ role Admin เห็นเมนูเสมอ (ตั้งค่าที่ role ได้ใน System Admin)</small></div>
+          <p id="users-state" class="mp-muted" role="status">กำลังโหลด…</p>
+          <div class="mp-scroll" id="users-wrap" hidden>
+            <table class="mp-table oo-perm-table">
+              <thead><tr><th scope="col">ผู้ใช้</th><th scope="col">Role</th><th scope="col">เห็นเมนูจัดการออเดอร์</th><th scope="col">สถานะบัญชี</th></tr></thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="mp-panel" aria-labelledby="log-title">
+          <div class="mp-panel-head"><h2 id="log-title">ประวัติการเปลี่ยนสิทธิ์</h2><small class="mp-muted oo-count">100 รายการล่าสุด</small></div>
+          <p id="log-state" class="mp-muted" role="status"></p>
+          <div class="mp-scroll" id="log-wrap" hidden>
+            <table class="mp-table">
+              <thead><tr><th scope="col">เมื่อ</th><th scope="col">ผู้เปลี่ยน</th><th scope="col">ผู้ใช้ที่ถูกเปลี่ยน</th><th scope="col">จาก</th><th scope="col">เป็น</th></tr></thead>
+              <tbody id="log-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

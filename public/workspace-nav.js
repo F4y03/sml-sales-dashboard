@@ -28,6 +28,8 @@ const workspaceIcons = {
     '<path d="M12 15V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
   "customer-stock":
     '<circle cx="7" cy="7" r="3"/><path d="M2 19v-2a5 5 0 0 1 8-4"/><path d="m13 12 4-2 4 2-4 2-4-2Zm0 0v5l4 2 4-2v-5m-4 2v5"/>',
+  orders:
+    '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5m1 4 2 2 4-4"/>',
   catalog:
     '<path d="M12 6.5C10 5 7 4.5 3 5v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Zm0 0v13"/>',
 };
@@ -44,6 +46,7 @@ workspace.innerHTML = `
     <a href="index.html#overview" data-page="overview">${workspaceIcon("overview")}ภาพรวม</a>
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon("customers")}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
+    <a href="online-orders.html" data-page="online-orders">${workspaceIcon("orders")}จัดการออเดอร์ออนไลน์</a>
     <a href="consignment.html" data-page="consignment">${workspaceIcon("consignment")}รับ–เบิกสินค้าฝาก</a>
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
     <a href="customer-stock.html" data-page="customer-stock">${workspaceIcon("customer-stock")}ลูกค้า &amp; สต็อก</a>
@@ -327,6 +330,8 @@ window.prplusUser
       products: ["price_stock", "product_info"],
       reports: ["reports"],
       marketplace: ["marketplace_view"],
+      // จัดการออเดอร์ออนไลน์: Super Admin, Admin role, or users Super Admin granted (server: canViewOrders).
+      "online-orders": ["orders_view", "orders_update"],
       "marketplace-upload": ["marketplace_upload"],
     };
     const everyone = ["my-activity", "data-protection", "catalog"];
@@ -379,6 +384,13 @@ window.prplusUser
       link.href = "/system-admin.html";
       link.innerHTML = `${workspaceIcon("admin")}System Admin`;
       link.title = "System Admin";
+      workspace.querySelector("nav").append(link);
+    }
+    if (user.role === "super_admin") {
+      const link = document.createElement("a");
+      link.href = "/order-permissions.html";
+      link.innerHTML = `${workspaceIcon("admin")}สิทธิ์จัดการออเดอร์`;
+      link.title = "สิทธิ์จัดการออเดอร์ออนไลน์";
       workspace.querySelector("nav").append(link);
     }
     if (user.role === "super_admin") {

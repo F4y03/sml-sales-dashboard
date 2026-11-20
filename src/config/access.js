@@ -7,13 +7,14 @@ export const PERMISSIONS = {
   tiktok_sync: 'ดึงข้อมูล TikTok Shop API (ไม่เห็นตัวเลข)',
   lazada_sync: 'ดึงข้อมูล Lazada API (ไม่เห็นตัวเลข)',
   shopee_sync: 'ดึงข้อมูล Shopee API และดูสินค้า/สต็อก Shopee (ไม่เห็นยอดขาย)',
+  orders_view: 'ดูออเดอร์ออนไลน์ (เว็บไซต์ WooCommerce)', orders_update: 'อัปเดตสถานะ / เลขพัสดุ / โน้ตออเดอร์ออนไลน์ (WooCommerce)',
   users_manage: 'จัดการผู้ใช้', roles_manage: 'จัดการ Role / Permission', territories_manage: 'จัดการเขตการขาย',
   system_settings: 'ตั้งค่าระบบ', environment_settings: 'ตั้งค่า Environment (Super Admin เท่านั้น)', activity_logs: 'ดู Activity Log',
 };
 export const ROLES = [
   ['super_admin', 'Super Admin', 'all', Object.keys(PERMISSIONS)],
   ['executive', 'ผู้บริหาร', 'all', ['dashboard','price_stock','consignment','product_info','product_images','customer_analysis','product_analysis','reports','marketplace_view']],
-  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images','marketplace_upload']],
+  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images','marketplace_upload','orders_view','orders_update']],
   // Read-only external reviewer (e.g. a marketplace app review): online sales, own activity log, data-protection page.
   ['reviewer', 'Reviewer (อ่านอย่างเดียว)', 'all', ['marketplace_view']],
   ['sales', 'Sales', 'territory', ['price_stock','consignment','customer_analysis','product_analysis']],
@@ -60,4 +61,7 @@ export const isReviewer = role => REVIEWER_ROLES.includes(role);
 export const REVIEWER_PAGES = ['/marketplace.html', '/my-activity.html', '/data-protection.html', '/access-denied.html'];
 export const REVIEWER_APIS = ['/api/marketplace/summary', '/api/marketplace/order-fees', '/api/marketplace/order-detail', '/api/marketplace/shops', '/api/me/activity', '/api/connection-status',
   '/api/shopee/status', '/api/shopee/items', '/api/data-protection/cleanup']; // Shopee: connection badge, last sync, synced products (no connect/sync)
+// จัดการออเดอร์ออนไลน์ (WooCommerce): Super Admin always, the Admin role by default, anyone else only when Super Admin
+// grants orders_view / orders_update on /order-permissions.html. orders_update implies viewing.
+export const ORDER_PERMISSIONS = ['orders_view','orders_update'];
 export const ADMIN_PERMISSIONS = ['users_manage','roles_manage','territories_manage','system_settings','environment_settings','activity_logs'];

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการออเดอร์ออนไลน์ · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
+    <link rel="stylesheet" href="online-orders.css?v=20261120-1" />
+    <script src="/theme-mode.js"></script>
+    <script src="assets/chart.umd.js" defer></script>
+    <script src="workspace-nav.js?v=20261120-orders" defer></script>
+    <script src="online-orders.js?v=20261120-1" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PROPLUS" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+    <script src="/pwa-install.js" defer></script>
+  </head>
+  <body data-view="orders">
+    <div class="main-shell">
+      <main class="mp-main oo-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">PROPLUSAUDIO.COM · WOOCOMMERCE</p>
+              <h1>จัดการออเดอร์ออนไลน์<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">ออเดอร์จากเว็บไซต์ proplusaudio.com รีเฟรชอัตโนมัติทุก 2 นาที <span id="live" class="ov-live" role="status">กำลังโหลด…</span></p>
+            </div>
+            <div class="ov-actions">
+              <a class="ov-btn ov-btn-ghost" href="order-permissions.html" id="perm-link" hidden>จัดการสิทธิ์</a>
+              <button type="button" class="ov-btn ov-btn-ghost" id="refresh">↻ รีเฟรช</button>
+            </div>
+          </header>
+
+          <div class="mp-tabs" role="tablist" aria-label="เลือกมุมมอง">
+            <button type="button" role="tab" id="tab-orders" data-view="orders" aria-selected="true" aria-controls="view-orders">รายการออเดอร์</button>
+            <button type="button" role="tab" id="tab-sales" data-view="sales" aria-selected="false" aria-controls="view-sales">ยอดขายเว็บไซต์</button>
+          </div>
+
+          <div id="config-alert" class="oo-alert" role="alert" hidden></div>
+
+          <!-- ===== Orders ===== -->
+          <div id="view-orders" role="tabpanel" aria-labelledby="tab-orders">
+            <section class="ov-kpis oo-kpis" aria-label="สรุปออเดอร์">
+              <article class="ov-card is-clickable" data-filter="pending" tabindex="0" role="button" aria-label="รอชำระ — ดูรายการ">
+                <div class="ov-head"><span class="ov-name">รอชำระ</span></div>
+                <div class="ov-value" id="kpi-awaiting">—</div>
+                <div class="ov-foot"><span id="kpi-awaiting-foot">รอชำระเงิน + พักไว้ (รอตรวจสลิป)</span></div>
+              </article>
+              <article class="ov-card ov-featured is-clickable" data-filter="processing" tabindex="0" role="button" aria-label="รอจัด — ดูรายการ">
+                <div class="ov-head"><span class="ov-name">รอจัด</span></div>
+                <div class="ov-value" id="kpi-processing">—</div>
+                <div class="ov-foot"><span>ชำระแล้ว กำลังดำเนินการ</span></div>
+              </article>
+              <article class="ov-card is-clickable" data-filter="completed" tabindex="0" role="button" aria-label="ส่งแล้ววันนี้ — ดูรายการ">
+                <div class="ov-head"><span class="ov-name">ส่งแล้ววันนี้</span></div>
+                <div class="ov-value" id="kpi-today">—</div>
+                <div class="ov-foot"><span>เปลี่ยนเป็น "สำเร็จ" ตั้งแต่ 00:00 น.</span></div>
+              </article>
+              <article class="ov-card is-clickable" data-filter="processing" tabindex="0" role="button" aria-label="ค้างเกิน 2 วัน — ดูรายการ">
+                <div class="ov-head"><span class="ov-name">ค้างเกิน 2 วัน</span></div>
+                <div class="ov-value" id="kpi-overdue">—</div>
+                <div class="ov-foot"><span>รอจัดและสั่งซื้อมานานกว่า 48 ชม.</span></div>
+              </article>
+            </section>
+            <p id="summary-status" class="ov-status" role="status"></p>
+
+            <section class="ov-filters oo-filters" aria-label="กรองออเดอร์">
+              <div class="ov-filter-row">
+                <div class="ov-presets oo-status-tabs" role="group" aria-label="กรองตามสถานะ">
+                  <button type="button" data-status="processing" aria-pressed="true">รอจัด</button
+                  ><button type="button" data-status="pending" aria-pressed="false">รอชำระ</button
+                  ><button type="button" data-status="on-hold" aria-pressed="false">พักไว้</button
+                  ><button type="button" data-status="completed" aria-pressed="false">สำเร็จ</button
+                  ><button type="button" data-status="cancelled" aria-pressed="false">ยกเลิก</button
+                  ><button type="button" data-status="refunded" aria-pressed="false">คืนเงิน</button
+                  ><button type="button" data-status="failed" aria-pressed="false">ล้มเหลว</button
+                  ><button type="button" data-status="any" aria-pressed="false">ทั้งหมด</button>
+                </div>
+                <form id="search-form" class="oo-search" role="search">
+                  <input id="search" class="mp-input" type="search" maxlength="80" placeholder="ค้นหาเลขออเดอร์ / ชื่อ / เบอร์โทร" aria-label="ค้นหาเลขออเดอร์ ชื่อ หรือเบอร์โทร" />
+                  <button type="submit" class="ov-btn ov-btn-primary">ค้นหา</button>
+                </form>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- ===== Sales ===== -->
+          <div id="view-sales" role="tabpanel" aria-labelledby="tab-sales" hidden>
+            <section class="ov-filters" aria-label="เลือกช่วงข้อมูล">
+              <form id="sales-filters" class="ov-filter-row">
+                <div class="ov-presets" role="group" aria-label="เลือกช่วงวันที่อย่างรวดเร็ว">
+                  <button type="button" data-preset="7d" aria-pressed="false">7 วัน</button
+                  ><button type="button" data-preset="30d" aria-pressed="true">30 วัน</button
+                  ><button type="button" data-preset="month" aria-pressed="false">เดือนนี้</button
+                  ><button type="button" data-preset="prev-month" aria-pressed="false">เดือนก่อน</button
+                  ><button type="button" data-preset="year" aria-pressed="false">ปีนี้</button>
+                </div>
+                <div class="ov-dates">
+                  <label><span>จากวันที่</span><input type="date" id="sales-start" required /></label>
+                  <span class="ov-dates-arrow" aria-hidden="true">→</span>
+                  <label><span>ถึงวันที่</span><input type="date" id="sales-end" required /></label>
+                </div>
+                <div class="ov-filter-actions"><button type="submit" class="ov-btn ov-btn-primary">แสดงข้อมูล</button></div>
+              </form>
+              <div class="ov-range-line"><span class="ov-range-label">ช่วงข้อมูลที่แสดง</span><strong id="display-period">—</strong></div>
+              <div id="sales-status" class="ov-status" role="status" aria-live="polite"></div>
+            </section>
+            <section class="ov-kpis oo-sales-kpis" aria-label="สรุปยอดขายเว็บไซต์">
+              <article class="ov-card ov-featured">
+                <div class="ov-head"><span class="ov-name">ยอดขายรวม</span></div>
+                <div class="ov-value" id="kpi-sales">—</div>
+                <div class="ov-foot"><span id="kpi-sales-foot">จากรายงานยอดขาย WooCommerce</span></div>
+              </article>
+              <article class="ov-card">
+                <div class="ov-head"><span class="ov-name">จำนวนออเดอร์</span></div>
+                <div class="ov-value" id="kpi-orders">—</div>
+                <div class="ov-foot"><span id="kpi-orders-foot">—</span></div>
+              </article>
+              <article class="ov-card">
+                <div class="ov-head"><span class="ov-name">ยอดเฉลี่ยต่อออเดอร์</span></div>
+                <div class="ov-value" id="kpi-aov">—</div>
+                <div class="ov-foot"><span>ยอดขายรวม ÷ จำนวนออเดอร์</span></div>
+              </article>
+            </section>
+          </div>
+        </div>
+
+        <section class="mp-panel oo-orders-panel" id="orders-panel" aria-labelledby="orders-title">
+          <div class="mp-panel-head"><h2 id="orders-title">ออเดอร์ · รอจัด</h2><span id="orders-count" class="mp-muted oo-count"></span></div>
+          <p id="orders-state" class="mp-muted" role="status">กำลังโหลด…</p>
+          <div class="mp-scroll" id="orders-wrap" hidden>
+            <table class="mp-table oo-table">
+              <thead><tr><th scope="col">เลขออเดอร์</th><th scope="col">วันเวลา</th><th scope="col">ลูกค้า</th><th scope="col" class="num">ยอดเงิน</th><th scope="col">วิธีชำระ</th><th scope="col">สถานะ</th></tr></thead>
+              <tbody id="orders-body"></tbody>
+            </table>
+          </div>
+          <div class="mp-pager" id="pager" hidden>
+            <button type="button" id="prev" class="mp-btn mp-btn-ghost mp-btn-sm">‹ ก่อนหน้า</button>
+            <span id="page-label" class="mp-muted"></span>
+            <button type="button" id="next" class="mp-btn mp-btn-ghost mp-btn-sm">ถัดไป ›</button>
+          </div>
+        </section>
+
+        <div id="sales-panels" class="mp-grid" hidden>
+          <section class="mp-panel mp-span-2" aria-labelledby="daily-title">
+            <div class="mp-panel-head"><h2 id="daily-title">ยอดขายรายวัน</h2><small id="daily-source" class="mp-muted oo-count"></small></div>
+            <div class="mp-chart"><canvas id="daily-chart" role="img" aria-label="กราฟยอดขายเว็บไซต์รายวัน"></canvas></div>
+            <p id="daily-empty" class="mp-muted" hidden></p>
+            <details class="mp-table-toggle"><summary>ดูเป็นตาราง</summary><div class="mp-scroll"><table class="mp-table" id="daily-table"></table></div></details>
+          </section>
+          <section class="mp-panel mp-span-2" aria-labelledby="top-title">
+            <div class="mp-panel-head"><h2 id="top-title">สินค้าขายดี 10 อันดับ</h2><small class="mp-muted oo-count">เรียงตามจำนวนชิ้นที่ขายได้</small></div>
+            <ol id="top-list" class="mp-rank mp-rank-compact"></ol>
+          </section>
+        </div>
+
+        <dialog id="order-dialog" class="od oo-dialog" aria-labelledby="od-title">
+          <header class="od-head">
+            <span class="od-logo oo-logo" aria-hidden="true">WC</span>
+            <div class="od-title">
+              <h2><span id="od-title">รายละเอียดออเดอร์</span></h2>
+              <p id="od-sub"></p>
+            </div>
+            <button type="button" class="od-x" id="od-close" aria-label="ปิด">✕</button>
+          </header>
+          <div class="od-body" id="od-body"></div>
+        </dialog>
+
+        <dialog id="confirm-dialog" class="od oo-confirm" aria-labelledby="confirm-title">
+          <form method="dialog">
+            <header class="od-head"><div class="od-title"><h2 id="confirm-title">ยืนยันการเปลี่ยนสถานะ</h2></div></header>
+            <div class="od-body"><p id="confirm-text"></p></div>
+            <div class="oo-dialog-actions">
+              <button type="submit" value="cancel" class="mp-btn mp-btn-sm">ยกเลิก</button>
+              <button type="submit" value="ok" class="mp-btn mp-btn-sm mp-btn-primary" id="confirm-ok">ยืนยัน</button>
+            </div>
+          </form>
+        </dialog>
+      </main>
+    </div>
+  </body>
+</html>

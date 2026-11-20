@@ -39,6 +39,7 @@
 - Auth -> `AUTH-SETUP.md`
 - Consignment -> `consignment-source.md`
 - Shopee / Lazada / TikTok (ยอดขายออนไลน์) -> `MARKETPLACE.md`
+- จัดการออเดอร์ออนไลน์ (WooCommerce เว็บไซต์) + สิทธิ์ออเดอร์ -> `ONLINE-ORDERS.md`
 - แคตตาล็อกสินค้า (E-Catalog) -> `CATALOG.md`
 - ลูกค้า & สต็อก (ประวัติลูกค้า / มูลค่าสต็อก / ความเคลื่อนไหวสินค้า) -> `CUSTOMER-STOCK.md`
 - README -> เหลือไว้สำหรับ context กว้างเมื่อจำเป็น
