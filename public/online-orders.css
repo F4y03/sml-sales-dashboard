@@ -134,3 +134,6 @@
   #overview-top .oo-status-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
   #overview-top .oo-status-tabs button { flex: none; }
 }
+
+/* Drill-down filter from เว็บไซต์ (exec-sales) */
+.oo-filter-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--tone-blue-soft-border); border-radius: 12px; background: var(--tone-blue-soft-bg); color: var(--tone-blue-soft-text); font-size: 13px; font-weight: 600; }

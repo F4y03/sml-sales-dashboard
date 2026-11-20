@@ -81,6 +81,8 @@ export function createAccessStore(path = ':memory:', env = {}) {
       store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='admin' AND p.code IN ('orders_view','orders_update') AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
       store.run('INSERT INTO system_settings VALUES(?,?)','orders_admin_v1','true');
     }
+    // Menu renamed to "เว็บไซต์": keep the label shown in System Admin in step with PERMISSIONS.
+    store.run('UPDATE permissions SET name=? WHERE code=? AND name<>?',PERMISSIONS.exec_sales_view,'exec_sales_view',PERMISSIONS.exec_sales_view);
     // Import the existing account once; never overwrite managed users on restart.
     if (!store.get('SELECT 1 FROM users LIMIT 1') && env.AUTH_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(env.AUTH_PASSWORD_HASH || '')) {
       store.run("INSERT INTO users(username,password_hash,full_name,role_id) SELECT ?,?,?,id FROM roles WHERE code='super_admin'",env.AUTH_USERNAME,env.AUTH_PASSWORD_HASH,env.AUTH_USERNAME);

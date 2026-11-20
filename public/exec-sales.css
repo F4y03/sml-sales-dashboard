@@ -1,0 +1,90 @@
+/* เว็บไซต์ (exec-sales). Header/filters/KPI cards reuse overview-top.css; panels reuse marketplace.css (.mp-*).
+   Chart palette validated (dataviz validate_palette.js) for CVD separation and contrast on each surface. */
+:root {
+  --es-c1: #d80600; /* ProPlus red: current period / this year */
+  --es-c2: #2f6fb0;
+  --es-c3: #0e9a8f;
+  --es-c4: #a8740a;
+  --es-c5: #7c5cc4;
+  --es-other: #9aa0a8;
+  --es-region-out: #ef3b2f; /* same fill as "เบิกออกและคงเหลือ แยกตามภาค" */
+}
+:root[data-theme="dark"] {
+  --es-c1: #f2342a;
+  --es-c2: #4a7fe0;
+  --es-c3: #16a08a;
+  --es-c4: #b9892c;
+  --es-c5: #a066d6;
+  --es-other: #6e737c;
+}
+#overview-top .es-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 8px; }
+#overview-top .es-kpis .ov-value { cursor: inherit; font-size: clamp(20px, 2vw, 28px); }
+#overview-top .es-kpis .ov-spark { height: 34px; }
+#overview-top .ov-featured .ov-spark { color: rgba(255, 255, 255, 0.75); }
+#overview-top .ov-range-line .ov-chip { color: var(--ov-ink); }
+.es-alert { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--warning-border); border-radius: 12px; background: var(--warning-soft); color: var(--warning); font-size: 14px; font-weight: 600; }
+#kpi-error { margin: 0 0 12px; }
+
+/* ---------- skeleton loading */
+@keyframes es-shimmer { to { background-position: -200% 0; } }
+.es-skel, .is-loading .ov-value, .es-panel.is-loading .es-chart::after {
+  color: transparent !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 25%, color-mix(in srgb, var(--ink) 12%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 75%) 0 0 / 200% 100%;
+  animation: es-shimmer 1.3s linear infinite;
+  border-radius: 8px;
+}
+#overview-top .es-kpis.is-loading .ov-value { min-width: 60%; }
+#overview-top .es-kpis.is-loading .ov-spark { opacity: 0; }
+.es-panel.is-loading .es-chart canvas { visibility: hidden; }
+.es-panel.is-loading .es-chart::after { content: ""; position: absolute; inset: 6px 0 0; }
+@media (prefers-reduced-motion: reduce) { .es-skel, .is-loading .ov-value, .es-panel.is-loading .es-chart::after { animation: none; } }
+
+/* ---------- panels */
+.es-grid { margin-top: 4px; }
+.es-panel { display: flex; flex-direction: column; min-width: 0; }
+.es-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.es-seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.es-seg button { min-height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.es-seg button:hover:not([aria-pressed="true"]):not(:disabled) { color: var(--ink); }
+.es-seg button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+.es-seg button:disabled { opacity: .4; cursor: not-allowed; }
+.es-png { min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.es-png:hover:not(:disabled) { color: var(--ink); border-color: var(--brand); }
+.es-png:disabled { opacity: .4; cursor: not-allowed; }
+.es-seg button:focus-visible, .es-png:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.es-chart { position: relative; height: 260px; min-width: 0; }
+.es-chart-lg { height: 300px; }
+.es-chart-tall { height: 340px; }
+.es-chart-donut { height: 220px; width: 220px; flex: none; }
+.es-chart canvas { display: block; }
+.es-chart.is-clickable canvas { cursor: pointer; }
+.es-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; color: var(--muted); font-size: 14px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; }
+.es-empty[data-state="error"] { color: var(--negative); border-color: color-mix(in srgb, var(--negative) 40%, var(--line)); }
+.es-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.es-note:empty { display: none; }
+.es-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 8px; font-size: 12.5px; color: var(--muted); min-height: 18px; }
+.es-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.es-legend i { width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+.es-legend i.dash { height: 0; border-top: 2px dashed var(--c); background: none; border-radius: 0; width: 16px; }
+.es-legend i.line { height: 3px; border-radius: 2px; width: 16px; }
+.es-donut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.es-legend-list { flex: 1 1 180px; display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; min-width: 0; }
+.es-legend-list li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.es-legend-list i { width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+.es-legend-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.es-legend-list b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.es-legend-list small { color: var(--muted); font-weight: 600; margin-left: 4px; }
+
+/* ---------- responsive */
+@media (max-width: 1280px) { #overview-top .es-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { #overview-top .es-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .es-chart-donut { width: 100%; max-width: 240px; margin: 0 auto; }
+  .es-chart-tall { height: 380px; }
+  #overview-top .ov-presets { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  #overview-top .ov-presets button { flex: none; }
+}
+#overview-top .es-kpis .ov-badge { flex: none; white-space: nowrap; }
+#overview-top .es-kpis .ov-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#overview-top .es-kpis.is-loading .ov-value { min-width: 70%; min-height: 30px; color: transparent; background: linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 25%, color-mix(in srgb, var(--ink) 12%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 75%) 0 0 / 200% 100%; animation: es-shimmer 1.3s linear infinite; border-radius: 8px; }
+#overview-top .es-kpis.is-loading .ov-featured .ov-value { background-image: linear-gradient(90deg, rgba(255,255,255,.12) 25%, rgba(255,255,255,.24) 50%, rgba(255,255,255,.12) 75%); }

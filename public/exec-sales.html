@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เว็บไซต์ · PROPLUS</title>
+    <link rel="icon" type="image/png" href="/assets/pr-plus-logo-red.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260925-bill-dialog-3" />
+    <link rel="stylesheet" href="overview-top.css" />
+    <link rel="stylesheet" href="workspace-nav.css" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="/theme-modes.css" />
+    <link rel="stylesheet" href="marketplace.css?v=20261029-filter" />
+    <link rel="stylesheet" href="exec-sales.css?v=20261120-2" />
+    <script src="/theme-mode.js"></script>
+    <script src="date-dmy.js?v=20261020-range4" defer></script>
+    <script src="assets/chart.umd.js" defer></script>
+    <script src="workspace-nav.js?v=20261120-web" defer></script>
+    <script src="exec-sales.js?v=20261120-3" defer></script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#e11d2a" />
+    <link rel="apple-touch-icon" href="/assets/app-icon-180.png?v=2" />
+  </head>
+  <body>
+    <div class="main-shell">
+      <main class="mp-main es-main">
+        <div id="overview-top">
+          <header class="ov-header">
+            <div class="ov-title-block">
+              <p class="ov-eyebrow">WEBSITE · PROPLUSAUDIO.COM</p>
+              <h1>เว็บไซต์<span class="ov-dot" aria-hidden="true">.</span></h1>
+              <p class="ov-subtitle">ยอดขายเว็บไซต์จาก WooCommerce · ข้อมูลเก็บไว้ 5 นาทีเพื่อไม่ให้เว็บร้านช้า <span id="live" class="ov-live" role="status">กำลังโหลด…</span></p>
+            </div>
+            <div class="ov-actions">
+              <button type="button" class="ov-btn ov-btn-ghost" id="export-xlsx">⬇ Excel</button>
+              <button type="button" class="ov-btn ov-btn-ghost" id="export-csv">⬇ CSV</button>
+            </div>
+          </header>
+
+          <div id="config-alert" class="es-alert" role="alert" hidden></div>
+
+          <section class="ov-filters" aria-label="เลือกช่วงเวลา">
+            <form id="filters" class="ov-filter-row">
+              <div class="ov-presets" role="group" aria-label="เลือกช่วงเวลา">
+                <button type="button" data-preset="today" aria-pressed="false">วันนี้</button
+                ><button type="button" data-preset="yesterday" aria-pressed="false">เมื่อวาน</button
+                ><button type="button" data-preset="7d" aria-pressed="true">7 วัน</button
+                ><button type="button" data-preset="month" aria-pressed="false">เดือนนี้</button
+                ><button type="button" data-preset="prev-month" aria-pressed="false">เดือนก่อน</button
+                ><button type="button" data-preset="year" aria-pressed="false">ปีนี้</button
+                ><button type="button" data-preset="custom" aria-pressed="false">กำหนดเอง</button>
+              </div>
+              <div class="ov-dates" id="custom-dates" hidden>
+                <label><span>จากวันที่</span><input type="date" id="start" required /></label>
+                <span class="ov-dates-arrow" aria-hidden="true">→</span>
+                <label><span>ถึงวันที่</span><input type="date" id="end" required /></label>
+              </div>
+              <div class="ov-filter-actions" id="custom-apply" hidden><button type="submit" class="ov-btn ov-btn-primary">แสดงข้อมูล</button></div>
+            </form>
+            <div class="ov-range-line"><span class="ov-range-label">ช่วงข้อมูล</span><strong id="display-period">—</strong><span class="ov-range-label">เทียบกับ</span><span id="display-prev" class="ov-chip">—</span></div>
+            <div id="status" class="ov-status" role="status" aria-live="polite"></div>
+          </section>
+
+          <section class="ov-kpis es-kpis" aria-label="สรุปยอดขาย">
+            <article class="ov-card ov-featured" data-kpi="net"><div class="ov-head"><span class="ov-name">ยอดขายสุทธิ</span><span class="ov-badge" hidden></span></div><div class="ov-value">—</div><svg class="ov-spark" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true"></svg><div class="ov-foot"><span class="es-prev">ช่วงก่อน —</span></div></article>
+            <article class="ov-card" data-kpi="orders"><div class="ov-head"><span class="ov-name">จำนวนออเดอร์</span><span class="ov-badge" hidden></span></div><div class="ov-value">—</div><svg class="ov-spark" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true"></svg><div class="ov-foot"><span class="es-prev">ช่วงก่อน —</span></div></article>
+            <article class="ov-card" data-kpi="aov"><div class="ov-head"><span class="ov-name">ยอดเฉลี่ยต่อออเดอร์</span><span class="ov-badge" hidden></span></div><div class="ov-value">—</div><svg class="ov-spark" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true"></svg><div class="ov-foot"><span class="es-prev">ช่วงก่อน —</span></div></article>
+            <article class="ov-card" data-kpi="discount"><div class="ov-head"><span class="ov-name">ส่วนลดรวม</span><span class="ov-badge" hidden></span></div><div class="ov-value">—</div><svg class="ov-spark" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true"></svg><div class="ov-foot"><span class="es-prev">ช่วงก่อน —</span></div></article>
+            <article class="ov-card" data-kpi="refunds"><div class="ov-head"><span class="ov-name">ยอดคืนเงิน</span><span class="ov-badge" hidden></span></div><div class="ov-value">—</div><svg class="ov-spark" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true"></svg><div class="ov-foot"><span class="es-prev">ช่วงก่อน —</span></div></article>
+          </section>
+          <p id="kpi-error" class="ov-status error" role="alert"></p>
+        </div>
+
+        <div class="mp-grid es-grid" id="charts">
+          <section class="mp-panel mp-span-2 es-panel" data-chart="timeline" aria-labelledby="t-timeline">
+            <div class="mp-panel-head"><h2 id="t-timeline">ยอดขายตามเวลา</h2>
+              <div class="es-tools"><div class="es-seg" role="group" aria-label="ความละเอียด" id="interval-seg"><button type="button" data-interval="hour" aria-pressed="false">ชั่วโมง</button><button type="button" data-interval="day" aria-pressed="true">วัน</button><button type="button" data-interval="week" aria-pressed="false">สัปดาห์</button><button type="button" data-interval="month" aria-pressed="false">เดือน</button></div><button type="button" class="es-png" title="บันทึกกราฟเป็นรูป PNG">PNG</button></div></div>
+            <div class="es-legend" id="legend-timeline"></div>
+            <div class="es-chart es-chart-lg"><canvas role="img" aria-label="กราฟเส้นยอดขายช่วงนี้เทียบช่วงก่อนหน้า"></canvas></div>
+          </section>
+          <section class="mp-panel es-panel" data-chart="status" aria-labelledby="t-status">
+            <div class="mp-panel-head"><h2 id="t-status">จำนวนออเดอร์ตามสถานะ</h2><div class="es-tools"><button type="button" class="es-png" title="บันทึกกราฟเป็นรูป PNG">PNG</button></div></div>
+            <div class="es-legend" id="legend-status"></div>
+            <div class="es-chart"><canvas role="img" aria-label="กราฟแท่งซ้อนจำนวนออเดอร์รายวันแยกสถานะ"></canvas></div>
+            <p class="es-note" id="note-status"></p>
+          </section>
+          <section class="mp-panel es-panel" data-chart="products" aria-labelledby="t-products">
+            <div class="mp-panel-head"><h2 id="t-products">สินค้าขายดี 10 อันดับ</h2>
+              <div class="es-tools"><div class="es-seg" role="group" aria-label="เรียงตาม" id="product-seg"><button type="button" data-metric="net" aria-pressed="true">ยอดเงิน</button><button type="button" data-metric="qty" aria-pressed="false">จำนวนชิ้น</button></div><button type="button" class="es-png" title="บันทึกกราฟเป็นรูป PNG">PNG</button></div></div>
+            <div class="es-chart es-chart-tall"><canvas role="img" aria-label="กราฟแท่งแนวนอนสินค้าขายดี"></canvas></div>
+          </section>
+          <section class="mp-panel es-panel" data-chart="categories" aria-labelledby="t-categories">
+            <div class="mp-panel-head"><h2 id="t-categories">สัดส่วนยอดขายตามหมวดหมู่</h2><div class="es-tools"><button type="button" class="es-png" title="บันทึกกราฟเป็นรูป PNG">PNG</button></div></div>
+            <div class="es-donut"><div class="es-chart es-chart-donut"><canvas role="img" aria-label="กราฟโดนัทยอดขายตามหมวดหมู่"></canvas></div><ul class="es-legend-list" id="legend-categories"></ul></div>
+            <p class="es-note">สินค้าที่อยู่หลายหมวดจะถูกนับในทุกหมวดที่อยู่</p>
+          </section>
+          <section class="mp-panel es-panel" data-chart="provinces" aria-labelledby="t-provinces">
+            <div class="mp-panel-head"><h2 id="t-provinces">ยอดขายตามจังหวัด / ภาค</h2>
+              <div class="es-tools"><div class="es-seg" role="group" aria-label="แสดงตาม" id="province-seg"><button type="button" data-mode="province" aria-pressed="true">จังหวัด</button><button type="button" data-mode="region" aria-pressed="false">ภาค</button></div><button type="button" class="es-png" title="บันทึกกราฟเป็นรูป PNG">PNG</button></div></div>
+            <div class="es-chart es-chart-tall"><canvas role="img" aria-label="กราฟแท่งแนวนอนยอดขายตามจังหวัดหรือภาค"></canvas></div>
+            <p class="es-note" id="note-provinces">จังหวัดจากรหัสไปรษณีย์ที่อยู่จัดส่ง · ยอดตามออเดอร์รวมค่าส่ง</p>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -30,6 +30,8 @@ const workspaceIcons = {
     '<circle cx="7" cy="7" r="3"/><path d="M2 19v-2a5 5 0 0 1 8-4"/><path d="m13 12 4-2 4 2-4 2-4-2Zm0 0v5l4 2 4-2v-5m-4 2v5"/>',
   orders:
     '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5m1 4 2 2 4-4"/>',
+  website:
+    '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   catalog:
     '<path d="M12 6.5C10 5 7 4.5 3 5v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Zm0 0v13"/>',
 };
@@ -47,6 +49,7 @@ workspace.innerHTML = `
     <a href="customers.html" data-page="customers" aria-label="วิเคราะห์ลูกค้าและสินค้า">${workspaceIcon("customers")}<span class="workspace-link-copy"><strong>วิเคราะห์</strong><small>ลูกค้าและสินค้า</small></span></a>
     <a href="marketplace.html" data-page="marketplace">${workspaceIcon("marketplace")}ยอดขายออนไลน์</a>
     <a href="online-orders.html" data-page="online-orders">${workspaceIcon("orders")}จัดการออเดอร์ออนไลน์</a>
+    <a href="exec-sales.html" data-page="exec-sales">${workspaceIcon("website")}เว็บไซต์</a>
     <a href="consignment.html" data-page="consignment">${workspaceIcon("consignment")}รับ–เบิกสินค้าฝาก</a>
     <a href="products.html" data-page="products">${workspaceIcon("products")}เช็คราคา/สต๊อก</a>
     <a href="customer-stock.html" data-page="customer-stock">${workspaceIcon("customer-stock")}ลูกค้า &amp; สต็อก</a>
@@ -346,6 +349,12 @@ window.prplusUser
         user.scope === "territory"
       )
         link.hidden = true;
+      // หน้าเว็บไซต์: Super Admin or a per-user grant only (server: canViewExecSales ignores role grants).
+      if (link.dataset.page === "exec-sales")
+        link.hidden = !(
+          user.role === "super_admin" ||
+          user.additionalPermissions?.includes("exec_sales_view")
+        );
       // Role-locked like the server (src/middleware/access.js CUSTOMER_STOCK_ROLES).
       if (link.dataset.page === "customer-stock")
         link.hidden = !(
@@ -389,8 +398,8 @@ window.prplusUser
     if (user.role === "super_admin") {
       const link = document.createElement("a");
       link.href = "/order-permissions.html";
-      link.innerHTML = `${workspaceIcon("admin")}สิทธิ์จัดการออเดอร์`;
-      link.title = "สิทธิ์จัดการออเดอร์ออนไลน์";
+      link.innerHTML = `${workspaceIcon("admin")}จัดการสิทธิ์`;
+      link.title = "จัดการสิทธิ์ออเดอร์ / เว็บไซต์";
       workspace.querySelector("nav").append(link);
     }
     if (user.role === "super_admin") {

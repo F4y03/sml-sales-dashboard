@@ -19,3 +19,14 @@
 
 ## ทดสอบ
 `node --test tests/test-online-orders.js` (fake fetch, ไม่เรียกเว็บจริง)
+
+# เว็บไซต์ (`/exec-sales.html`, เดิมชื่อ "ยอดขายผู้บริหาร")
+
+- สิทธิ์ `exec_sales_view`: Super Admin เสมอ; คนอื่นต้องได้สิทธิ์รายบุคคลจาก Super Admin (คอลัมน์ "เห็นเมนูเว็บไซต์" ใน `/order-permissions.html`) — `canViewExecSales` **ไม่นับสิทธิ์จาก role** เพื่อไม่ให้คนที่มี roles_manage แจกเองได้
+- Log: `activity_logs` action `exec_sales.permission` {userId, from, to}
+- API (`src/routes/exec-sales.js`, แคชในหน่วยความจำ 5 นาทีต่อช่วงวันที่): `/api/exec-sales/overview`, `/timeline?interval=hour|day|week|month` (รายชั่วโมงเฉพาะช่วง ≤ 7 วัน), `/export?format=xlsx|csv`
+- ช่วงก่อนหน้า = จำนวนวันเท่ากัน ต่อท้ายก่อนวันเริ่ม; การ์ดจาก `wc-analytics/reports/revenue/stats` (ยอดสุทธิ = net_revenue, ส่วนลด = coupons) — ส่วนลด/คืนเงินที่เพิ่มขึ้นแสดงสีแดง
+- กราฟ (5 อัน): ยอดขายตามเวลา, ออเดอร์ตามสถานะ, สินค้าขายดี, หมวดหมู่, จังหวัด/ภาค — เอาวิธีชำระ / heatmap / ลูกค้าใหม่-เก่า / รายเดือนปีต่อปี ออกตามที่ผู้ใช้สั่ง (2026-11-20)
+- กราฟสถานะ / จังหวัด คำนวณจาก `wc/v3/orders` (สูงสุด 5,000 ออเดอร์ต่อช่วง; เกินนั้นมีหมายเหตุ); จังหวัดจากรหัสไปรษณีย์ (`thaiPostcode.js`), ภาคจากรายชื่อจังหวัดใน `REGIONS`; จังหวัดนับเฉพาะ processing/completed/on-hold และใช้ยอดออเดอร์ (รวมค่าส่ง)
+- คลิกกราฟ → `online-orders.html?start=&end=&product=&status=` (เฉพาะคนที่มีสิทธิ์ดูออเดอร์)
+- ทดสอบ: `node --test tests/test-exec-sales.js`

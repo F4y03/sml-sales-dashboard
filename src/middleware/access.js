@@ -6,6 +6,9 @@ import { isCatalogPublicRead } from '../routes/catalog.js';
 export const CUSTOMER_STOCK_ROLES=['super_admin','executive'];
 // จัดการออเดอร์ออนไลน์ (WooCommerce): orders_view or orders_update (update implies view). Company-wide website orders, not territory data.
 export const canViewOrders=user=>ORDER_PERMISSIONS.some(p=>hasPermission(user,p));
+// หน้าเว็บไซต์: Super Admin, or a per-user grant made by Super Admin (/order-permissions.html). Role grants are
+// deliberately ignored so nobody but Super Admin can hand this out (e.g. via a delegated roles_manage).
+export const canViewExecSales=user=>!!user&&(user.role==='super_admin'||(user.additionalPermissions||[]).includes('exec_sales_view'));
 export const requireLogin=(req,res,next)=>req.auth?next():res.status(401).json({error:'กรุณาเข้าสู่ระบบ',code:'AUTH_REQUIRED'});
 export const requireRole=(...roles)=>(req,res,next)=>roles.includes(req.auth?.role)?next():res.status(403).json({error:'ไม่มีสิทธิ์เข้าถึง'});
 export const requireSuperAdmin=requireRole('super_admin');
@@ -40,6 +43,7 @@ export function installAccess(app) {
     // จัดการออเดอร์ออนไลน์: page + every /api/online-orders route need an order permission (403 even when the URL is typed directly);
     // updates additionally need orders_update (route middleware). The permission page is Super Admin only.
     if(path==='/online-orders.html'||path==='/api/online-orders'||path.startsWith('/api/online-orders/'))return canViewOrders(req.auth)?next():forbidden();
+    if(path==='/exec-sales.html'||path==='/api/exec-sales'||path.startsWith('/api/exec-sales/'))return canViewExecSales(req.auth)?next():forbidden();
     if(path==='/order-permissions.html')return req.auth.role==='super_admin'?next():forbidden();
     if(path==='/system-admin.html')return canAdmin(req.auth)?next():forbidden();
     if(path==='/pending-product-images.html')return req.auth.role==='super_admin'?next():forbidden();

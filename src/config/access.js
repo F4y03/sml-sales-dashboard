@@ -7,6 +7,7 @@ export const PERMISSIONS = {
   tiktok_sync: 'ดึงข้อมูล TikTok Shop API (ไม่เห็นตัวเลข)',
   lazada_sync: 'ดึงข้อมูล Lazada API (ไม่เห็นตัวเลข)',
   shopee_sync: 'ดึงข้อมูล Shopee API และดูสินค้า/สต็อก Shopee (ไม่เห็นยอดขาย)',
+  exec_sales_view: 'เมนูเว็บไซต์ (ยอดขาย WooCommerce) — Super Admin ให้รายบุคคลเท่านั้น',
   orders_view: 'ดูออเดอร์ออนไลน์ (เว็บไซต์ WooCommerce)', orders_update: 'อัปเดตสถานะ / เลขพัสดุ / โน้ตออเดอร์ออนไลน์ (WooCommerce)',
   users_manage: 'จัดการผู้ใช้', roles_manage: 'จัดการ Role / Permission', territories_manage: 'จัดการเขตการขาย',
   system_settings: 'ตั้งค่าระบบ', environment_settings: 'ตั้งค่า Environment (Super Admin เท่านั้น)', activity_logs: 'ดู Activity Log',

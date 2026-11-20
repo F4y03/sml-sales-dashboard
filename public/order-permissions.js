@@ -2,6 +2,8 @@
 (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, className, text) => { const n = document.createElement(tag); if (className) n.className = className; if (text != null) n.textContent = text; return n; };
+  const KIND = { orders: 'จัดการออเดอร์', exec_sales: 'เมนูเว็บไซต์' };
+  const describe = (kind, v) => (kind === 'exec_sales' ? (v === true ? 'เห็น' : v === false ? 'ไม่เห็น' : '—') : LEVEL[v] || v || '—');
   const LEVEL = { none: 'ไม่เห็นเมนู', view: 'ดูออเดอร์อย่างเดียว', update: 'ดู + อัปเดตสถานะได้' };
   const thaiDateTime = iso => (iso ? new Date(iso).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' น.' : '—');
 
@@ -49,7 +51,27 @@
     ctrl.append(wrap);
     const active = el('td', '', u.active ? 'ใช้งาน' : 'ปิดใช้งาน');
     if (!u.active) active.className = 'oo-perm-note';
-    tr.append(who, role, ctrl, active);
+    // หน้าเว็บไซต์: per-user switch (Super Admin row is always on and locked).
+    const execTd = el('td'); const execWrap = el('div', 'oo-perm-ctrl');
+    const esw = el('label', 'oo-switch');
+    const einput = el('input'); einput.type = 'checkbox'; einput.checked = Boolean(u.execSales); einput.disabled = u.role === 'super_admin';
+    einput.setAttribute('aria-label', `เห็นเมนูเว็บไซต์ — ${u.username}`);
+    esw.append(einput, el('span', 'oo-track'), el('span', '', einput.checked ? 'เห็น' : 'ไม่เห็น'));
+    const emsg = el('span', 'oo-perm-msg');
+    execWrap.append(esw, emsg);
+    if (u.role === 'super_admin') execWrap.append(el('span', 'oo-perm-note', 'เห็นเสมอ'));
+    execTd.append(execWrap);
+    einput.addEventListener('change', async () => {
+      const want = einput.checked;
+      einput.disabled = true; emsg.removeAttribute('data-state'); emsg.textContent = 'กำลังบันทึก…';
+      try {
+        const data = await api('/api/admin/order-permissions/' + u.id + '/exec-sales', { method: 'PUT', body: JSON.stringify({ enabled: want }) });
+        renderLog(data.log);
+        const row = renderRow(data.user); tr.replaceWith(row);
+        const m = row.querySelectorAll('.oo-perm-msg')[1]; m.textContent = 'บันทึกแล้ว ✓'; setTimeout(() => { m.textContent = ''; }, 2500);
+      } catch (error) { einput.checked = !want; einput.disabled = false; emsg.dataset.state = 'error'; emsg.textContent = error.message; }
+    });
+    tr.append(who, role, ctrl, execTd, active);
 
     async function save(level) {
       const prev = u.userLevel;
@@ -79,7 +101,7 @@
     state.hidden = true;
     $('log-body').replaceChildren(...log.map(r => {
       const tr = el('tr');
-      tr.append(el('td', '', thaiDateTime(r.at)), el('td', '', r.actor), el('td', '', r.targetName ? `${r.targetName} (@${r.target})` : r.target), el('td', '', LEVEL[r.from] || r.from || '—'), el('td', '', LEVEL[r.to] || r.to || '—'));
+      tr.append(el('td', '', thaiDateTime(r.at)), el('td', '', r.actor), el('td', '', r.targetName ? `${r.targetName} (@${r.target})` : r.target), el('td', '', KIND[r.kind] || KIND.orders), el('td', '', describe(r.kind, r.from)), el('td', '', describe(r.kind, r.to)));
       return tr;
     }));
     $('log-wrap').hidden = false;

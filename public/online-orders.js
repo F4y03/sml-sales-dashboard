@@ -39,7 +39,31 @@
   }
 
   // ---------- state
-  const state = { view: 'orders', status: 'processing', page: 1, search: '', me: { canUpdate: false }, ordersReq: 0, summaryReq: 0, salesLoaded: false };
+  const state = { view: 'orders', status: 'processing', page: 1, search: '', me: { canUpdate: false }, ordersReq: 0, summaryReq: 0, salesLoaded: false, filter: null };
+  // Drill-down from หน้าเว็บไซต์: ?start=&end=&product=&pname=&status= (the server validates every value again).
+  {
+    const p = new URLSearchParams(location.search), ymd = /^d{4}-d{2}-d{2}$/;
+    if (ymd.test(p.get('start') || '') || /^d+$/.test(p.get('product') || '')) {
+      state.filter = { start: ymd.test(p.get('start') || '') ? p.get('start') : '', end: ymd.test(p.get('end') || '') ? p.get('end') : '', product: /^d+$/.test(p.get('product') || '') ? p.get('product') : '', pname: (p.get('pname') || '').slice(0, 120) };
+      const st = p.get('status');
+      if (st && (st === 'any' || STATUS[st])) state.status = st;
+    }
+  }
+  const thShort = ymd => new Date(ymd + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  function renderFilterChip() {
+    document.querySelector('.oo-filter-chip')?.remove();
+    const f = state.filter;
+    if (!f) return;
+    const parts = [];
+    if (f.start) parts.push(f.start === f.end || !f.end ? 'วันที่ ' + thShort(f.start) : `${thShort(f.start)} – ${thShort(f.end)}`);
+    if (f.product) parts.push('สินค้า ' + (f.pname || '#' + f.product));
+    const chip = el('div', 'oo-filter-chip');
+    chip.append(el('span', '', 'กรองจากหน้าเว็บไซต์: ' + parts.join(' · ')));
+    const x = el('button', 'mp-btn mp-btn-sm', '✕ ล้างตัวกรอง'); x.type = 'button';
+    x.addEventListener('click', () => { state.filter = null; history.replaceState(null, '', location.pathname + location.hash); state.page = 1; renderFilterChip(); loadOrders(); });
+    chip.append(x);
+    document.querySelector('#orders-panel .mp-panel-head').after(chip);
+  }
   const live = $('live');
   const setLive = (text, s) => { live.textContent = text; if (s) live.dataset.state = s; else delete live.dataset.state; };
 
@@ -109,6 +133,8 @@
     try {
       const q = new URLSearchParams({ status: state.status, page: state.page, per_page: 50 });
       if (state.search) q.set('q', state.search);
+      if (state.filter?.start) { q.set('start', state.filter.start); q.set('end', state.filter.end || state.filter.start); }
+      if (state.filter?.product) q.set('product', state.filter.product);
       const data = await api('/api/online-orders?' + q);
       if (id !== state.ordersReq) return;
       renderOrders(data);
@@ -534,6 +560,8 @@
   }).catch(error => { const a = $('config-alert'); a.hidden = false; a.textContent = error.message; });
 
   const hash = location.hash;
+  statusButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.status === state.status)));
+  renderFilterChip();
   selectView(hash === '#sales' ? 'sales' : 'orders', false);
   loadSummary();
   loadOrders();

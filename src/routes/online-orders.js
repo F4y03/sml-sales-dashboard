@@ -106,8 +106,14 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     const page = Math.min(1000, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
     const perPage = Math.min(100, Math.max(10, Number.parseInt(req.query.per_page, 10) || 50));
     const search = text(req.query.q, 80);
-    const r = await woo.wc('orders', { query: { status, page, per_page: perPage, search, orderby: 'date', order: 'desc' } });
-    res.json({ status, page, perPage, search, total: r.total, totalPages: r.totalPages, orders: (r.data || []).map(summarizeOrder) });
+    // Optional filters used when a chart on หน้าเว็บไซต์ links here: order date range (shop time) and product id.
+    const start = validDate(req.query.start) ? req.query.start : null;
+    const end = validDate(req.query.end) ? req.query.end : start;
+    if (start && end < start) throw bad('ช่วงวันที่ไม่ถูกต้อง');
+    const product = orderId(req.query.product);
+    const r = await woo.wc('orders', { query: { status, page, per_page: perPage, search, orderby: 'date', order: 'desc',
+      after: start ? start + 'T00:00:00' : undefined, before: end ? end + 'T23:59:59' : undefined, product: product || undefined } });
+    res.json({ status, page, perPage, search, start, end, product, total: r.total, totalPages: r.totalPages, orders: (r.data || []).map(summarizeOrder) });
   }));
 
   // Shop name/address for the A6 shipping label's sender block. Optional: the label still prints without it.
@@ -205,18 +211,21 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     const placeholders = ORDER_PERMISSIONS.map(() => '?').join(',');
     const rolePerms = store.all(`SELECT rp.role_id,p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.code IN (${placeholders})`, ...ORDER_PERMISSIONS);
     const userPerms = store.all(`SELECT up.user_id,p.code FROM user_permissions up JOIN permissions p ON p.id=up.permission_id WHERE p.code IN (${placeholders})`, ...ORDER_PERMISSIONS);
+    const execGrants = new Set(store.all("SELECT up.user_id FROM user_permissions up JOIN permissions p ON p.id=up.permission_id WHERE p.code='exec_sales_view'").map(x => x.user_id));
     return users.map(u => {
       const roleLevel = u.role === 'super_admin' ? 'update' : levelOf(rolePerms.filter(x => x.role_id === u.role_id).map(x => x.code));
       const userLevel = levelOf(userPerms.filter(x => x.user_id === u.id).map(x => x.code));
       const effective = LEVELS[Math.max(LEVELS.indexOf(roleLevel), LEVELS.indexOf(userLevel))];
-      return { id: u.id, username: u.username, fullName: u.full_name || '', active: Boolean(u.is_active), role: u.role, roleName: u.role_name, roleLevel, userLevel, effective };
+      return { id: u.id, username: u.username, fullName: u.full_name || '', active: Boolean(u.is_active), role: u.role, roleName: u.role_name, roleLevel, userLevel, effective,
+        // หน้าเว็บไซต์: Super Admin always; others only by a per-user grant (role grants are ignored, see canViewExecSales).
+        execSales: u.role === 'super_admin' || execGrants.has(u.id) };
     });
   }
   function permissionLog() {
-    return store.all(`SELECT l.id,l.created_at,l.details,a.username AS actor FROM activity_logs l LEFT JOIN users a ON a.id=l.user_id WHERE l.action='orders.permission' ORDER BY l.id DESC LIMIT 100`).map(row => {
+    return store.all(`SELECT l.id,l.action,l.created_at,l.details,a.username AS actor FROM activity_logs l LEFT JOIN users a ON a.id=l.user_id WHERE l.action IN ('orders.permission','exec_sales.permission') ORDER BY l.id DESC LIMIT 100`).map(row => {
       let d = {}; try { d = JSON.parse(row.details) || {}; } catch {}
       const target = Number.isInteger(d.userId) ? store.get('SELECT username,full_name FROM users WHERE id=?', d.userId) : null;
-      return { id: row.id, at: row.created_at ? row.created_at.replace(' ', 'T') + 'Z' : null, actor: row.actor || '—', target: target?.username || d.username || '(ลบแล้ว)', targetName: target?.full_name || '', from: d.from, to: d.to };
+      return { id: row.id, at: row.created_at ? row.created_at.replace(' ', 'T') + 'Z' : null, actor: row.actor || '—', target: target?.username || d.username || '(ลบแล้ว)', targetName: target?.full_name || '', kind: row.action === 'exec_sales.permission' ? 'exec_sales' : 'orders', from: d.from, to: d.to };
     });
   }
   const adminHandle = fn => (req, res) => {
@@ -241,6 +250,21 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
       const grant = level === 'update' ? ORDER_PERMISSIONS : level === 'view' ? ['orders_view'] : [];
       for (const code of grant) store.run('INSERT INTO user_permissions SELECT ?,id FROM permissions WHERE code=?', id, code);
       audit.record(req.auth, 'orders.permission', 'online_orders', { userId: id, username: target.username, from: before.userLevel, to: level }, null, req.socket.remoteAddress);
+    });
+    res.json({ user: permissionRows().find(u => u.id === id), log: permissionLog() });
+  }));
+  app.put('/api/admin/order-permissions/:id/exec-sales', requireSuperAdmin, adminHandle((req, res) => {
+    const id = orderId(req.params.id), enabled = req.body?.enabled;
+    if (!id) throw bad('ผู้ใช้ไม่ถูกต้อง');
+    if (typeof enabled !== 'boolean') throw bad('ค่าสิทธิ์ไม่ถูกต้อง');
+    const target = store.get('SELECT u.id,u.username,r.code AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=?', id);
+    if (!target) throw Object.assign(new Error('not found'), { status: 404, publicMessage: 'ไม่พบผู้ใช้' });
+    if (target.role === 'super_admin') throw bad('Super Admin เห็นเมนูเว็บไซต์เสมอ เปลี่ยนไม่ได้');
+    const before = permissionRows().find(u => u.id === id).execSales;
+    store.transaction(() => {
+      store.run("DELETE FROM user_permissions WHERE user_id=? AND permission_id=(SELECT id FROM permissions WHERE code='exec_sales_view')", id);
+      if (enabled) store.run("INSERT INTO user_permissions SELECT ?,id FROM permissions WHERE code='exec_sales_view'", id);
+      audit.record(req.auth, 'exec_sales.permission', 'exec_sales', { userId: id, username: target.username, from: before, to: enabled }, null, req.socket.remoteAddress);
     });
     res.json({ user: permissionRows().find(u => u.id === id), log: permissionLog() });
   }));
