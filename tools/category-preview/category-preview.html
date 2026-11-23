@@ -39,6 +39,9 @@ label.ck{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:cent
 .th.rm{opacity:.4;filter:grayscale(1)}
 .th button{position:absolute;top:0;right:0;width:18px;height:18px;line-height:14px;padding:0;border:0;border-radius:0 0 0 6px;background:rgba(0,0,0,.75);color:#fff;font-size:11px;cursor:pointer}
 .th.rm button{background:var(--ok)}
+.th.may{border-color:#8a7a3a}.th.may::after{content:"อาจซ้ำ";position:absolute;left:0;bottom:0;background:#8a7a3a;color:#fff;font-size:9px;padding:0 3px;border-radius:0 6px 0 0}
+.th.dup{border-color:var(--warn)}.th.dup::after{content:"ซ้ำ";position:absolute;left:0;bottom:0;background:var(--warn);color:#000;font-size:10px;padding:0 4px;border-radius:0 6px 0 0}
+.imgn b{color:var(--warn);font-weight:500}
 .imgn{font-size:11px;color:var(--muted);padding:2px 8px 0}
 .body{padding:10px 12px;display:flex;flex-direction:column;gap:5px;flex:1}
 .brand{color:var(--red2);font-size:11px;font-weight:500}.name{font-size:14px;line-height:1.35}
@@ -72,6 +75,7 @@ label.ck{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:cent
 <main><div class="bar"><input id="q" placeholder="ค้นหาชื่อ หรือรหัสสินค้า…"><span class="chip" id="chip">ทั้งหมด</span>
 <button class="btn" id="clr">ล้างทั้งหมด</button><button class="btn" id="logb">📜 ประวัติการแก้ไข (<span id="nlog">0</span>)</button>
 <label class="ck"><input type="checkbox" id="fe">เฉพาะที่แก้แล้ว (<span id="ned">0</span>)</label>
+<button class="btn" id="dupb" title="เทียบเนื้อภาพทุกสินค้าที่มีหลายรูป">🔍 ตรวจรูปซ้ำ</button><label class="ck" id="fdl" style="display:none"><input type="checkbox" id="fd">เฉพาะที่มีรูปซ้ำ/อาจซ้ำ (<span id="ndup">0</span>)</label>
 <label class="ck"><input type="checkbox" id="fl">เฉพาะที่มีหมายเหตุ</label>
 <select class="who" id="fs" style="width:auto" title="สถานะจาก SML แท็บ 8.สถานะ (เลิกผลิต / หยุดขาย / หยุดซื้อ)"><option value="a">สถานะ SML: ยังขายอยู่</option><option value="s">เลิกผลิต/หยุดขาย (SML)</option><option value="">สถานะ SML: ทั้งหมด</option></select>
 <select class="who" id="fi" style="width:auto"><option value="">รูป: ทั้งหมด</option><option value="y">เฉพาะมีรูป</option><option value="n">เฉพาะไม่มีรูป</option></select>
@@ -92,8 +96,27 @@ const imgList=pr=>IMGS[pr.s]||(pr.i?[pr.i]:[]);
 const imgLeft=pr=>imgList(pr).filter(u=>!(IMGRM[pr.s]||[]).includes(u));
 function photos(pr){const all=imgList(pr),rm=IMGRM[pr.s]||[],left=imgLeft(pr);const v=left.includes(VIEW[pr.s])?VIEW[pr.s]:left[0];
  let h='<div class="ph">'+(v?'<img loading="lazy" src="'+esc(imgSrc(v,400))+'" alt="">':(all.length?'ลบรูปหมดแล้ว':'ไม่มีรูป'))+'</div>';
- if(all.length>1||rm.length)h+='<div class="thumbs">'+all.map((u,k)=>{const r=rm.includes(u);return '<div class="th'+(r?" rm":"")+(u===v?" main":"")+'" data-s="'+esc(pr.s)+'" data-k="'+k+'" title="'+(r?"ลบแล้ว":"กดเพื่อดูรูปนี้")+'"><img loading="lazy" src="'+esc(imgSrc(u,100))+'" alt=""><button class="'+(r?"irs":"irm")+'" title="'+(r?"คืนรูปนี้":"ลบรูปนี้")+'">'+(r?"↩":"✕")+'</button></div>'}).join("")+'</div><div class="imgn">รูป '+left.length+'/'+all.length+(rm.length?' · ลบแล้ว '+rm.length:'')+'</div>';
+ if(all.length>1||rm.length)h+='<div class="thumbs">'+all.map((u,k)=>{const r=rm.includes(u);return '<div class="th'+(r?" rm":"")+(u===v?" main":"")+'" data-s="'+esc(pr.s)+'" data-k="'+k+'" title="'+(r?"ลบแล้ว":"กดเพื่อดูรูปนี้")+'"><img loading="lazy" src="'+esc(imgSrc(u,100))+'" alt=""><button class="'+(r?"irs":"irm")+'" title="'+(r?"คืนรูปนี้":"ลบรูปนี้")+'">'+(r?"↩":"✕")+'</button></div>'}).join("")+'</div><div class="imgn" data-s="'+esc(pr.s)+'">รูป '+left.length+'/'+all.length+(rm.length?' · ลบแล้ว '+rm.length:'')+'</div>';
  return h}
+// รูปซ้ำ: dHash 17x16 จากรูปขนาด 64px (lh3 ส่ง CORS ให้) วัดจากสินค้าจริง: ภาพเดียวกันที่ย่อ/ตัดขอบต่างกัน <= 30 บิต (จาก 256) = "ซ้ำ"; 31-37 ปนกัน = "อาจซ้ำ"; 38+ คนละภาพ
+const HASH={}, HP={}, DUPT=30, MAYT=37; let DUPSCAN=false;
+try{const c=JSON.parse(localStorage.getItem("imgHash1")||"{}");for(const k in c)HASH[k]=[...c[k]].flatMap(x=>{const n=parseInt(x,16);return [n>>3&1,n>>2&1,n>>1&1,n&1]})}catch{}
+let saveT=0;const saveHash=()=>{clearTimeout(saveT);saveT=setTimeout(()=>{try{const o={};for(const k in HASH)if(HASH[k]){let s="";for(let i=0;i<256;i+=4)s+=(HASH[k][i]*8+HASH[k][i+1]*4+HASH[k][i+2]*2+HASH[k][i+3]).toString(16);o[k]=s}localStorage.setItem("imgHash1",JSON.stringify(o))}catch{}},1500)};
+function hashImg(u){if(HASH[u])return Promise.resolve(HASH[u]);return HP[u]??=new Promise(res=>{const fail=()=>{delete HP[u];res(null)};const im=new Image();im.crossOrigin="anonymous";
+ im.onload=()=>{try{const c=document.createElement("canvas");c.width=17;c.height=16;const x=c.getContext("2d",{willReadFrequently:true});x.fillStyle="#fff";x.fillRect(0,0,17,16);x.drawImage(im,0,0,17,16);
+  const d=x.getImageData(0,0,17,16).data,b=[];for(let y=0;y<16;y++)for(let i=0;i<16;i++){const a=(y*17+i)*4;b.push(d[a]+d[a+1]+d[a+2]>d[a+4]+d[a+5]+d[a+6]?1:0)}HASH[u]=b;saveHash();res(b)}catch{fail()}};
+ im.onerror=fail;im.src=imgSrc(u,64)})}
+const ham=(a,b)=>{let n=0;for(let i=0;i<a.length;i++)n+=a[i]!==b[i];return n};
+// รูปที่ซ้ำกับรูปก่อนหน้า (ที่ยังไม่ถูกลบ) — ต้อง hash ครบแล้ว
+function dupIdx(pr){const all=imgList(pr),rm=IMGRM[pr.s]||[],out=new Map();
+ all.forEach((u,i)=>{const a=HASH[u];if(!a)return;let best=999;for(let j=0;j<i;j++){const b=HASH[all[j]];if(b&&!rm.includes(all[j])&&out.get(j)!=="dup")best=Math.min(best,ham(a,b))}
+  if(best<=DUPT)out.set(i,"dup");else if(best<=MAYT)out.set(i,"may")});return out}
+const dupCount=(pr,lv)=>[...dupIdx(pr)].filter(([i,l])=>(!lv||l===lv)&&!(IMGRM[pr.s]||[]).includes(imgList(pr)[i])).length;
+const dupLeft=pr=>dupCount(pr);
+async function markDups(){const cards=[...new Set([...document.querySelectorAll(".th")].map(t=>t.dataset.s))];
+ for(const s of cards){const pr=P.find(x=>x.s===s);await Promise.all(imgList(pr).map(hashImg));const d=dupIdx(pr);
+  document.querySelectorAll('.th[data-s="'+CSS.escape(s)+'"]').forEach(t=>{t.classList.toggle("dup",d.get(+t.dataset.k)==="dup");t.classList.toggle("may",d.get(+t.dataset.k)==="may")});
+  const n=document.querySelector('.imgn[data-s="'+CSS.escape(s)+'"]');if(n){n.querySelector("b")?.remove();const k=dupCount(pr,"dup"),m=dupCount(pr,"may");if(k||m)n.insertAdjacentHTML("beforeend"," <b>"+(k?"· ซ้ำ "+k:"")+(m?" · อาจซ้ำ "+m:"")+"</b>")}}}
 let STOP=null, EDITS={}, LOG=[], sel="", shown=60, open=null;
 const spCats=pr=>typeof SPECIAL==="undefined"?[]:Object.keys(SPECIAL).filter(k=>SPECIAL[k].includes(pr.s));
 const effCats=pr=>{const c=EDITS[pr.s]?.cats||pr.c;return [...spCats(pr).filter(k=>!c.includes(k)),...c]};
@@ -101,7 +124,7 @@ const effPrice=pr=>EDITS[pr.s]?(EDITS[pr.s].price):pr.p;
 const inCat=(pr,c)=>(typeof SPECIAL!=="undefined"&&SPECIAL[c]?.includes(pr.s))||effCats(pr).some(l=>l===c||l.startsWith(c+" > "));
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function passF(pr){return (!STOP||!$("fs").value||($("fs").value==="s")===STOP.has(pr.s))&&(!$("fl").checked||pr.m)&&(!$("fe").checked||EDITS[pr.s])&&(!$("fi").value||($("fi").value==="y")===!!imgLeft(pr).length)}
+function passF(pr){return (!STOP||!$("fs").value||($("fs").value==="s")===STOP.has(pr.s))&&(!$("fl").checked||pr.m)&&(!$("fe").checked||EDITS[pr.s])&&(!$("fi").value||($("fi").value==="y")===!!imgLeft(pr).length)&&(!DUPSCAN||!$("fd").checked||dupLeft(pr)>0)}
 function buildTree(){const tr=$("tree");tr.innerHTML="";$("treeTotal").textContent="ทั้งหมด "+P.filter(passF).length.toLocaleString("th-TH");const openSet=new Set([...document.querySelectorAll(".kids.open")].map(k=>k.dataset.p));
  const node=p=>{const name=p.split(" > ").pop();const ch=kids[p]||[];const n=P.filter(pr=>passF(pr)&&inCat(pr,p)).length;
   const row=document.createElement("div");row.className="cat"+(n?"":" zero");row.dataset.p=p;
@@ -139,6 +162,8 @@ function render(){document.querySelectorAll(".cat").forEach(x=>x.classList.toggl
    if(rmv&&!confirm("ลบรูปนี้ออกจาก "+pr.s+"? (กด ↩ คืนได้)"))return;
    try{const r=await fetch(rmv?"api/image/remove":"api/image/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:pr.s,url:u,who:$("who").value.trim()})});const j=await r.json();
     if(!r.ok){alert(j.error||"ไม่สำเร็จ");return}IMGRM=j.removed||{};if(j.log)LOG=j.log;buildTree();render();renderLog()}catch{alert("ติดต่อเครื่องผู้ดูแลไม่ได้")}}});
+ markDups();
+ if(DUPSCAN)$("ndup").textContent=P.filter(pr=>dupLeft(pr)>0).length;
  document.querySelectorAll(".editb").forEach(b=>b.onclick=()=>{open=b.dataset.s;render()});
  document.querySelectorAll(".revb").forEach(b=>b.onclick=async()=>{const pr=P.find(x=>x.s===b.dataset.s);
   if(!confirmWho())return;if(!confirm("คืนหมวดและราคาของ "+pr.s+" กลับเป็นค่าเดิม?"))return;
@@ -170,6 +195,12 @@ async function post(url,body){try{const r=await fetch(url,{method:"POST",headers
 $("logb").onclick=()=>$("logbox").classList.toggle("open");
 $("q").oninput=()=>{shown=60;render()};$("fl").onchange=()=>{shown=60;buildTree();render()};$("fe").onchange=()=>{shown=60;buildTree();render()};$("fi").onchange=()=>{shown=60;buildTree();render()};$("fs").onchange=()=>{shown=60;buildTree();render()};
 $("clr").onclick=()=>{sel="";$("q").value="";$("fl").checked=false;$("fe").checked=false;$("fi").value="";$("fs").value="a";shown=60;buildTree();render()};
+$("fd").onchange=()=>{shown=60;buildTree();render()};
+$("dupb").onclick=async()=>{const b=$("dupb");b.disabled=true;const todo=P.filter(pr=>imgList(pr).length>1).flatMap(pr=>imgList(pr)).filter(u=>!HASH[u]);let done=0,i=0,bad=0;
+ const work=async()=>{while(i<todo.length&&bad<30){const u=todo[i++];if(!await hashImg(u))bad++;else bad=0;if(++done%20===0)b.textContent="กำลังตรวจ "+done+"/"+todo.length;await new Promise(r=>setTimeout(r,150))}};
+ await Promise.all(Array.from({length:3},work));DUPSCAN=true;b.disabled=false;const miss=todo.filter(u=>!HASH[u]).length;
+ b.textContent=miss?"🔍 ตรวจต่อ (ยังเหลือ "+miss+" รูป — Google ให้พักก่อน ลองใหม่ภายหลัง)":"🔍 ตรวจรูปซ้ำ (ครบแล้ว)";
+ $("fdl").style.display="";$("fd").checked=true;shown=60;buildTree();render()};
 $("more").onclick=()=>{shown+=60;render()};buildTree();render();load();
 if(location.protocol==="file:"){const w=document.createElement("div");w.style.cssText="background:#f5b301;color:#000;padding:10px 16px;font-weight:500";
  w.textContent="⚠ เปิดจากไฟล์ในเครื่อง — แก้ไข/บันทึกไม่ได้ ให้เปิดที่ http://192.168.100.99:3010/ แทน";document.body.prepend(w)}
