@@ -4,7 +4,7 @@
 
 ## สิทธิ์
 - `orders_view` = ดูออเดอร์อย่างเดียว, `orders_update` = ดู + เปลี่ยนสถานะ / ใส่เลขพัสดุ / โน้ต (update ถือว่าดูได้ด้วย)
-- Super Admin มีเสมอ; role `admin` ได้ทั้งสองสิทธิ์เป็นค่าเริ่มต้น (`orders_admin_v1` ใน accessStore; ถอดได้ที่ System Admin → Roles)
+- Super Admin มีเสมอ; role `admin` **ไม่ได้**เป็นค่าเริ่มต้นแล้ว (ถอดออก 2026-11-23 ด้วย `orders_admin_revoke_v1` ใน accessStore) — ทั้งสองเมนูซ่อนจากทุกคนจนกว่า Super Admin จะเปิดให้รายคน
 - ผู้ใช้อื่น: Super Admin เปิดรายคนที่ `/order-permissions.html` (เก็บเป็น `user_permissions`) — มีผลทันที ไม่ต้อง login ใหม่
 - บันทึกการเปลี่ยนสิทธิ์ใน `activity_logs` action `orders.permission` {userId, from, to}; เปลี่ยนสถานะ = `orders.status`, โน้ต = `orders.note`
 - Backend: `src/middleware/access.js` ตอบ 403 ทุก `/api/online-orders/*` และหน้า ถ้าไม่มีสิทธิ์; route เขียนต้อง `orders_update`; `/api/admin/order-permissions` และหน้า permission = Super Admin เท่านั้น

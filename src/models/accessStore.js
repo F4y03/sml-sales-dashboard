@@ -81,6 +81,11 @@ export function createAccessStore(path = ':memory:', env = {}) {
       store.run("INSERT INTO role_permissions SELECT r.id,p.id FROM roles r,permissions p WHERE r.code='admin' AND p.code IN ('orders_view','orders_update') AND NOT EXISTS(SELECT 1 FROM role_permissions WHERE role_id=r.id AND permission_id=p.id)");
       store.run('INSERT INTO system_settings VALUES(?,?)','orders_admin_v1','true');
     }
+    // 2026-11-23: hidden from everyone except Super Admin until Super Admin grants it per user (/order-permissions.html).
+    if (!store.get('SELECT 1 FROM system_settings WHERE key=?','orders_admin_revoke_v1')) {
+      store.run("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE code='admin') AND permission_id IN (SELECT id FROM permissions WHERE code IN ('orders_view','orders_update'))");
+      store.run('INSERT INTO system_settings VALUES(?,?)','orders_admin_revoke_v1','true');
+    }
     // Menu renamed to "เว็บไซต์": keep the label shown in System Admin in step with PERMISSIONS.
     store.run('UPDATE permissions SET name=? WHERE code=? AND name<>?',PERMISSIONS.exec_sales_view,'exec_sales_view',PERMISSIONS.exec_sales_view);
     // Import the existing account once; never overwrite managed users on restart.

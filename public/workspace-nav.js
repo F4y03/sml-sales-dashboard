@@ -333,7 +333,7 @@ window.prplusUser
       products: ["price_stock", "product_info"],
       reports: ["reports"],
       marketplace: ["marketplace_view"],
-      // จัดการออเดอร์ออนไลน์: Super Admin, Admin role, or users Super Admin granted (server: canViewOrders).
+      // จัดการออเดอร์ออนไลน์: Super Admin or users Super Admin granted (server: canViewOrders).
       "online-orders": ["orders_view", "orders_update"],
       "marketplace-upload": ["marketplace_upload"],
     };

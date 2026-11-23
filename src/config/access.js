@@ -15,7 +15,7 @@ export const PERMISSIONS = {
 export const ROLES = [
   ['super_admin', 'Super Admin', 'all', Object.keys(PERMISSIONS)],
   ['executive', 'ผู้บริหาร', 'all', ['dashboard','price_stock','consignment','product_info','product_images','customer_analysis','product_analysis','reports','marketplace_view']],
-  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images','marketplace_upload','orders_view','orders_update']],
+  ['admin', 'Admin', 'all', ['price_stock','consignment','product_info','product_images','marketplace_upload']],
   // Read-only external reviewer (e.g. a marketplace app review): online sales, own activity log, data-protection page.
   ['reviewer', 'Reviewer (อ่านอย่างเดียว)', 'all', ['marketplace_view']],
   ['sales', 'Sales', 'territory', ['price_stock','consignment','customer_analysis','product_analysis']],
