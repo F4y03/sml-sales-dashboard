@@ -19,6 +19,8 @@ const PRICE_CSV = new URL("./all-price-updates.csv", DATA);
 const PRODUCTS_CSV = new URL("./products-ALL_2026-10-30_TH.csv", DATA);
 const PRODUCTS_EN = new URL("./products-en.json", DATA);
 const SPECIAL = new URL("./special-categories.json", DATA);
+// รายละเอียดสินค้าที่เขียนใหม่ให้เป็นรูปแบบเว็บ <ul><li><strong>หัวข้อ</strong> คำอธิบาย</li>…</ul> { "รหัส": "<ul>…</ul>" }
+const DESC_TH = new URL("./products-desc-th.json", DATA);
 const IMG_EDITS = new URL("./image-edits.json", DATA); // { "รหัส": ["url ที่ลบ", ...] }
 const HEAD_EN = { "รหัสสินค้า": "SKU", "ชื่อสินค้า": "Product Name", "หมวดหมู่": "Category", "แบรนด์": "Brand", "ราคาปกติ (บาท)": "Regular Price (THB)",
   "น้ำหนัก (กก.)": "Weight (kg)", "ยาว (ซม.)": "Length (cm)", "กว้าง (ซม.)": "Width (cm)", "สูง (ซม.)": "Height (cm)", "รายละเอียดสินค้า": "Description", "รูปภาพ": "Images" };
@@ -112,6 +114,10 @@ createServer((req, res) => {
       const rows = parseCsv(readFileSync(PRODUCTS_CSV, "utf8")).filter((r) => r.length > 1 || r[0]);
       const head = rows[0];
       const [skuCol, catCol, priceCol, imgCol] = ["รหัสสินค้า", "หมวดหมู่", "ราคาปกติ (บาท)", "รูปภาพ"].map((n) => head.indexOf(n));
+      // รายละเอียดสินค้า: ใช้ฉบับรูปแบบเว็บจาก products-desc-th.json เสมอเมื่อมี
+      const descTh = existsSync(DESC_TH) ? JSON.parse(readFileSync(DESC_TH, "utf8")) : {};
+      const dCol = head.indexOf("รายละเอียดสินค้า");
+      if (dCol >= 0) for (const r of rows.slice(1)) if (descTh[r[skuCol]]) r[dCol] = descTh[r[skuCol]];
       // รูปที่ลบในหน้านี้ (image-edits.json) ไม่ใส่ใน CSV
       const imgRemoved = loadImgEdits();
       if (imgCol >= 0) for (const r of rows.slice(1)) {
