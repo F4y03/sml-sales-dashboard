@@ -19,6 +19,7 @@ const PRICE_CSV = new URL("./all-price-updates.csv", DATA);
 const PRODUCTS_CSV = new URL("./products-ALL_2026-10-30_TH.csv", DATA);
 const PRODUCTS_EN = new URL("./products-en.json", DATA);
 const SPECIAL = new URL("./special-categories.json", DATA);
+const IMG_EDITS = new URL("./image-edits.json", DATA); // { "รหัส": ["url ที่ลบ", ...] }
 const HEAD_EN = { "รหัสสินค้า": "SKU", "ชื่อสินค้า": "Product Name", "หมวดหมู่": "Category", "แบรนด์": "Brand", "ราคาปกติ (บาท)": "Regular Price (THB)",
   "น้ำหนัก (กก.)": "Weight (kg)", "ยาว (ซม.)": "Length (cm)", "กว้าง (ซม.)": "Width (cm)", "สูง (ซม.)": "Height (cm)", "รายละเอียดสินค้า": "Description", "รูปภาพ": "Images" };
 const PORT = Number(process.env.CATEGORY_PORT) || 3010;
@@ -71,6 +72,16 @@ const saveEdits = (edits) => {
   writeFileSync(tmp, JSON.stringify(edits, null, 2));
   renameSync(tmp, EDITS);
 };
+const loadImgEdits = () => (existsSync(IMG_EDITS) ? JSON.parse(readFileSync(IMG_EDITS, "utf8")) : {});
+const splitImgs = (v) => String(v ?? "").split(",").map((u) => u.trim()).filter(Boolean);
+// รูปทั้งหมดของแต่ละรหัสจากไฟล์สินค้า (คอลัมน์ "รูปภาพ")
+const productImages = () => {
+  const rows = parseCsv(readFileSync(PRODUCTS_CSV, "utf8")).filter((r) => r.length > 1 || r[0]);
+  const [skuCol, imgCol] = ["รหัสสินค้า", "รูปภาพ"].map((n) => rows[0].indexOf(n));
+  const out = {};
+  for (const r of rows.slice(1)) { const l = splitImgs(r[imgCol]); if (l.length) out[r[skuCol]] = l; }
+  return out;
+};
 const readLog = () =>
   existsSync(LOG) ? readFileSync(LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).reverse() : [];
 
@@ -91,12 +102,22 @@ createServer((req, res) => {
   }
   if (req.method === "GET" && path === "/api/edits") return json(200, loadEdits());
   if (req.method === "GET" && path === "/api/log") return json(200, readLog());
+  if (req.method === "GET" && path === "/api/images") {
+    try { return json(200, { images: productImages(), removed: loadImgEdits() }); }
+    catch { return json(500, { error: "อ่านรูปจากไฟล์สินค้าไม่ได้" }); }
+  }
   // CSV สินค้าทั้งหมด = ไฟล์สินค้าต้นฉบับทุกคอลัมน์ แทนหมวดด้วยหมวดใหม่ และราคาด้วยราคาที่แก้ในหน้านี้
   if (req.method === "GET" && path === "/download/all.csv") {
     try {
       const rows = parseCsv(readFileSync(PRODUCTS_CSV, "utf8")).filter((r) => r.length > 1 || r[0]);
       const head = rows[0];
-      const [skuCol, catCol, priceCol] = ["รหัสสินค้า", "หมวดหมู่", "ราคาปกติ (บาท)"].map((n) => head.indexOf(n));
+      const [skuCol, catCol, priceCol, imgCol] = ["รหัสสินค้า", "หมวดหมู่", "ราคาปกติ (บาท)", "รูปภาพ"].map((n) => head.indexOf(n));
+      // รูปที่ลบในหน้านี้ (image-edits.json) ไม่ใส่ใน CSV
+      const imgRemoved = loadImgEdits();
+      if (imgCol >= 0) for (const r of rows.slice(1)) {
+        const rm = imgRemoved[r[skuCol]];
+        if (rm?.length) r[imgCol] = splitImgs(r[imgCol]).filter((u) => !rm.includes(u)).join(", ");
+      }
       const cats = new Map(parseCsv(readFileSync(IMPORT_CSV, "utf8")).slice(1).map((r) => [r[0], r[1]]));
       const edits = loadEdits();
       for (const r of rows.slice(1)) {
@@ -142,7 +163,7 @@ createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${fname}"`, "Cache-Control": "no-store" });
     return res.end(readFileSync(downloads[path]));
   }
-  if (req.method !== "POST" || !["/api/edit", "/api/revert", "/api/log/delete"].includes(path)) return send(404, "text/plain", "not found");
+  if (req.method !== "POST" || !["/api/edit", "/api/revert", "/api/log/delete", "/api/image/remove", "/api/image/restore"].includes(path)) return send(404, "text/plain", "not found");
   let body = "";
   req.on("data", (d) => {
     body += d;
@@ -175,6 +196,23 @@ createServer((req, res) => {
       saveEdits(edits);
       return true;
     };
+
+    if (path === "/api/image/remove" || path === "/api/image/restore") {
+      const url = String(input.url || "");
+      let imgs;
+      try { imgs = productImages()[sku] || []; } catch { return json(500, { error: "อ่านไฟล์สินค้าไม่ได้" }); }
+      if (!imgs.includes(url)) return json(400, { error: "ไม่พบรูปนี้ในสินค้า" });
+      const all = loadImgEdits();
+      const cur = new Set(all[sku] || []);
+      const removing = path === "/api/image/remove";
+      if (removing === cur.has(url)) return json(200, { removed: all, log: readLog() });
+      if (removing) cur.add(url); else cur.delete(url);
+      if (cur.size) all[sku] = [...cur]; else delete all[sku];
+      try { writeAtomic(IMG_EDITS, JSON.stringify(all, null, 2)); } catch { return json(500, { error: "บันทึกไม่สำเร็จ" }); }
+      log([{ field: removing ? "ลบรูป" : "คืนรูป", before: removing ? url : "", after: removing ? "" : url }]);
+      console.log(new Date().toLocaleTimeString(), name, removing ? "ลบรูป" : "คืนรูป", sku);
+      return json(200, { removed: all, log: readLog() });
+    }
 
     if (path === "/api/log/delete") {
       // ลบแถวประวัติ — เก็บแถวที่ถูกลบไว้ใน category-edit-log-deleted.jsonl

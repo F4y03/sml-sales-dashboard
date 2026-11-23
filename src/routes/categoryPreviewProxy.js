@@ -8,7 +8,7 @@ import http from 'node:http';
 // /api/sml-status (read-only: codes ticked เลิกผลิต / หยุดขาย / หยุดซื้อ in SML tab 8.สถานะ) and splits the
 // product CSV into ?status=active / ?status=stopped with it.
 const ROUTES = new Set(['GET /', 'GET /api/edits', 'GET /api/sml-status', 'GET /api/log', 'GET /download/all.csv', 'GET /download/categories.csv', 'GET /download/prices.csv',
-  'POST /api/edit', 'POST /api/revert', 'POST /api/log/delete']);
+  'GET /api/images', 'POST /api/edit', 'POST /api/revert', 'POST /api/log/delete', 'POST /api/image/remove', 'POST /api/image/restore']);
 const RETURN = ['content-type', 'content-disposition'];
 const editorName = auth => String(auth.full_name || auth.username || '').trim().slice(0, 40);
 const STOPPED_SQL = 'SELECT DISTINCT ic_code FROM ic_inventory_detail WHERE is_end=1 OR is_hold_sale=1 OR is_hold_purchase=1';
