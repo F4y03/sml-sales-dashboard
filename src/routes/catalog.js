@@ -316,10 +316,7 @@ export function installCatalog(app, env = process.env, catalogs = CATALOGS) {
       return res.status(502).json({ error: error.code === 'DRIVE_NOT_PDF' ? 'ไฟล์ใน Google Drive ยังไม่ได้แชร์แบบ "ทุกคนที่มีลิงก์" หรือไม่ใช่ PDF' : 'ดึงไฟล์จาก Google Drive ไม่สำเร็จ' });
     }
     res.set({ 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'; sandbox" });
-    if (req.query.download === '1') {
-      if (req.auth?.role !== 'super_admin') return res.status(403).json({ error: 'ดาวน์โหลดได้เฉพาะ Super Admin' });
-      res.attachment(book.pdf);
-    }
+    if (req.query.download === '1') res.attachment(book.pdf); // every signed-in viewer may download
     res.sendFile(file, { headers: { 'Content-Type': 'application/pdf' }, acceptRanges: true, lastModified: true });
   });
 }

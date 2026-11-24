@@ -1447,7 +1447,7 @@
     addBtn.hidden = !canManage;
     removeBtn.hidden = !(isSuperAdmin && current?.custom);
     $("ecat-edit-link").hidden = removeBtn.hidden;
-    downloadLink.hidden = !isSuperAdmin;
+    downloadLink.hidden = false;
     tabsEl.querySelectorAll("[role=tab]").forEach((tab) => {
       tab.draggable = isSuperAdmin;
       tab.title = isSuperAdmin ? "ลากเพื่อจัดลำดับ (หรือ Alt + ← / →)" : "";
