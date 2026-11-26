@@ -230,7 +230,9 @@
     const { order: o, notes } = current;
     const canUpdate = Boolean(current.canUpdate);
     $('od-title').textContent = 'ออเดอร์ #' + o.number;
-    $('od-sub').replaceChildren(badge(o.status), document.createTextNode(' สั่งซื้อ ' + thaiDateTime(o.dateCreated)));
+    $('od-sub').replaceChildren(o.needsVerify ? verifyBadge() : badge(o.status), document.createTextNode(' สั่งซื้อ ' + thaiDateTime(o.dateCreated)));
+    // ตรวจชำระ: show only the payment-check box (slip, confirm, not found, cancel).
+    if (o.needsVerify) { body.replaceChildren(paymentCheck(o, canUpdate)); return; }
     const parts = [];
 
     if (o.customerNote) {
@@ -310,8 +312,35 @@
     box.append(el('h3', 'od-h', '💳 ตรวจการชำระเงิน'));
     const amt = el('div', 'oo-pay-amount'); amt.append(el('small', '', 'ยอดที่ต้องได้รับ'), el('strong', '', money(o.total)));
     const meta = el('div', 'od-money');
-    meta.append(line('วิธีชำระ', o.paymentMethod || '—'), ...(o.fromBank ? [line('ลูกค้าแจ้งโอนจาก', o.fromBank)] : []), line('สั่งซื้อเมื่อ', thaiDateTime(o.dateCreated)), line('ชื่อผู้สั่งซื้อ', o.billing.name || o.shipping.name || '—'));
+    meta.append(line('วิธีชำระ', o.paymentMethod || '—'), line('สั่งซื้อเมื่อ', thaiDateTime(o.dateCreated)), line('ชื่อผู้สั่งซื้อ', o.billing.name || o.shipping.name || '—'));
     box.append(amt, meta);
+    // ข้อมูลที่ลูกค้ากรอกตอนแจ้งโอน (Seed Confirm); falls back to the bank saved on the order.
+    const given = (label, value) => line(label, value || 'ไม่ได้ระบุ', value ? '' : 'od-dim');
+    const confs = o.confirmations || [];
+    if (!confs.length) {
+      const c = el('div', 'od-money oo-confirm');
+      c.append(el('h4', 'oo-confirm-h', 'ข้อมูลที่ลูกค้าแจ้งโอน'), given('โอนจากธนาคาร', o.fromBank), given('ชื่อบัญชีผู้โอน', o.fromAccName), given('เลขบัญชีผู้โอน', o.fromAccNo));
+      box.append(c);
+    }
+    for (const cf of confs) {
+      const c = el('div', 'od-money oo-confirm');
+      c.append(el('h4', 'oo-confirm-h', 'ข้อมูลที่ลูกค้าแจ้งโอน' + (cf.submittedAt ? ' · ' + thaiDateTime(cf.submittedAt) : '')));
+      if (cf.amount != null) {
+        const diff = Math.round((cf.amount - o.total) * 100) / 100;
+        const amtLine = line('ยอดที่แจ้งโอน', money(cf.amount) + (diff === 0 ? ' ✓ ตรงกับยอดออเดอร์' : ` ⚠ ${diff > 0 ? 'เกิน' : 'ขาด'} ${money(Math.abs(diff))}`));
+        amtLine.dataset.match = String(diff === 0);
+        c.append(amtLine);
+      } else c.append(given('ยอดที่แจ้งโอน', ''));
+      c.append(given('โอนจากธนาคาร', o.fromBank || (/โอนจากธนาคาร:\s*([^)]*\)?)/.exec(cf.detail)?.[1] ?? '')));
+      c.append(given('ชื่อบัญชีผู้โอน', o.fromAccName), given('เลขบัญชีผู้โอน', o.fromAccNo));
+      c.append(given('วันเวลาที่โอน', cf.transferDate), given('ชื่อผู้แจ้ง', cf.name), given('เบอร์ติดต่อ', cf.contact));
+      const toAcc = [cf.toBank, cf.toAccountName, cf.toAccountNo].filter(x => x && !/^x+$/i.test(x)).join(' · ');
+      c.append(given('โอนเข้าบัญชีร้าน', toAcc));
+      if (cf.remark) c.append(line('หมายเหตุจากลูกค้า', cf.remark));
+      if (cf.detail) c.append(el('p', 'od-note', cf.detail));
+      box.append(c);
+    }
+    if (o.customerNote) { const cn = el('div', 'oo-customer-note'); cn.append(el('strong', '', '📝 ข้อความจากลูกค้า'), el('p', '', o.customerNote)); box.append(cn); }
     const slips = el('div', 'oo-slips');
     if (o.slips?.length) for (const u of o.slips) { const a = el('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; const img = el('img'); img.src = u; img.alt = 'สลิปการโอน'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; a.append(img); a.addEventListener('click', e => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return; e.preventDefault(); openSlip(u); }); slips.append(a); }
     else slips.append(el('p', 'od-note', 'เว็บไซต์ไม่ได้เก็บรูปสลิปไว้ในออเดอร์ — ตรวจยอดเงินเข้าจากแอปธนาคาร หรือดูสลิปในอีเมล "Admin Checking Payment" / แชท LINE'));
@@ -341,8 +370,34 @@
     };
     ok.addEventListener('click', () => send('confirm'));
     no.addEventListener('click', () => send('reject'));
-    box.append(form);
+    box.append(form, cancelForm(o));
     return box;
+  }
+
+  // ยกเลิกคำสั่งซื้อ from the ตรวจชำระ box: reason required, optional email to the customer.
+  function cancelForm(o) {
+    const form = el('form', 'oo-form oo-cancel');
+    form.append(el('h4', 'oo-cancel-h', '🚫 ยกเลิกคำสั่งซื้อ'));
+    const reason = el('textarea', 'mp-input'); reason.rows = 2; reason.maxLength = 500; reason.placeholder = 'เช่น ยอดโอนไม่ครบ / ลูกค้าขอยกเลิก / สินค้าหมด';
+    const l1 = el('label', 'oo-wide', 'เหตุผลที่ยกเลิก (จำเป็น)'); l1.append(reason);
+    const notifyWrap = el('label', 'oo-check'); const notify = el('input'); notify.type = 'checkbox'; notify.checked = true;
+    notifyWrap.append(notify, document.createTextNode(' ส่งอีเมลแจ้งเหตุผลให้ลูกค้า' + (o.billing.email ? ` (${o.billing.email})` : '')));
+    const btn = el('button', 'mp-btn mp-btn-sm oo-btn-danger', 'ยกเลิกคำสั่งซื้อ'); btn.type = 'submit';
+    const msg = formStatus();
+    form.append(l1, notifyWrap, btn, msg);
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const why = reason.value.trim();
+      if (!why) { msg.dataset.state = 'error'; msg.textContent = 'กรุณาระบุเหตุผลที่ยกเลิก'; reason.focus(); return; }
+      const yes = await confirmChange(`ยกเลิกคำสั่งซื้อ #${o.number} (${money(o.total)})?\n\nเหตุผล: ${why}\n${notify.checked ? 'ลูกค้าจะได้รับอีเมลแจ้งเหตุผล' : 'ไม่ส่งอีเมลแจ้งลูกค้า'}\n\nสถานะจะเปลี่ยนเป็น "ยกเลิก"`);
+      if (!yes) return;
+      setBusy(form, true); msg.dataset.state = ''; msg.textContent = 'กำลังยกเลิก…';
+      try {
+        await api(`/api/online-orders/${o.id}/payment`, { method: 'POST', body: { action: 'cancel', note: why, notifyCustomer: notify.checked } });
+        await refreshNotes(); renderDetail(); loadOrders({ quiet: true }); loadSummary();
+      } catch (error) { msg.dataset.state = 'error'; msg.textContent = 'ยกเลิกไม่สำเร็จ: ' + error.message; setBusy(form, false); }
+    });
+    return form;
   }
 
   // Slip lightbox: a dialog on top of the order dialog; click anywhere / Esc / ✕ closes it.

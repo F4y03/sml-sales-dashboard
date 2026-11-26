@@ -166,3 +166,11 @@
 .oo-lightbox-close { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #fff; color: #111; font-size: 16px; cursor: pointer; box-shadow: 0 2px 8px rgb(0 0 0 / .4); }
 .oo-lightbox-open { display: block; margin-top: 10px; text-align: center; color: #fff; font-size: 13px; }
 @media (max-width: 600px) { .oo-lightbox-close { top: 6px; right: 6px; } }
+.oo-cancel { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.oo-cancel-h { flex-basis: 100%; margin: 0; font-size: 14px; color: #b42318; }
+.oo-btn-danger { background: #b42318; border-color: #b42318; color: #fff; }
+.oo-btn-danger:hover:not(:disabled) { background: #912018; }
+.oo-confirm { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.oo-confirm-h { margin: 0 0 6px; font-size: 13px; }
+.oo-confirm [data-match="true"] span:last-child { color: #067647; font-weight: 700; }
+.oo-confirm [data-match="false"] span:last-child { color: #b42318; font-weight: 700; }

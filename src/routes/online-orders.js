@@ -46,6 +46,8 @@ export function summarizeOrder(o) {
   };
 }
 
+const ppMeta = (o, key) => plain((o.meta_data || []).find(m => m.key === key && typeof m.value === 'string')?.value || '').slice(0, 80);
+
 export function detailOrder(o) {
   return {
     ...summarizeOrder(o),
@@ -54,7 +56,7 @@ export function detailOrder(o) {
     shippingTotal: num(o.shipping_total), discountTotal: num(o.discount_total), totalTax: num(o.total_tax),
     transactionId: o.transaction_id || '',
     // ธนาคารที่ลูกค้าแจ้งโอน (saved by the site's แจ้งชำระเงิน form)
-    fromBank: plain((o.meta_data || []).find(m => m.key === '_pp_from_bank' && typeof m.value === 'string')?.value || '').slice(0, 80),
+    fromBank: ppMeta(o, '_pp_from_bank'), fromAccName: ppMeta(o, '_pp_from_acc_name'), fromAccNo: ppMeta(o, '_pp_from_acc_no'),
     customerNote: plain(o.customer_note),
     billing: { name: fullName(o.billing), phone: o.billing?.phone || '', email: o.billing?.email || '', lines: addressLines(o.billing) },
     shipping: { name: fullName(o.shipping) || fullName(o.billing), phone: o.shipping?.phone || o.billing?.phone || '', lines: addressLines(o.shipping).length ? addressLines(o.shipping) : addressLines(o.billing) },
@@ -244,19 +246,29 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   app.get('/api/online-orders/:id', handle(async (req, res) => {
     const id = orderId(req.params.id);
     if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
-    const [order, notes, seed] = await Promise.all([woo.wc(`orders/${id}`), woo.wc(`orders/${id}/notes`, { query: { type: 'any' } }), seedSlips(id)]);
-    const slips = [...seed.map(s => `/api/online-orders/${id}/slip/${s}`), ...findSlips(order.data, notes.data || [])].slice(0, 6);
-    res.json({ order: { ...detailOrder(order.data), slips }, notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
+    const [order, notes, seed] = await Promise.all([woo.wc(`orders/${id}`), woo.wc(`orders/${id}/notes`, { query: { type: 'any' } }), seedLogs(id)]);
+    const slips = [...seed.map(s => `/api/online-orders/${id}/slip/${s.id}`), ...findSlips(order.data, notes.data || [])].slice(0, 6);
+    res.json({ order: { ...detailOrder(order.data), slips, confirmations: seed.map(seedConfirmation) }, notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
   }));
 
   // Seed Confirm slips, via the "PRPLUS Dashboard – slip" Code Snippet on the website (wc/v3/prplus-slips/<order>).
   // Missing snippet / any error → no slips (the page then says none were found).
-  async function seedSlips(id) {
+  async function seedLogs(id) {
     try {
       const r = await woo.wc(`prplus-slips/${id}`);
-      return (r.data?.slips || []).filter(s => s.type === 'seed_confirm_log' && Number.isInteger(s.id) && s.id > 0).map(s => s.id);
+      return (r.data?.slips || []).filter(s => s.type === 'seed_confirm_log' && Number.isInteger(s.id) && s.id > 0);
     } catch { return []; }
   }
+  const seedSlips = async id => (await seedLogs(id)).map(s => s.id);
+  // What the customer typed in the แจ้งโอน form (Seed Confirm log). The slip link with its key is never passed on.
+  const seedConfirmation = s => {
+    const f = s.fields || {}, v = k => plain(f['seed_confirm_' + k] || '').slice(0, 200);
+    const date = v('date').replace(/^[\s:]+$/, '');
+    return { id: s.id, submittedAt: s.date ? s.date.replace(' ', 'T') + '+07:00' : null, name: v('name'), contact: v('contact'), email: v('email'),
+      amount: f.seed_confirm_amount !== undefined && f.seed_confirm_amount !== '' ? num(f.seed_confirm_amount) : null,
+      transferDate: date, toBank: v('bank_name'), toAccountName: v('account_name'), toAccountNo: v('account_number'),
+      remark: v('remark'), detail: v('detail'), via: v('via') };
+  };
   // Slip image proxy: the WooCommerce key stays on the server; only slips that belong to this order are served.
   app.get('/api/online-orders/:id/slip/:slip', handle(async (req, res) => {
     const id = orderId(req.params.id), slip = orderId(req.params.slip);
@@ -271,7 +283,7 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   app.post('/api/online-orders/:id/payment', requirePermission('orders_update'), handle(async (req, res) => {
     const id = orderId(req.params.id), action = req.body?.action;
     if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
-    if (!['confirm', 'reject'].includes(action)) throw bad('คำสั่งไม่ถูกต้อง');
+    if (!['confirm', 'reject', 'cancel'].includes(action)) throw bad('คำสั่งไม่ถูกต้อง');
     const extra = text(req.body.note, 500), transferAt = text(req.body.transferAt, 40);
     const cur = (await woo.wc(`orders/${id}`, { query: { _fields: 'id,status,total,payment_method,payment_method_title,meta_data' } })).data;
     if (!cur || !needsVerify(cur)) throw bad('ออเดอร์นี้ไม่ได้อยู่ในสถานะรอชำระ/รอตรวจสลิปแล้ว กรุณารีเฟรช');
@@ -284,6 +296,18 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
 เวลาโอนตามสลิป: ${transferAt}` : ''}${extra ? `
 หมายเหตุ: ${extra}` : ''}
 โดย ${who} (Dashboard)` } });
+    } else if (action === 'cancel') {
+      // ยกเลิกคำสั่งซื้อ: reason required; the reason goes to the customer by email only when notifyCustomer is ticked.
+      if (!extra) throw bad('กรุณาระบุเหตุผลที่ยกเลิก');
+      const notify = req.body.notifyCustomer === true;
+      order = (await woo.wc(`orders/${id}`, { method: 'PUT', body: { status: 'cancelled' } })).data;
+      if (notify) await woo.wc(`orders/${id}/notes`, { method: 'POST', body: { customer_note: true, note: `คำสั่งซื้อนี้ถูกยกเลิก
+เหตุผล: ${extra}
+หากมีข้อสงสัย กรุณาติดต่อร้าน` } });
+      await woo.wc(`orders/${id}/notes`, { method: 'POST', body: { customer_note: false, note: `ยกเลิกคำสั่งซื้อ (จากคิวตรวจชำระ)
+เหตุผล: ${extra}
+${notify ? 'ส่งอีเมลแจ้งลูกค้าแล้ว' : 'ไม่ได้แจ้งลูกค้า'}
+โดย ${who} (Dashboard)` } });
     } else {
       if (!extra) throw bad('กรุณาระบุเหตุผลที่ไม่พบยอดเงิน');
       const notify = req.body.notifyCustomer === true;
@@ -291,7 +315,7 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
 กรุณาติดต่อร้านหรือส่งหลักฐานการโอนอีกครั้ง` : `ตรวจไม่พบยอดเงิน: ${extra}
 โดย ${who} (Dashboard)` } });
     }
-    audit.record(req.auth, action === 'confirm' ? 'orders.payment_confirm' : 'orders.payment_reject', 'online_orders', { orderId: id, from: cur.status }, null, req.socket.remoteAddress);
+    audit.record(req.auth, 'orders.payment_' + action, 'online_orders', { orderId: id, from: cur.status, ...(action === 'cancel' ? { notify: req.body.notifyCustomer === true } : {}) }, null, req.socket.remoteAddress);
     res.json({ ok: true, status: order?.status || cur.status });
   }));
 

@@ -163,6 +163,13 @@ test('ตรวจการชำระเงิน: verify queue, slip links, c
   assert.equal(ok.status, 200);
   assert.equal(JSON.parse(f.calls.find(x => x.method === 'PUT').body).meta_data[0].key, VERIFIED_KEY);
   assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'bogus' })).status, 400);
+  // cancel: reason required; customer email note only when notifyCustomer
+  assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'cancel' })).status, 400);
+  const n0 = f.calls.length;
+  assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'cancel', note: 'ยอดโอนไม่ครบ', notifyCustomer: true })).status, 200);
+  const sent = f.calls.slice(n0).filter(c => c.method !== 'GET').map(c => JSON.parse(c.body));
+  assert.equal(sent[0].status, 'cancelled');
+  assert.ok(sent.some(b => b.customer_note === true && b.note.includes('ยอดโอนไม่ครบ')));
   await f.request('/api/admin/order-permissions/' + viewer.id, root, 'PUT', { level: 'view' });
   assert.equal((await f.request('/api/online-orders/501/payment', await f.login('viewer1'), 'POST', { action: 'confirm' })).status, 403);
   assert.deepEqual(findSlips({ meta_data: [{ key: '_payment_slip', value: 'https://proplusaudio.com/wp-content/uploads/slip-1.jpg' }, { key: 'color', value: 'https://x.com/a.jpg' }, { key: '_slip', value: 'http://insecure/a.png' }] },

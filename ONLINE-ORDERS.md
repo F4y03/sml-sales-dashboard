@@ -37,4 +37,5 @@
   - สลิป Seed Confirm: Code Snippet "PRPLUS Dashboard – slip" บนเว็บ เพิ่ม `wc/v3/prplus-slips/<order>` (หา `seed_confirm_log` ที่ `seed_confirm_order` = ออเดอร์) และ `wc/v3/prplus-slip-image/<id>` (ส่งต่อให้ `admin_post_seed_confirm_slip`) — ต้อง `edit_shop_orders`; ถ้า snippet ปิด = ไม่พบสลิป
   - Dashboard proxy รูปที่ `GET /api/online-orders/:id/slip/:slip` (ตรวจว่าสลิปเป็นของออเดอร์นั้นก่อน; คีย์อยู่ server เท่านั้น)
   - สำรอง `findSlips`: URL รูป https จาก meta ที่ชื่อเกี่ยวกับ slip/payment หรือจากโน้ต
-- `POST /api/online-orders/:id/payment` (orders_update): confirm = `set_paid` + processing + โน้ตภายในว่าใครตรวจ; reject = โน้ต (เลือกแจ้งลูกค้าได้) สถานะคงเดิม; log `orders.payment_confirm|reject`
+- `POST /api/online-orders/:id/payment` (orders_update): confirm = `set_paid` + processing + โน้ตภายในว่าใครตรวจ; reject = โน้ต (เลือกแจ้งลูกค้าได้) สถานะคงเดิม; cancel = ต้องมีเหตุผล → cancelled + (ถ้าติ๊ก) โน้ตแจ้งลูกค้าพร้อมเหตุผล + โน้ตภายใน; log `orders.payment_confirm|reject|cancel`
+- ออเดอร์ที่อยู่ในคิวตรวจชำระ เปิดแล้วแสดงเฉพาะกล่องตรวจชำระ (ยอด, ธนาคาร, ข้อความลูกค้า, สลิป, ยืนยัน/ไม่พบยอด/ยกเลิก)
