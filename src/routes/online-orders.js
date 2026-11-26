@@ -26,8 +26,16 @@ const addressLines = a => [a?.company, a?.address_1, a?.address_2, [a?.city, a?.
 const bangkokDayStart = (now = Date.now()) => { const d = new Date(now + BKK_OFFSET); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - BKK_OFFSET); };
 const wooTime = date => date.toISOString().slice(0, 19);
 
+// ตรวจชำระ queue = pending / on-hold, plus bank-transfer orders the website already moved to processing that nobody
+// has confirmed in the Dashboard yet (confirm stores VERIFIED_KEY in the order meta).
+export const VERIFIED_KEY = 'prplus_payment_verified';
+const isTransfer = o => o.payment_method === 'bacs' || /โอน|transfer/i.test(String(o.payment_method_title || ''));
+const isVerified = o => (o.meta_data || []).some(m => m.key === VERIFIED_KEY && m.value);
+export const needsVerify = o => ['pending', 'on-hold'].includes(o.status) || (o.status === 'processing' && isTransfer(o) && !isVerified(o));
+
 export function summarizeOrder(o) {
   return {
+    needsVerify: needsVerify(o),
     id: o.id, number: String(o.number || o.id), status: o.status,
     dateCreated: gmt(o.date_created_gmt), total: num(o.total), currency: o.currency || 'THB',
     customer: fullName(o.billing) || fullName(o.shipping) || 'ไม่ระบุชื่อ',
@@ -45,6 +53,8 @@ export function detailOrder(o) {
     subtotal: (o.line_items || []).reduce((s, i) => s + num(i.subtotal), 0),
     shippingTotal: num(o.shipping_total), discountTotal: num(o.discount_total), totalTax: num(o.total_tax),
     transactionId: o.transaction_id || '',
+    // ธนาคารที่ลูกค้าแจ้งโอน (saved by the site's แจ้งชำระเงิน form)
+    fromBank: plain((o.meta_data || []).find(m => m.key === '_pp_from_bank' && typeof m.value === 'string')?.value || '').slice(0, 80),
     customerNote: plain(o.customer_note),
     billing: { name: fullName(o.billing), phone: o.billing?.phone || '', email: o.billing?.email || '', lines: addressLines(o.billing) },
     shipping: { name: fullName(o.shipping) || fullName(o.billing), phone: o.shipping?.phone || o.billing?.phone || '', lines: addressLines(o.shipping).length ? addressLines(o.shipping) : addressLines(o.billing) },
@@ -87,6 +97,16 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   };
   const bad = message => Object.assign(new Error(message), { status: 400, publicMessage: message });
   const canUpdate = user => hasPermission(user, 'orders_update');
+  // All processing orders (up to 1,000), used to split them into "not yet checked" vs "ready to ship".
+  async function processingOrders(query = {}) {
+    const out = [];
+    for (let page = 1; page <= 10; page++) {
+      const r = await woo.wc('orders', { query: { status: 'processing', per_page: 100, page, orderby: 'date', order: 'desc', ...query } });
+      out.push(...(r.data || []));
+      if (page >= (r.totalPages || 1)) break;
+    }
+    return out;
+  }
 
   app.get('/api/online-orders/me', handle((req, res) => res.json({
     canUpdate: canUpdate(req.auth), canManagePermissions: req.auth.role === 'super_admin', configured: woo.configured(),
@@ -96,10 +116,13 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   app.get('/api/online-orders/summary', handle(async (_req, res) => {
     const todayStart = bangkokDayStart();
     const count = query => woo.wc('orders', { query: { per_page: 1, _fields: 'id', ...query } }).then(r => r.total);
-    const [pending, onHold, processing, overdue, completedToday] = await Promise.all([
+    const [pending, onHold, { processing, unverified }, overdue, completedToday] = await Promise.all([
       count({ status: 'pending' }),
       count({ status: 'on-hold' }),
-      count({ status: 'processing' }),
+      (async () => {
+        const all = await processingOrders({ _fields: 'id,status,payment_method,payment_method_title,meta_data' });
+        return { processing: all.length, unverified: all.filter(needsVerify).length };
+      })(),
       count({ status: 'processing', before: wooTime(new Date(Date.now() - 2 * 86400000)), dates_are_gmt: true }),
       (async () => {
         // "ส่งแล้ววันนี้" = orders marked completed since 00:00 Bangkok time (modified_after narrows the scan).
@@ -112,7 +135,7 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
         return n;
       })(),
     ]);
-    res.json({ awaitingPayment: pending + onHold, pending, onHold, processing, completedToday, overdue, checkedAt: new Date().toISOString() });
+    res.json({ awaitingPayment: pending + onHold + unverified, pending, onHold, unverified, processing: processing - unverified, completedToday, overdue, checkedAt: new Date().toISOString() });
   }));
 
   app.get('/api/online-orders', handle(async (req, res) => {
@@ -128,8 +151,24 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     const end = validDate(req.query.end) ? req.query.end : start;
     if (start && end < start) throw bad('ช่วงวันที่ไม่ถูกต้อง');
     const product = orderId(req.query.product);
-    const r = await woo.wc('orders', { query: { status: GROUPS[status] || status, page, per_page: perPage, search, orderby: 'date', order: 'desc',
-      after: start ? start + 'T00:00:00' : undefined, before: end ? end + 'T23:59:59' : undefined, product: product || undefined } });
+    const filters = { search, after: start ? start + 'T00:00:00' : undefined, before: end ? end + 'T23:59:59' : undefined, product: product || undefined };
+    if (status === 'verify' || status === 'processing') {
+      // Split processing orders by needsVerify, then page in memory.
+      const proc = await processingOrders(filters);
+      let rows = proc.filter(o => needsVerify(o) === (status === 'verify'));
+      if (status === 'verify') {
+        const waiting = [];
+        for (let p = 1; p <= 10; p++) {
+          const r = await woo.wc('orders', { query: { status: GROUPS.verify, per_page: 100, page: p, orderby: 'date', order: 'desc', ...filters } });
+          waiting.push(...(r.data || []));
+          if (p >= (r.totalPages || 1)) break;
+        }
+        rows = [...new Map([...waiting, ...rows].map(o => [o.id, o])).values()].sort((a, b) => String(b.date_created_gmt).localeCompare(String(a.date_created_gmt)));
+      }
+      const total = rows.length, totalPages = Math.max(1, Math.ceil(total / perPage));
+      return res.json({ status, page, perPage, search, start, end, product, total, totalPages, orders: rows.slice((page - 1) * perPage, page * perPage).map(summarizeOrder) });
+    }
+    const r = await woo.wc('orders', { query: { status: GROUPS[status] || status, page, per_page: perPage, orderby: 'date', order: 'desc', ...filters } });
     res.json({ status, page, perPage, search, start, end, product, total: r.total, totalPages: r.totalPages, orders: (r.data || []).map(summarizeOrder) });
   }));
 
@@ -205,8 +244,26 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
   app.get('/api/online-orders/:id', handle(async (req, res) => {
     const id = orderId(req.params.id);
     if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
-    const [order, notes] = await Promise.all([woo.wc(`orders/${id}`), woo.wc(`orders/${id}/notes`, { query: { type: 'any' } })]);
-    res.json({ order: { ...detailOrder(order.data), slips: findSlips(order.data, notes.data || []) }, notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
+    const [order, notes, seed] = await Promise.all([woo.wc(`orders/${id}`), woo.wc(`orders/${id}/notes`, { query: { type: 'any' } }), seedSlips(id)]);
+    const slips = [...seed.map(s => `/api/online-orders/${id}/slip/${s}`), ...findSlips(order.data, notes.data || [])].slice(0, 6);
+    res.json({ order: { ...detailOrder(order.data), slips }, notes: (notes.data || []).map(mapNote), canUpdate: canUpdate(req.auth) });
+  }));
+
+  // Seed Confirm slips, via the "PRPLUS Dashboard – slip" Code Snippet on the website (wc/v3/prplus-slips/<order>).
+  // Missing snippet / any error → no slips (the page then says none were found).
+  async function seedSlips(id) {
+    try {
+      const r = await woo.wc(`prplus-slips/${id}`);
+      return (r.data?.slips || []).filter(s => s.type === 'seed_confirm_log' && Number.isInteger(s.id) && s.id > 0).map(s => s.id);
+    } catch { return []; }
+  }
+  // Slip image proxy: the WooCommerce key stays on the server; only slips that belong to this order are served.
+  app.get('/api/online-orders/:id/slip/:slip', handle(async (req, res) => {
+    const id = orderId(req.params.id), slip = orderId(req.params.slip);
+    if (!id || !slip) throw bad('เลขออเดอร์ไม่ถูกต้อง');
+    if (!(await seedSlips(id)).includes(slip)) throw Object.assign(new Error('nf'), { status: 404, publicMessage: 'ไม่พบสลิปของออเดอร์นี้' });
+    const img = await woo.image(`prplus-slip-image/${slip}`);
+    res.set({ 'Content-Type': img.type, 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff' }).send(img.body);
   }));
 
   // ตรวจการชำระเงิน: confirm → mark paid (sets date_paid) and move to processing, with an internal note of who checked;
@@ -216,13 +273,13 @@ export function installOnlineOrders(app, store, audit, { env = process.env, fetc
     if (!id) throw bad('เลขออเดอร์ไม่ถูกต้อง');
     if (!['confirm', 'reject'].includes(action)) throw bad('คำสั่งไม่ถูกต้อง');
     const extra = text(req.body.note, 500), transferAt = text(req.body.transferAt, 40);
-    const cur = (await woo.wc(`orders/${id}`, { query: { _fields: 'id,status,total' } })).data;
-    if (!['pending', 'on-hold'].includes(cur?.status)) throw bad('ออเดอร์นี้ไม่ได้อยู่ในสถานะรอชำระ/รอตรวจสลิปแล้ว กรุณารีเฟรช');
+    const cur = (await woo.wc(`orders/${id}`, { query: { _fields: 'id,status,total,payment_method,payment_method_title,meta_data' } })).data;
+    if (!cur || !needsVerify(cur)) throw bad('ออเดอร์นี้ไม่ได้อยู่ในสถานะรอชำระ/รอตรวจสลิปแล้ว กรุณารีเฟรช');
     const who = req.auth.full_name || req.auth.username;
     const amount = Number(cur.total || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
     let order = null;
     if (action === 'confirm') {
-      order = (await woo.wc(`orders/${id}`, { method: 'PUT', body: { set_paid: true, status: 'processing' } })).data;
+      order = (await woo.wc(`orders/${id}`, { method: 'PUT', body: { set_paid: true, status: 'processing', meta_data: [{ key: VERIFIED_KEY, value: `${who} ${new Date().toISOString()}` }] } })).data;
       await woo.wc(`orders/${id}/notes`, { method: 'POST', body: { customer_note: false, note: `ตรวจสอบการชำระเงินแล้ว ยอด ฿${amount}${transferAt ? `
 เวลาโอนตามสลิป: ${transferAt}` : ''}${extra ? `
 หมายเหตุ: ${extra}` : ''}

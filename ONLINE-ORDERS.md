@@ -32,6 +32,9 @@
 - ทดสอบ: `node --test tests/test-exec-sales.js`
 
 ## ตรวจการชำระเงิน
-- แท็บ/การ์ด "ตรวจชำระ" = สถานะ pending + on-hold (`status=verify`)
-- หน้ารายละเอียดแสดงยอดที่ต้องได้รับ + รูปสลิป (`findSlips`: URL รูป https จาก meta ที่ชื่อเกี่ยวกับ slip/payment หรือจากโน้ต)
+- แท็บ/การ์ด "ตรวจชำระ" = pending + on-hold + processing ที่จ่ายด้วยโอนเงิน (bacs / ชื่อมี "โอน") แต่ยังไม่มีใครยืนยันใน Dashboard (ไม่มี meta `prplus_payment_verified`) — เป็นแท็บเริ่มต้นเมื่อเปิดหน้า; "รอจัดส่ง" = processing ที่เหลือ (สแกนสูงสุด 1,000 ออเดอร์)
+- หน้ารายละเอียดแสดงยอดที่ต้องได้รับ + ธนาคารที่ลูกค้าแจ้ง (`_pp_from_bank`) + รูปสลิป
+  - สลิป Seed Confirm: Code Snippet "PRPLUS Dashboard – slip" บนเว็บ เพิ่ม `wc/v3/prplus-slips/<order>` (หา `seed_confirm_log` ที่ `seed_confirm_order` = ออเดอร์) และ `wc/v3/prplus-slip-image/<id>` (ส่งต่อให้ `admin_post_seed_confirm_slip`) — ต้อง `edit_shop_orders`; ถ้า snippet ปิด = ไม่พบสลิป
+  - Dashboard proxy รูปที่ `GET /api/online-orders/:id/slip/:slip` (ตรวจว่าสลิปเป็นของออเดอร์นั้นก่อน; คีย์อยู่ server เท่านั้น)
+  - สำรอง `findSlips`: URL รูป https จาก meta ที่ชื่อเกี่ยวกับ slip/payment หรือจากโน้ต
 - `POST /api/online-orders/:id/payment` (orders_update): confirm = `set_paid` + processing + โน้ตภายในว่าใครตรวจ; reject = โน้ต (เลือกแจ้งลูกค้าได้) สถานะคงเดิม; log `orders.payment_confirm|reject`

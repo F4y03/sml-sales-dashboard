@@ -149,12 +149,19 @@ test('ตรวจการชำระเงิน: verify queue, slip links, c
   const f = await fixture(t);
   const viewer = await f.create('viewer1', 'sales');
   const root = await f.login('root');
-  await f.request('/api/online-orders?status=verify', root);
+  // fixture 501 = processing + bank transfer, not yet confirmed -> sits in ตรวจชำระ, not in รอจัดส่ง
+  const v = await (await f.request('/api/online-orders?status=verify', root)).json();
   assert.equal(new URL(f.calls.at(-1).url).searchParams.get('status'), 'on-hold,pending');
+  assert.deepEqual(v.orders.map(o => o.id), [501]);
+  assert.equal((await (await f.request('/api/online-orders?status=processing', root)).json()).total, 0);
+  const { needsVerify, VERIFIED_KEY } = await import('../src/routes/online-orders.js');
+  assert.equal(needsVerify({ ...order, meta_data: [{ key: VERIFIED_KEY, value: 'root' }] }), false);
+  assert.equal(needsVerify({ ...order, payment_method: 'cod', payment_method_title: 'เก็บเงินปลายทาง' }), false);
   await f.request('/api/online-orders?status=closed', root);
   assert.equal(new URL(f.calls.at(-1).url).searchParams.get('status'), 'cancelled,refunded,failed');
-  // order 501 in the fixture is "processing": nothing to verify
-  assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'confirm' })).status, 400);
+  const ok = await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'confirm' });
+  assert.equal(ok.status, 200);
+  assert.equal(JSON.parse(f.calls.find(x => x.method === 'PUT').body).meta_data[0].key, VERIFIED_KEY);
   assert.equal((await f.request('/api/online-orders/501/payment', root, 'POST', { action: 'bogus' })).status, 400);
   await f.request('/api/admin/order-permissions/' + viewer.id, root, 'PUT', { level: 'view' });
   assert.equal((await f.request('/api/online-orders/501/payment', await f.login('viewer1'), 'POST', { action: 'confirm' })).status, 403);

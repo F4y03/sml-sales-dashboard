@@ -159,3 +159,10 @@
 .oo-paycheck .oo-form { border-bottom: 0; }
 .od .oo-paycheck .mp-btn-primary { border-color: var(--positive); background: var(--positive); color: #fff; }
 .od .oo-paycheck .mp-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.oo-slips a { cursor: zoom-in; }
+.oo-lightbox { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; overflow: visible; cursor: zoom-out; }
+.oo-lightbox::backdrop { background: rgb(0 0 0 / .78); }
+.oo-lightbox img { display: block; max-width: 92vw; max-height: 86vh; object-fit: contain; border-radius: 10px; background: #fff; box-shadow: 0 10px 40px rgb(0 0 0 / .5); }
+.oo-lightbox-close { position: absolute; top: -14px; right: -14px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #fff; color: #111; font-size: 16px; cursor: pointer; box-shadow: 0 2px 8px rgb(0 0 0 / .4); }
+.oo-lightbox-open { display: block; margin-top: 10px; text-align: center; color: #fff; font-size: 13px; }
+@media (max-width: 600px) { .oo-lightbox-close { top: 6px; right: 6px; } }

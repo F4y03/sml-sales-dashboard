@@ -48,8 +48,21 @@ export function createWooClient(env = process.env, fetchImpl = globalThis.fetch)
     if (data === null && text) throw new WooError('เว็บไซต์ตอบกลับในรูปแบบที่อ่านไม่ได้', 502, 'WOO_BAD_JSON');
     return { data, total: Number(response.headers.get('x-wp-total')) || 0, totalPages: Number(response.headers.get('x-wp-totalpages')) || 0 };
   }
+  // Binary GET (slip images) under wc/v3. Returns { type, body } for image responses only.
+  async function image(path, { timeout = 20000 } = {}) {
+    if (!configured()) throw new WooError('ยังไม่ได้ตั้งค่าการเชื่อมต่อเว็บไซต์ (WC_KEY / WC_SECRET) กรุณาติดต่อผู้ดูแลระบบ', 503, 'WOO_NOT_CONFIGURED');
+    const url = new URL(path.replace(/^\//, ''), base);
+    if (!url.protocol.startsWith('https')) throw new WooError('WC_BASE_URL ต้องเป็น https เท่านั้น', 503, 'WOO_INSECURE');
+    let response;
+    try { response = await fetchImpl(url, { headers: { Authorization: authHeader() }, signal: AbortSignal.timeout(timeout) }); }
+    catch { throw new WooError('โหลดรูปจากเว็บไซต์ไม่สำเร็จ', 504, 'WOO_NETWORK'); }
+    const type = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!response.ok || !/^image\/(jpeg|png|webp|gif)$/.test(type)) throw new WooError('ไม่พบรูปสลิป', 404, 'WOO_' + response.status);
+    return { type, body: Buffer.from(await response.arrayBuffer()) };
+  }
   return {
     configured,
+    image,
     wc: (path, options) => call(base, path, options),
     analytics: (path, options) => call(analyticsBase, path, options),
   };

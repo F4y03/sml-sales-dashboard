@@ -22,6 +22,7 @@
   // Single WooCommerce statuses (e.g. from a ยอดขายเว็บไซต์ chart link) open the tab that contains them.
   const TAB_OF = { pending: 'verify', 'on-hold': 'verify', processing: 'processing', completed: 'completed', cancelled: 'closed', refunded: 'closed', failed: 'closed', 'checkout-draft': 'any' };
   const CARRIERS = ['Kerry Express', 'Flash Express', 'J&T Express', 'ไปรษณีย์ไทย (EMS)', 'ไปรษณีย์ไทย (ลงทะเบียน)', 'Best Express', 'Ninja Van', 'DHL eCommerce', 'SCG Express', 'Nim Express', 'Lalamove', 'ขนส่งของร้านเอง'];
+  const verifyBadge = () => { const b = el('span', 'oo-badge', 'รอตรวจสลิป'); b.dataset.tone = 'gold'; return b; };
   const badge = status => { const [label, tone] = STATUS[status] || [status, 'neutral']; const b = el('span', 'oo-badge', label); b.dataset.tone = tone; return b; };
 
   async function api(path, { method = 'GET', body } = {}) {
@@ -41,7 +42,7 @@
   }
 
   // ---------- state
-  const state = { view: 'orders', status: 'processing', page: 1, search: '', me: { canUpdate: false }, ordersReq: 0, summaryReq: 0, salesLoaded: false, filter: null };
+  const state = { view: 'orders', status: 'verify', page: 1, search: '', me: { canUpdate: false }, ordersReq: 0, summaryReq: 0, salesLoaded: false, filter: null };
   // Drill-down from หน้าเว็บไซต์: ?start=&end=&product=&pname=&status= (the server validates every value again).
   {
     const p = new URLSearchParams(location.search), ymd = /^d{4}-d{2}-d{2}$/;
@@ -94,7 +95,7 @@
       const s = await api('/api/online-orders/summary');
       if (id !== state.summaryReq) return;
       $('kpi-awaiting').textContent = count(s.awaitingPayment);
-      $('kpi-awaiting-foot').textContent = `รอชำระเงิน ${count(s.pending)} · พักไว้ ${count(s.onHold)}`;
+      $('kpi-awaiting-foot').textContent = `รอชำระเงิน ${count(s.pending)} · พักไว้ ${count(s.onHold)} · โอนแล้วรอตรวจ ${count(s.unverified || 0)}`;
       $('kpi-processing').textContent = count(s.processing);
       $('kpi-today').textContent = count(s.completedToday);
       $('kpi-overdue').textContent = count(s.overdue);
@@ -176,7 +177,7 @@
       const cust = el('td', 'oo-cust');
       cust.append(el('span', '', o.customer));
       if (o.phone) cust.append(el('small', '', o.phone));
-      const st = el('td'); st.append(badge(o.status));
+      const st = el('td'); st.append(o.needsVerify && o.status === 'processing' ? verifyBadge() : badge(o.status));
       tr.append(no, date, cust, el('td', 'num', money(o.total)), el('td', 'oo-pay', o.paymentMethod || '—'), st);
       const open = () => openOrder(o.id);
       tr.addEventListener('click', open);
@@ -277,7 +278,7 @@
     if (o.billing.email) pay.append(line('อีเมล', o.billing.email));
     if (o.billing.phone && o.billing.phone !== o.shipping.phone) { const d = line('เบอร์ผู้สั่งซื้อ', ''); const a = el('a', 'oo-tel', o.billing.phone); a.href = telHref(o.billing.phone); d.lastChild.append(a); pay.append(d); }
     // ตรวจการชำระเงิน: shown first while the order waits for payment / slip check.
-    if (['pending', 'on-hold'].includes(o.status)) parts.splice(o.customerNote ? 1 : 0, 0, paymentCheck(o, canUpdate));
+    if (o.needsVerify) parts.splice(o.customerNote ? 1 : 0, 0, paymentCheck(o, canUpdate));
     parts.push(section('การชำระเงิน', pay));
 
     // Actions
@@ -309,11 +310,11 @@
     box.append(el('h3', 'od-h', '💳 ตรวจการชำระเงิน'));
     const amt = el('div', 'oo-pay-amount'); amt.append(el('small', '', 'ยอดที่ต้องได้รับ'), el('strong', '', money(o.total)));
     const meta = el('div', 'od-money');
-    meta.append(line('วิธีชำระ', o.paymentMethod || '—'), line('สั่งซื้อเมื่อ', thaiDateTime(o.dateCreated)), line('ชื่อผู้สั่งซื้อ', o.billing.name || o.shipping.name || '—'));
+    meta.append(line('วิธีชำระ', o.paymentMethod || '—'), ...(o.fromBank ? [line('ลูกค้าแจ้งโอนจาก', o.fromBank)] : []), line('สั่งซื้อเมื่อ', thaiDateTime(o.dateCreated)), line('ชื่อผู้สั่งซื้อ', o.billing.name || o.shipping.name || '—'));
     box.append(amt, meta);
     const slips = el('div', 'oo-slips');
-    if (o.slips?.length) for (const u of o.slips) { const a = el('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; const img = el('img'); img.src = u; img.alt = 'สลิปการโอน'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; a.append(img); slips.append(a); }
-    else slips.append(el('p', 'od-note', 'ไม่พบรูปสลิปแนบในออเดอร์นี้ — ตรวจยอดเงินเข้าจากแอปธนาคาร หรือดูสลิปที่ลูกค้าส่งทางแชท/LINE'));
+    if (o.slips?.length) for (const u of o.slips) { const a = el('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; const img = el('img'); img.src = u; img.alt = 'สลิปการโอน'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; a.append(img); a.addEventListener('click', e => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return; e.preventDefault(); openSlip(u); }); slips.append(a); }
+    else slips.append(el('p', 'od-note', 'เว็บไซต์ไม่ได้เก็บรูปสลิปไว้ในออเดอร์ — ตรวจยอดเงินเข้าจากแอปธนาคาร หรือดูสลิปในอีเมล "Admin Checking Payment" / แชท LINE'));
     box.append(slips);
     if (!canUpdate) { box.append(el('p', 'od-note', 'ต้องมีสิทธิ์ "ดู + อัปเดต" จึงยืนยันการชำระเงินได้')); return box; }
     const form = el('form', 'oo-form');
@@ -321,7 +322,7 @@
     const l1 = el('label', '', 'เวลาโอนตามสลิป (ไม่บังคับ)'); l1.append(at);
     const note = el('input', 'mp-input'); note.maxLength = 500; note.placeholder = 'เช่น ธนาคาร/เลขอ้างอิง หรือเหตุผลที่ไม่พบยอด';
     const l2 = el('label', '', 'หมายเหตุ'); l2.append(note);
-    const ok = el('button', 'mp-btn mp-btn-sm mp-btn-primary', '✓ ยืนยันรับเงินแล้ว'); ok.type = 'button';
+    const ok = el('button', 'mp-btn mp-btn-sm mp-btn-primary', '✓ ยืนยันรับเงิน → ย้ายไปรอจัดส่ง'); ok.type = 'button';
     const no = el('button', 'mp-btn mp-btn-sm', '✕ ไม่พบยอดเงิน'); no.type = 'button';
     const notifyWrap = el('label', 'oo-check'); const notify = el('input'); notify.type = 'checkbox'; notifyWrap.append(notify, document.createTextNode(' แจ้งลูกค้าว่ายังไม่พบยอด (ลูกค้าได้รับอีเมล)'));
     const msg = formStatus();
@@ -342,6 +343,24 @@
     no.addEventListener('click', () => send('reject'));
     box.append(form);
     return box;
+  }
+
+  // Slip lightbox: a dialog on top of the order dialog; click anywhere / Esc / ✕ closes it.
+  let slipBox = null;
+  function openSlip(url) {
+    if (!slipBox) {
+      slipBox = el('dialog', 'oo-lightbox');
+      slipBox.setAttribute('aria-label', 'สลิปการโอน');
+      const close = el('button', 'oo-lightbox-close', '✕'); close.type = 'button'; close.setAttribute('aria-label', 'ปิด');
+      const img = el('img'); img.alt = 'สลิปการโอน'; img.referrerPolicy = 'no-referrer';
+      const open = el('a', 'oo-lightbox-open', 'เปิดในแท็บใหม่ ↗'); open.target = '_blank'; open.rel = 'noopener noreferrer';
+      slipBox.append(close, img, open);
+      slipBox.addEventListener('click', e => { if (e.target !== open) slipBox.close(); });
+      document.body.append(slipBox);
+    }
+    slipBox.querySelector('img').src = url;
+    slipBox.querySelector('a').href = url;
+    slipBox.showModal();
   }
 
   const formStatus = () => el('p', 'oo-form-status', '');
